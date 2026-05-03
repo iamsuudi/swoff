@@ -6,7 +6,6 @@ node_modules
 .output
 .nitro
 /build/
-/api/
 /server/build
 /public/build
 /test-results/
@@ -16,3 +15,5 @@ node_modules
 .tanstack
 
 .source
+# Local Netlify folder
+.netlify

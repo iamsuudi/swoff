@@ -1,0 +1,16 @@
+{
+  "title": "Swoff Documentation",
+  "description": "Build offline-first web apps that feel like native apps",
+  "root": true,
+  "icon": "BookOpen",
+  "pages": [
+    "index",
+    "---",
+    "concepts",
+    "core",
+    "patterns",
+    "guides",
+    "reference",
+    "future"
+  ]
+}

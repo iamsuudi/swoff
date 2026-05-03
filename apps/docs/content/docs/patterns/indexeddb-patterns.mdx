@@ -1,0 +1,231 @@
+---
+title: IndexedDB Patterns
+description: Practical IndexedDB patterns for offline-first apps — native API and optional idb wrapper.
+icon: DatabaseZap
+---
+
+# IndexedDB Patterns
+
+IndexedDB is the primary data store for offline-first apps. Here are proven patterns.
+
+## Option 1: Native IndexedDB (Zero Dependency)
+
+### Database Setup
+
+```javascript
+// db.js
+const DB_NAME = 'my-app'
+const DB_VERSION = 1
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION)
+
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result
+
+      // Create object stores
+      const todos = db.createObjectStore('todos', { keyPath: 'id' })
+      todos.createIndex('by-date', 'date')
+      todos.createIndex('by-completed', 'completed')
+
+      const users = db.createObjectStore('users', { keyPath: 'id' })
+    }
+
+    request.onsuccess = (e) => resolve(e.target.result)
+    request.onerror = (e) => reject(e.target.error)
+  })
+}
+```
+
+### CRUD Operations
+
+```javascript
+// storage/todos.js
+
+async function addTodo(todo) {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('todos', 'readwrite')
+    const store = tx.objectStore('todos')
+
+    const item = {
+      ...todo,
+      id: generateId(), // See ID generation below
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }
+
+    const request = store.add(item)
+    request.onsuccess = () => resolve(item)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+async function getTodo(id) {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('todos', 'readonly')
+    const store = tx.objectStore('todos')
+    const request = store.get(id)
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+async function getAllTodos() {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('todos', 'readonly')
+    const store = tx.objectStore('todos')
+    const request = store.getAll()
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+async function updateTodo(id, updates) {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('todos', 'readwrite')
+    const store = tx.objectStore('todos')
+
+    const request = store.get(id)
+    request.onsuccess = () => {
+      const existing = request.result
+      if (!existing) return reject(new Error('Not found'))
+
+      const updated = { ...existing, ...updates, updatedAt: Date.now() }
+      store.put(updated)
+      tx.oncomplete = () => resolve(updated)
+    }
+  })
+}
+
+async function deleteTodo(id) {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('todos', 'readwrite')
+    const store = tx.objectStore('todos')
+    const request = store.delete(id)
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+  })
+}
+```
+
+### Query with Index
+
+```javascript
+async function getTodosByDate(date) {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('todos', 'readonly')
+    const store = tx.objectStore('todos')
+    const index = store.index('by-date')
+    const request = index.getAll(date)
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+```
+
+### ID Generation
+
+```javascript
+function generateId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+}
+```
+
+## Option 2: With idb Library (Optional)
+
+If you prefer promises over event handlers:
+
+```javascript
+import { openDB } from 'idb' // npm install idb
+
+const db = await openDB('my-app', 1, {
+  upgrade(db) {
+    const todos = db.createObjectStore('todos', { keyPath: 'id' })
+    todos.createIndex('by-date', 'date')
+  }
+})
+
+// Much cleaner!
+await db.add('todos', { id: 1, text: 'Hello' })
+const todos = await db.getAll('todos')
+const byDate = await db.getAllFromIndex('todos', 'by-date', date)
+```
+
+**Choice**: Use native for zero deps, or `idb` for cleaner async/await code.
+
+## Soft Deletes Pattern
+
+Instead of deleting, mark as deleted:
+
+```javascript
+async function softDeleteTodo(id) {
+  await updateTodo(id, { deletedAt: Date.now() })
+}
+
+async function getActiveTodos() {
+  const all = await getAllTodos()
+  return all.filter(t => !t.deletedAt)
+}
+```
+
+Add an index for efficient queries:
+
+```javascript
+// In onupgradeneeded
+todos.createIndex('by-deleted', 'deletedAt')
+```
+
+## Migration Pattern
+
+Handle schema changes with version upgrades:
+
+```javascript
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 2) // Version 2
+
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result
+      const oldVersion = e.oldVersion
+
+      if (oldVersion < 1) {
+        // Initial creation
+        db.createObjectStore('todos', { keyPath: 'id' })
+      }
+
+      if (oldVersion < 2) {
+        // Add new store in version 2
+        db.createObjectStore('categories', { keyPath: 'id' })
+      }
+    }
+
+    request.onsuccess = (e) => resolve(e.target.result)
+  })
+}
+```
+
+## Storage Size Tracking
+
+```javascript
+async function estimateStorage() {
+  const estimate = await navigator.storage.estimate()
+  return {
+    usage: estimate.usage,
+    quota: estimate.quota,
+    percent: (estimate.usage / estimate.quota) * 100
+  }
+}
+```
+
+## Next Steps
+
+- See [Data Storage Strategy](/docs/core/data-storage) — when to use what
+- Check the [Reference Implementation](/docs/reference/budget-manager) — real-world usage
+- Learn [Offline-First Principles](/docs/core/offline-first) — architecture

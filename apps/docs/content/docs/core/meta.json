@@ -1,0 +1,11 @@
+{
+  "title": "Core Architecture",
+  "icon": "Cog",
+  "pages": [
+    "offline-first",
+    "versioned-sw",
+    "update-consent",
+    "data-storage",
+    "pwa-installability"
+  ]
+}

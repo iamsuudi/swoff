@@ -1,0 +1,136 @@
+---
+title: Service Worker 101
+description: Understanding Service Workers — the browser API that makes offline apps possible.
+icon: Network
+---
+
+# Service Worker 101
+
+Service Worker is a browser API that runs in the background, separate from your web page. It's the foundation of offline capability.
+
+## What is a Service Worker?
+
+A Service Worker (SW) is a JavaScript file that:
+
+- **Runs in the background** — separate from the main thread
+- **Intercepts network requests** — can serve cached responses
+- **Has no DOM access** — can't manipulate the page directly
+- **Persists after page close** — stays alive until explicitly removed
+- **Only works over HTTPS** (or localhost for development)
+
+## Lifecycle
+
+```
+┌─────────────┐
+│   Register  │ ← Your app registers the SW
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│   Install   │ ← SW downloads and caches assets
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│   Activate  │ ← Old SW cleaned up, new SW takes over
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│   Fetch     │ ← Intercepts requests, serves from cache
+└─────────────┘
+```
+
+## The Problem with Default SW Behavior
+
+Browsers automatically:
+
+1. Download new SW when detected
+2. Install it in the background
+3. Activate it on next page reload
+
+**This is dangerous.** Your user might be using version 1.0.0, and suddenly version 1.0.1 is downloaded and activated without their knowledge. If 1.0.1 has breaking changes, the app breaks.
+
+## Swoff's Versioned Approach
+
+We solve this by **versioning the SW file itself**:
+
+```javascript
+// Instead of: /sw.js (always same file)
+// We use:    /sw-v1.0.0.js, /sw-v1.0.1.js, etc.
+```
+
+Each version is a unique file. The browser only loads the version you tell it to load.
+
+### Version Flow
+
+```
+package.json version: 1.0.0
+         ↓
+Build generates: sw-v1.0.0.js + version.json
+         ↓
+User visits app
+         ↓
+App checks version.json
+         ↓
+Same version? → Register sw-v1.0.0.js
+New version?  → Show update prompt → User approves → Register new version
+```
+
+## Basic SW Example
+
+```javascript
+// sw.js - runs in background
+const CACHE_NAME = "my-app-v1";
+const ASSETS = ["/", "/index.html", "/app.js", "/style.css"];
+
+// Install: Cache assets
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)),
+  );
+});
+
+// Fetch: Serve from cache, fallback to network
+self.addEventListener("fetch", (event) => {
+  event.respondWith(
+    caches
+      .match(event.request)
+      .then((cached) => cached || fetch(event.request)),
+  );
+});
+```
+
+## Registration from Client
+
+```javascript
+// main.js - runs in your app
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").then((registration) => {
+    console.log("SW registered:", registration);
+  });
+}
+```
+
+## Key Events
+
+| Event              | Where  | Purpose                      |
+| ------------------ | ------ | ---------------------------- |
+| `install`          | SW     | Cache assets                 |
+| `activate`         | SW     | Clean up old caches          |
+| `fetch`            | SW     | Intercept requests           |
+| `message`          | SW     | Receive messages from client |
+| `controllerchange` | Client | SW changed                   |
+
+## Important Limitations
+
+1. **SW can't access DOM** — use `postMessage` to communicate with page
+2. **SW is terminated when idle** — don't rely on persistent state
+3. **SW scope is its location** — `/sw.js` controls all pages under `/`
+4. **HTTPS required** — except localhost for dev
+
+## Next Steps
+
+- Understand [PWA Explained](/docs/concepts/pwa-explained) — SW is not PWA
+- Learn our [Versioned SW System](/docs/core/versioned-sw) — Swoff's approach
+- See the [SW Template](/docs/patterns/sw-template) — copy-paste ready code

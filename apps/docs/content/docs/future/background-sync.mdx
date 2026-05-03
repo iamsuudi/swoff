@@ -1,0 +1,117 @@
+---
+title: Background Sync
+description: Use the Background Sync API to retry requests when connection returns. (Future)
+icon: RefreshCw
+---
+
+# Background Sync
+
+**Status: Future Feature**
+
+Background Sync lets your SW retry failed requests even after the user closes the app.
+
+## What is Background Sync?
+
+A browser API that:
+- Registers a "sync" event in the SW
+- Fires when the browser has a stable connection
+- Works even if the user closed the tab
+
+## Browser Support
+
+| Browser | Support |
+|---------|---------|
+| Chrome  | ✅ Yes  |
+| Edge    | ✅ Yes  |
+| Firefox | ❌ No (under consideration) |
+| Safari  | ❌ No (not on roadmap) |
+
+**Note**: Limited support. Use with fallback (process queue on `online` event).
+
+## Basic Usage
+
+### Register Sync in Your App
+
+```javascript
+async function queueForBackgroundSync(mutation) {
+  if (!('serviceWorker' in navigator) || !('SyncManager' in window)) {
+    // Fallback: queue in IndexedDB, process on 'online' event
+    return queueMutation(mutation)
+  }
+
+  // Store mutation
+  const db = await openDB()
+  await db.add('mutation-queue', mutation)
+
+  // Register sync
+  const registration = await navigator.serviceWorker.ready
+  await registration.sync.register('sync-mutations')
+}
+```
+
+### Handle Sync in SW
+
+```javascript
+// sw-template.js
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-mutations') {
+    event.waitUntil(processMutationQueue())
+  }
+})
+
+async function processMutationQueue() {
+  const cache = await caches.open('mutation-queue')
+  // ... fetch stored mutations from IndexedDB
+  // ... send requests
+  // ... clear processed mutations
+}
+```
+
+## Limitations
+
+1. **No payload** — can't pass data to sync event (must store in IDB)
+2. **No guarantee** — browser decides when to fire
+3. **One-time** — must re-register after each sync
+4. **Browser support** — Chrome/Edge only
+
+## Fallback Strategy
+
+Since Firefox/Safari don't support Background Sync:
+
+```javascript
+async function syncWhenPossible(mutation) {
+  // Store in IndexedDB
+  await queueMutation(mutation)
+
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    // Try Background Sync
+    const registration = await navigator.serviceWorker.ready
+    await registration.sync.register('sync-mutations')
+  } else {
+    // Fallback: listen for online event
+    window.addEventListener('online', processMutationQueue, { once: true })
+  }
+}
+```
+
+## Swoff's Approach
+
+We'll provide:
+1. **Background Sync wrapper** — handles registration + fallback
+2. **Queue storage** — IndexedDB schema for mutations
+3. **Framework hooks** — `useMutationQueue()` for React/Vue/Svelte
+4. **UI components** — pending count, retry button
+
+## Status
+
+- [ ] Detect Background Sync support
+- [ ] Implement fallback for unsupported browsers
+- [ ] SW sync event handler
+- [ ] Integration with mutation queue
+- [ ] Framework adapters
+
+## Next Steps
+
+- See [Mutation Queuing](/docs/future/mutation-queuing) — what we sync
+- Learn [Service Worker 101](/docs/concepts/service-worker-101) — SW basics
+- Check browser support on [MDN](https://developer.mozilla.org/en-US/docs/Web/API/Background_Synchronization_API)

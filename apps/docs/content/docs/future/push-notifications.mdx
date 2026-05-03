@@ -1,0 +1,163 @@
+---
+title: Push Notifications
+description: Send push messages and display notifications to users. (Future)
+icon: Bell
+---
+
+# Push Notifications
+
+**Status: Future Feature**
+
+Push API + Notifications API let you send messages to users even when the app is closed.
+
+## What are Push Notifications?
+
+Two separate APIs that work together:
+
+1. **Push API** (SW) — Receive push messages from server
+2. **Notifications API** (SW/Client) — Display notification to user
+
+## Browser Support
+
+| Browser | Push API | Notifications API |
+|---------|----------|-------------------|
+| Chrome  | ✅ Yes   | ✅ Yes            |
+| Firefox | ✅ Yes   | ✅ Yes            |
+| Safari  | ✅ Yes   | ✅ Yes            |
+| Edge    | ✅ Yes   | ✅ Yes            |
+
+Better support than Background Sync!
+
+## Prerequisites
+
+1. **Service Worker** — must be registered
+2. **Push subscription** — user must grant permission
+3. **VAPID keys** — server needs public/private key pair
+
+## Flow
+
+```
+Server wants to notify user
+    ↓
+Server sends push message (with VAPID auth)
+    ↓
+Browser receives → passes to SW
+    ↓
+SW fires 'push' event
+    ↓
+SW shows notification
+    ↓
+User clicks → SW handles 'notificationclick'
+```
+
+## Request Permission
+
+```javascript
+async function requestNotificationPermission() {
+  const permission = await Notification.requestPermission()
+  return permission === 'granted'
+}
+```
+
+## Subscribe to Push
+
+```javascript
+async function subscribeToPush() {
+  const registration = await navigator.serviceWorker.ready
+
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+  })
+
+  // Send subscription to your server
+  await fetch('/api/push/subscribe', {
+    method: 'POST',
+    body: JSON.stringify(subscription)
+  })
+
+  return subscription
+}
+```
+
+## Handle Push in SW
+
+```javascript
+// sw-template.js
+self.addEventListener('push', (event) => {
+  const data = event.data.json()
+
+  const options = {
+    body: data.body,
+    icon: '/icon-192.png',
+    badge: '/badge.png',
+    data: { url: data.url } // Pass URL for click handling
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  )
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+
+  const url = event.notification.data.url || '/'
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window' }).then(clients => {
+      // If app is open, focus it
+      for (const client of clients) {
+        if (client.url === url && 'focus' in client) {
+          return client.focus()
+        }
+      }
+      // Otherwise open new window
+      if (clients.openWindow) {
+        return clients.openWindow(url)
+      }
+    })
+  )
+})
+```
+
+## VAPID Keys (Server Setup)
+
+Your server needs VAPID keys:
+
+```bash
+# Generate keys (Node.js)
+npm install web-push
+npx web-push generate-vapid-keys
+```
+
+Store private key on server, public key in client.
+
+## Use Cases for Swoff Apps
+
+1. **Budget reminders** — "You haven't logged expenses today"
+2. **Sync complete** — "3 items synced successfully"
+3. **Welcome back** — "Missed you! Here's what changed"
+
+## Swoff's Approach
+
+We'll provide:
+1. **Push wrapper** — permission + subscription management
+2. **SW handlers** — push event + notification click
+3. **Framework hooks** — `usePushSubscription()` for React/Vue/Svelte
+4. **Server examples** — Node.js/Bun push sender
+
+## Status
+
+- [ ] VAPID key generation guide
+- [ ] Push subscription wrapper
+- [ ] SW push event handler
+- [ ] Notification click handler
+- [ ] Server-side push sender example
+- [ ] Framework adapters
+
+## Next Steps
+
+- Learn [Service Worker 101](/docs/concepts/service-worker-101) — SW prerequisites
+- See [Background Sync](/docs/future/background-sync) — another SW feature
+- Read [MDN Push API](https://developer.mozilla.org/en-US/docs/Web/API/Push_API)

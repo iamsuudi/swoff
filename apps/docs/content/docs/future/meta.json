@@ -1,0 +1,10 @@
+{
+  "title": "Future & Advanced",
+  "icon": "Rocket",
+  "pages": [
+    "mutation-queuing",
+    "background-sync",
+    "push-notifications",
+    "cli"
+  ]
+}

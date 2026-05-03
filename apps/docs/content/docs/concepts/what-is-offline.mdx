@@ -1,0 +1,74 @@
+---
+title: What is Offline Capability?
+description: Understanding offline capability beyond just caching — building apps that truly work without a network.
+icon: WifiOff
+---
+
+# What is Offline Capability?
+
+Most developers think offline capability means "caching assets so the page loads without internet." That's incomplete.
+
+## True Offline Capability
+
+An offline-capable app must work **without a network connection** for its core functionality:
+
+- **Static assets load** (HTML, CSS, JS, images) — handled by Service Worker
+- **App logic runs** — JavaScript executes in the browser
+- **Data persists** — IndexedDB/localStorage/sessionStorage available offline
+- **User can complete tasks** — create, read, update, delete data
+- **Navigation works** — all routes accessible (SPA or pre-rendered)
+
+## The Offline Spectrum
+
+| Level | What Works | Example |
+|-------|------------|---------|
+| ❌ None | Nothing without internet | Traditional server-rendered apps |
+| 🟡 Partial | Assets cached, but data needs network | Basic PWA with no local storage |
+| 🟢 Full | Assets + data + navigation + tasks | Swoff apps, native mobile apps |
+
+## Why Most PWAs Fail at Offline
+
+1. **They cache assets but not data** — app loads, then crashes trying to fetch API
+2. **They rely on runtime caching** — `stale-while-revalidate` doesn't help if cache is empty
+3. **They don't version their SW** — browser auto-updates break things silently
+4. **They don't handle failed fetches** — no fallback UI for missing data
+
+## Swoff's Approach
+
+We build **client-only or client-first** apps:
+
+```
+┌─────────────────────────────────────┐
+│         Browser (Client)            │
+│                                     │
+│  ┌──────────┐    ┌──────────────┐  │
+│  │ Service  │    │  App Logic   │  │
+│  │ Worker   │    │  (React/Vue) │  │
+│  │ (Assets) │    │              │  │
+│  └──────────┘    └──────────────┘  │
+│        │                │          │
+│        ▼                ▼          │
+│  ┌──────────┐    ┌──────────────┐  │
+│  │ Cache    │    │  IndexedDB   │  │
+│  │  API      │    │  (Data)      │  │
+│  └──────────┘    └──────────────┘  │
+│                                     │
+└─────────────────────────────────────┘
+         │                    ▲
+         │                    │
+         ▼                    │
+    (Optional)           (Optional)
+    Backend API         Background Sync
+```
+
+## Key Insight
+
+> Offline capability is not about caching. It's about **architecture**. Your app must be designed to work without a server.
+
+If your app needs a server to function, it's not offline-capable. It's just cached.
+
+## Next Steps
+
+- Learn [Service Worker 101](/docs/concepts/service-worker-101) — the foundation
+- Understand [PWA Explained](/docs/concepts/pwa-explained) — it's smaller than you think
+- See the [Offline-First Principles](/docs/core/offline-first) for implementation

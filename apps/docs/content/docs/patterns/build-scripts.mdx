@@ -1,0 +1,133 @@
+---
+title: Build Scripts
+description: Set up Swoff patterns in your project.
+icon: Hammer
+---
+
+# Getting Started
+
+Build offline-first web apps with Swoff. No npm install required.
+
+## Prerequisites
+
+- Vite project (React, Vue, etc.)
+- Basic service worker knowledge
+
+## Quick Setup
+
+### 1. Create SW Template
+
+Create `src/sw-template.js`:
+
+```javascript
+// [[CACHE_NAME]]
+// [[ASSETS_LIST]]
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE)),
+  );
+});
+
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+  event.respondWith(
+    caches
+      .match(event.request)
+      .then(
+        (cached) =>
+          cached ||
+          (event.request.mode === "navigate"
+            ? caches.match("/index.html")
+            : fetch(event.request)),
+      ),
+  );
+});
+```
+
+### 2. Create Build Script
+
+Create `generate-sw.js`:
+
+```javascript
+import { readFileSync, writeFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { join, dirname } from "path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(join(__dirname, "package.json"), "utf8"));
+
+const template = readFileSync(join(__dirname, "src/sw-template.js"), "utf8");
+let sw = template.replace(
+  "// [[CACHE_NAME]]",
+  `const CACHE_NAME = 'sw-v${pkg.version}'`,
+);
+sw = sw.replace(
+  "// [[ASSETS_LIST]]",
+  `const ASSETS_TO_CACHE = ['/', '/index.html']`,
+);
+
+writeFileSync(join(__dirname, "dist", `sw-v${pkg.version}.js`), sw);
+writeFileSync(
+  join(__dirname, "dist", "version.json"),
+  JSON.stringify({
+    version: pkg.version,
+    generatedAt: new Date().toISOString(),
+    forceUpdate: false,
+  }),
+);
+```
+
+### 3. Update package.json
+
+```json
+{
+  "scripts": {
+    "build": "vite build && node generate-sw.js"
+  }
+}
+```
+
+### 4. Register SW
+
+In your `main.tsx`:
+
+```typescript
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", async () => {
+    const res = await fetch("/version.json");
+    const { version } = await res.json();
+    await navigator.serviceWorker.register(`/sw-v${version}.js`);
+  });
+}
+```
+
+### 5. Add TypeScript Declarations
+
+Create `sw.d.ts`:
+
+```typescript
+declare global {
+  interface Window {
+    latestSWVersion?: string;
+    currentSWVersion?: string;
+    swReady?: boolean;
+  }
+}
+export {};
+```
+
+### 6. Build & Test
+
+```bash
+npm version patch
+npm run build
+```
+
+Test offline: Open DevTools → Application → Service Workers → Check "Offline" → Refresh.
+
+## Next Steps
+
+- [SW Template](/docs/patterns/sw-template) — Understand the template
+- [Client Registration](/docs/patterns/client-registration) — Register SW from app
+- [Framework Guides](/docs/guides/react-vite) — React, TanStack Router, TanStack Start

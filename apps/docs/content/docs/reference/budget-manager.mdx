@@ -1,0 +1,170 @@
+---
+title: Budget Manager App
+description: Official reference implementation of Swoff patterns — a fully offline budget tracking app.
+icon: Wallet
+---
+
+# Budget Manager App
+
+**Official Swoff Reference Implementation**
+
+A fully offline budget management app built with Swoff patterns. 24+ routes, IndexedDB storage, versioned SW updates.
+
+## Live Demo
+
+- **GitHub**: [github.com/iamsuudi/budget-manager](https://github.com/iamsuudi/budget-manager)
+- **Stack**: React 19 + TanStack Router + Vite + Tailwind CSS v4
+
+## What It Demonstrates
+
+### Full Offline Capability
+
+Every route works offline:
+- ✅ All 24+ routes accessible without network
+- ✅ Service Worker caches all static assets
+- ✅ IndexedDB stores all data locally
+- ✅ TanStack Router handles client-side navigation
+
+### Versioned Service Worker
+
+```
+dist/
+├── sw-v1.1.9.js      ← Versioned SW (from package.json)
+└── version.json        ← Version manifest
+```
+
+Update flow:
+1. App checks `version.json` on load
+2. If new version, fires `sw-update-available` event
+3. `usePWAUpdate` hook shows `UpdatePrompt` component
+4. User approves → new SW downloads → progress bar shows → reload
+
+### IndexedDB Storage
+
+**Database**: `budget-manager` (version 7)
+
+```
+Object Stores:
+├── user              (key: id)
+├── wallets           (key: id, index: by-deleted)
+├── expenseCategories (key: id, index: by-deleted)
+├── salaryCategories  (key: id, index: by-deleted)
+├── invoices          (key: id, index: by-date)
+├── monthBudgets     (key: id, index: by-month)
+├── todoCategories   (key: id, index: by-deleted)
+├── todoTasks        (key: id, indexes: by-category, by-date)
+└── notes             (key: id, index: by-deleted)
+```
+
+**Features**:
+- Soft deletes (recovery possible)
+- ID generation: `${Date.now()}-${Math.random().toString(36)}`
+- Storage size tracking with `navigator.storage.estimate()`
+
+### Security
+
+- PIN protection
+- Biometric authentication (WebAuthn)
+- Lock screen on app resume
+
+### PWA Install
+
+- Manifest configured
+- Install prompt handled
+- Works as standalone app
+
+## Key Files to Study
+
+### Service Worker
+
+| File | Purpose |
+|------|---------|
+| `src/sw-template.js` | SW template with cache placeholders |
+| `public/generate-sw.js` | Build script - generates versioned SW |
+| `src/main.tsx` | SW registration & update logic |
+
+### Data Storage
+
+| File | Purpose |
+|------|---------|
+| `src/lib/storage/db.ts` | Database schema & config |
+| `src/lib/storage/invoices.ts` | Expense/income transactions |
+| `src/lib/storage/budgets.ts` | Monthly budgets |
+| `src/lib/storage/todos.ts` | Todo categories & tasks |
+| `src/lib/storage/notes.ts` | Rich text notes |
+
+### Hooks & Components
+
+| File | Purpose |
+|------|---------|
+| `src/hooks/usePWAUpdate.tsx` | Update state management |
+| `src/components/UpdatePrompt.tsx` | Update UI dialog |
+| `src/components/SWProgressBar.tsx` | Install progress bar |
+
+## Architecture Diagram
+
+```
+┌──────────────────────────────────────────┐
+│           Browser (Client)               │
+│                                          │
+│  ┌────────────┐      ┌──────────────┐  │
+│  │ SW v1.1.9  │      │  React App   │  │
+│  │ (Assets)   │      │  (TanStack)  │  │
+│  └────────────┘      └──────────────┘  │
+│       │                   │              │
+│       ▼                   ▼              │
+│  ┌────────────┐      ┌──────────────┐  │
+│  │ Cache API  │      │  IndexedDB   │  │
+│  │ (Assets)   │      │  (All Data)  │  │
+│  └────────────┘      └──────────────┘  │
+│                                          │
+└──────────────────────────────────────────┘
+```
+
+## How to Run
+
+```bash
+git clone https://github.com/iamsuudi/budget-manager.git
+cd budget-manager
+bun install
+bun run dev
+```
+
+Build for production:
+```bash
+bun run build
+# Output: dist/ with sw-v1.1.9.js + version.json
+```
+
+## Lessons Learned
+
+### What Worked
+
+1. **Versioned SW** — users control updates, no surprises
+2. **IndexedDB + React Query** — local-first with caching
+3. **TanStack Router** — file-based routing works offline
+4. **Soft deletes** — recovery saves users from mistakes
+
+### What's Missing (Future Swoff Features)
+
+1. **Mutation queuing** — for apps with backends
+2. **Background Sync** — retry failed requests
+3. **Push notifications** — budget reminders
+4. **Offline indicators** — show network status
+
+## Swoff Patterns Used
+
+| Pattern | File in Budget Manager |
+|---------|------------------------|
+| SW Template | `src/sw-template.js` |
+| Build Script | `public/generate-sw.js` |
+| Client Registration | `src/main.tsx` |
+| Update Hook | `src/hooks/usePWAUpdate.tsx` |
+| IndexedDB Schema | `src/lib/storage/db.ts` |
+| ID Generation | `src/lib/storage/index.ts` |
+
+## Next Steps
+
+- Study the [code on GitHub](https://github.com/iamsuudi/budget-manager)
+- Follow [Framework-Agnostic Patterns](/docs/patterns/sw-template) to build your own
+- Read [Concepts](/docs/concepts/what-is-offline) to understand the architecture

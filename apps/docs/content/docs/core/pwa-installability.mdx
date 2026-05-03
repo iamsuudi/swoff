@@ -1,0 +1,115 @@
+---
+title: PWA & Installability
+description: Configure your app as a PWA with install prompts.
+icon: Download
+---
+
+# PWA Setup
+
+Make your web app installable and app-like.
+
+## Prerequisites
+
+1. **HTTPS or localhost** — Required for SW and PWA
+2. **Service Worker** — Already set up
+3. **Web App Manifest** — Describes your app
+
+## Step 1: Create Manifest
+
+Create `public/manifest.json`:
+
+```json
+{
+  "name": "My Offline App",
+  "short_name": "MyApp",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }
+  ]
+}
+```
+
+## Step 2: Link in HTML
+
+Update `index.html`:
+
+```html
+<link rel="manifest" href="/manifest.json" />
+<meta name="theme-color" content="#000000" />
+```
+
+## Step 3: Handle Install Prompt
+
+```typescript
+// Capture install prompt
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault()
+  window.deferredInstallPrompt = e as any
+})
+
+// Trigger install
+async function promptInstall() {
+  await window.deferredInstallPrompt?.prompt()
+  const { outcome } = await window.deferredInstallPrompt.userChoice
+  console.log(`User ${outcome} the install`)
+}
+```
+
+## Step 4: Delayed SW Registration
+
+Don't register SW until app is ready:
+
+```typescript
+function shouldRegisterSW(): boolean {
+  return localStorage.getItem('app-ready') === 'true'
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    if (shouldRegisterSW()) {
+      await registerServiceWorker()
+    }
+  })
+}
+```
+
+**Why delay?** Better UX — don't interrupt onboarding.
+
+## Step 5: Detect PWA Mode
+
+```typescript
+function isRunningAsPWA(): boolean {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as any).standalone === true
+  )
+}
+```
+
+## Step 6: Create Icons
+
+Generate icons: 192x192 and 512x512 minimum.
+
+## Test PWA
+
+1. DevTools → Application → Manifest
+2. Verify manifest loads
+3. Check install icon in address bar
+4. Test offline mode
+
+## Checklist
+
+- [ ] Manifest created
+- [ ] Icons created (192x192, 512x512)
+- [ ] SW registered
+- [ ] Offline works
+- [ ] Install prompt works
+
+## Next Steps
+
+- [Versioned App vs PWA Install](/docs/concepts/versioned-app-vs-pwa) — Key distinction
+- [Framework Guides](/docs/guides/react-vite) — React, TanStack Router
+- [PWA Explained](/docs/concepts/pwa-explained) — What PWA actually is

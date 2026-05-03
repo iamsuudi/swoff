@@ -1,0 +1,45 @@
+---
+title: CLI Tool
+description: Future CLI tool for auto-downloading code.
+icon: Terminal
+---
+
+# CLI (Future)
+
+> **Note**: Currently, copy code snippets manually from docs.
+
+## Vision
+
+A CLI tool to:
+
+1. **Download code** — Fetch components, hooks, utilities
+2. **Configure project** — Setup file structure
+3. **Zero deps** — Code lives in your project
+
+## Planned Commands
+
+```bash
+npx swoff init              # Initialize project
+npx swoff add update-prompt  # Download component
+npx swoff add usePWAUpdate  # Download hook
+npx swoff list              # List available
+```
+
+## Current Workflow
+
+1. Read [Build Scripts](/docs/patterns/build-scripts)
+2. Copy code snippets
+3. Modify as needed
+
+## Timeline
+
+- [x] Documentation
+- [x] Code snippets
+- [ ] CLI prototype
+- [x] React + Vite support
+- [x] TanStack Router support
+
+## Next Steps
+
+- [Build Scripts](/docs/patterns/build-scripts) — Manual setup
+- [SW Template](/docs/patterns/sw-template) — Architecture

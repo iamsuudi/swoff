@@ -1,0 +1,189 @@
+---
+title: Browser APIs Overview
+description: Modern browser APIs that make offline-first apps possible — no frameworks needed.
+icon: LayoutGrid
+---
+
+# Browser APIs Overview
+
+Swoff is built on **standard browser APIs** — no frameworks, no libraries. These APIs are available in all modern browsers.
+
+## The Offline Stack
+
+```
+┌─────────────────────────────────────────────┐
+│           Modern Browser                    │
+│                                             │
+│  ┌──────────────┐  ┌──────────────────┐   │
+│  │ Service      │  │  IndexedDB       │   │
+│  │ Worker API   │  │  (Structured     │   │
+│  │ (Assets)     │  │   Data Storage)  │   │
+│  └──────────────┘  └──────────────────┘   │
+│                                             │
+│  ┌──────────────┐  ┌──────────────────┐   │
+│  │ Cache API    │  │  LocalStorage    │   │
+│  │ (Asset       │  │  (Simple Key-    │   │
+│  │  Cache)      │  │   Value Pairs)   │   │
+│  └──────────────┘  └──────────────────┘   │
+│                                             │
+│  ┌──────────────┐  ┌──────────────────┐   │
+│  │ Fetch API    │  │  Push API        │   │
+│  │ (Network     │  │  (Notifications) │   │
+│  │  Requests)   │  │                  │   │
+│  └──────────────┘  └──────────────────┘   │
+│                                             │
+│  ┌──────────────┐  ┌──────────────────┐   │
+│  │ Background   │  │  Sync API        │   │
+│  │ Sync API     │  │  (Future)        │   │
+│  │ (Future)     │  │                  │   │
+│  └──────────────┘  └──────────────────┘   │
+└─────────────────────────────────────────────┘
+```
+
+## Core APIs (Used Now)
+
+### Service Worker API
+
+**Purpose**: Background script for intercepting requests and caching
+
+**Key Methods**:
+- `navigator.serviceWorker.register()` — Register a SW
+- `self.addEventListener('fetch')` — Intercept requests
+- `self.addEventListener('install')` — Cache assets
+- `clients.claim()` — Take control of pages
+
+**Browser Support**: All modern browsers (Chrome, Firefox, Safari, Edge)
+
+### Cache API
+
+**Purpose**: Store and retrieve network requests/responses
+
+**Key Methods**:
+```javascript
+// Open a cache
+const cache = await caches.open('my-cache-v1')
+
+// Store a request
+await cache.put(request, response)
+
+// Retrieve a request
+const response = await cache.match(request)
+
+// Delete old caches
+const keys = await caches.keys()
+await Promise.all(keys.filter(k => k !== 'my-cache-v1').map(k => caches.delete(k)))
+```
+
+**Browser Support**: All modern browsers
+
+### IndexedDB API
+
+**Purpose**: Client-side database for structured data
+
+**Key Concepts**:
+- Database with object stores (like tables)
+- Key-value with indexes
+- Async API (promises with wrappers)
+
+**Basic Usage**:
+```javascript
+// Open database
+const request = indexedDB.open('my-db', 1)
+
+request.onupgradeneeded = (e) => {
+  const db = e.target.result
+  db.createObjectStore('todos', { keyPath: 'id' })
+}
+
+request.onsuccess = (e) => {
+  const db = e.target.result
+  const tx = db.transaction('todos', 'readwrite')
+  const store = tx.objectStore('todos')
+  store.add({ id: 1, text: 'Hello' })
+}
+```
+
+**Browser Support**: All browsers (including IE10+)
+
+### Fetch API
+
+**Purpose**: Make network requests
+
+**Basic Usage**:
+```javascript
+const response = await fetch('/api/data')
+const data = await response.json()
+```
+
+**Browser Support**: All modern browsers
+
+## Supporting APIs
+
+### LocalStorage
+
+**Purpose**: Simple key-value storage (synchronous)
+
+**Usage**:
+```javascript
+localStorage.setItem('key', 'value')
+const value = localStorage.getItem('key')
+```
+
+**Limitation**: Synchronous, blocks main thread, ~5MB limit
+
+### SessionStorage
+
+**Purpose**: Like localStorage but cleared on tab close
+
+### Web App Manifest
+
+**Purpose**: Define PWA metadata (name, icons, display mode)
+
+**Not a JavaScript API** — it's a JSON file linked in HTML
+
+## Future APIs (Swoff Roadmap)
+
+### Background Sync API
+
+**Purpose**: Defer network requests when offline
+
+**Status**: Chrome/Edge only (Safari/Firefox in progress)
+
+### Push API + Notifications API
+
+**Purpose**: Receive push messages and show notifications
+
+**Status**: Available but requires service worker
+
+### File System Access API
+
+**Purpose**: Read/write files on user's device
+
+**Status**: Chrome/Edge only
+
+## Why No Libraries?
+
+These APIs are:
+1. **Stable** — won't break unexpectedly
+2. **Well-documented** — MDN has excellent docs
+3. **Sufficient** — no need for wrappers
+4. **Zero cost** — no npm install, no bundle size
+
+## Browser Support Reality
+
+| API | Chrome | Firefox | Safari | Edge |
+|-----|--------|---------|--------|------|
+| Service Worker | ✅ | ✅ | ✅ | ✅ |
+| Cache API | ✅ | ✅ | ✅ | ✅ |
+| IndexedDB | ✅ | ✅ | ✅ | ✅ |
+| Fetch | ✅ | ✅ | ✅ | ✅ |
+| Background Sync | ✅ | ❌ | ❌ | ✅ |
+| Push API | ✅ | ✅ | ✅ | ✅ |
+
+All core APIs work in all modern browsers. Swoff uses only the core APIs.
+
+## Next Steps
+
+- Start with [Offline-First Principles](/docs/core/offline-first) — how to architect with these APIs
+- See [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) — practical usage
+- Check the [SW Template](/docs/patterns/sw-template) — service worker in practice

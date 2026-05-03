@@ -1,0 +1,188 @@
+---
+title: Contributing Adapters
+description: Write framework adapters for Swoff — help the community use their favorite frameworks.
+icon: GitPullRequest
+---
+
+# Contributing Adapters
+
+Swoff is framework agnostic. We rely on the community to write adapters for different frameworks.
+
+## What is an Adapter?
+
+An adapter is a guide (like [React + Vite](/docs/guides/react-vite)) that shows how to use Swoff patterns with a specific framework.
+
+## Frameworks Needed
+
+| Framework | Status | Contributor |
+|-----------|--------|-------------|
+| React + Vite | ✅ Done | Maintainer |
+| TanStack Router | ✅ Done | Maintainer |
+| TanStack Start | ✅ Done | Maintainer |
+| Vue + Vite | ❌ Needed | Open |
+| Svelte + Vite | ❌ Needed | Open |
+| Solid + Vite | ❌ Needed | Open |
+| Angular | ❌ Needed | Open |
+| Vanilla JS | ❌ Needed | Open |
+
+## How to Contribute
+
+### 1. Fork the Repository
+
+```bash
+git clone https://github.com/iamsuudi/swoff.git
+cd swoff
+```
+
+### 2. Create the Guide File
+
+Create a new MDX file in `apps/docs/content/docs/guides/`:
+
+```bash
+# Example: Vue + Vite
+touch apps/docs/content/docs/guides/vue-vite.mdx
+```
+
+### 3. Follow the Template
+
+```mdx
+---
+title: Vue + Vite
+description: Set up Swoff with Vue + Vite.
+---
+
+# Vue + Vite
+
+Setup for **Vue + Vite** projects.
+
+## Create Project
+
+```bash
+npm create vite@latest my-app -- --template vue-ts
+cd my-app && npm install
+```
+
+## Project Structure
+
+```
+my-app
+├── src
+│   ├── main.ts
+│   ├── App.vue
+│   └── sw-template.js
+├── generate-sw.js
+└── package.json
+```
+
+## Update main.ts
+
+```typescript
+import { createApp } from 'vue'
+import App from './App.vue'
+
+async function registerSW() {
+  const { version } = await fetch('/version.json').then(r => r.json())
+  await navigator.serviceWorker.register(`/sw-v${version}.js`)
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', registerSW)
+}
+
+createApp(App).mount('#app')
+```
+
+## SW Template & Build Script
+
+Same as [React + Vite guide](/docs/guides/react-vite).
+
+## Build & Test
+
+```bash
+npm version patch
+npm run build
+```
+
+## Next Steps
+
+- [SW Template](/docs/patterns/sw-template) — Deep dive
+- [PWA & Installability](/docs/core/pwa-installability) — Make installable
+```
+
+### 4. Update meta.json
+
+Add your guide to `apps/docs/content/docs/meta.json` under the `guides` directory:
+
+```json
+{
+  "type": "directory",
+  "name": "guides",
+  "title": "Framework Guides",
+  "pages": [
+    // ... existing guides ...
+    {
+      "type": "page",
+      "name": "vue-vite",
+      "title": "Vue + Vite"
+    }
+  ]
+}
+```
+
+### 5. Test Locally
+
+```bash
+cd apps/docs
+bun run dev
+# Visit http://localhost:3000/docs/guides/vue-vite
+```
+
+### 6. Submit Pull Request
+
+```bash
+git checkout -b feat/vue-vite-adapter
+git add .
+git commit -m "Add Vue + Vite adapter guide"
+git push origin feat/vue-vite-adapter
+```
+
+Then open a PR on GitHub.
+
+## Guidelines
+
+1. **Follow existing style** — match React/Vue/Svelte guide format
+2. **Framework agnostic patterns** — don't change SW template or build scripts
+3. **Working example** — test your guide actually works
+4. **Clear code samples** — copy-paste ready
+5. **Link to core docs** — reference patterns, don't repeat them
+
+## What to Include
+
+- ✅ Project creation steps
+- ✅ Project structure
+- ✅ Main file (where SW registration happens)
+- ✅ SW template reference
+- ✅ Build script reference
+- ✅ Build & test instructions
+- ✅ Next steps (linking to core docs)
+
+## What NOT to Include
+
+- ❌ SW template code (link to [SW Template](/docs/patterns/sw-template))
+- ❌ Build script code (link to [Build Scripts](/docs/patterns/build-scripts))
+- ❌ Framework-agnostic patterns (link to core docs)
+
+## Future: Hook Adapters
+
+Once Swoff has the CLI, we'll also need:
+- React hooks (`usePWAUpdate`, `useSWProgress`)
+- Vue composables (`usePWAUpdate`, `useSWProgress`)
+- Svelte stores (`pwaUpdate`, `swProgress`)
+
+These go in separate repos (like `swoff-vue`, `swoff-svelte`).
+
+## Next Steps
+
+- Browse existing guides: [React + Vite](/docs/guides/react-vite), [TanStack Router](/docs/guides/tanstack-router)
+- Read the [Concepts](/docs/concepts/what-is-offline) to understand Swoff
+- Check [GitHub Issues](https://github.com/iamsuudi/swoff/issues) for open adapter requests

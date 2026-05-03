@@ -1,0 +1,124 @@
+---
+title: SW Template
+description: Versioned SW system for offline-first apps.
+icon: FileCode
+---
+
+# Service Worker Architecture
+
+Swoff uses **versioned service workers** (`sw-v1.0.0.js`) for user-controlled updates.
+
+## Overview
+
+```
+dist/
+├── sw-v1.0.0.js      ← Versioned SW
+└── version.json        ← Version manifest
+```
+
+No silent updates — users explicitly approve new versions.
+
+## SW Template
+
+Create `src/sw-template.js`:
+
+```javascript
+// [[CACHE_NAME]]
+// [[ASSETS_LIST]]
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE)),
+  );
+});
+
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+  event.respondWith(
+    caches
+      .match(event.request)
+      .then(
+        (cached) =>
+          cached ||
+          (event.request.mode === "navigate"
+            ? caches.match("/index.html")
+            : fetch(event.request)),
+      ),
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)),
+        ),
+      ),
+  );
+});
+```
+
+## Build Script
+
+Create `generate-sw.js`:
+
+```javascript
+import { readFileSync, writeFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { join, dirname } from "path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(join(__dirname, "package.json"), "utf8"));
+
+const template = readFileSync(join(__dirname, "src/sw-template.js"), "utf8");
+let sw = template.replace(
+  "// [[CACHE_NAME]]",
+  `const CACHE_NAME = 'sw-v${pkg.version}'`,
+);
+sw = sw.replace(
+  "// [[ASSETS_LIST]]",
+  `const ASSETS_TO_CACHE = ['/', '/index.html']`,
+);
+
+writeFileSync(join(__dirname, "dist", `sw-v${pkg.version}.js`), sw);
+writeFileSync(
+  join(__dirname, "dist", "version.json"),
+  JSON.stringify({
+    version: pkg.version,
+    generatedAt: new Date().toISOString(),
+    forceUpdate: false,
+  }),
+);
+```
+
+## Update Flow
+
+```
+User opens app → Fetch version.json
+  ↓
+Same version? → Use existing SW
+  ↓
+New version? → Show update prompt → User approves → Register new SW → Reload
+```
+
+## Events
+
+| Event                 | Purpose                |
+| --------------------- | ---------------------- |
+| `sw-version-detected` | Version info available |
+| `sw-update-available` | New version detected   |
+| `sw-ready`            | SW active              |
+| `sw-progress`         | Download progress      |
+
+## Storage
+
+| Key                                   | Purpose            |
+| ------------------------------------- | ------------------ |
+| `localStorage['swRegisteredVersion']` | Current SW version |
+
+## Next Steps
+
+- [PWA Installability](/docs/core/pwa-installability) — Configure PWA
+- [Version Management](/docs/core/versioned-sw) — Handle updates

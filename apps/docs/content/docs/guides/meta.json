@@ -1,0 +1,10 @@
+{
+  "title": "Framework Guides",
+  "icon": "BookOpenCheck",
+  "pages": [
+    "react-vite",
+    "tanstack-router",
+    "tanstack-start",
+    "contributing-adapters"
+  ]
+}

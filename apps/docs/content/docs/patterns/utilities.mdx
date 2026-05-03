@@ -1,0 +1,78 @@
+---
+title: Utilities
+description: SW registration and TypeScript declarations.
+icon: Wrench
+---
+
+# Utilities
+
+Core utility functions and TypeScript declarations.
+
+## checkForUpdate
+
+Fetches `version.json` from server.
+
+```typescript
+const manifest = await checkForUpdate()
+// Returns: { version, generatedAt, forceUpdate } | null
+```
+
+---
+
+## registerServiceWorker
+
+Registers versioned SW and handles updates.
+
+```typescript
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', registerServiceWorker)
+}
+```
+
+---
+
+## shouldRegisterSW
+
+Determines if SW should register (e.g., after onboarding).
+
+```typescript
+function shouldRegisterSW(): boolean {
+  return localStorage.getItem('app-ready') === 'true'
+}
+```
+
+---
+
+## TypeScript Declarations
+
+Create `sw.d.ts`:
+
+```typescript
+declare global {
+  interface Window {
+    latestSWVersion?: string
+    currentSWVersion?: string
+    swReady?: boolean
+    deferredInstallPrompt: any
+  }
+}
+export {}
+```
+
+---
+
+## Window Properties
+
+| Property | Type | Purpose |
+|----------|------|---------|
+| `window.latestSWVersion` | string | From version.json |
+| `window.currentSWVersion` | string | Active SW version |
+| `window.swReady` | boolean | SW is active |
+
+---
+
+## Next Steps
+
+- [Update Hooks](/docs/patterns/update-hooks) — React hooks
+- [Update Hooks & Components](/docs/patterns/components) — UI components
+- [Client Registration](/docs/patterns/client-registration) — Full example

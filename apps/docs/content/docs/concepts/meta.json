@@ -1,0 +1,11 @@
+{
+  "title": "Concepts",
+  "icon": "Lightbulb",
+  "pages": [
+    "what-is-offline",
+    "service-worker-101",
+    "pwa-explained",
+    "versioned-app-vs-pwa",
+    "browser-apis"
+  ]
+}

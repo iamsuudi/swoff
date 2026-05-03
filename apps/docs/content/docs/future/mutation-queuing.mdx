@@ -1,0 +1,134 @@
+---
+title: Mutation Queuing
+description: Queue mutations for later when offline — sync when connection returns. (Future)
+icon: Workflow
+---
+
+# Mutation Queuing
+
+**Status: Future Feature**
+
+Queue write operations (POST, PUT, DELETE) when offline, then sync when connection returns.
+
+## The Problem
+
+In a client-only app (like Budget Manager), mutations go directly to IndexedDB — no server needed.
+
+But for apps with a backend:
+
+- User creates a todo while offline → POST fails
+- User updates profile while offline → PUT fails
+- Data is lost
+
+## The Solution: Mutation Queue
+
+```
+User clicks "Save"
+    ↓
+Add to IndexedDB queue: { method: 'POST', url: '/api/todos', body: {...} }
+    ↓
+Show "Pending sync" UI
+    ↓
+When online:
+    ↓
+Process queue → Send requests → Remove from queue
+    ↓
+Show "Synced" UI
+```
+
+## Planned API (Framework Agnostic)
+
+```javascript
+// Queue a mutation
+async function queueMutation(mutation) {
+  const db = await openDB();
+  await db.add("mutation-queue", {
+    id: generateId(),
+    method: mutation.method, // 'POST', 'PUT', 'DELETE'
+    url: mutation.url,
+    body: mutation.body,
+    timestamp: Date.now(),
+    retryCount: 0,
+  });
+}
+
+// Process queue when online
+async function processMutationQueue() {
+  if (!navigator.onLine) return;
+
+  const db = await openDB();
+  const queue = await db.getAll("mutation-queue");
+
+  for (const item of queue) {
+    try {
+      await fetch(item.url, {
+        method: item.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(item.body),
+      });
+
+      // Success — remove from queue
+      await db.delete("mutation-queue", item.id);
+    } catch (error) {
+      // Failed — increment retry count
+      item.retryCount++;
+      await db.put("mutation-queue", item);
+    }
+  }
+}
+
+// Listen for online event
+window.addEventListener("online", processMutationQueue);
+```
+
+## Integration with Background Sync (Future)
+
+```javascript
+// Register for background sync
+if ("serviceWorker" in navigator && "SyncManager" in window) {
+  const registration = await navigator.serviceWorker.ready;
+  await registration.sync.register("sync-mutations");
+}
+
+// In SW:
+self.addEventListener("sync", (event) => {
+  if (event.tag === "sync-mutations") {
+    event.waitUntil(processMutationQueueInSW());
+  }
+});
+```
+
+## UI Indicators
+
+```javascript
+// Show pending mutations count
+async function getPendingCount() {
+  const db = await openDB();
+  return await db.count("mutation-queue");
+}
+
+// In your UI:
+// "3 changes pending sync" or "✔ Synced"
+```
+
+## Considerations
+
+1. **Order matters** — process queue in timestamp order
+2. **Idempotency** — server should handle duplicate requests
+3. **Conflicts** — what if server data changed?
+4. **Retry limits** — don't retry forever
+
+## Status
+
+- [ ] Design queue schema
+- [ ] Implement `queueMutation()`
+- [ ] Implement `processMutationQueue()`
+- [ ] Add Background Sync integration
+- [ ] Create UI components (pending indicator, retry button)
+- [ ] Framework adapters (React hook, Vue composable)
+
+## Next Steps
+
+- See [Background Sync](/docs/future/background-sync) — browser API for offline sync
+- Learn [Data Storage Strategy](/docs/core/data-storage) — where to store the queue
+- Check [Reference Implementation](/docs/reference/budget-manager) — current (no queue needed)

@@ -11,6 +11,7 @@ import {
   MarkdownCopyButton,
   ViewOptionsPopover,
 } from "fumadocs-ui/layouts/docs/page";
+import { Icons } from "@/components/icons";
 import { baseOptions } from "@/lib/layout.shared";
 import { gitConfig } from "@/lib/shared";
 import { useFumadocsLoader } from "fumadocs-core/source/client";
@@ -63,17 +64,17 @@ const clientLoader = browserCollections.docs.createClientLoader({
     },
   ) {
     return (
-      <DocsPage toc={toc}>
+      <DocsPage toc={toc} tableOfContent={{ style: "clerk" }}>
         <DocsTitle>{frontmatter.title}</DocsTitle>
         <DocsDescription>{frontmatter.description}</DocsDescription>
-        <div className="flex flex-row gap-2 items-center border-b -mt-4 pb-6">
+        <div className="flex flex-row gap-2 items-center border-b -mt-4 pb-6 text-sm">
           <MarkdownCopyButton markdownUrl={markdownUrl} />
           <ViewOptionsPopover
             markdownUrl={markdownUrl}
             githubUrl={`https://github.com/${gitConfig.user}/${gitConfig.repo}/blob/${gitConfig.branch}/content/docs/${path}`}
           />
         </div>
-        <DocsBody>
+        <DocsBody className="text-sm text-fd-foreground/90">
           <MDX components={useMDXComponents()} />
         </DocsBody>
       </DocsPage>
@@ -87,7 +88,10 @@ function Page() {
   );
 
   return (
-    <DocsLayout {...baseOptions()} tree={pageTree}>
+    <DocsLayout
+      {...baseOptions()}
+      tree={pageTree}
+    >
       <AISearch>
         <AISearchPanel />
         <AISearchTrigger

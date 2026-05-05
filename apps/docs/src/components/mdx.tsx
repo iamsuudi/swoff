@@ -1,15 +1,19 @@
 import { CodeBlock, Pre } from "fumadocs-ui/components/codeblock";
-import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+import * as TabsComponents from "fumadocs-ui/components/tabs";
+import * as FilesComponents from "@/components/files";
 import defaultMdxComponents from "fumadocs-ui/mdx";
 import type { MDXComponents } from "mdx/types";
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
 
 export function getMDXComponents(components?: MDXComponents) {
   return {
     ...defaultMdxComponents,
-    Tab,
-    Tabs,
+    ...TabsComponents,
+    ...FilesComponents,
+    Accordion,
+    Accordions,
     pre: ({ ref: _ref, ...props }) => (
-      <CodeBlock {...props}>
+      <CodeBlock icon {...props}>
         <Pre>{props.children}</Pre>
       </CodeBlock>
     ),

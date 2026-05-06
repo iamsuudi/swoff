@@ -4,10 +4,6 @@ description: Critical distinction — installing a PWA is not the same as updati
 icon: GitCompare
 ---
 
-# Versioned App vs PWA Install
-
-This is the most misunderstood concept in modern web development.
-
 ## Two Completely Different Things
 
 ### PWA Install (User Experience)
@@ -33,19 +29,20 @@ This is **functional**. It changes what the app does.
 ## Why People Confuse Them
 
 Both use the word "install":
+
 - PWA: "Install to home screen"
 - App: "Install version 1.0.1"
 
 But they're completely different:
 
-| Aspect | PWA Install | App Version Update |
-|--------|-------------|-------------------|
-| **What** | Creates shortcut | Replaces code |
-| **Trigger** | User chooses | Developer releases |
-| **Frequency** | Once per device | Every release |
-| **Effect** | UI changes | Functionality changes |
-| **Required** | No | Yes (for updates) |
-| **Offline** | Doesn't help | Makes it possible |
+| Aspect        | PWA Install      | App Version Update    |
+| ------------- | ---------------- | --------------------- |
+| **What**      | Creates shortcut | Replaces code         |
+| **Trigger**   | User chooses     | Developer releases    |
+| **Frequency** | Once per device  | Every release         |
+| **Effect**    | UI changes       | Functionality changes |
+| **Required**  | No               | Yes (for updates)     |
+| **Offline**   | Doesn't help     | Makes it possible     |
 
 ## The Versioned App Flow
 
@@ -118,15 +115,19 @@ We separate these concerns completely:
 2. **PWA manifest** handles install prompt (optional extra)
 3. **User consents** to both independently
 
+:::info
+Versioned SW covers your app shell (static assets, routes, client-side code). Data caching, mutation queuing, and sync are separate concerns handled by your app logic, not the SW version.
+:::
+
 ```javascript
 // Version update (automatic check, user consent required)
-const manifest = await fetch('/version.json')
+const manifest = await fetch("/version.json");
 if (manifest.version !== currentVersion) {
-  showUpdatePrompt() // User must approve
+  showUpdatePrompt(); // User must approve
 }
 
 // PWA install (user initiates)
-window.deferredInstallPrompt?.prompt() // User clicks "Install"
+window.deferredInstallPrompt?.prompt(); // User clicks "Install"
 ```
 
 ## Key Takeaway

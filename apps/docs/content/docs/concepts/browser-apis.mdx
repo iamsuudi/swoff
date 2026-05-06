@@ -4,11 +4,9 @@ description: Modern browser APIs that make offline-first apps possible — no fr
 icon: LayoutGrid
 ---
 
-# Browser APIs Overview
+## The Offline Stack
 
 Swoff is built on **standard browser APIs** — no frameworks, no libraries. These APIs are available in all modern browsers.
-
-## The Offline Stack
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -40,6 +38,27 @@ Swoff is built on **standard browser APIs** — no frameworks, no libraries. The
 └─────────────────────────────────────────────┘
 ```
 
+## Two Tiers of Offline Capability
+
+Swoff supports two tiers depending on your app's needs:
+
+### Tier 1: App Shell + Smart Data (General Swoff Pattern)
+Works with your existing backend:
+- **Service Worker + Cache API**: Caches app shell (all routes, static assets)
+- **Cache API**: Caches read request responses for offline access
+- **IndexedDB/LocalStorage**: Queues mutations when offline, syncs when back online
+- **Backend**: Standard server for dynamic data, authentication, etc.
+
+Most Swoff apps use this tier.
+
+### Tier 2: Full Offline (Special Case)
+No backend needed (like Budget Manager):
+- **Service Worker + Cache API**: Caches app shell
+- **IndexedDB**: Full database for all app data (no server)
+- **No backend**: App works entirely offline, data isolated to user's device
+
+Budget Manager is an example of this tier (100% offline, user-owned data).
+
 ## Core APIs (Used Now)
 
 ### Service Worker API
@@ -47,6 +66,7 @@ Swoff is built on **standard browser APIs** — no frameworks, no libraries. The
 **Purpose**: Background script for intercepting requests and caching
 
 **Key Methods**:
+
 - `navigator.serviceWorker.register()` — Register a SW
 - `self.addEventListener('fetch')` — Intercept requests
 - `self.addEventListener('install')` — Cache assets
@@ -59,19 +79,22 @@ Swoff is built on **standard browser APIs** — no frameworks, no libraries. The
 **Purpose**: Store and retrieve network requests/responses
 
 **Key Methods**:
+
 ```javascript
 // Open a cache
-const cache = await caches.open('my-cache-v1')
+const cache = await caches.open("my-cache-v1");
 
 // Store a request
-await cache.put(request, response)
+await cache.put(request, response);
 
 // Retrieve a request
-const response = await cache.match(request)
+const response = await cache.match(request);
 
 // Delete old caches
-const keys = await caches.keys()
-await Promise.all(keys.filter(k => k !== 'my-cache-v1').map(k => caches.delete(k)))
+const keys = await caches.keys();
+await Promise.all(
+  keys.filter((k) => k !== "my-cache-v1").map((k) => caches.delete(k)),
+);
 ```
 
 **Browser Support**: All modern browsers
@@ -81,26 +104,28 @@ await Promise.all(keys.filter(k => k !== 'my-cache-v1').map(k => caches.delete(k
 **Purpose**: Client-side database for structured data
 
 **Key Concepts**:
+
 - Database with object stores (like tables)
 - Key-value with indexes
 - Async API (promises with wrappers)
 
 **Basic Usage**:
+
 ```javascript
 // Open database
-const request = indexedDB.open('my-db', 1)
+const request = indexedDB.open("my-db", 1);
 
 request.onupgradeneeded = (e) => {
-  const db = e.target.result
-  db.createObjectStore('todos', { keyPath: 'id' })
-}
+  const db = e.target.result;
+  db.createObjectStore("todos", { keyPath: "id" });
+};
 
 request.onsuccess = (e) => {
-  const db = e.target.result
-  const tx = db.transaction('todos', 'readwrite')
-  const store = tx.objectStore('todos')
-  store.add({ id: 1, text: 'Hello' })
-}
+  const db = e.target.result;
+  const tx = db.transaction("todos", "readwrite");
+  const store = tx.objectStore("todos");
+  store.add({ id: 1, text: "Hello" });
+};
 ```
 
 **Browser Support**: All browsers (including IE10+)
@@ -110,9 +135,10 @@ request.onsuccess = (e) => {
 **Purpose**: Make network requests
 
 **Basic Usage**:
+
 ```javascript
-const response = await fetch('/api/data')
-const data = await response.json()
+const response = await fetch("/api/data");
+const data = await response.json();
 ```
 
 **Browser Support**: All modern browsers
@@ -124,9 +150,10 @@ const data = await response.json()
 **Purpose**: Simple key-value storage (synchronous)
 
 **Usage**:
+
 ```javascript
-localStorage.setItem('key', 'value')
-const value = localStorage.getItem('key')
+localStorage.setItem("key", "value");
+const value = localStorage.getItem("key");
 ```
 
 **Limitation**: Synchronous, blocks main thread, ~5MB limit
@@ -164,6 +191,7 @@ const value = localStorage.getItem('key')
 ## Why No Libraries?
 
 These APIs are:
+
 1. **Stable** — won't break unexpectedly
 2. **Well-documented** — MDN has excellent docs
 3. **Sufficient** — no need for wrappers
@@ -171,14 +199,14 @@ These APIs are:
 
 ## Browser Support Reality
 
-| API | Chrome | Firefox | Safari | Edge |
-|-----|--------|---------|--------|------|
-| Service Worker | ✅ | ✅ | ✅ | ✅ |
-| Cache API | ✅ | ✅ | ✅ | ✅ |
-| IndexedDB | ✅ | ✅ | ✅ | ✅ |
-| Fetch | ✅ | ✅ | ✅ | ✅ |
-| Background Sync | ✅ | ❌ | ❌ | ✅ |
-| Push API | ✅ | ✅ | ✅ | ✅ |
+| API             | Chrome | Firefox | Safari | Edge |
+| --------------- | ------ | ------- | ------ | ---- |
+| Service Worker  | ✅     | ✅      | ✅     | ✅   |
+| Cache API       | ✅     | ✅      | ✅     | ✅   |
+| IndexedDB       | ✅     | ✅      | ✅     | ✅   |
+| Fetch           | ✅     | ✅      | ✅     | ✅   |
+| Background Sync | ✅     | ❌      | ❌     | ✅   |
+| Push API        | ✅     | ✅      | ✅     | ✅   |
 
 All core APIs work in all modern browsers. Swoff uses only the core APIs.
 

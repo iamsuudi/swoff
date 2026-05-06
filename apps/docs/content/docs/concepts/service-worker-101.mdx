@@ -1,15 +1,12 @@
 ---
 title: Service Worker 101
-description: Understanding Service Workers — the browser API that makes offline apps possible.
+description: Understanding Service Workers.
 icon: Network
 ---
 
-# Service Worker 101
-
-Service Worker is a browser API that runs in the background, separate from your web page. It's the foundation of offline capability.
-
 ## What is a Service Worker?
 
+Service Worker is a browser API that runs in the background, separate from your web page. It's the foundation of offline capability.
 A Service Worker (SW) is a JavaScript file that:
 
 - **Runs in the background** — separate from the main thread
@@ -54,6 +51,10 @@ Browsers automatically:
 ## Swoff's Versioned Approach
 
 We solve this by **versioning the SW file itself**:
+
+:::warning
+Versioning applies to your app shell (SW, static assets). Data caching, mutation queuing, and sync are separate concerns handled by your app logic, not the SW version.
+:::
 
 ```javascript
 // Instead of: /sw.js (always same file)
@@ -100,6 +101,10 @@ self.addEventListener("fetch", (event) => {
   );
 });
 ```
+
+:::info
+This basic SW example caches the app shell (static assets). For caching dynamic read requests and handling mutations, see [Caching Strategies](/docs/core/caching-strategies).
+:::
 
 ## Registration from Client
 

@@ -1,15 +1,12 @@
 ---
 title: PWA Explained
-description: PWA is a tiny addition to your app — not the core of offline capability.
+description: PWA is a tiny addition to your app.
 icon: Smartphone
 ---
 
-# PWA Explained
-
-Progressive Web App (PWA) is often misunderstood. It's not a framework, not a library, and not required for offline capability.
-
 ## What PWA Actually Is
 
+Progressive Web App (PWA) is often misunderstood. It's not a framework, not a library, and not required for offline capability.
 PWA is **three small additions** to your web app:
 
 ### 1. Web App Manifest (required)
@@ -22,15 +19,14 @@ A JSON file that tells the browser "this is installable":
   "short_name": "MyApp",
   "start_url": "/",
   "display": "standalone",
-  "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }
-  ]
+  "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
 }
 ```
 
 Linked in HTML:
+
 ```html
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="/manifest.json" />
 ```
 
 ### 2. Install Prompt (optional)
@@ -39,16 +35,16 @@ Handle the browser's install prompt:
 
 ```javascript
 // Prevent browser's automatic prompt
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault()
-  window.deferredInstallPrompt = e
-})
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  window.deferredInstallPrompt = e;
+});
 
 // Later, when user clicks "Install" button
 async function installApp() {
-  await window.deferredInstallPrompt?.prompt()
-  const { outcome } = await window.deferredInstallPrompt.userChoice
-  console.log('User chose:', outcome) // "accepted" or "dismissed"
+  await window.deferredInstallPrompt?.prompt();
+  const { outcome } = await window.deferredInstallPrompt.userChoice;
+  console.log("User chose:", outcome); // "accepted" or "dismissed"
 }
 ```
 
@@ -59,35 +55,39 @@ Service Workers only work over HTTPS (or localhost).
 ## That's It
 
 PWA is not:
+
 - ❌ A framework
 - ❌ A build tool
 - ❌ Required for offline
 - ❌ Magic that makes your app work offline
 
 PWA is:
+
 - ✅ A manifest file
 - ✅ An optional install prompt
 - ✅ A way to "install" your web app to the home screen
 
 ## PWA vs Offline Capability
 
-| Feature | PWA | Offline Capability |
-|---------|-----|-------------------|
-| Manifest file | ✅ Required | ❌ Not needed |
-| Install prompt | ✅ Optional | ❌ Not needed |
-| Service Worker | ✅ Required | ✅ Required |
-| Assets cached | ✅ Yes | ✅ Yes |
-| Data works offline | ❌ Not guaranteed | ✅ Required |
-| App feels native | ✅ Yes | ❌ Not required |
+| Feature            | PWA               | Offline Capability |
+| ------------------ | ----------------- | ------------------ |
+| Manifest file      | ✅ Required       | ❌ Not needed      |
+| Install prompt     | ✅ Optional       | ❌ Not needed      |
+| Service Worker     | ✅ Required       | ✅ Required        |
+| Assets cached      | ✅ Yes            | ✅ Yes             |
+| Data works offline | ❌ Not guaranteed | ✅ Required        |
+| App feels native   | ✅ Yes            | ❌ Not required    |
 
 ## The "Install" Misconception
 
 When you "install" a PWA:
+
 1. Browser creates a shortcut
 2. App opens in standalone window (no browser UI)
 3. **That's all** — it's still a web app
 
 Installing a PWA doesn't:
+
 - Download the app to the device
 - Make it work offline automatically
 - Give it native APIs (beyond what web already has)
@@ -108,11 +108,11 @@ Every browser supports **"Add to Home Screen"** or **"Create Shortcut"**:
 PWA is a **tiny addition** to Swoff apps:
 
 ```
-Swoff Core (offline, versioned SW, data storage)
+Swoff Core (offline app shell, versioned SW, data caching & sync)
          +
 PWA Layer (manifest + install prompt)
          =
-Installable Offline App
+Installable Offline-Ready App
 ```
 
 We document PWA setup, but it's not the focus. The focus is **offline capability through architecture**.

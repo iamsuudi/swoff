@@ -2,12 +2,13 @@
   "title": "Framework-Agnostic Patterns",
   "icon": "Code",
   "pages": [
+    "index",
     "sw-template",
     "build-scripts",
     "client-registration",
-    "indexeddb-patterns",
     "update-hooks",
     "components",
+    "indexeddb-patterns",
     "utilities"
   ]
 }

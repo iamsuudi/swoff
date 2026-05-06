@@ -32,7 +32,7 @@ Swoff is not a traditional library. We don't ship an npm package. Instead:
 - Tied to any specific fullstack framework
 
 :::warning
-Swoff is **client-side only** — we focus on browser APIs, offline capability, and native-like experience. Your backend is your responsibility.
+Swoff focuses on **client-side browser APIs** (offline app shell, data caching, sync) — your backend is your responsibility. We provide patterns for the client, you bring your own Go, Node.js, Python, etc.
 :::
 
 ## Key Features
@@ -64,9 +64,9 @@ import {
     title="Offline-First Architecture"
     icon={<WifiOffIcon className="text-yellow-500" />}
   >
-    Service worker caches all static assets, App logic runs entirely in the
-    browser,Data stored in IndexedDB for offline access, All routes accessible
-    without network
+    Service worker caches app shell (all routes + static assets), read queries
+    cached for offline access, mutations queued when offline, All routes
+    accessible without network
   </Card>
   <Card
     title="Framework Support"
@@ -102,12 +102,14 @@ No install needed! Read guides and copy the code.
 
 ## Reference Implementation
 
-**Budget Manager** — a fully offline budget tracking app built with Swoff patterns:
+**Budget Manager** — a 100% offline budget tracking app (special case) built with Swoff patterns:
 
 - 24+ routes working offline
-- IndexedDB for data storage
+- IndexedDB as full database (no backend needed)
 - Versioned SW updates
 - PWA installable
+
+*Note: Most Swoff apps use a backend for dynamic data; Budget Manager is a special case where all data is stored locally in IndexedDB.*
 
 [See the reference implementation →](/docs/reference/budget-manager)
 

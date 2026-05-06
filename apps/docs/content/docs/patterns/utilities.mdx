@@ -13,19 +13,35 @@ Core utility functions and TypeScript declarations.
 Fetches `version.json` from server.
 
 ```typescript
-const manifest = await checkForUpdate()
-// Returns: { version, generatedAt, forceUpdate } | null
+const manifest = await checkForUpdate();
+// Returns: { version, minSupportedVersion, generatedAt } | null
 ```
 
 ---
 
 ## registerServiceWorker
 
-Registers versioned SW and handles updates.
+Registers versioned SW and handles updates. Delays registration until onboarding completes.
 
 ```typescript
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', registerServiceWorker)
+async function registerServiceWorker() {
+  if (!shouldRegisterSW()) return;
+
+  const manifest = await checkForUpdate();
+  const swUrl = `/sw-v${manifest.version}.js`;
+
+  const registration = await navigator.serviceWorker.register(swUrl);
+
+  localStorage.setItem("swRegisteredVersion", manifest.version);
+  window.currentSWVersion = manifest.version;
+  window.swRegisteredVersion = manifest.version;
+
+  window.dispatchEvent(new CustomEvent("sw-version-detected"));
+  window.dispatchEvent(new CustomEvent("sw-ready"));
+}
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", registerServiceWorker);
 }
 ```
 
@@ -33,11 +49,15 @@ if ('serviceWorker' in navigator) {
 
 ## shouldRegisterSW
 
-Determines if SW should register (e.g., after onboarding).
+Determines if SW should register (e.g., after onboarding completes).
 
 ```typescript
 function shouldRegisterSW(): boolean {
-  return localStorage.getItem('app-ready') === 'true'
+  // Delay registration until onboarding completes (welcome pages + security setup)
+  // Prevents interrupting user experience during first-time setup
+  const welcomeSeen = localStorage.getItem("welcome-seen") === "true";
+  const securitySetup = localStorage.getItem("security-setup") === "true";
+  return welcomeSeen && securitySetup;
 }
 ```
 
@@ -48,26 +68,41 @@ function shouldRegisterSW(): boolean {
 Create `sw.d.ts`:
 
 ```typescript
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
 declare global {
   interface Window {
-    latestSWVersion?: string
-    currentSWVersion?: string
-    swReady?: boolean
-    deferredInstallPrompt: any
+    deferredInstallPrompt: BeforeInstallPromptEvent | null;
+    latestSWVersion?: string;
+    currentSWVersion?: string;
+    swRegisteredVersion?: string;
+    swAvailableVersion?: string;
+    swUpdateRequired?: boolean;
+    swMinSupportedVersion?: string;
+    swReady?: boolean;
+    swError?: boolean;
   }
 }
-export {}
+export {};
 ```
 
 ---
 
 ## Window Properties
 
-| Property | Type | Purpose |
-|----------|------|---------|
-| `window.latestSWVersion` | string | From version.json |
-| `window.currentSWVersion` | string | Active SW version |
-| `window.swReady` | boolean | SW is active |
+| Property                       | Type    | Purpose                                                     |
+| ------------------------------ | ------- | ----------------------------------------------------------- |
+| `window.latestSWVersion`       | string  | From version.json (server version)                          |
+| `window.currentSWVersion`      | string  | Version of the active/registered SW                         |
+| `window.swRegisteredVersion`   | string  | Same as localStorage value                                  |
+| `window.swAvailableVersion`    | string  | Pending update version                                      |
+| `window.swUpdateRequired`      | boolean | Whether update is mandatory (version < minSupportedVersion) |
+| `window.swMinSupportedVersion` | string  | Minimum supported version from version.json                 |
+| `window.swReady`               | boolean | SW is active                                                |
+| `window.swError`               | boolean | SW registration failed                                      |
 
 ---
 

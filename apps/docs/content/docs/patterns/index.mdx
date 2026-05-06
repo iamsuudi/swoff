@@ -1,0 +1,55 @@
+---
+title: Framework-Agnostic Patterns
+description: Copy-paste code for offline-first apps — framework agnostic.
+icon: Code
+---
+
+# Patterns
+
+Framework-agnostic, zero-dependency code you copy into your project. Modify them to fit your needs.
+
+## What are Patterns?
+
+Patterns are the **core building blocks** of Swoff:
+
+- **Copy-paste ready** — Take the code, put it in your project
+- **Framework agnostic** — Works with React, Vue, Svelte, vanilla JS
+- **You own the code** — Modify, extend, maintain it yourself
+- **Zero runtime deps** — No npm packages to install
+
+## Available Patterns
+
+| Pattern | Description |
+|---------|-------------|
+| [SW Template](/docs/patterns/sw-template) | Versioned service worker with asset caching |
+| [Build Scripts](/docs/patterns/build-scripts) | Generate versioned SW + version.json |
+| [Client Registration](/docs/patterns/client-registration) | Register SW with version checking & update flow |
+| [Update Hooks](/docs/patterns/update-hooks) | React hooks: `usePWAUpdate`, `useSWProgress`, `usePWAVersion` |
+| [Components](/docs/patterns/components) | `UpdatePrompt`, `SWProgressBar`, `InstallButton` |
+| [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) | Native API & optional `idb` wrapper patterns |
+| [Utilities](/docs/patterns/utilities) | TypeScript declarations, `checkForUpdate`, `shouldRegisterSW` |
+
+## Learning Path
+
+```
+Concepts (/docs/concepts/)
+    ↓
+Core Architecture (/docs/core/)
+    ↓
+Patterns (you are here) ← Copy these into your project
+    ↓
+Framework Guides (/docs/guides/) ← Adapt patterns for your framework
+```
+
+## How to Use
+
+1. **Read** the pattern documentation
+2. **Copy** the code into your project
+3. **Modify** to fit your needs
+4. **Follow** the framework guide for your stack
+
+## Next Steps
+
+- Start with [SW Template](/docs/patterns/sw-template) — the foundation
+- Read [Client Registration](/docs/patterns/client-registration) — version checking
+- Pick your framework: [React + Vite](/docs/guides/react/react-vite), [Vue + Vite](/docs/guides/vue/vue-vite), [Svelte + Vite](/docs/guides/svelte/svelte-vite), [Vanilla JS](/docs/guides/vanilla-js)

@@ -1,5 +1,5 @@
 ---
-title: Update Hooks & Components
+title: Components
 description: UI components for PWA updates.
 icon: Puzzle
 ---
@@ -28,23 +28,12 @@ function App() {
 **Behavior:**
 
 - Shows when `updateStatus === 'available'`
-- Displays version info
-- "Update" button triggers download
-- "Later" button dismisses (unless `forceUpdate`)
+- Displays version info (e.g., "v0.0.1 → v0.0.2")
+- "Update" button triggers download with progress bar
+- "Later" button dismisses (unless `forceUpdate` is true)
+- If `forceUpdate` is true: full-screen overlay, no dismiss option
 
 ---
-
-:::tip[This is a `title`]
-
-Hello World
-
-:::
-
-:::warning
-
-Hello World
-
-:::
 
 ## SWProgressBar
 
@@ -66,8 +55,9 @@ function App() {
 **Behavior:**
 
 - Fixed at top of screen
-- Shows during first SW install
+- Shows during first SW install (full-screen progress)
 - Auto-hides when complete
+- Separate from UpdatePrompt (which shows at bottom as bottom sheet)
 
 ---
 

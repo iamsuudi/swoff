@@ -1,0 +1,96 @@
+---
+title: Vanilla JS
+description: Set up Swoff with plain JavaScript.
+icon: javascript
+---
+
+# Vanilla JavaScript
+
+Concise adapter for **plain JavaScript** (no framework).
+
+## Project Structure
+
+```
+my-app/
+├── index.html
+├── app.js
+├── sw-template.js
+├── generate-sw.js
+└── package.json
+```
+
+## HTML Entry Point (`index.html`)
+
+Add SW registration to your HTML:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My App</title>
+</head>
+<body>
+  <div id="app"></div>
+  <script src="app.js"></script>
+</body>
+</html>
+```
+
+## Registration (`app.js`)
+
+```javascript
+// app.js
+async function registerSW() {
+  const { version } = await fetch('/version.json').then(r => r.json())
+  await navigator.serviceWorker.register(`/sw-v${version}.js`)
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', registerSW)
+}
+
+// Your app code here...
+```
+
+## Add Patterns
+
+Copy these files from [Patterns](/docs/patterns):
+
+1. **[SW Template](/docs/patterns/sw-template)** → `sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
+3. **[Client Registration](/docs/patterns/client-registration)** → `sw-registration.js` (enhanced registration)
+
+For Vite (optional):
+```bash
+npm create vite@latest my-app -- --template vanilla-ts
+```
+
+Update `package.json`:
+```json
+{
+  "scripts": {
+    "build": "vite build && node generate-sw.js"
+  }
+}
+```
+
+## No Framework Needed
+
+Swoff's patterns are based on browser APIs, so vanilla JS is the most natural fit:
+- Service Worker API
+- IndexedDB API
+- Cache API
+- Fetch API
+
+## Build & Test
+
+```bash
+npm version patch
+npm run build
+```
+
+## Next Steps
+
+- [Window Events](/docs/patterns/client-registration) — Listen for `sw-update-available`, `sw-ready`
+- [Components](/docs/patterns/components) — `UpdatePrompt`, `SWProgressBar`
+- [Core Architecture](/docs/core/offline-first) — Understand the patterns

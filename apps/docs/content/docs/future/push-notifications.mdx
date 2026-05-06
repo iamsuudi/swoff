@@ -30,9 +30,11 @@ Better support than Background Sync!
 
 ## Prerequisites
 
-1. **Service Worker** — must be registered
-2. **Push subscription** — user must grant permission
-3. **VAPID keys** — server needs public/private key pair
+1. **Service Worker** — must be registered (covered by Swoff)
+2. **Push subscription** — user must grant permission (client-side, covered below)
+3. **VAPID keys** — your backend needs public/private key pair (you handle this part)
+
+**Note:** Swoff covers the client-side push subscription and SW handlers. Your backend (Go, Node.js, Python, etc.) handles sending push messages — Swoff doesn't provide backend code.
 
 ## Flow
 
@@ -70,11 +72,9 @@ async function subscribeToPush() {
     applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
   })
 
-  // Send subscription to your server
-  await fetch('/api/push/subscribe', {
-    method: 'POST',
-    body: JSON.stringify(subscription)
-  })
+  // Send subscription to YOUR backend (not provided by Swoff)
+  // Example: await fetch('https://your-backend.com/api/push/subscribe', {...})
+  // You handle this part with Go, Node.js, Python, etc.
 
   return subscription
 }
@@ -121,17 +121,17 @@ self.addEventListener('notificationclick', (event) => {
 })
 ```
 
-## VAPID Keys (Server Setup)
+## VAPID Keys (Your Backend Setup)
 
-Your server needs VAPID keys:
+Your backend needs VAPID keys — this is NOT part of Swoff. You handle this with your chosen backend stack.
 
 ```bash
-# Generate keys (Node.js)
+# Generate keys (Node.js example — use whatever works for your backend)
 npm install web-push
 npx web-push generate-vapid-keys
 ```
 
-Store private key on server, public key in client.
+Store private key on YOUR server, public key in YOUR client code. Swoff doesn't provide backend code.
 
 ## Use Cases for Swoff Apps
 
@@ -141,20 +141,20 @@ Store private key on server, public key in client.
 
 ## Swoff's Approach
 
-We'll provide:
+We'll provide client-side code only:
 1. **Push wrapper** — permission + subscription management
 2. **SW handlers** — push event + notification click
 3. **Framework hooks** — `usePushSubscription()` for React/Vue/Svelte
-4. **Server examples** — Node.js/Bun push sender
+
+**Your backend:** You handle sending push messages using Go, Node.js, Python, or whatever stack you chose. Swoff doesn't provide backend code.
 
 ## Status
 
-- [ ] VAPID key generation guide
+- [ ] VAPID key generation guide (client-side)
 - [ ] Push subscription wrapper
 - [ ] SW push event handler
 - [ ] Notification click handler
-- [ ] Server-side push sender example
-- [ ] Framework adapters
+- [ ] Framework adapters (client-side hooks only)
 
 ## Next Steps
 

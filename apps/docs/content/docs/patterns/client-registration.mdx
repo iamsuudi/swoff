@@ -12,14 +12,14 @@ Registering a service worker from your app requires careful handling: version ch
 
 ```javascript
 // main.js - Framework agnostic
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    const manifest = await fetch('/version.json').then(r => r.json())
-    const swUrl = `/sw-v${manifest.version}.js`
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", async () => {
+    const manifest = await fetch("/version.json").then((r) => r.json());
+    const swUrl = `/sw-v${manifest.version}.js`;
 
-    const registration = await navigator.serviceWorker.register(swUrl)
-    console.log('SW registered:', registration)
-  })
+    const registration = await navigator.serviceWorker.register(swUrl);
+    console.log("SW registered:", registration);
+  });
 }
 ```
 
@@ -30,72 +30,88 @@ Swoff adds version checking, update events, and user consent:
 ```javascript
 // sw-registration.js - Copy into your project
 async function checkForUpdate() {
-  const response = await fetch('/version.json')
-  const manifest = await response.json()
-  return manifest
+  const response = await fetch("/version.json");
+  const manifest = await response.json();
+  return manifest;
 }
 
 async function registerServiceWorker(version) {
-  const swUrl = `/sw-v${version}.js`
-  const registration = await navigator.serviceWorker.register(swUrl)
+  const swUrl = `/sw-v${version}.js`;
+  const registration = await navigator.serviceWorker.register(swUrl);
 
   // Track registered version
-  localStorage.setItem('swRegisteredVersion', version)
+  localStorage.setItem("swRegisteredVersion", version);
+  window.currentSWVersion = version;
+  window.swRegisteredVersion = version;
 
-  return registration
+  // Dispatch events
+  window.dispatchEvent(new CustomEvent("sw-version-detected"));
+  window.dispatchEvent(new CustomEvent("sw-ready"));
+
+  return registration;
 }
 
 async function initServiceWorker() {
-  if (!('serviceWorker' in navigator)) return
+  if (!("serviceWorker" in navigator)) return;
 
-  const manifest = await checkForUpdate()
-  const currentVersion = localStorage.getItem('swRegisteredVersion')
+  // Check if onboarding is complete before registering
+  if (!shouldRegisterSW()) return;
+
+  const manifest = await checkForUpdate();
+  const currentVersion = localStorage.getItem("swRegisteredVersion");
+
+  // Expose version info on window
+  window.latestSWVersion = manifest.version;
+  window.swMinSupportedVersion = manifest.minSupportedVersion || "0.0.0";
 
   if (currentVersion === manifest.version) {
-    // Same version, just ensure SW is registered
-    await registerServiceWorker(manifest.version)
-    window.dispatchEvent(new CustomEvent('sw-ready', { detail: { version: manifest.version } }))
+    // Same version - verify existing SW is active, no registration needed
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (registration && registration.active) {
+      window.currentSWVersion = currentVersion;
+      window.dispatchEvent(new CustomEvent("sw-version-detected"));
+      window.dispatchEvent(new CustomEvent("sw-ready"));
+    }
   } else if (currentVersion && currentVersion !== manifest.version) {
     // New version available
-    window.dispatchEvent(new CustomEvent('sw-update-available', {
-      detail: { currentVersion, latestVersion: manifest.version }
-    }))
+    window.swAvailableVersion = manifest.version;
+    window.swUpdateRequired =
+      currentVersion < (manifest.minSupportedVersion || "0.0.0");
+    window.dispatchEvent(
+      new CustomEvent("sw-update-available", {
+        detail: { version: manifest.version },
+      }),
+    );
   } else {
-    // First time
-    await registerServiceWorker(manifest.version)
-    window.dispatchEvent(new CustomEvent('sw-ready', { detail: { version: manifest.version } }))
+    // First time - implicit consent by using the app
+    await registerServiceWorker(manifest.version);
   }
 }
 
 // Initialize
-initServiceWorker()
+initServiceWorker();
 ```
 
 ## Handling Updates with User Consent
 
 ```javascript
 // Listen for update available
-window.addEventListener('sw-update-available', (e) => {
-  const { currentVersion, latestVersion } = e.detail
-  showUpdatePrompt(currentVersion, latestVersion)
-})
+window.addEventListener("sw-update-available", (e) => {
+  const { version } = e.detail;
+  const currentVersion = localStorage.getItem("swRegisteredVersion");
+  showUpdatePrompt(currentVersion, version);
+});
 
 // When user approves update
 async function handleUpdateApproved(newVersion) {
-  const registration = await registerServiceWorker(newVersion)
+  // Register new SW version - it will download in background
+  await registerServiceWorker(newVersion);
 
-  // Listen for new SW installing
-  registration.installing.addEventListener('statechange', (e) => {
-    if (e.target.state === 'installed') {
-      // New SW ready, tell it to activate
-      registration.waiting.postMessage({ type: 'SKIP_WAITING' })
-    }
-  })
-
-  // Listen for controller change (new SW activated)
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    window.location.reload()
-  })
+  // SW sends SKIP_WAITING automatically when download completes
+  // Page reloads via controllerchange event
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    window.location.reload();
+  });
 }
 ```
 
@@ -105,70 +121,127 @@ The SW can report progress via `postMessage`:
 
 ```javascript
 // In your app
-navigator.serviceWorker.addEventListener('message', (event) => {
-  if (event.data.type === 'SW_PROGRESS') {
-    const { downloaded, total } = event.data
-    updateProgressBar(downloaded, total)
+navigator.serviceWorker.addEventListener("message", (event) => {
+  if (event.data.type === "SW_PROGRESS") {
+    const { downloaded, total } = event.data;
+    updateProgressBar(downloaded, total);
   }
-})
+});
 ```
 
 ```javascript
 // In SW (sw-template.js)
-self.addEventListener('install', (event) => {
+self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
-      const cache = await caches.open(CACHE_NAME)
-      const total = ASSETS_TO_CACHE.length
+      const cache = await caches.open(CACHE_NAME);
+      const total = ASSETS_TO_CACHE.length;
 
       for (let i = 0; i < total; i++) {
-        await cache.add(ASSETS_TO_CACHE[i])
+        await cache.add(ASSETS_TO_CACHE[i]);
         // Report progress
-        self.clients.matchAll().then(clients => {
-          clients.forEach(client => {
+        self.clients.matchAll().then((clients) => {
+          clients.forEach((client) => {
             client.postMessage({
-              type: 'SW_PROGRESS',
+              type: "SW_PROGRESS",
               downloaded: i + 1,
-              total
-            })
-          })
-        })
+              total,
+            });
+          });
+        });
       }
-    })()
-  )
-})
+    })(),
+  );
+});
 ```
 
 ## React Hook Example (Optional)
 
 This is framework-specific. Adapt for Vue, Svelte, etc.:
 
-```javascript
-// usePWAUpdate.jsx - React hook
-import { useState, useEffect } from 'react'
+```typescript
+// usePWAUpdate.tsx - React hook
+import { useState, useEffect, useCallback } from "react";
 
 export function usePWAUpdate() {
-  const [updateAvailable, setUpdateAvailable] = useState(false)
-  const [currentVersion, setCurrentVersion] = useState(null)
-  const [latestVersion, setLatestVersion] = useState(null)
+  const [updateStatus, setUpdateStatus] = useState<
+    "idle" | "available" | "downloading"
+  >("idle");
+  const [currentVersion, setCurrentVersion] = useState<string | null>(null);
+  const [availableVersion, setAvailableVersion] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [forceUpdate, setForceUpdate] = useState(false);
 
   useEffect(() => {
-    const handleUpdateAvailable = (e) => {
-      setUpdateAvailable(true)
-      setCurrentVersion(e.detail.currentVersion)
-      setLatestVersion(e.detail.latestVersion)
+    const handleUpdateAvailable = (e: CustomEvent) => {
+      const newVersion = e.detail.version;
+      const current = localStorage.getItem("swRegisteredVersion");
+      setCurrentVersion(current);
+      setAvailableVersion(newVersion);
+      setUpdateStatus("available");
+      // Check if update is mandatory
+      const minSupported = window.swMinSupportedVersion || "0.0.0";
+      setForceUpdate(current < minSupported);
+    };
+
+    const handleProgress = (e: CustomEvent) => {
+      if (updateStatus === "downloading") {
+        setProgress(e.detail.percent);
+      }
+    };
+
+    const handleReady = () => {
+      if (updateStatus === "downloading") {
+        setUpdateStatus("idle");
+        setProgress(0);
+      }
+    };
+
+    window.addEventListener(
+      "sw-update-available",
+      handleUpdateAvailable as any,
+    );
+    window.addEventListener("sw-progress", handleProgress as any);
+    window.addEventListener("sw-ready", handleReady);
+    return () => {
+      window.removeEventListener(
+        "sw-update-available",
+        handleUpdateAvailable as any,
+      );
+      window.removeEventListener("sw-progress", handleProgress as any);
+      window.removeEventListener("sw-ready", handleReady);
+    };
+  }, [updateStatus]);
+
+  const acceptUpdate = useCallback(async () => {
+    setUpdateStatus("downloading");
+    const newVersion = availableVersion;
+    // Register new SW - it will download and auto-activate
+    await registerServiceWorker(newVersion);
+  }, [availableVersion]);
+
+  const dismissUpdate = useCallback(() => {
+    if (!forceUpdate) {
+      setUpdateStatus("idle");
+      sessionStorage.setItem("sw-dismissed-update", "true");
     }
+  }, [forceUpdate]);
 
-    window.addEventListener('sw-update-available', handleUpdateAvailable)
-    return () => window.removeEventListener('sw-update-available', handleUpdateAvailable)
-  }, [])
+  const checkForUpdates = useCallback(async () => {
+    const manifest = await checkForUpdate();
+    // Handle version comparison...
+  }, []);
 
-  const update = async () => {
-    await registerServiceWorker(latestVersion)
-    // SW will handle activation and reload
-  }
-
-  return { updateAvailable, currentVersion, latestVersion, update }
+  return {
+    currentVersion,
+    availableVersion,
+    updateStatus,
+    progress,
+    forceUpdate,
+    dismissUpdate,
+    acceptUpdate,
+    checkForUpdates,
+  };
 }
 ```
 
@@ -178,13 +251,15 @@ Sometimes you want to wait before registering SW (e.g., after onboarding):
 
 ```javascript
 function shouldRegisterSW() {
-  // Example: only after user completes onboarding
-  const welcomeSeen = localStorage.getItem('welcome-seen') === 'true'
-  return welcomeSeen
+  // Delay registration until onboarding completes (welcome pages + security setup)
+  // Prevents interrupting user experience during first-time setup
+  const welcomeSeen = localStorage.getItem("welcome-seen") === "true";
+  const securitySetup = localStorage.getItem("security-setup") === "true";
+  return welcomeSeen && securitySetup;
 }
 
 async function initServiceWorker() {
-  if (!shouldRegisterSW()) return
+  if (!shouldRegisterSW()) return;
 
   // Proceed with registration...
 }

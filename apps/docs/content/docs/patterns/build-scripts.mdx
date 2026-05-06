@@ -10,7 +10,7 @@ Build offline-first web apps with Swoff. No npm install required.
 
 ## Prerequisites
 
-- Vite project (React, Vue, etc.)
+- Any frontend project (Vite, plain HTML, etc.)
 - Basic service worker knowledge
 
 ## Quick Setup
@@ -72,8 +72,8 @@ writeFileSync(
   join(__dirname, "dist", "version.json"),
   JSON.stringify({
     version: pkg.version,
+    minSupportedVersion: pkg.minSupportedVersion || "0.0.0",
     generatedAt: new Date().toISOString(),
-    forceUpdate: false,
   }),
 );
 ```
@@ -90,7 +90,7 @@ writeFileSync(
 
 ### 4. Register SW
 
-In your `main.tsx`:
+In your `main.tsx` (basic example — see [Client Registration](/docs/patterns/client-registration) for full implementation with version checking and update flows):
 
 ```typescript
 if ("serviceWorker" in navigator) {
@@ -98,6 +98,7 @@ if ("serviceWorker" in navigator) {
     const res = await fetch("/version.json");
     const { version } = await res.json();
     await navigator.serviceWorker.register(`/sw-v${version}.js`);
+    console.log("SW registered:", version);
   });
 }
 ```
@@ -107,11 +108,22 @@ if ("serviceWorker" in navigator) {
 Create `sw.d.ts`:
 
 ```typescript
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
 declare global {
   interface Window {
+    deferredInstallPrompt: BeforeInstallPromptEvent | null;
     latestSWVersion?: string;
     currentSWVersion?: string;
+    swRegisteredVersion?: string;
+    swAvailableVersion?: string;
+    swUpdateRequired?: boolean;
+    swMinSupportedVersion?: string;
     swReady?: boolean;
+    swError?: boolean;
   }
 }
 export {};
@@ -130,4 +142,4 @@ Test offline: Open DevTools → Application → Service Workers → Check "Offli
 
 - [SW Template](/docs/patterns/sw-template) — Understand the template
 - [Client Registration](/docs/patterns/client-registration) — Register SW from app
-- [Framework Guides](/docs/guides/react-vite) — React, TanStack Router, TanStack Start
+- [Framework Guides](/docs/guides/react/react-vite) — React, TanStack Router, TanStack Start

@@ -137,11 +137,11 @@ New SW activates → Reload page
 }
 ```
 
-| Field                | Purpose                                                |
-| -------------------- | ------------------------------------------------------ |
-| `version`            | SemVer version string of this build                    |
-| `minSupportedVersion`| Minimum version users must have (enforced update)      |
-| `generatedAt`        | ISO timestamp of build                                 |
+| Field                 | Purpose                                           |
+| --------------------- | ------------------------------------------------- |
+| `version`             | SemVer version string of this build               |
+| `minSupportedVersion` | Minimum version users must have (enforced update) |
+| `generatedAt`         | ISO timestamp of build                            |
 
 :::info
 `minSupportedVersion` is copied from `package.json` during build. If a user's registered version is less than `minSupportedVersion`, they are forced to update (no dismiss option).
@@ -200,7 +200,7 @@ self.addEventListener("activate", (event) => {
 4. **Browser agnostic** — works in all browsers with SW support
 
 :::info
-This SW template handles **app shell caching** (static assets, routes). For caching dynamic read request responses, see [Caching Strategies](/docs/core/caching-strategies).
+This SW template handles **app shell caching** (static assets, routes). For caching dynamic read request responses, see [Data Storage Strategies](/docs/core/data-storage).
 :::
 
 ## Next Steps

@@ -1,0 +1,82 @@
+---
+title: Svelte + Vite
+description: Set up Swoff with Svelte + Vite.
+icon: Svelte
+---
+
+# Svelte + Vite
+
+Concise adapter for **Svelte 5 + Vite** projects.
+
+## Create Project
+
+```bash
+npm create vite@latest my-app -- --template svelte-ts
+cd my-app && npm install
+```
+
+## Project Structure
+
+```
+my-app
+├── src
+│   ├── main.ts
+│   └── sw-template.js
+├── generate-sw.js
+├── sw.d.ts
+└── package.json
+```
+
+## Entry Point (`src/main.ts`)
+
+Add SW registration to Svelte's entry point:
+
+```typescript
+import App from './App.svelte'
+
+async function registerSW() {
+  const { version } = await fetch('/version.json').then(r => r.json())
+  await navigator.serviceWorker.register(`/sw-v${version}.js`)
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', registerSW)
+}
+
+const app = new App({
+  target: document.getElementById('app'),
+})
+
+export default app
+```
+
+## Add Patterns
+
+Copy these files from [Patterns](/docs/patterns):
+
+1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
+3. **[Client Registration](/docs/patterns/client-registration)** → `src/sw-registration.js`
+4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
+
+Update `package.json`:
+```json
+{
+  "scripts": {
+    "build": "vite build && node generate-sw.js"
+  }
+}
+```
+
+## Build & Test
+
+```bash
+npm version patch
+npm run build
+```
+
+## Next Steps
+
+- [Svelte Stores](/docs/patterns/update-hooks) — Adapt `usePWAUpdate` for Svelte
+- [Components](/docs/patterns/components) — `UpdatePrompt`, `SWProgressBar`
+- [Core Architecture](/docs/core/offline-first) — Understand the patterns

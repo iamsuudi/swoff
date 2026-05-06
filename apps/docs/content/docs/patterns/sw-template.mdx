@@ -87,8 +87,8 @@ writeFileSync(
   join(__dirname, "dist", "version.json"),
   JSON.stringify({
     version: pkg.version,
+    minSupportedVersion: pkg.minSupportedVersion || "0.0.0",
     generatedAt: new Date().toISOString(),
-    forceUpdate: false,
   }),
 );
 ```
@@ -105,18 +105,20 @@ New version? → Show update prompt → User approves → Register new SW → Re
 
 ## Events
 
-| Event                 | Purpose                |
-| --------------------- | ---------------------- |
-| `sw-version-detected` | Version info available |
-| `sw-update-available` | New version detected   |
-| `sw-ready`            | SW active              |
-| `sw-progress`         | Download progress      |
+| Event                 | Source                         | Detail                | Purpose                                            |
+| --------------------- | ------------------------------ | --------------------- | -------------------------------------------------- |
+| `sw-version-detected` | main.tsx                       | none                  | Signals version info is available on window object |
+| `sw-update-available` | main.tsx                       | `{ version: string }` | New version detected on server, differs from local |
+| `sw-progress`         | main.tsx (from SW postMessage) | `{ percent: number }` | Download progress during SW install                |
+| `sw-ready`            | main.tsx                       | none                  | SW is active and controlling the page              |
+| `sw-error`            | main.tsx                       | none                  | SW registration failed                             |
 
 ## Storage
 
-| Key                                   | Purpose            |
-| ------------------------------------- | ------------------ |
-| `localStorage['swRegisteredVersion']` | Current SW version |
+| Key                                     | Type                   | Purpose                                                                     |
+| --------------------------------------- | ---------------------- | --------------------------------------------------------------------------- |
+| `localStorage['swRegisteredVersion']`   | string (e.g., "0.0.2") | Tracks which SW version is registered. Used to detect updates.              |
+| `sessionStorage['sw-dismissed-update']` | string ("true")        | Suppresses update dialog for current browser session. Cleared on tab close. |
 
 ## Next Steps
 

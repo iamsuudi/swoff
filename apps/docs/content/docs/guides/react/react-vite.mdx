@@ -6,7 +6,7 @@ icon: Atom
 
 # React + Vite
 
-Quick setup for **React + Vite** projects.
+Concise adapter for **React + Vite** projects.
 
 ## Create Project
 
@@ -17,45 +17,28 @@ cd my-app && npm install
 
 ## Project Structure
 
-```tsx title="Docu" ts2js
-import { ReactNode } from "react";
-
-export default function Layout({ children }: { children: ReactNode }) {
-  return <div>{children}</div>;
-}
-```
-
 ```
 my-app
 ├── src
 │   ├── main.tsx
-│   ├── App.tsx
 │   └── sw-template.js
 ├── generate-sw.js
 ├── sw.d.ts
 └── package.json
 ```
 
-## Install Dependencies
+## Entry Point (`src/main.tsx`)
 
-```bash
-npm install react@latest react-dom@latest
-npm install -D typescript @types/react vite @vitejs/plugin-react
-```
-
-## Update main.tsx
+Add SW registration to React's entry point:
 
 ```typescript
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 
-const STORAGE_KEY = 'swRegisteredVersion'
-
 async function registerSW() {
   const { version } = await fetch('/version.json').then(r => r.json())
   await navigator.serviceWorker.register(`/sw-v${version}.js`)
-  localStorage.setItem(STORAGE_KEY, version)
 }
 
 if ('serviceWorker' in navigator) {
@@ -65,20 +48,16 @@ if ('serviceWorker' in navigator) {
 ReactDOM.createRoot(document.getElementById('root')!).render(<App />)
 ```
 
-## Create SW Template
+## Add Patterns
 
-Create `src/sw-template.js` (same as [SW Template](/docs/patterns/sw-template)).
+Copy these files from [Patterns](/docs/patterns):
 
-## Create Build Script
+1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
+3. **[Client Registration](/docs/patterns/client-registration)** → `src/sw-registration.js` (enhanced registration with version checking)
+4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
 
-Create `generate-sw.js` (same as [Build Scripts](/docs/patterns/build-scripts)).
-
-## TypeScript Declarations
-
-Create `sw.d.ts` (same as [Client Registration](/docs/patterns/client-registration)).
-
-## Update package.json
-
+Update `package.json`:
 ```json
 {
   "scripts": {
@@ -98,5 +77,6 @@ Test offline: DevTools → Application → Service Workers → Check "Offline".
 
 ## Next Steps
 
-- [SW Template](/docs/patterns/sw-template) — Deep dive
-- [PWA & Installability](/docs/core/pwa-installability) — Make installable
+- [React Hooks](/docs/patterns/update-hooks) — `usePWAUpdate`, `useSWProgress`
+- [Components](/docs/patterns/components) — `UpdatePrompt`, `SWProgressBar`
+- [Core Architecture](/docs/core/offline-first) — Understand the patterns

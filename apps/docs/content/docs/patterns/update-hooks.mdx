@@ -14,13 +14,15 @@ Main hook for update flow.
 
 ```typescript
 const {
-  updateStatus,         // 'idle' | 'available' | 'downloading'
-  availableVersion,     // string | null
-  progress,             // number (0-100)
-  forceUpdate,          // boolean
-  dismissUpdate,        // () => void
-  acceptUpdate,         // () => Promise<void>
-} = usePWAUpdate()
+  currentVersion, // string | null — currently registered version
+  availableVersion, // string | null — version available for update
+  updateStatus, // 'idle' | 'available' | 'downloading'
+  progress, // number (0-100)
+  forceUpdate, // boolean — whether update is mandatory (version < minSupportedVersion)
+  dismissUpdate, // () => void — dismiss the update dialog (disabled if forceUpdate)
+  acceptUpdate, // () => Promise<void> — download and auto-activate the new version
+  checkForUpdates, // () => Promise<void> — manually check version.json
+} = usePWAUpdate();
 ```
 
 **Usage:**
@@ -42,7 +44,7 @@ function App() {
 Track SW download progress.
 
 ```typescript
-const { progress, status } = useSWProgress()
+const { progress, status } = useSWProgress();
 // status: 'idle' | 'installing' | 'ready' | 'error'
 ```
 
@@ -64,12 +66,12 @@ function ProgressBar() {
 Read current/latest versions.
 
 ```typescript
-const { currentVersion, latestVersion } = usePWAVersion()
+const { currentVersion, latestVersion } = usePWAVersion();
 ```
 
 ---
 
 ## Next Steps
 
-- [Update Hooks & Components](/docs/patterns/components) — UI components
+- [Components](/docs/patterns/components) — UI components
 - [Client Registration](/docs/patterns/client-registration) — Underlying logic

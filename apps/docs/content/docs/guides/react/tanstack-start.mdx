@@ -63,7 +63,7 @@ ReactDOM.createRoot(document.getElementById('app')!).render(
 
 ## SW Template & Build Script
 
-Same as [React + Vite guide](/docs/guides/react-vite).
+Same as [React + Vite guide](/docs/guides/react/react-vite).
 
 ## Build & Test
 
@@ -74,11 +74,11 @@ npm run build
 
 ## Notes
 
-- Set `ssr: false` for offline-first
-- All logic runs client-side after hydration
-- API routes won't work offline
+- Set `ssr: false` for offline-first — Swoff runs client-only
+- All logic runs in browser via Service Worker + IndexedDB
+- TanStack Start's server API routes are not used (Swoff is client-side only)
 
 ## Next Steps
 
 - [SW Template](/docs/patterns/sw-template) — Deep dive
-- [TanStack Router](/docs/guides/tanstack-router) — Compare
+- [TanStack Router](/docs/guides/react/tanstack-router) — Compare

@@ -35,6 +35,9 @@ export default defineConfig({
         id: "package-manager",
       },
     },
+    remarkCodeTabOptions: {
+      parseMdx: true,
+    },
   },
   plugins: [lastModified()],
 });

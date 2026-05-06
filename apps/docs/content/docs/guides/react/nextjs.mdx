@@ -1,0 +1,99 @@
+---
+title: Next.js
+description: Set up Swoff with Next.js (client-only mode).
+icon: nextJS
+---
+
+# Next.js
+
+Concise adapter for **Next.js** in client-only mode.
+
+## Important: Client-Only Mode
+
+Next.js is fullstack, but Swoff is **client-side only**. Use static export:
+
+```javascript
+// next.config.js
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: "export", // Static export — no server needed
+};
+module.exports = nextConfig;
+```
+
+## Create Project
+
+```bash
+npx create-next-app@latest my-app --typescript
+cd my-app && npm install
+```
+
+## Project Structure
+
+```
+my-app
+├── pages (or app/)
+│   └── sw-template.js
+├── generate-sw.js
+├── sw.d.ts
+└── package.json
+```
+
+## Entry Point
+
+### Pages Router (`pages/_app.tsx`):
+
+```typescript
+import type { AppProps } from 'next/app'
+
+function MyApp({ Component, pageProps }: AppProps) {
+  return <Component {...pageProps} />
+}
+
+async function registerSW() {
+  const { version } = await fetch('/version.json').then(r => r.json())
+  await navigator.serviceWorker.register(`/sw-v${version}.js`)
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', registerSW)
+}
+
+export default MyApp
+```
+
+### App Router (`app/layout.tsx`):
+
+Add `'use client'` directive at top of components using Swoff patterns.
+
+## Add Patterns
+
+Copy from [Patterns](/docs/patterns):
+
+1. **[SW Template](/docs/patterns/sw-template)** → `sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
+3. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
+
+Update `package.json`:
+```json
+{
+  "scripts": {
+    "build": "next build && node generate-sw.js"
+  }
+}
+```
+
+## Build & Test
+
+```bash
+npm version patch
+npm run build
+```
+
+Output in `out/` folder — deploy static files.
+
+## Next Steps
+
+- [React + Vite](/docs/guides/react/react-vite) — Base React setup
+- [Components](/docs/patterns/components) — `UpdatePrompt`, `SWProgressBar`
+- [Core Architecture](/docs/core/offline-first) — Understand the patterns

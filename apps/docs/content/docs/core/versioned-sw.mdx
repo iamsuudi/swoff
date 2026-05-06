@@ -4,7 +4,7 @@ description: How Swoff versions service workers to prevent silent updates and gi
 icon: Tag
 ---
 
-# Versioned Service Worker System
+## Versioned Service Worker System
 
 Swoff's core innovation is **versioning the service worker file itself**. This prevents browsers from silently updating your SW and gives users explicit control.
 
@@ -13,10 +13,11 @@ Swoff's core innovation is **versioning the service worker file itself**. This p
 Traditional PWA tutorials tell you to register `/sw.js`:
 
 ```javascript
-navigator.serviceWorker.register('/sw.js')
+navigator.serviceWorker.register("/sw.js");
 ```
 
 The browser then:
+
 1. Downloads `sw.js` when it changes
 2. Installs it in the background
 3. Activates it on next page reload
@@ -51,23 +52,32 @@ Each version is a **unique file**. The browser only loads the version you tell i
 
 ```javascript
 // generate-sw.js (build script)
-import { readFileSync, writeFileSync } from 'fs'
-import { fileURLToPath } from 'url'
-import { join, dirname } from 'path'
+import { readFileSync, writeFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { join, dirname } from "path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf8'))
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(join(__dirname, "package.json"), "utf8"));
 
-const template = readFileSync(join(__dirname, 'src/sw-template.js'), 'utf8')
-let sw = template.replace('// [[CACHE_NAME]]', `const CACHE_NAME = 'sw-v${pkg.version}'`)
-sw = sw.replace('// [[ASSETS_LIST]]', `const ASSETS_TO_CACHE = ['/', '/index.html']`)
+const template = readFileSync(join(__dirname, "src/sw-template.js"), "utf8");
+let sw = template.replace(
+  "// [[CACHE_NAME]]",
+  `const CACHE_NAME = 'sw-v${pkg.version}'`,
+);
+sw = sw.replace(
+  "// [[ASSETS_LIST]]",
+  `const ASSETS_TO_CACHE = ['/', '/index.html']`,
+);
 
-writeFileSync(join(__dirname, 'dist', `sw-v${pkg.version}.js`), sw)
-writeFileSync(join(__dirname, 'dist', 'version.json'), JSON.stringify({
-  version: pkg.version,
-  generatedAt: new Date().toISOString(),
-  forceUpdate: false
-}))
+writeFileSync(join(__dirname, "dist", `sw-v${pkg.version}.js`), sw);
+writeFileSync(
+  join(__dirname, "dist", "version.json"),
+  JSON.stringify({
+    version: pkg.version,
+    minSupportedVersion: pkg.minSupportedVersion || pkg.version,
+    generatedAt: new Date().toISOString(),
+  }),
+);
 ```
 
 ### 3. Client Checks version.json
@@ -75,17 +85,17 @@ writeFileSync(join(__dirname, 'dist', 'version.json'), JSON.stringify({
 ```javascript
 // Check for updates
 async function checkForUpdate() {
-  const response = await fetch('/version.json')
-  const manifest = await response.json()
-  return manifest
+  const response = await fetch("/version.json");
+  const manifest = await response.json();
+  return manifest;
 }
 
 // Register specific version
 async function registerSpecificVersion(version) {
-  const swUrl = `/sw-v${version}.js`
-  const registration = await navigator.serviceWorker.register(swUrl)
-  localStorage.setItem('swRegisteredVersion', version)
-  return registration
+  const swUrl = `/sw-v${version}.js`;
+  const registration = await navigator.serviceWorker.register(swUrl);
+  localStorage.setItem("swRegisteredVersion", version);
+  return registration;
 }
 ```
 
@@ -122,16 +132,20 @@ New SW activates → Reload page
 ```json
 {
   "version": "1.0.1",
-  "generatedAt": "2024-01-15T10:30:00.000Z",
-  "forceUpdate": false
+  "minSupportedVersion": "1.0.0",
+  "generatedAt": "2024-01-15T10:30:00.000Z"
 }
 ```
 
-| Field | Purpose |
-|-------|---------|
-| `version` | SemVer version string |
-| `generatedAt` | ISO timestamp of build |
-| `forceUpdate` | If true, force update (future use) |
+| Field                | Purpose                                                |
+| -------------------- | ------------------------------------------------------ |
+| `version`            | SemVer version string of this build                    |
+| `minSupportedVersion`| Minimum version users must have (enforced update)      |
+| `generatedAt`        | ISO timestamp of build                                 |
+
+:::info
+`minSupportedVersion` is copied from `package.json` during build. If a user's registered version is less than `minSupportedVersion`, they are forced to update (no dismiss option).
+:::
 
 ## SW Template
 
@@ -142,34 +156,40 @@ The SW template uses placeholders that get replaced during build:
 // [[CACHE_NAME]]
 // [[ASSETS_LIST]]
 
-self.addEventListener('install', (event) => {
+self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache =>
-      cache.addAll(ASSETS_TO_CACHE)
-    )
-  )
-})
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE)),
+  );
+});
 
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return
+self.addEventListener("fetch", (event) => {
+  // Only handle read requests (GET) - mutations (POST, PUT, DELETE) go to network
+  if (event.request.method !== "GET") return;
+
   event.respondWith(
-    caches.match(event.request).then(cached =>
-      cached || (event.request.mode === 'navigate'
-        ? caches.match('/index.html')
-        : fetch(event.request))
-    )
-  )
-})
+    caches
+      .match(event.request)
+      .then(
+        (cached) =>
+          cached ||
+          (event.request.mode === "navigate"
+            ? caches.match("/index.html")
+            : fetch(event.request)),
+      ),
+  );
+});
 
-self.addEventListener('activate', (event) => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
-      )
-    )
-  )
-})
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)),
+        ),
+      ),
+  );
+});
 ```
 
 ## Benefits
@@ -178,6 +198,10 @@ self.addEventListener('activate', (event) => {
 2. **Rollback possible** — just re-register old version
 3. **Clear versioning** — filename shows exact version
 4. **Browser agnostic** — works in all browsers with SW support
+
+:::info
+This SW template handles **app shell caching** (static assets, routes). For caching dynamic read request responses, see [Caching Strategies](/docs/core/caching-strategies).
+:::
 
 ## Next Steps
 

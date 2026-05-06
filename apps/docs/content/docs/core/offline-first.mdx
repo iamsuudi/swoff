@@ -1,20 +1,51 @@
 ---
 title: Offline-First Principles
-description: Build client-only apps that work fully offline.
+description: Build apps with offline-capable app shell and smart data handling.
 icon: HardDrive
 ---
 
-# Offline Architecture
+## Offline-First Architecture
 
-Build web apps that work **fully offline** — no server required after first load.
+Build web apps where the **app shell works offline** and **data is handled intelligently** — reads cached, mutations queued when offline.
 
 ## Principles
 
-1. **Client-Only Runtime** — All logic runs in browser
-2. **Offline-First Storage** — IndexedDB for data, localStorage for config
-3. **Service Worker Caching** — All static assets cached
+1. **Offline App Shell** — All routes and static assets cached via Service Worker
+2. **Smart Data Handling** — Read requests cached, mutations queued when offline
+3. **Backend Optional** — Works with your existing server, or go full offline (Tier 2)
 
-## Architecture
+## Two Tiers
+
+### Tier 1: App Shell + Smart Data (General Pattern)
+
+Works with your existing backend:
+
+```
+┌─────────────────────────────────────────────────┐
+│                 Browser (Client)                  │
+│                                                   │
+│  ┌──────────────┐  ┌──────────────────────────┐ │
+│  │ Service      │  │  App Logic               │ │
+│  │ Worker       │  │  (React/Vue)             │ │
+│  │              │  │                          │ │
+│  │ - App shell  │  │  - Read from Cache API   │ │
+│  │   cache      │  │  - Queue mutations       │ │
+│  │ - Read cache │  │  - Sync when online       │ │
+│  └──────────────┘  └──────────────────────────┘ │
+└─────────────────────────────────────────────────┘
+         │                              ▲
+         │ Fetch read                    │
+         │ Cache write                   │ Sync queued
+         ▼                              │
+┌─────────────────────┐                │
+│  Your Backend API   │────────────────┘
+│  (dynamic data)     │  Return data
+└─────────────────────┘
+```
+
+### Tier 2: Full Offline (Special Case)
+
+No backend needed (like Budget Manager):
 
 ```
 ┌────────────────────────┐
@@ -30,50 +61,41 @@ Build web apps that work **fully offline** — no server required after first lo
 └────────────────────────┘
 ```
 
-## Storage Strategy
+## Storage Strategy by Tier
 
-### IndexedDB (Primary)
+### Tier 1 (General Pattern)
 
-For structured data (todos, notes, etc.):
+| API                | Purpose                          |
+| ------------------ | -------------------------------- |
+| **Cache API**      | Cache read request responses     |
+| **IndexedDB**      | Queue mutations when offline     |
+| **localStorage**   | Settings, metadata, SW version   |
+| **sessionStorage** | Session state (cleared on close) |
 
-```typescript
-import { openDB } from 'idb'
+### Tier 2 (Full Offline - Budget Manager Pattern)
 
-const db = await openDB('my-app', 1, {
-  upgrade(db) {
-    db.createObjectStore('items', { keyPath: 'id' })
-  },
-})
-```
+| API                | Purpose                        |
+| ------------------ | ------------------------------ |
+| **IndexedDB**      | Full database for all app data |
+| **localStorage**   | Settings, metadata             |
+| **sessionStorage** | Session state                  |
+| **Cache API**      | App shell assets only          |
 
-### localStorage (Metadata)
-
-For small config values:
-
-```typescript
-localStorage.setItem('app-version', '1.0.0')
-```
-
-### sessionStorage (Session State)
-
-For temporary state (cleared on tab close):
-
-```typescript
-sessionStorage.setItem('auth', 'true')
-```
-
-## Data Flow
+## Data Flow (Tier 1 - General Pattern)
 
 **Online (First Visit):**
-1. Browser loads `index.html`
-2. SW registers and caches assets
-3. App initializes, data saved to IndexedDB
 
-**Offline (Subsequent):**
-1. SW serves from cache (instant)
-2. App loads from cache
-3. IndexedDB data available
-4. Full functionality!
+1. Browser loads `index.html`
+2. SW registers and caches app shell (all routes, static assets)
+3. App fetches data from backend, caches read responses in Cache API
+4. Mutations sent to backend normally
+
+**Offline:**
+
+1. SW serves app shell from cache (instant)
+2. Read requests served from Cache API
+3. Mutations queued in IndexedDB
+4. When back online: queued mutations synced to backend
 
 ## Session Management
 
@@ -81,39 +103,33 @@ Survive refreshes, clear on tab close:
 
 ```typescript
 // On login
-sessionStorage.setItem('auth', 'true')
+sessionStorage.setItem("auth", "true");
 
 // On page load
-if (sessionStorage.getItem('auth') === 'true') {
-  showApp()
+if (sessionStorage.getItem("auth") === "true") {
+  showApp();
 } else {
-  showLogin()
+  showLogin();
 }
 ```
 
-## Soft Deletes
+## Offline Checklist (Tier 1 - General)
 
-Instead of permanent deletion:
+- [ ] SW caches all static assets and routes
+- [ ] Read requests cached for offline access
+- [ ] Mutation queue implemented (IndexedDB)
+- [ ] Sync logic for queued mutations
+- [ ] App shell works without network
 
-```typescript
-// Mark as deleted
-await db.put('items', { ...item, deletedAt: Date.now() })
+## Offline Checklist (Tier 2 - Full Offline)
 
-// Query active only
-const items = await db.getAll('items')
-const active = items.filter(i => !i.deletedAt)
-```
-
-## Offline Checklist
-
-- [ ] SW caches all static assets
-- [ ] IndexedDB initialized on first load
-- [ ] App works without network after first visit
-- [ ] Data persists across sessions
-- [ ] Tested in airplane mode!
+- [ ] SW caches all static assets and routes
+- [ ] IndexedDB initialized as full database
+- [ ] All CRUD operations use IndexedDB
+- [ ] App works 100% offline (no backend needed)
 
 ## Next Steps
 
-- [Service Worker Template](/docs/patterns/sw-template) — Deep dive
-- [PWA & Installability](/docs/core/pwa-installability) — Make it installable
+- [Service Worker Template](/docs/patterns/sw-template) — App shell caching
 - [Data Storage Strategy](/docs/core/data-storage) — Choose the right storage
+- [Versioned SW System](/docs/core/versioned-sw) — Prevent silent updates

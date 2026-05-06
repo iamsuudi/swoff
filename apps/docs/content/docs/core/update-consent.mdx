@@ -4,10 +4,6 @@ description: Handle app updates with consent-based versioning.
 icon: UserCheck
 ---
 
-# Version Management
-
-Handle updates with **consent-based versioning**.
-
 ## Overview
 
 Users explicitly approve updates:
@@ -39,7 +35,7 @@ dist/
 ```json
 {
   "version": "1.0.0",
-  "forceUpdate": false
+  "minSupportedVersion": "1.0.0"
 }
 ```
 
@@ -74,16 +70,36 @@ function UpdatePrompt() {
 }
 ```
 
-## Force Updates
+## Minimum Supported Version
 
-Set `forceUpdate: true` in `generate-sw.js`:
+The app uses a `minSupportedVersion` field in `package.json` and `version.json` to enforce critical updates. Unlike a per-version `forceUpdate` flag, this approach ensures users who missed a forced version are still required to update when a newer non-forced version is released.
 
-```javascript
-writeFileSync('dist/version.json', JSON.stringify({
-  version: pkg.version,
-  forceUpdate: true  // User must update
-}))
+**How it works**:
+
+1. Developer sets `minSupportedVersion` in `package.json` when releasing critical updates
+2. Build script copies this to `version.json`
+3. On app load, client compares registered version with `minSupportedVersion`
+4. If registered version < `minSupportedVersion`, update is mandatory (full-screen overlay, no dismiss)
+5. If registered version >= `minSupportedVersion`, update is optional (standard bottom-sheet)
+
+**Example Scenario**:
+
+- v1.0.5 released with `minSupportedVersion: "1.0.5"` (critical security fix)
+- v1.0.6 released with `minSupportedVersion: "1.0.5"` (non-critical feature)
+- User with v1.0.4 visits during v1.0.6 era → **forced to update** (because 1.0.4 < 1.0.5)
+- User with v1.0.5 visits during v1.0.6 era → optional update to v1.0.6
+
+**Developer Workflow**:
+
+```json
+// package.json
+{
+  "version": "1.0.5",
+  "minSupportedVersion": "1.0.5"
+}
 ```
+
+Build and deploy. All users below v1.0.5 will be forced to update.
 
 ## Session Dismissal
 
@@ -91,25 +107,25 @@ Suppress dialog for current session:
 
 ```typescript
 function dismissUpdate() {
-  sessionStorage.setItem('sw-dismissed-update', 'true')
+  sessionStorage.setItem("sw-dismissed-update", "true");
 }
 ```
 
 ## Events
 
-| Event | Purpose |
-|-------|---------|
+| Event                 | Purpose              |
+| --------------------- | -------------------- |
 | `sw-update-available` | New version detected |
-| `sw-progress` | Download progress |
-| `sw-ready` | SW active |
+| `sw-progress`         | Download progress    |
+| `sw-ready`            | SW active            |
 
 ## Window Properties
 
 ```typescript
 interface Window {
-  latestSWVersion?: string
-  currentSWVersion?: string
-  swForceUpdate?: boolean
+  latestSWVersion?: string;
+  currentSWVersion?: string;
+  swMinSupportedVersion?: string;
 }
 ```
 

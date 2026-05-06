@@ -1,137 +1,147 @@
 ---
 title: Data Storage Strategy
-description: Choosing the right storage API for offline-first apps — IndexedDB, localStorage, sessionStorage.
+description: Choosing the right storage API for your Swoff app tier.
 icon: Database
 ---
 
-# Data Storage Strategy
+## Two Tiers, Different Storage Needs
 
-Offline-first apps need client-side storage. Choose the right API for the job.
+Swoff apps have different storage requirements based on the tier:
 
-## Storage Options
+| API                | Capacity    | Data Type  | Sync  | Tier 1 (General)     | Tier 2 (Full Offline) |
+| ------------------ | ----------- | ---------- | ----- | -------------------- | --------------------- |
+| **Cache API**      | Unlimited\* | Requests   | Async | Cache read responses | App shell assets only |
+| **IndexedDB**      | ~50MB+      | Structured | Async | Queue mutations      | Full app database     |
+| **localStorage**   | ~5MB        | Strings    | Sync  | Settings, SW version | Settings, metadata    |
+| **sessionStorage** | ~5MB        | Strings    | Sync  | Session state        | Session state         |
 
-| API | Capacity | Data Type | Sync | Use Case |
-|-----|----------|-----------|------|----------|
-| **IndexedDB** | ~50MB+ | Structured | Async | App data (todos, users, etc.) |
-| **localStorage** | ~5MB | Strings | Sync | Settings, metadata |
-| **sessionStorage** | ~5MB | Strings | Sync | Session state (cleared on close) |
-| **Cache API** | Unlimited* | Requests | Async | SW asset caching |
+\*Limited by disk space and browser quota
 
-*Limited by disk space and browser quota
+## Tier 1: General Pattern (With Backend) [step]
 
-## IndexedDB (Primary Data Store)
+### Cache API (Read Response Caching)
 
-Use IndexedDB for **structured application data**:
+Cache GET/read request responses for offline access:
 
-- Todos, notes, expenses, users, etc.
-- Large datasets
-- Complex queries with indexes
-- Need for migrations
+```javascript
+// In your app, cache read responses
+async function fetchWithCache(url) {
+  const cache = await caches.open("read-cache-v1");
 
-### Native IndexedDB (Zero Dependency)
+  // Try cache first
+  const cached = await cache.match(url);
+  if (cached) return cached.json();
+
+  // Fetch and cache
+  const response = await fetch(url);
+  await cache.put(url, response.clone());
+  return response.json();
+}
+```
+
+### IndexedDB (Mutation Queue)
+
+Queue mutations when offline, sync when back online:
+
+```javascript
+// Queue a mutation
+async function queueMutation(mutation) {
+  const db = await openDB("my-app", 1, {
+    upgrade(db) {
+      db.createObjectStore("mutation-queue", {
+        keyPath: "id",
+        autoIncrement: true,
+      });
+    },
+  });
+  const tx = db.transaction("mutation-queue", "readwrite");
+  const store = tx.objectStore("mutation-queue");
+  await store.add({ ...mutation, timestamp: Date.now() });
+}
+
+// Sync when online
+async function syncQueue() {
+  const db = await openDB("my-app", 1);
+  const tx = db.transaction("mutation-queue", "readonly");
+  const store = tx.objectStore("mutation-queue");
+  const mutations = await store.getAll();
+
+  for (const mutation of mutations) {
+    await fetch("/api/mutate", {
+      method: "POST",
+      body: JSON.stringify(mutation),
+    });
+    // Remove from queue after successful sync
+  }
+}
+```
+
+### localStorage (Metadata)
+
+For small config values:
+
+```javascript
+// Settings
+localStorage.setItem("theme", "dark");
+const theme = localStorage.getItem("theme");
+
+// Version tracking
+localStorage.setItem("swRegisteredVersion", "1.0.0");
+```
+
+### sessionStorage (Session State)
+
+For temporary state (cleared on tab close):
+
+```javascript
+// Cleared when tab closes
+sessionStorage.setItem("current-view", "list");
+const view = sessionStorage.getItem("current-view");
+```
+
+## Tier 2: Full Offline (Budget Manager Pattern) [step]
+
+### IndexedDB (Full Database)
+
+Use IndexedDB as your **complete database** (no backend):
 
 ```javascript
 // Open database
 function openDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('my-app', 1)
+    const request = indexedDB.open("my-app", 1);
 
     request.onupgradeneeded = (e) => {
-      const db = e.target.result
-      const store = db.createObjectStore('todos', { keyPath: 'id' })
-      store.createIndex('by-date', 'date')
-    }
+      const db = e.target.result;
+      const store = db.createObjectStore("todos", { keyPath: "id" });
+      store.createIndex("by-date", "date");
+    };
 
-    request.onsuccess = (e) => resolve(e.target.result)
-    request.onerror = (e) => reject(e.target.error)
-  })
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
 }
 
 // Add item
 async function addTodo(todo) {
-  const db = await openDB()
-  const tx = db.transaction('todos', 'readwrite')
-  const store = tx.objectStore('todos')
-  store.add(todo)
-  await tx.done // If using idb wrapper, else: await new Promise(r => tx.oncomplete = r)
-}
-
-// Get all
-async function getAllTodos() {
-  const db = await openDB()
-  const tx = db.transaction('todos', 'readonly')
-  const store = tx.objectStore('todos')
-  return new Promise((resolve, reject) => {
-    const request = store.getAll()
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error)
-  })
+  const db = await openDB();
+  const tx = db.transaction("todos", "readwrite");
+  const store = tx.objectStore("todos");
+  await new Promise((resolve) => {
+    const request = store.add(todo);
+    request.onsuccess = resolve;
+  });
 }
 ```
 
-### With idb Library (Optional)
+### Cache API (App Shell Only)
 
-If you prefer promises over event handlers:
-
-```javascript
-import { openDB } from 'idb' // npm install idb
-
-const db = await openDB('my-app', 1, {
-  upgrade(db) {
-    db.createObjectStore('todos', { keyPath: 'id' })
-  }
-})
-
-await db.add('todos', { id: 1, text: 'Hello' })
-const todos = await db.getAll('todos')
-```
-
-**Choice**: Swoff provides both patterns. Use native for zero deps, or `idb` for cleaner code.
-
-## localStorage (Metadata)
-
-Use localStorage for **small, simple values**:
-
-```javascript
-// Settings
-localStorage.setItem('theme', 'dark')
-const theme = localStorage.getItem('theme')
-
-// Flags
-localStorage.setItem('welcome-seen', 'true')
-const seen = localStorage.getItem('welcome-seen') === 'true'
-
-// Version tracking
-localStorage.setItem('swRegisteredVersion', '1.0.0')
-```
-
-**Limitations**:
-- Synchronous (blocks main thread)
-- Strings only (must JSON.stringify objects)
-- ~5MB limit
-- No indexes or queries
-
-## sessionStorage (Session State)
-
-Use sessionStorage for **temporary state**:
-
-```javascript
-// Cleared when tab closes
-sessionStorage.setItem('current-view', 'list')
-const view = sessionStorage.getItem('current-view')
-```
-
-## Cache API (SW Assets)
-
-Used by Service Worker for asset caching (not app data):
+Used by Service Worker for app shell caching:
 
 ```javascript
 // In SW
-const cache = await caches.open('my-app-v1')
-await cache.add('/index.html')
-
-// Retrieve
-const response = await cache.match('/index.html')
+const cache = await caches.open("my-app-v1");
+await cache.addAll(["/", "/index.html", "/app.js"]);
 ```
 
 ## Storage Quota
@@ -139,34 +149,52 @@ const response = await cache.match('/index.html')
 Check available storage:
 
 ```javascript
-const estimate = await navigator.storage.estimate()
-console.log(`Using ${estimate.usage} of ${estimate.quota} bytes`)
+const estimate = await navigator.storage.estimate();
+console.log(`Using ${estimate.usage} of ${estimate.quota} bytes`);
 ```
 
 ## Swoff's Recommendation
 
+### Tier 1 (Most Apps)
+
 ```
 ┌─────────────────────────────────────┐
-│         App Data Strategy           │
+│         Tier 1 Storage Strategy      │
+│                                     │
+│  Cache API                          │
+│  - Cache read request responses     │
+│  - Offline read access              │
 │                                     │
 │  IndexedDB                          │
-│  - Todos, notes, expenses           │
-│  - User data, settings with structure│
-│  - Large datasets                   │
+│  - Queue mutations when offline     │
+│  - Sync when back online            │
 │                                     │
 │  localStorage                       │
 │  - UI preferences (theme, language) │
-│  - Feature flags                    │
 │  - SW version tracking              │
 │                                     │
 │  sessionStorage                     │
 │  - Current route state              │
 │  - Form draft data                  │
-│  - Temporary flags                  │
+└─────────────────────────────────────┘
+```
+
+### Tier 2 (Budget Manager Pattern)
+
+```
+┌─────────────────────────────────────┐
+│         Tier 2 Storage Strategy      │
+│                                     │
+│  IndexedDB (Full Database)          │
+│  - All app data (todos, users)      │
+│  - Large datasets                   │
+│  - No backend needed                │
 │                                     │
 │  Cache API (via SW)                 │
-│  - Static assets (HTML, JS, CSS)    │
-│  - Images, fonts                    │
+│  - App shell assets only            │
+│                                     │
+│  localStorage                       │
+│  - Settings, metadata              │
 └─────────────────────────────────────┘
 ```
 
@@ -174,4 +202,4 @@ console.log(`Using ${estimate.usage} of ${estimate.quota} bytes`)
 
 - See [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) — practical examples
 - Learn [Offline-First Principles](/docs/core/offline-first) — architecture
-- Check the [Reference Implementation](/docs/reference/budget-manager) — real-world usage
+- Check the [Reference Implementation](/docs/reference/budget-manager) — Tier 2 example

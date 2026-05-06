@@ -4,17 +4,13 @@ description: Configure your app as a PWA with install prompts.
 icon: Download
 ---
 
-# PWA Setup
-
-Make your web app installable and app-like.
-
 ## Prerequisites
 
 1. **HTTPS or localhost** — Required for SW and PWA
 2. **Service Worker** — Already set up
 3. **Web App Manifest** — Describes your app
 
-## Step 1: Create Manifest
+## Create Manifest [step]
 
 Create `public/manifest.json`:
 
@@ -32,7 +28,7 @@ Create `public/manifest.json`:
 }
 ```
 
-## Step 2: Link in HTML
+## Link in HTML [step]
 
 Update `index.html`:
 
@@ -41,55 +37,55 @@ Update `index.html`:
 <meta name="theme-color" content="#000000" />
 ```
 
-## Step 3: Handle Install Prompt
+## Handle Install Prompt [step]
 
 ```typescript
 // Capture install prompt
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault()
-  window.deferredInstallPrompt = e as any
-})
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  window.deferredInstallPrompt = e as any;
+});
 
 // Trigger install
 async function promptInstall() {
-  await window.deferredInstallPrompt?.prompt()
-  const { outcome } = await window.deferredInstallPrompt.userChoice
-  console.log(`User ${outcome} the install`)
+  await window.deferredInstallPrompt?.prompt();
+  const { outcome } = await window.deferredInstallPrompt.userChoice;
+  console.log(`User ${outcome} the install`);
 }
 ```
 
-## Step 4: Delayed SW Registration
+## Delayed SW Registration [step]
 
 Don't register SW until app is ready:
 
 ```typescript
 function shouldRegisterSW(): boolean {
-  return localStorage.getItem('app-ready') === 'true'
+  return localStorage.getItem("app-ready") === "true";
 }
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", async () => {
     if (shouldRegisterSW()) {
-      await registerServiceWorker()
+      await registerServiceWorker();
     }
-  })
+  });
 }
 ```
 
 **Why delay?** Better UX — don't interrupt onboarding.
 
-## Step 5: Detect PWA Mode
+## Detect PWA Mode [step]
 
 ```typescript
 function isRunningAsPWA(): boolean {
   return (
-    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia("(display-mode: standalone)").matches ||
     (navigator as any).standalone === true
-  )
+  );
 }
 ```
 
-## Step 6: Create Icons
+## Create Icons [step]
 
 Generate icons: 192x192 and 512x512 minimum.
 
@@ -111,5 +107,5 @@ Generate icons: 192x192 and 512x512 minimum.
 ## Next Steps
 
 - [Versioned App vs PWA Install](/docs/concepts/versioned-app-vs-pwa) — Key distinction
-- [Framework Guides](/docs/guides/react-vite) — React, TanStack Router
+- [Framework Guides](/docs/guides/react/react-vite) — React, TanStack Router
 - [PWA Explained](/docs/concepts/pwa-explained) — What PWA actually is

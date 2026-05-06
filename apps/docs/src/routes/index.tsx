@@ -48,8 +48,7 @@ function Home() {
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
           <Link
-            to="/docs/$"
-            params={{ _splat: "" }}
+            to="/docs"
             className={buttonVariants({ className: "text-base px-8 border" })}
           >
             Get Started

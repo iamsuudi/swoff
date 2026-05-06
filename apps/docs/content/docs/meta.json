@@ -5,6 +5,7 @@
   "icon": "BookOpen",
   "pages": [
     "index",
+    "introduction",
     "---",
     "concepts",
     "core",

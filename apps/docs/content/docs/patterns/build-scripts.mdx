@@ -23,18 +23,27 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "package.json"), "utf8"));
 const template = readFileSync(join(__dirname, "src/sw-template.js"), "utf8");
 
-let sw = template.replace("// [[CACHE_NAME]]", `const CACHE_NAME = 'sw-v${pkg.version}'`);
-sw = sw.replace("// [[ASSETS_LIST]]", `const ASSETS_TO_CACHE = ['/', '/index.html']`);
+let sw = template.replace(
+  "// [[CACHE_NAME]]",
+  `const CACHE_NAME = 'sw-v${pkg.version}'`,
+);
+sw = sw.replace(
+  "// [[ASSETS_LIST]]",
+  `const ASSETS_TO_CACHE = ['/', '/index.html']`,
+);
 
 writeFileSync(join(__dirname, "dist", `sw-v${pkg.version}.js`), sw);
-writeFileSync(join(__dirname, "dist", "version.json"), JSON.stringify({
-  version: pkg.version,
-  minSupportedVersion: pkg.minSupportedVersion || "0.0.0",
-  generatedAt: new Date().toISOString(),
-}));
+writeFileSync(
+  join(__dirname, "dist", "version.json"),
+  JSON.stringify({
+    version: pkg.version,
+    minSupportedVersion: pkg.minSupportedVersion || "0.0.0",
+    generatedAt: new Date().toISOString(),
+  }),
+);
 ```
 
-**Important:** The `dist` path above is the default. Your framework may use a different output directory (e.g., `.output`, `.next/export`, `build`). See your [framework guide](/docs/guides/) for the correct path.
+**Important:** The `dist` path above is the default. Your framework may use a different output directory (e.g., `.output`, `.next/export`, `build`). See your [framework guide] for the correct path.
 
 ### 3. Update package.json
 

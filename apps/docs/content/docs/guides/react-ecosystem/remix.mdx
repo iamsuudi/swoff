@@ -1,0 +1,85 @@
+---
+title: Remix (React Router)
+description: Set up Swoff with Remix (client-side mode).
+icon: reactRouter
+---
+
+## Remix
+
+Adapter for **Remix** in client-side mode. Swoff runs client-only — Remix server features are not used.
+
+## Create Project
+
+```bash
+npx create-remix@latest
+cd my-remix-app && npm install
+```
+
+## Project Structure
+
+```
+my-remix-app
+├── app
+│   ├── root.tsx
+│   └── sw-template.js
+├── generate-sw.js
+├── sw.d.ts
+└── package.json
+```
+
+## Entry Point (`app/root.tsx`)
+
+```tsx
+import { useEffect } from "react";
+import { Outlet } from "@remix-run/react";
+import { initServiceWorker } from "./sw-registration";
+
+export default function App() {
+  useEffect(() => {
+    initServiceWorker();
+  }, []);
+  return <Outlet />;
+}
+```
+
+## Add Patterns
+
+Copy from [Patterns](/docs/patterns):
+
+1. **[SW Template](/docs/patterns/sw-template)** → `app/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
+3. **[Client Registration](/docs/patterns/client-registration)** → `app/sw-registration.js`
+4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
+
+## Output Directory
+
+Remix outputs to `build/client/` by default. Update your `generate-sw.js`:
+
+```javascript
+writeFileSync(join(__dirname, "build", "client", `sw-v${pkg.version}.js`), sw);
+writeFileSync(join(__dirname, "build", "client", "version.json"), JSON.stringify({ ... }));
+```
+
+If using a hosting adapter (Vercel, Netlify, Cloudflare), the output directory may differ. Check your adapter's docs.
+
+Update `package.json`:
+
+```json
+{
+  "scripts": {
+    "build": "remix build && node generate-sw.js"
+  }
+}
+```
+
+## Build & Test
+
+```bash
+npm version patch
+npm run build
+```
+
+## Next Steps
+
+- [React Hooks](/docs/guides/react-ecosystem/hooks) — `usePWAUpdate`, `useSWProgress`
+- [React Components](/docs/guides/react-ecosystem/components) — `UpdatePrompt`, `SWProgressBar`

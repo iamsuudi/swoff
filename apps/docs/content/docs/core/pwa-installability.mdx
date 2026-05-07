@@ -7,10 +7,12 @@ icon: Download
 ## Prerequisites
 
 1. **HTTPS or localhost** — Required for SW and PWA
-2. **Service Worker** — Already set up
+2. **Service Worker** — Already set up (see [Versioned SW](/docs/core/versioned-sw))
 3. **Web App Manifest** — Describes your app
 
-## Create Manifest [step]
+## Setup
+
+### 1. Create Manifest
 
 Create `public/manifest.json`:
 
@@ -28,53 +30,28 @@ Create `public/manifest.json`:
 }
 ```
 
-## Link in HTML [step]
-
-Update `index.html`:
+### 2. Link in HTML
 
 ```html
 <link rel="manifest" href="/manifest.json" />
 <meta name="theme-color" content="#000000" />
 ```
 
-## Handle Install Prompt [step]
+### 3. Handle Install Prompt
 
 ```typescript
-// Capture install prompt
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   window.deferredInstallPrompt = e as any;
 });
 
-// Trigger install
 async function promptInstall() {
   await window.deferredInstallPrompt?.prompt();
   const { outcome } = await window.deferredInstallPrompt.userChoice;
-  console.log(`User ${outcome} the install`);
 }
 ```
 
-## Delayed SW Registration [step]
-
-Don't register SW until app is ready:
-
-```typescript
-function shouldRegisterSW(): boolean {
-  return localStorage.getItem("app-ready") === "true";
-}
-
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", async () => {
-    if (shouldRegisterSW()) {
-      await registerServiceWorker();
-    }
-  });
-}
-```
-
-**Why delay?** Better UX — don't interrupt onboarding.
-
-## Detect PWA Mode [step]
+### 4. Detect PWA Mode
 
 ```typescript
 function isRunningAsPWA(): boolean {
@@ -85,9 +62,9 @@ function isRunningAsPWA(): boolean {
 }
 ```
 
-## Create Icons [step]
+### 5. Generate Icons
 
-Generate icons: 192x192 and 512x512 minimum.
+Create icons at 192x192 and 512x512 minimum.
 
 ## Test PWA
 
@@ -98,14 +75,14 @@ Generate icons: 192x192 and 512x512 minimum.
 
 ## Checklist
 
-- [ ] Manifest created
-- [ ] Icons created (192x192, 512x512)
+- [ ] Manifest created and linked
+- [ ] Icons generated (192x192, 512x512)
 - [ ] SW registered
 - [ ] Offline works
 - [ ] Install prompt works
 
 ## Next Steps
 
-- [Versioned App vs PWA Install](/docs/concepts/versioned-app-vs-pwa) — Key distinction
-- [Framework Guides](/docs/guides/react/react-vite) — React, TanStack Router
-- [PWA Explained](/docs/concepts/pwa-explained) — What PWA actually is
+- Understand the difference: [Service Workers](/docs/concepts/service-workers) — versioning vs PWA install
+- See [PWA Explained](/docs/concepts/pwa-explained) — what PWA actually is
+- Follow your [Framework Guide](/docs/guides/) — integration examples

@@ -1,10 +1,10 @@
 {
   "title": "Framework Guides",
-  "icon": "book",
+  "icon": "Cable",
   "pages": [
-    "react",
-    "vue",
-    "svelte",
+    "react-ecosystem",
+    "vue-ecosystem",
+    "svelte-ecosystem",
     "solid-vite",
     "angular",
     "vanilla-js",

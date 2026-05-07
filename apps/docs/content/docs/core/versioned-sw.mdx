@@ -1,77 +1,48 @@
 ---
-title: Versioned Service Worker System
+title: Versioned Service Worker
 description: How Swoff versions service workers to prevent silent updates and give users control.
-icon: Tag
+icon: GitBranch
 ---
 
-## Versioned Service Worker System
+## The Problem
 
-Swoff's core innovation is **versioning the service worker file itself**. This prevents browsers from silently updating your SW and gives users explicit control.
-
-## The Problem with Traditional SW
-
-Traditional PWA tutorials tell you to register `/sw.js`:
-
-```javascript
-navigator.serviceWorker.register("/sw.js");
-```
-
-The browser then:
-
-1. Downloads `sw.js` when it changes
-2. Installs it in the background
-3. Activates it on next page reload
-
-**This is dangerous.** If your new SW has breaking changes, users get them without consent.
+Traditional SW registration uses a fixed path like `/sw.js`. The browser automatically downloads and activates new versions on reload — dangerous if the update has breaking changes.
 
 ## Swoff's Solution: Versioned Filenames
 
-Instead of `/sw.js`, we use `/sw-v1.0.0.js`, `/sw-v1.0.1.js`, etc.
+Instead of `/sw.js`, we use `/sw-v1.0.0.js`, `/sw-v1.0.1.js`, etc. Each version is a unique file that the browser only loads when you tell it to.
 
 ```
 dist/
 ├── sw-v1.0.0.js      ← Version 1.0.0
 ├── sw-v1.0.1.js      ← Version 1.0.1
-└── version.json        ← Version manifest
+└── version.json      ← Version manifest
 ```
 
-Each version is a **unique file**. The browser only loads the version you tell it to.
-
-## How Versioning Works
+## How It Works
 
 ### 1. Version from package.json
 
 ```json
-{
-  "name": "my-app",
-  "version": "1.0.0"
-}
+{ "name": "my-app", "version": "1.0.0" }
 ```
 
 ### 2. Build Generates Versioned SW
 
+A build script reads the version, replaces placeholders in the SW template, and outputs the versioned file plus `version.json`:
+
 ```javascript
-// generate-sw.js (build script)
-import { readFileSync, writeFileSync } from "fs";
-import { fileURLToPath } from "url";
-import { join, dirname } from "path";
+// generate-sw.js
+const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+const template = readFileSync("src/sw-template.js", "utf8");
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const pkg = JSON.parse(readFileSync(join(__dirname, "package.json"), "utf8"));
+let sw = template
+  .replace("// [[CACHE_NAME]]", `const CACHE_NAME = 'sw-v${pkg.version}'`)
+  .replace("// [[ASSETS_LIST]]", `const ASSETS = ['/', '/index.html']`);
 
-const template = readFileSync(join(__dirname, "src/sw-template.js"), "utf8");
-let sw = template.replace(
-  "// [[CACHE_NAME]]",
-  `const CACHE_NAME = 'sw-v${pkg.version}'`,
-);
-sw = sw.replace(
-  "// [[ASSETS_LIST]]",
-  `const ASSETS_TO_CACHE = ['/', '/index.html']`,
-);
-
-writeFileSync(join(__dirname, "dist", `sw-v${pkg.version}.js`), sw);
+writeFileSync(`dist/sw-v${pkg.version}.js`, sw);
 writeFileSync(
-  join(__dirname, "dist", "version.json"),
+  "dist/version.json",
   JSON.stringify({
     version: pkg.version,
     minSupportedVersion: pkg.minSupportedVersion || pkg.version,
@@ -83,17 +54,15 @@ writeFileSync(
 ### 3. Client Checks version.json
 
 ```javascript
-// Check for updates
 async function checkForUpdate() {
   const response = await fetch("/version.json");
-  const manifest = await response.json();
-  return manifest;
+  return response.json();
 }
 
-// Register specific version
 async function registerSpecificVersion(version) {
-  const swUrl = `/sw-v${version}.js`;
-  const registration = await navigator.serviceWorker.register(swUrl);
+  const registration = await navigator.serviceWorker.register(
+    `/sw-v${version}.js`,
+  );
   localStorage.setItem("swRegisteredVersion", version);
   return registration;
 }
@@ -104,30 +73,15 @@ async function registerSpecificVersion(version) {
 ```
 User opens app
     ↓
-Fetch /version.json
+Fetch /version.json → Compare with localStorage['swRegisteredVersion']
     ↓
-Compare with localStorage['swRegisteredVersion']
+Same version? → Use existing SW
+New version? → Fire 'sw-update-available' event → Show prompt
     ↓
-Same version? → Use existing SW (do nothing)
-    ↓
-New version? → Fire 'sw-update-available' event
-    ↓
-Show update prompt to user
-    ↓
-User clicks "Update"
-    ↓
-Register new SW (sw-v1.0.1.js)
-    ↓
-New SW downloads assets in background
-    ↓
-Report progress via postMessage
-    ↓
-When complete → Send SKIP_WAITING
-    ↓
-New SW activates → Reload page
+User approves → Register new SW → Downloads assets → SKIP_WAITING → Reload
 ```
 
-## Version Manifest (version.json)
+## Version Manifest
 
 ```json
 {
@@ -143,13 +97,77 @@ New SW activates → Reload page
 | `minSupportedVersion` | Minimum version users must have (enforced update) |
 | `generatedAt`         | ISO timestamp of build                            |
 
-:::info
-`minSupportedVersion` is copied from `package.json` during build. If a user's registered version is less than `minSupportedVersion`, they are forced to update (no dismiss option).
-:::
+## Update Consent Flow
+
+Users explicitly approve updates. The flow: `idle → available → downloading → reload`.
+
+### Update Prompt Component
+
+```typescript
+function UpdatePrompt() {
+  const [status, setStatus] = useState<'idle' | 'available' | 'downloading'>('idle');
+
+  useEffect(() => {
+    window.addEventListener('sw-update-available', () => setStatus('available'));
+  }, []);
+
+  if (status === 'idle') return null;
+
+  return (
+    <div>
+      <p>Update available!</p>
+      <button onClick={acceptUpdate}>Update</button>
+    </div>
+  );
+}
+```
+
+### Minimum Supported Version (Forced Updates)
+
+When releasing critical updates, set `minSupportedVersion` in `package.json`:
+
+```json
+{ "version": "1.0.5", "minSupportedVersion": "1.0.5" }
+```
+
+If the user's registered version is less than `minSupportedVersion`, the update is mandatory — full-screen overlay with no dismiss option. Otherwise, it's optional (standard bottom-sheet).
+
+**Example**: v1.0.5 is released with `minSupportedVersion: "1.0.5"` (security fix). v1.0.6 follows with `minSupportedVersion: "1.0.5"` (feature). A user on v1.0.4 visiting during v1.0.6 is **forced to update** because 1.0.4 < 1.0.5.
+
+### Session Dismissal
+
+Suppress the update dialog for the current session:
+
+```typescript
+function dismissUpdate() {
+  sessionStorage.setItem("sw-dismissed-update", "true");
+}
+```
+
+### Events and Window Properties
+
+| Event                 | Purpose              |
+| --------------------- | -------------------- |
+| `sw-update-available` | New version detected |
+| `sw-progress`         | Download progress    |
+| `sw-ready`            | SW active            |
+
+```typescript
+interface Window {
+  latestSWVersion?: string;
+  currentSWVersion?: string;
+  swMinSupportedVersion?: string;
+}
+```
+
+### Bumping Versions
+
+```bash
+npm version patch  # 1.0.0 → 1.0.1
+npm run build
+```
 
 ## SW Template
-
-The SW template uses placeholders that get replaced during build:
 
 ```javascript
 // src/sw-template.js
@@ -158,14 +176,12 @@ The SW template uses placeholders that get replaced during build:
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE)),
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)),
   );
 });
 
 self.addEventListener("fetch", (event) => {
-  // Only handle read requests (GET) - mutations (POST, PUT, DELETE) go to network
   if (event.request.method !== "GET") return;
-
   event.respondWith(
     caches
       .match(event.request)
@@ -192,19 +208,19 @@ self.addEventListener("activate", (event) => {
 });
 ```
 
+:::info
+This template handles **app shell caching**. For caching dynamic read responses, see [Offline-First Architecture](/docs/core/offline-architecture#storage-strategy).
+:::
+
 ## Benefits
 
 1. **No silent updates** — users explicitly approve
-2. **Rollback possible** — just re-register old version
+2. **Rollback possible** — re-register the old version
 3. **Clear versioning** — filename shows exact version
 4. **Browser agnostic** — works in all browsers with SW support
-
-:::info
-This SW template handles **app shell caching** (static assets, routes). For caching dynamic read request responses, see [Data Storage Strategies](/docs/core/data-storage).
-:::
 
 ## Next Steps
 
 - See the [SW Template](/docs/patterns/sw-template) — copy-paste ready code
-- Learn the [Update Consent Flow](/docs/core/update-consent) — how users approve
-- Configure [Build Scripts](/docs/patterns/build-scripts) — automate versioning
+- Configure [PWA & Installability](/docs/core/pwa-installability) — optional layer
+- Follow a [Framework Guide](/docs/guides/react/react-vite) — integration examples

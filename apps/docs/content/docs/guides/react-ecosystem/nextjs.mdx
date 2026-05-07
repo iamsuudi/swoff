@@ -1,0 +1,123 @@
+---
+title: Next.js
+description: Set up Swoff with Next.js (static export mode).
+icon: nextJS
+---
+
+## Next.js
+
+Adapter for **Next.js** with static export. Swoff runs client-only — server features are not used.
+
+## Create Project
+
+```bash
+npx create-next-app@latest my-app --typescript
+cd my-app
+```
+
+## Configure Static Export
+
+```javascript
+// next.config.js
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: "export",
+  trailingSlash: true,
+};
+
+module.exports = nextConfig;
+```
+
+## Project Structure
+
+```
+my-app
+├── src
+│   └── sw-template.js
+├── generate-sw.js
+├── sw.d.ts
+└── package.json
+```
+
+## Entry Point
+
+**App Router (`app/layout.tsx`):**
+
+```tsx
+"use client";
+import { useEffect } from "react";
+import { initServiceWorker } from "../sw-registration";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  useEffect(() => {
+    initServiceWorker();
+  }, []);
+  return (
+    <html>
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+**Pages Router (`pages/_app.tsx`):**
+
+```tsx
+import { useEffect } from "react";
+import { initServiceWorker } from "../sw-registration";
+
+export default function App({ Component, pageProps }: any) {
+  useEffect(() => {
+    initServiceWorker();
+  }, []);
+  return <Component {...pageProps} />;
+}
+```
+
+## Add Patterns
+
+Copy from [Patterns](/docs/patterns):
+
+1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
+3. **[Client Registration](/docs/patterns/client-registration)** → `sw-registration.js`
+4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
+
+## Output Directory
+
+Next.js static export outputs to `out/` by default. Update your `generate-sw.js` to write to `out/`:
+
+```javascript
+writeFileSync(join(__dirname, "out", `sw-v${pkg.version}.js`), sw);
+writeFileSync(join(__dirname, "out", "version.json"), JSON.stringify({ ... }));
+```
+
+If deploying to Vercel, the output may differ. Check your deployment platform's docs for the final output path.
+
+Update `package.json`:
+
+```json
+{
+  "scripts": {
+    "build": "next build && node generate-sw.js"
+  }
+}
+```
+
+## Build & Test
+
+```bash
+npm version patch
+npm run build
+```
+
+Serve the `out/` directory locally to test: `npx serve out`.
+
+## Next Steps
+
+- [React Hooks](/docs/guides/react-ecosystem/hooks) — `usePWAUpdate`, `useSWProgress`
+- [React Components](/docs/guides/react-ecosystem/components) — `UpdatePrompt`, `SWProgressBar`

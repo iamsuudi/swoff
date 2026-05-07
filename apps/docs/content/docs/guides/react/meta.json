@@ -1,5 +1,0 @@
-{
-  "title": "React",
-  "icon": "react",
-  "pages": ["index", "react-vite", "nextjs", "remix", "tanstack-router", "tanstack-start"]
-}

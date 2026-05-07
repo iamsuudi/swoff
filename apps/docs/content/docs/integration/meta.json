@@ -1,0 +1,5 @@
+{
+  "title": "Integration",
+  "icon": "Blocks",
+  "pages": ["index", "adapters", "components-spec"]
+}

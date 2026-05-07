@@ -1,32 +1,19 @@
 ---
 title: Motivation
 description: Why Swoff exists and the future of client-side web apps.
-icon: Lightbulb
+icon: Zap
 ---
 
-## The Problem with Modern Web Tooling
+## Why Swoff
 
-Web frameworks have shifted toward server-side rendering and backend integration (Next.js, Nuxt, etc.), leaving client-side browser APIs underutilized. Meanwhile:
+Modern web frameworks (Next.js, Nuxt, etc.) have shifted toward server-side rendering, leaving powerful browser APIs — Service Worker, IndexedDB, Cache API — underutilized. Meanwhile, state management libraries lock you into specific frameworks, and most tools abstract away the browser's native offline capabilities.
 
-- Modern browsers offer powerful APIs (Service Worker, IndexedDB, Cache API, WebRTC, etc.) that rival native apps.
-- State management libraries (Redux, Tanstack Query) are often framework-specific, causing lock-in.
+Swoff is a framework-agnostic, zero-dependency blueprint for client-first web apps. It's code you **own**, not an npm package:
 
-## The Gap
-
-Most tools ignore or abstract away client-side capabilities, focusing on server-side features instead. This leaves developers without a clear path to build offline-first, native-like web apps that leverage the browser's full potential.
-
-## Why Swoff?
-
-Swoff is a framework-agnostic, zero-dependency blueprint for client-first web apps. It's code you own, not an npm package:
-
-- Copy patterns, adapters, and utilities directly into your project
-- Modify them to fit your needs (no waiting for library updates)
+- Copy patterns directly into your project and modify them
 - Pair with any framework (React, Vue, Svelte, vanilla JS)
-- Build offline-first (app shell + smart data handling), installable PWAs that feel native
-
-## Vision
-
-A future where web apps match native software performance and features, accessible via URL with no app store friction.
+- Build offline-first, installable PWAs that feel native
+- Ship updates instantly — no app store friction
 
 :::success
 Developers ship updates instantly, users get them immediately — no controlled native release cycles.
@@ -35,5 +22,5 @@ Developers ship updates instantly, users get them immediately — no controlled 
 ## Next Steps
 
 - Read the [Introduction](/docs/introduction) to get started
-- Follow [Core Architecture](/docs/core/offline-first) guides
+- Follow the [Core Architecture](/docs/core/offline-architecture) guides
 - Check the [Reference Implementation](/docs/reference/budget-manager) (Budget Manager app)

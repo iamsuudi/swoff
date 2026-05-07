@@ -1,0 +1,110 @@
+---
+title: Service Workers
+description: Understanding service workers, versioning, and the difference between PWA install and app updates.
+icon: Network
+---
+
+## What is a Service Worker?
+
+A service worker (SW) is a JavaScript file that runs in the background, separate from your web page. It's the foundation of offline capability:
+
+- **Runs in the background** — separate from the main thread
+- **Intercepts network requests** — can serve cached responses
+- **No DOM access** — communicates with your app via `postMessage`
+- **Persists after page close** — stays alive until explicitly removed
+- **HTTPS required** — except localhost for development
+
+## Lifecycle
+
+```
+┌─────────────┐
+│   Register  │ ← Your app registers the SW
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│   Install   │ ← SW downloads and caches assets
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│   Activate  │ ← Old SW cleaned up, new SW takes over
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│   Fetch     │ ← Intercepts requests, serves from cache
+└─────────────┘
+```
+
+## The Problem with Default SW Behavior
+
+Browsers automatically download new SW files when detected, install them in the background, and activate on the next reload. If your new SW has breaking changes, users get them without warning.
+
+## Swoff's Solution: Versioned SW Files
+
+Instead of `/sw.js`, we use `/sw-v1.0.0.js`, `/sw-v1.0.1.js`, etc. Each version is a unique file. The browser only loads the version you tell it to.
+
+```javascript
+// Instead of: /sw.js (always the same file)
+// We use:    /sw-v1.0.0.js, /sw-v1.0.1.js, etc.
+```
+
+The version flow:
+
+```
+package.json version: 1.0.0
+         ↓
+Build generates: sw-v1.0.0.js + version.json
+         ↓
+User visits app → App checks version.json
+         ↓
+Same version? → Use existing SW
+New version?  → Show update prompt → User approves → Register new version
+```
+
+See [Versioned SW System](/docs/core/versioned-sw) for implementation details.
+
+## Versioned App vs PWA Install
+
+These are two completely different things that people confuse because both use the word "install":
+
+### PWA Install (User Experience)
+
+Creates a **shortcut** on the user's device. The app opens in a standalone window without browser UI. This is purely cosmetic — it doesn't change what the app does.
+
+### App Version Update (Technical)
+
+Replaces the **code** with a new version. This is functional — it changes what the app does.
+
+| Aspect        | PWA Install      | App Version Update   |
+| ------------- | ---------------- | -------------------- |
+| **What**      | Creates shortcut | Replaces code        |
+| **Trigger**   | User chooses     | Developer releases   |
+| **Frequency** | Once per device  | Every release        |
+| **Effect**    | UI changes       | Functionality changes|
+| **Offline**   | Doesn't help     | Makes it possible    |
+
+You can have an offline app without PWA install (user accesses via bookmark). You can have versioned updates without PWA. Swoff treats these as independent features — versioned updates are core, PWA is optional.
+
+## Key SW Events
+
+| Event              | Where  | Purpose                      |
+| ------------------ | ------ | ---------------------------- |
+| `install`          | SW     | Cache assets                 |
+| `activate`         | SW     | Clean up old caches          |
+| `fetch`            | SW     | Intercept requests           |
+| `message`          | SW     | Receive messages from client |
+| `controllerchange` | Client | SW changed                   |
+
+## Important Limitations
+
+1. **SW can't access DOM** — use `postMessage` to communicate with the page
+2. **SW is terminated when idle** — don't rely on persistent state
+3. **SW scope is its location** — `/sw.js` controls all pages under `/`
+
+## Next Steps
+
+- Learn the [Versioned SW System](/docs/core/versioned-sw) — how we implement versioning
+- Understand the [Update Consent Flow](/docs/core/versioned-sw#update-consent-flow) — user control over updates
+- See the [SW Template](/docs/patterns/sw-template) — copy-paste ready code

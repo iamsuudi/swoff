@@ -1,10 +1,10 @@
 ---
 title: Vue + Vite
-description: Set up Swoff with Vue + Vite.
-icon: Vue
+description: Set up Swoff with Vue 3 + Vite.
+icon: vue
 ---
 
-# Vue + Vite
+## Vue + Vite
 
 Concise adapter for **Vue 3 + Vite** projects.
 
@@ -29,34 +29,27 @@ my-app
 
 ## Entry Point (`src/main.ts`)
 
-Add SW registration to Vue's entry point:
-
 ```typescript
-import { createApp } from 'vue'
-import App from './App.vue'
+import { createApp } from "vue";
+import App from "./App.vue";
+import { initServiceWorker } from "./sw-registration";
 
-async function registerSW() {
-  const { version } = await fetch('/version.json').then(r => r.json())
-  await navigator.serviceWorker.register(`/sw-v${version}.js`)
-}
+initServiceWorker();
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', registerSW)
-}
-
-createApp(App).mount('#app')
+createApp(App).mount("#app");
 ```
 
 ## Add Patterns
 
-Copy these files from [Patterns](/docs/patterns):
+Copy from [Patterns](/docs/patterns):
 
 1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
-2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js` (output dir: `dist/`)
 3. **[Client Registration](/docs/patterns/client-registration)** → `src/sw-registration.js`
 4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
 
 Update `package.json`:
+
 ```json
 {
   "scripts": {
@@ -64,6 +57,10 @@ Update `package.json`:
   }
 }
 ```
+
+## Output Directory
+
+Vite outputs to `dist/` by default. Your `generate-sw.js` should write to `dist/`.
 
 ## Build & Test
 
@@ -74,6 +71,5 @@ npm run build
 
 ## Next Steps
 
-- [Vue Composables](/docs/patterns/update-hooks) — Adapt `usePWAUpdate` for Vue
-- [Components](/docs/patterns/components) — `UpdatePrompt`, `SWProgressBar`
-- [Core Architecture](/docs/core/offline-first) — Understand the patterns
+- [Vue Composables](/docs/guides/vue-ecosystem/composables) — `usePWAUpdate`, `useSWProgress`
+- [Vue Components](/docs/guides/vue-ecosystem/components) — `UpdatePrompt`, `SWProgressBar`

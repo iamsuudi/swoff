@@ -1,53 +1,18 @@
 ---
 title: Build Scripts
-description: Set up Swoff patterns in your project.
+description: Generate versioned SW + version.json from your package.json.
 icon: Hammer
 ---
-
-# Getting Started
-
-Build offline-first web apps with Swoff. No npm install required.
-
-## Prerequisites
-
-- Any frontend project (Vite, plain HTML, etc.)
-- Basic service worker knowledge
 
 ## Quick Setup
 
 ### 1. Create SW Template
 
-Create `src/sw-template.js`:
-
-```javascript
-// [[CACHE_NAME]]
-// [[ASSETS_LIST]]
-
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE)),
-  );
-});
-
-self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
-  event.respondWith(
-    caches
-      .match(event.request)
-      .then(
-        (cached) =>
-          cached ||
-          (event.request.mode === "navigate"
-            ? caches.match("/index.html")
-            : fetch(event.request)),
-      ),
-  );
-});
-```
+Place at `src/sw-template.js`. See [SW Template](/docs/patterns/sw-template) for the code.
 
 ### 2. Create Build Script
 
-Create `generate-sw.js`:
+Create `generate-sw.js` at project root:
 
 ```javascript
 import { readFileSync, writeFileSync } from "fs";
@@ -56,27 +21,20 @@ import { join, dirname } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "package.json"), "utf8"));
-
 const template = readFileSync(join(__dirname, "src/sw-template.js"), "utf8");
-let sw = template.replace(
-  "// [[CACHE_NAME]]",
-  `const CACHE_NAME = 'sw-v${pkg.version}'`,
-);
-sw = sw.replace(
-  "// [[ASSETS_LIST]]",
-  `const ASSETS_TO_CACHE = ['/', '/index.html']`,
-);
+
+let sw = template.replace("// [[CACHE_NAME]]", `const CACHE_NAME = 'sw-v${pkg.version}'`);
+sw = sw.replace("// [[ASSETS_LIST]]", `const ASSETS_TO_CACHE = ['/', '/index.html']`);
 
 writeFileSync(join(__dirname, "dist", `sw-v${pkg.version}.js`), sw);
-writeFileSync(
-  join(__dirname, "dist", "version.json"),
-  JSON.stringify({
-    version: pkg.version,
-    minSupportedVersion: pkg.minSupportedVersion || "0.0.0",
-    generatedAt: new Date().toISOString(),
-  }),
-);
+writeFileSync(join(__dirname, "dist", "version.json"), JSON.stringify({
+  version: pkg.version,
+  minSupportedVersion: pkg.minSupportedVersion || "0.0.0",
+  generatedAt: new Date().toISOString(),
+}));
 ```
+
+**Important:** The `dist` path above is the default. Your framework may use a different output directory (e.g., `.output`, `.next/export`, `build`). See your [framework guide](/docs/guides/) for the correct path.
 
 ### 3. Update package.json
 
@@ -88,58 +46,21 @@ writeFileSync(
 }
 ```
 
-### 4. Register SW
+### 4. Add TypeScript Declarations
 
-In your `main.tsx` (basic example — see [Client Registration](/docs/patterns/client-registration) for full implementation with version checking and update flows):
+Create `sw.d.ts`. See [Utilities](/docs/patterns/utilities).
 
-```typescript
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", async () => {
-    const res = await fetch("/version.json");
-    const { version } = await res.json();
-    await navigator.serviceWorker.register(`/sw-v${version}.js`);
-    console.log("SW registered:", version);
-  });
-}
-```
-
-### 5. Add TypeScript Declarations
-
-Create `sw.d.ts`:
-
-```typescript
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
-
-declare global {
-  interface Window {
-    deferredInstallPrompt: BeforeInstallPromptEvent | null;
-    latestSWVersion?: string;
-    currentSWVersion?: string;
-    swRegisteredVersion?: string;
-    swAvailableVersion?: string;
-    swUpdateRequired?: boolean;
-    swMinSupportedVersion?: string;
-    swReady?: boolean;
-    swError?: boolean;
-  }
-}
-export {};
-```
-
-### 6. Build & Test
+### 5. Build & Test
 
 ```bash
 npm version patch
 npm run build
 ```
 
-Test offline: Open DevTools → Application → Service Workers → Check "Offline" → Refresh.
+Test offline: DevTools → Application → Service Workers → Check "Offline".
 
 ## Next Steps
 
-- [SW Template](/docs/patterns/sw-template) — Understand the template
-- [Client Registration](/docs/patterns/client-registration) — Register SW from app
-- [Framework Guides](/docs/guides/react/react-vite) — React, TanStack Router, TanStack Start
+- Copy the [SW Template](/docs/patterns/sw-template) — the actual SW code
+- Set up [Client Registration](/docs/patterns/client-registration) — register from your app
+- Follow your [Framework Guide](/docs/guides/) — where to place files and output dirs

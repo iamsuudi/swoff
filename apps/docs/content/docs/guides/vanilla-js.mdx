@@ -1,12 +1,12 @@
 ---
 title: Vanilla JS
-description: Set up Swoff with plain JavaScript.
+description: Set up Swoff with plain JavaScript — no framework required.
 icon: javascript
 ---
 
-# Vanilla JavaScript
+## Vanilla JavaScript
 
-Concise adapter for **plain JavaScript** (no framework).
+Swoff's patterns are based on browser APIs, so vanilla JS is the most natural fit.
 
 ## Project Structure
 
@@ -14,6 +14,7 @@ Concise adapter for **plain JavaScript** (no framework).
 my-app/
 ├── index.html
 ├── app.js
+├── sw-registration.js
 ├── sw-template.js
 ├── generate-sw.js
 └── package.json
@@ -21,51 +22,46 @@ my-app/
 
 ## HTML Entry Point (`index.html`)
 
-Add SW registration to your HTML:
-
 ```html
 <!DOCTYPE html>
 <html>
-<head>
-  <title>My App</title>
-</head>
-<body>
-  <div id="app"></div>
-  <script src="app.js"></script>
-</body>
+  <head>
+    <title>My App</title>
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="app.js"></script>
+  </body>
 </html>
 ```
 
 ## Registration (`app.js`)
 
 ```javascript
-// app.js
-async function registerSW() {
-  const { version } = await fetch('/version.json').then(r => r.json())
-  await navigator.serviceWorker.register(`/sw-v${version}.js`)
-}
+import { initServiceWorker } from "./sw-registration.js";
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', registerSW)
-}
+initServiceWorker();
 
 // Your app code here...
 ```
 
 ## Add Patterns
 
-Copy these files from [Patterns](/docs/patterns):
+Copy from [Patterns](/docs/patterns):
 
 1. **[SW Template](/docs/patterns/sw-template)** → `sw-template.js`
 2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
-3. **[Client Registration](/docs/patterns/client-registration)** → `sw-registration.js` (enhanced registration)
+3. **[Client Registration](/docs/patterns/client-registration)** → `sw-registration.js`
 
-For Vite (optional):
+For a build tool (optional):
+
 ```bash
 npm create vite@latest my-app -- --template vanilla-ts
 ```
 
 Update `package.json`:
+
 ```json
 {
   "scripts": {
@@ -74,13 +70,14 @@ Update `package.json`:
 }
 ```
 
+## Output Directory
+
+- Plain HTML: serve from project root, `generate-sw.js` writes to project root
+- With Vite: outputs to `dist/`
+
 ## No Framework Needed
 
-Swoff's patterns are based on browser APIs, so vanilla JS is the most natural fit:
-- Service Worker API
-- IndexedDB API
-- Cache API
-- Fetch API
+Swoff uses standard browser APIs — Service Worker, IndexedDB, Cache API, Fetch API. Vanilla JS works natively with all of them.
 
 ## Build & Test
 
@@ -91,6 +88,5 @@ npm run build
 
 ## Next Steps
 
-- [Window Events](/docs/patterns/client-registration) — Listen for `sw-update-available`, `sw-ready`
-- [Components](/docs/patterns/components) — `UpdatePrompt`, `SWProgressBar`
-- [Core Architecture](/docs/core/offline-first) — Understand the patterns
+- [Window Events](/docs/patterns/client-registration) — listen for `sw-update-available`, `sw-ready`
+- [Integration Concepts](/docs/integration/) — how adapters work (if you later add a framework)

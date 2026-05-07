@@ -1,0 +1,40 @@
+---
+title: Integration Concepts
+description: How Swoff plugs into any framework — the bridge between patterns and adapters.
+icon: Lightbulb
+---
+
+## The Bridge
+
+Patterns give you framework-agnostic JavaScript. Framework guides show you where to inject them. Integration is the conceptual bridge between them.
+
+## How It Works
+
+Swoff communicates with your framework through a simple event-based pattern:
+
+```
+Service Worker
+     ↓ (postMessage)
+Window Events (sw-update-available, sw-progress, sw-ready)
+     ↓ (adapters listen to window)
+Framework State (React hooks, Vue composables, Svelte stores)
+     ↓ (reactive UI)
+Components (UpdatePrompt, SWProgressBar, InstallButton)
+```
+
+The service worker and registration code are framework-agnostic. The **adapters** are what make SW events reactive in your framework of choice.
+
+## What You Need Per Ecosystem
+
+Every ecosystem needs two things:
+
+1. **Adapters** — Listen to window events and expose reactive state
+2. **Components** — Render update prompts, progress bars, install buttons
+
+The SW template, build script, and registration code are the same across all ecosystems. Only the adapter and component layer differs.
+
+## Next Steps
+
+- Understand [Adapters](/docs/integration/adapters) — the event-to-state bridge
+- See [Component Specs](/docs/integration/components-spec) — what each component does
+- Follow your [Framework Guide](/docs/guides/) — where to inject everything

@@ -4,83 +4,43 @@ description: Understanding offline capability beyond just caching.
 icon: WifiOff
 ---
 
-## What Offline Capability Means for Swoff
+## What Offline Capability Means
 
-Most developers think offline capability means "caching assets so the page loads without internet." That's incomplete.
-For Swoff, an offline-capable app ensures the app shell (all routes, static assets) works without a network, with smart handling of dynamic data:
+Most developers think offline capability means "caching assets so the page loads without internet." That's incomplete. For Swoff, an offline-capable app ensures:
 
-- **Static assets & routes load** (HTML, CSS, JS, images, all routes) — handled by Service Worker via Cache API
+- **Static assets & routes load** — all HTML, CSS, JS, images served via Service Worker
 - **App logic runs** — JavaScript executes in the browser
-- **Dynamic data handled intelligently** — read queries cached, mutations queued when offline, synced when back online
-- **Navigation works** — all routes accessible (SPA or pre-rendered)
+- **Dynamic data handled intelligently** — reads cached, mutations queued when offline
+- **Navigation works** — all routes accessible without network
 
 ## The Offline Spectrum
 
-| Level              | What Works                                                                 | Example                                          |
-| ------------------ | -------------------------------------------------------------------------- | ------------------------------------------------ |
-| ❌ None            | Nothing without internet                                                    | Traditional server-rendered apps                 |
-| 🟡 Partial         | Assets cached, but data needs network                                      | Basic PWA with no local storage                  |
-| 🟢 App Shell       | Assets + all routes offline, reads cached, mutations queued when offline     | General Swoff apps (with your existing backend)  |
-| 🔵 Full Offline    | Assets + data + all features offline (IndexedDB as DB, no server needed)    | Budget Manager (special 100% offline case)        |
+| Level           | What Works                                                                | Example                                         |
+| --------------- | ------------------------------------------------------------------------- | ----------------------------------------------- |
+| None            | Nothing without internet                                                  | Traditional server-rendered apps                |
+| Partial         | Assets cached, but data needs network                                     | Basic PWA with no local storage                 |
+| App Shell       | Assets + all routes offline, reads cached, mutations queued when offline  | General Swoff apps (with your existing backend) |
+| Full Offline    | Assets + data + all features offline (IndexedDB as DB, no server needed)  | Budget Manager (special 100% offline case)      |
 
 ## Why Most PWAs Fail at Offline
 
-1. **They cache assets but not data** — app loads, then crashes trying to fetch API
-2. **They rely on runtime caching** — `stale-while-revalidate` doesn't help if cache is empty
-3. **They don't version their SW** — browser auto-updates break things silently
-4. **They don't handle failed fetches** — no fallback UI for missing data
+1. **Cache assets but not data** — app loads, then crashes trying to fetch API
+2. **Rely on runtime caching** — `stale-while-revalidate` doesn't help if cache is empty
+3. **Don't version their SW** — browser auto-updates break things silently
+4. **Don't handle failed fetches** — no fallback UI for missing data
 
 ## Swoff's Approach
 
-We build **client-first apps** that work with your existing backend:
+Swoff builds **client-first apps** that work with your existing backend:
 
-```
-┌─────────────────────────────────────────────────┐
-│                 Browser (Client)                  │
-│                                                   │
-│  ┌──────────┐    ┌──────────────┐  ┌──────────┐ │
-│  │ Service  │    │  App Logic   │  │  IndexedDB│ │
-│  │ Worker   │    │  (React/Vue) │  │  (Queue/  │ │
-│  │ (Assets  │    │              │  │   Cache)  │ │
-│  │  + Read  │    │              │  │           │ │
-│  │  Cache)  │    │              │  │           │ │
-│  └──────────┘    └──────────────┘  └──────────┘ │
-│        │                │                │        │
-│        ▼                ▼                ▼        │
-│  ┌─────────────────────────────────────────────┐ │
-│  │            Cache API (Read responses)         │ │
-│  └─────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────┘
-         │                              ▲
-         │                              │
-         ▼                              │
-    Your Backend API (standard)    Background Sync
-    (dynamic data, mutations)
-```
+- App shell (all routes, assets) works offline
+- Read requests are cached for offline access
+- Mutations are queued when offline and synced when back online
 
-## Key Insight
-
-> Offline capability is not just about caching. It's about **client-side architecture** that handles network failures gracefully.
-
-Swoff apps have a standard backend for dynamic data, but the client ensures:
-1. App shell (all routes, assets) works offline
-2. Read requests are cached for offline access
-3. Mutations are queued when offline and synced when back online
-
-## Two Approaches
-
-### General Swoff Pattern (Most Apps)
-- Backend: Your existing server (Go, Node.js, Python, etc.)
-- Client: App shell offline, read caching, mutation queuing
-- Data: Fetched from backend, cached for offline access
-
-### Special Case: Budget Manager
-- Backend: None (100% offline)
-- Client: App shell offline, IndexedDB as full database
-- Data: Stored locally, no server needed (user-owned, isolated)
+See the [Offline-First Architecture](/docs/core/offline-architecture) guide for implementation details and the two-tier approach.
 
 ## Next Steps
 
-- Learn [Service Worker 101](/docs/concepts/service-worker-101) — the foundation
-- Understand [PWA Explained](/docs/concepts/pwa-explained) — it's smaller than you think
-- See the [Offline-First Principles](/docs/core/offline-first) for implementation
+- Understand [Service Workers](/docs/concepts/service-workers) — the foundation
+- See [PWA Explained](/docs/concepts/pwa-explained) — installability is a small addition
+- Learn the [Offline-First Architecture](/docs/core/offline-architecture) — implementation

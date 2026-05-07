@@ -1,24 +1,24 @@
 ---
-title: Offline-First Principles
+title: Offline-First Architecture
 description: Build apps with offline-capable app shell and smart data handling.
 icon: HardDrive
 ---
 
-## Offline-First Architecture
-
-Build web apps where the **app shell works offline** and **data is handled intelligently** — reads cached, mutations queued when offline.
-
 ## Principles
 
+Build web apps where the **app shell works offline** and **data is handled intelligently**:
+
 1. **Offline App Shell** — All routes and static assets cached via Service Worker
-2. **Smart Data Handling** — Read requests cached, mutations queued when offline
-3. **Backend Optional** — Works with your existing server, or go full offline (Tier 2)
+2. **Smart Data** — Read requests cached, mutations queued when offline
+3. **Backend Optional** — Works with your existing server, or go full offline
 
 ## Two Tiers
 
+Swoff supports two tiers depending on your app's needs.
+
 ### Tier 1: App Shell + Smart Data (General Pattern)
 
-Works with your existing backend:
+Works with your existing backend. The app shell is cached, read responses are cached for offline access, and mutations are queued when offline.
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -45,7 +45,7 @@ Works with your existing backend:
 
 ### Tier 2: Full Offline (Special Case)
 
-No backend needed (like Budget Manager):
+No backend needed. IndexedDB serves as the full database. This is the pattern used by Budget Manager.
 
 ```
 ┌────────────────────────┐
@@ -61,45 +61,75 @@ No backend needed (like Budget Manager):
 └────────────────────────┘
 ```
 
-## Storage Strategy by Tier
+## Storage Strategy
 
-### Tier 1 (General Pattern)
+| API                | Capacity    | Tier 1 (General)          | Tier 2 (Full Offline)    |
+| ------------------ | ----------- | ------------------------- | ------------------------ |
+| **Cache API**      | Unlimited*  | Cache read responses      | App shell assets only    |
+| **IndexedDB**      | ~50MB+      | Queue mutations           | Full app database        |
+| **localStorage**   | ~5MB        | Settings, SW version      | Settings, metadata       |
+| **sessionStorage** | ~5MB        | Session state             | Session state            |
 
-| API                | Purpose                          |
-| ------------------ | -------------------------------- |
-| **Cache API**      | Cache read request responses     |
-| **IndexedDB**      | Queue mutations when offline     |
-| **localStorage**   | Settings, metadata, SW version   |
-| **sessionStorage** | Session state (cleared on close) |
+*Limited by disk space and browser quota.
 
-### Tier 2 (Full Offline - Budget Manager Pattern)
+### Tier 1: Cache API (Read Response Caching)
 
-| API                | Purpose                        |
-| ------------------ | ------------------------------ |
-| **IndexedDB**      | Full database for all app data |
-| **localStorage**   | Settings, metadata             |
-| **sessionStorage** | Session state                  |
-| **Cache API**      | App shell assets only          |
+```javascript
+async function fetchWithCache(url) {
+  const cache = await caches.open("read-cache-v1");
+  const cached = await cache.match(url);
+  if (cached) return cached.json();
 
-## Data Flow (Tier 1 - General Pattern)
+  const response = await fetch(url);
+  await cache.put(url, response.clone());
+  return response.json();
+}
+```
+
+### Tier 1: IndexedDB (Mutation Queue)
+
+```javascript
+async function queueMutation(mutation) {
+  const db = await openDB("my-app", 1, {
+    upgrade(db) {
+      db.createObjectStore("mutation-queue", { keyPath: "id", autoIncrement: true });
+    },
+  });
+  await db.add("mutation-queue", { ...mutation, timestamp: Date.now() });
+}
+```
+
+### Tier 2: IndexedDB (Full Database)
+
+```javascript
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("my-app", 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      db.createObjectStore("todos", { keyPath: "id" });
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+```
+
+## Data Flow (Tier 1)
 
 **Online (First Visit):**
-
 1. Browser loads `index.html`
-2. SW registers and caches app shell (all routes, static assets)
-3. App fetches data from backend, caches read responses in Cache API
+2. SW registers and caches app shell
+3. App fetches data, caches read responses
 4. Mutations sent to backend normally
 
 **Offline:**
-
-1. SW serves app shell from cache (instant)
+1. SW serves app shell from cache
 2. Read requests served from Cache API
 3. Mutations queued in IndexedDB
 4. When back online: queued mutations synced to backend
 
 ## Session Management
-
-Survive refreshes, clear on tab close:
 
 ```typescript
 // On login
@@ -113,7 +143,9 @@ if (sessionStorage.getItem("auth") === "true") {
 }
 ```
 
-## Offline Checklist (Tier 1 - General)
+## Offline Checklist
+
+### Tier 1 (General)
 
 - [ ] SW caches all static assets and routes
 - [ ] Read requests cached for offline access
@@ -121,7 +153,7 @@ if (sessionStorage.getItem("auth") === "true") {
 - [ ] Sync logic for queued mutations
 - [ ] App shell works without network
 
-## Offline Checklist (Tier 2 - Full Offline)
+### Tier 2 (Full Offline)
 
 - [ ] SW caches all static assets and routes
 - [ ] IndexedDB initialized as full database
@@ -130,6 +162,6 @@ if (sessionStorage.getItem("auth") === "true") {
 
 ## Next Steps
 
-- [Service Worker Template](/docs/patterns/sw-template) — App shell caching
-- [Data Storage Strategy](/docs/core/data-storage) — Choose the right storage
-- [Versioned SW System](/docs/core/versioned-sw) — Prevent silent updates
+- [Versioned SW System](/docs/core/versioned-sw) — prevent silent updates
+- [SW Template](/docs/patterns/sw-template) — app shell caching code
+- [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) — practical examples

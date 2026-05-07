@@ -1,0 +1,80 @@
+---
+title: Vue Components
+description: UI components for Swoff — UpdatePrompt, SWProgressBar, InstallButton.
+icon: Puzzle
+---
+
+## Vue Components
+
+These components use Vue composables to provide ready-to-use UI elements. See [Component Specs](/docs/integration/components-spec) for behavioral details.
+
+## UpdatePrompt
+
+```vue title="@/components/UpdatePrompt.vue"
+<script setup>
+import { usePWAUpdate } from '../composables/usePWAUpdate'
+
+const { updateStatus, currentVersion, availableVersion, progress, forceUpdate, acceptUpdate, dismissUpdate } = usePWAUpdate()
+</script>
+
+<template>
+  <div v-if="updateStatus !== 'idle'" :class="['update-prompt', forceUpdate ? 'fullscreen' : 'bottom-sheet']">
+    <p>Update available: v{{ currentVersion }} → v{{ availableVersion }}</p>
+    <div v-if="updateStatus === 'downloading'" class="progress-bar" :style="{ width: `${progress}%` }" />
+    <template v-else>
+      <button @click="acceptUpdate">Update</button>
+      <button v-if="!forceUpdate" @click="dismissUpdate">Later</button>
+    </template>
+  </div>
+</template>
+```
+
+## SWProgressBar
+
+```vue title="@/components/SWProgressBar.vue"
+<script setup>
+import { useSWProgress } from '../composables/useSWProgress'
+
+const { progress, status } = useSWProgress()
+</script>
+
+<template>
+  <div v-if="status === 'installing'" class="fixed top-0 left-0 w-full h-1 bg-gray-200">
+    <div class="h-full bg-blue-500 transition-all" :style="{ width: `${progress}%` }" />
+  </div>
+</template>
+```
+
+## InstallButton
+
+```vue title="@/components/InstallButton.vue"
+<script setup>
+import { ref, onMounted } from 'vue'
+
+const deferredPrompt = ref(null)
+
+onMounted(() => {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault()
+    deferredPrompt.value = e
+  })
+})
+
+const handleInstall = async () => {
+  if (!deferredPrompt.value) return
+  deferredPrompt.value.prompt()
+  const { outcome } = await deferredPrompt.value.userChoice
+  if (outcome === 'accepted') deferredPrompt.value = null
+}
+</script>
+
+<template>
+  <button v-if="deferredPrompt" @click="handleInstall">Install App</button>
+</template>
+```
+
+## Next Steps
+
+- See [Vue Composables](/docs/guides/vue-ecosystem/composables) — underlying composables
+- Follow your framework guide: [Vue + Vite](/docs/guides/vue-ecosystem/vue-vite)
+- Understand the [Component Specs](/docs/integration/components-spec) — behavioral requirements

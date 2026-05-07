@@ -2,10 +2,8 @@
   "title": "Core Architecture",
   "icon": "Cog",
   "pages": [
-    "offline-first",
+    "offline-architecture",
     "versioned-sw",
-    "update-consent",
-    "data-storage",
     "pwa-installability"
   ]
 }

@@ -1,0 +1,94 @@
+---
+title: Nuxt
+description: Set up Swoff with Nuxt 3 (client-only mode).
+icon: nuxt
+---
+
+## Nuxt
+
+Adapter for **Nuxt 3** with client-only mode. Swoff runs client-only — Nuxt server features are not used.
+
+## Create Project
+
+```bash
+npx nuxi@latest init my-app
+cd my-app && npm install
+```
+
+## Configure Client-Only
+
+```typescript
+// nuxt.config.ts
+export default defineNuxtConfig({
+  ssr: false, // Required for offline-first
+});
+```
+
+## Project Structure
+
+```
+my-app
+├── app
+│   └── sw-template.js
+├── plugins
+│   └── sw.client.ts
+├── generate-sw.js
+├── sw.d.ts
+└── package.json
+```
+
+## Entry Point (`plugins/sw.client.ts`)
+
+```typescript
+// plugins/sw.client.ts
+export default defineNuxtPlugin(() => {
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", async () => {
+      const { version } = await fetch("/version.json").then((r) => r.json());
+      await navigator.serviceWorker.register(`/sw-v${version}.js`);
+    });
+  }
+});
+```
+
+## Add Patterns
+
+Copy from [Patterns](/docs/patterns):
+
+1. **[SW Template](/docs/patterns/sw-template)** → `app/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
+3. **[Client Registration](/docs/patterns/client-registration)** → `app/sw-registration.js`
+4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
+
+## Output Directory
+
+Nuxt outputs to `.output/public/` by default. Update your `generate-sw.js`:
+
+```javascript
+writeFileSync(join(__dirname, ".output", "public", `sw-v${pkg.version}.js`), sw);
+writeFileSync(join(__dirname, ".output", "public", "version.json"), JSON.stringify({ ... }));
+```
+
+If deploying to Vercel, Netlify, or Cloudflare, the output path may differ.
+
+Update `package.json`:
+
+```json
+{
+  "scripts": {
+    "build": "nuxt build && node generate-sw.js"
+  }
+}
+```
+
+## Build & Test
+
+```bash
+npm version patch
+npm run build
+```
+
+## Next Steps
+
+- [Vue Composables](/docs/guides/vue-ecosystem/composables) — `usePWAUpdate`, `useSWProgress`
+- [Vue Components](/docs/guides/vue-ecosystem/components) — `UpdatePrompt`, `SWProgressBar`

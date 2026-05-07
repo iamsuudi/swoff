@@ -1,10 +1,10 @@
 ---
 title: Angular
 description: Set up Swoff with Angular.
-icon: nestJS
+icon: angular
 ---
 
-# Angular
+## Angular
 
 Concise adapter for **Angular** projects.
 
@@ -29,20 +29,12 @@ my-app
 
 ## Entry Point (`src/main.ts`)
 
-Add SW registration to Angular's entry point:
-
 ```typescript
 import { platformBrowserDynamic } from "@angular/platform-browser-dynamic";
 import { AppModule } from "./app/app.module";
+import { initServiceWorker } from "./sw-registration";
 
-async function registerSW() {
-  const { version } = await fetch("/version.json").then((r) => r.json());
-  await navigator.serviceWorker.register(`/sw-v${version}.js`);
-}
-
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", registerSW);
-}
+initServiceWorker();
 
 platformBrowserDynamic()
   .bootstrapModule(AppModule)
@@ -51,10 +43,10 @@ platformBrowserDynamic()
 
 ## Add Patterns
 
-Copy these files from [Patterns](/docs/patterns):
+Copy from [Patterns](/docs/patterns):
 
 1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
-2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js` (adapt for Angular's build)
+2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js` (output dir: `dist/my-app/`)
 3. **[Client Registration](/docs/patterns/client-registration)** → `src/sw-registration.ts`
 4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
 
@@ -68,14 +60,18 @@ Update `package.json`:
 }
 ```
 
+## Output Directory
+
+Angular outputs to `dist/<project-name>/` by default. Update your `generate-sw.js`:
+
+```javascript
+writeFileSync(join(__dirname, "dist", "my-app", `sw-v${pkg.version}.js`), sw);
+writeFileSync(join(__dirname, "dist", "my-app", "version.json"), JSON.stringify({ ... }));
+```
+
 ## Note on Angular Service Worker
 
-Angular has its own `@angular/service-worker` package. Swoff's approach is different:
-
-- **Angular SW**: Opinionated, tied to Angular
-- **Swoff SW**: Framework-agnostic, you own the code, versioned with consent
-
-Use Swoff's SW template instead of Angular's built-in SW for full control.
+Angular has its own `@angular/service-worker` package. Swoff's approach is different — you own the code, it's versioned, and updates require user consent.
 
 ## Build & Test
 
@@ -86,6 +82,5 @@ npm run build
 
 ## Next Steps
 
-- [Angular Services](/docs/patterns/update-hooks) — Adapt `usePWAUpdate` for Angular
-- [Components](/docs/patterns/components) — `UpdatePrompt`, `SWProgressBar`
-- [Core Architecture](/docs/core/offline-first) — Understand the patterns
+- [Integration Concepts](/docs/integration/) — how to build adapters for Angular services
+- Understand [Window Events](/docs/patterns/client-registration) — `sw-update-available`, `sw-ready`

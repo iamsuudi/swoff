@@ -4,7 +4,7 @@ description: Set up Swoff with SolidJS + Vite.
 icon: solidStart
 ---
 
-# SolidJS + Vite
+## SolidJS + Vite
 
 Concise adapter for **SolidJS + Vite** projects.
 
@@ -29,34 +29,27 @@ my-app
 
 ## Entry Point (`src/index.tsx`)
 
-Add SW registration to Solid's entry point:
-
 ```typescript
 import { render } from 'solid-js/web'
 import App from './App'
+import { initServiceWorker } from './sw-registration'
 
-async function registerSW() {
-  const { version } = await fetch('/version.json').then(r => r.json())
-  await navigator.serviceWorker.register(`/sw-v${version}.js`)
-}
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', registerSW)
-}
+initServiceWorker()
 
 render(() => <App />, document.getElementById('root')!)
 ```
 
 ## Add Patterns
 
-Copy these files from [Patterns](/docs/patterns):
+Copy from [Patterns](/docs/patterns):
 
 1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
-2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js` (output dir: `dist/`)
 3. **[Client Registration](/docs/patterns/client-registration)** → `src/sw-registration.js`
 4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
 
 Update `package.json`:
+
 ```json
 {
   "scripts": {
@@ -64,6 +57,10 @@ Update `package.json`:
   }
 }
 ```
+
+## Output Directory
+
+Vite outputs to `dist/` by default.
 
 ## Build & Test
 
@@ -74,6 +71,5 @@ npm run build
 
 ## Next Steps
 
-- [Solid Hooks](/docs/patterns/update-hooks) — Adapt `usePWAUpdate` for Solid
-- [Components](/docs/patterns/components) — `UpdatePrompt`, `SWProgressBar`
-- [Core Architecture](/docs/core/offline-first) — Understand the patterns
+- [Integration Concepts](/docs/integration/) — how to build adapters for Solid signals
+- Understand [Window Events](/docs/patterns/client-registration) — `sw-update-available`, `sw-ready`

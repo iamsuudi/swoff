@@ -1,10 +1,10 @@
 ---
 title: Contributing Adapters
-description: Write concise framework adapters for Swoff — help the community use their favorite frameworks.
+description: Write concise framework adapters for Swoff.
 icon: GitPullRequest
 ---
 
-# Contributing Adapters
+## Contributing Adapters
 
 Swoff is framework agnostic. We rely on the community to write **concise adapters** for different frameworks.
 
@@ -16,19 +16,22 @@ An adapter is a short guide showing **where to plug Swoff patterns** into a spec
 
 ## Frameworks Needed
 
-| Framework | Status | Contributor |
-|-----------|--------|-------------|
-| React + Vite | ✅ Done | Maintainer |
-| TanStack Router | ✅ Done | Maintainer |
-| TanStack Start | ✅ Done | Maintainer |
-| Next.js | 📝 Needed | Open |
-| Remix | 📝 Needed | Open |
-| Vue + Vite | ✅ Done | Maintainer |
-| Nuxt | 📝 Needed | Open |
-| Svelte + Vite | ✅ Done | Maintainer |
-| Solid + Vite | ✅ Done | Maintainer |
-| Angular | ✅ Done | Maintainer |
-| Vanilla JS | ✅ Done | Maintainer |
+| Framework | Status |
+|-----------|--------|
+| React + Vite | Done |
+| Next.js | Done |
+| Remix | Done |
+| TanStack Router | Done |
+| TanStack Start | Done |
+| Vue + Vite | Done |
+| Nuxt | Done |
+| Svelte + Vite | Done |
+| SvelteKit | Needed |
+| Solid + Vite | Done |
+| Angular | Done |
+| Vanilla JS | Done |
+| Astro | Needed |
+| Qwik | Needed |
 
 ## How to Contribute
 
@@ -38,28 +41,27 @@ An adapter is a short guide showing **where to plug Swoff patterns** into a spec
 git clone https://github.com/iamsuudi/swoff.git
 cd swoff
 
-# Example: Nuxt adapter
-mkdir -p apps/docs/content/docs/guides/vue
-touch apps/docs/content/docs/guides/vue/nuxt.mdx
+# Example: Astro adapter
+touch apps/docs/content/docs/guides/astro.mdx
 ```
 
-### 2. Follow the Concise Template
+### 2. Follow the Template
 
 ```mdx
 ---
-title: Nuxt
-description: Set up Swoff with Nuxt.
-icon: Nuxt
+title: Astro
+description: Set up Swoff with Astro.
+icon: Astro
 ---
 
-# Nuxt
+## Astro
 
-Concise adapter for **Nuxt 3** projects.
+Concise adapter for **Astro** projects.
 
 ## Create Project
 
 ```bash
-npx nuxi@latest init my-app
+npm create astro@latest my-app
 cd my-app && npm install
 ```
 
@@ -67,7 +69,7 @@ cd my-app && npm install
 
 ```
 my-app
-├── app
+├── src
 │   └── sw-template.js
 ├── generate-sw.js
 ├── sw.d.ts
@@ -76,33 +78,38 @@ my-app
 
 ## Entry Point
 
-Add SW registration to Nuxt's plugin system (see [Client Registration](/docs/patterns/client-registration)):
+Add SW registration to your layout or client-side script (see [Client Registration](/docs/patterns/client-registration)):
 
 ```typescript
-// plugins/sw.client.ts
-export default defineNuxtPlugin(() => {
+// src/sw-registration.client.ts
+export function initSW() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', async () => {
       const { version } = await fetch('/version.json').then(r => r.json())
       await navigator.serviceWorker.register(`/sw-v${version}.js`)
     })
   }
-})
+}
 ```
 
 ## Add Patterns
 
 Copy from [Patterns](/docs/patterns):
 
-1. **[SW Template](/docs/patterns/sw-template)** → `app/sw-template.js`
+1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
 2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
-3. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
+3. **[Client Registration](/docs/patterns/client-registration)** → `src/sw-registration.js`
+
+## Output Directory
+
+Astro outputs to `dist/` by default. If using an adapter (Vercel, Netlify, Node), the output may differ.
 
 Update `package.json`:
+
 ```json
 {
   "scripts": {
-    "build": "nuxt build && node generate-sw.js"
+    "build": "astro build && node generate-sw.js"
   }
 }
 ```
@@ -116,20 +123,20 @@ npm run build
 
 ## Next Steps
 
-- [Vue Composables](/docs/patterns/update-hooks) — Adapt for Nuxt
-- [Components](/docs/patterns/components) — `UpdatePrompt`, `SWProgressBar`
-- [Core Architecture](/docs/core/offline-first) — Understand the patterns
+- [Integration Concepts](/docs/integration/) — how adapters work
+- [Patterns](/docs/patterns/) — all available patterns
 ```
 
 ### 3. Update meta.json
 
-Add to `apps/docs/content/docs/guides/vue/meta.json`:
+Add to `apps/docs/content/docs/guides/meta.json`:
 
 ```json
 {
-  "title": "Vue",
-  "icon": "vue",
-  "pages": ["index", "vue-vite", "nuxt"]
+  "pages": [
+    "...",
+    "astro"
+  ]
 }
 ```
 
@@ -138,16 +145,15 @@ Add to `apps/docs/content/docs/guides/vue/meta.json`:
 ```bash
 cd apps/docs
 bun run dev
-# Visit http://localhost:3000/docs/guides/vue/nuxt
 ```
 
 ### 5. Submit PR
 
 ```bash
-git checkout -b feat/nuxt-adapter
+git checkout -b feat/astro-adapter
 git add .
-git commit -m "Add Nuxt adapter guide"
-git push origin feat/nuxt-adapter
+git commit -m "Add Astro adapter guide"
+git push origin feat/astro-adapter
 ```
 
 ## Guidelines
@@ -155,7 +161,7 @@ git push origin feat/nuxt-adapter
 1. **Keep it concise** — 50-80 lines max (excluding code blocks)
 2. **Link, don't repeat** — Reference `/docs/patterns/*`, don't paste pattern code
 3. **Show the entry point** — Where does SW registration go in this framework?
-4. **Framework-specific tweaks only** — Project creation, file structure, entry point
+4. **Show output directory** — Where does the build output land?
 5. **Test it** — Follow your own guide to verify it works
 
 ## Adapter Structure (Cheat Sheet)
@@ -166,20 +172,21 @@ git push origin feat/nuxt-adapter
 3. ## Project Structure (tree view)
 4. ## Entry Point (where to register SW)
 5. ## Add Patterns (list 3-4 pattern links)
-6. ## Build & Test (2-3 commands)
-7. ## Next Steps (3 pattern/core links)
+6. ## Output Directory (where files land)
+7. ## Build & Test (2-3 commands)
+8. ## Next Steps (3 links)
 ```
 
 ## What NOT to Include
 
-- ❌ SW template code (link to [SW Template](/docs/patterns/sw-template))
-- ❌ Build script code (link to [Build Scripts](/docs/patterns/build-scripts))
-- ❌ Client registration logic (link to [Client Registration](/docs/patterns/client-registration))
-- ❌ TypeScript declarations (link to [Utilities](/docs/patterns/utilities))
-- ❌ Hook implementations (link to [Update Hooks](/docs/patterns/update-hooks))
+- SW template code (link to [SW Template](/docs/patterns/sw-template))
+- Build script code (link to [Build Scripts](/docs/patterns/build-scripts))
+- Client registration logic (link to [Client Registration](/docs/patterns/client-registration))
+- TypeScript declarations (link to [Utilities](/docs/patterns/utilities))
+- Hook/composable implementations (link to your ecosystem's adapter page)
 
 ## Next Steps
 
-- Browse existing: [React + Vite](/docs/guides/react/react-vite), [Vue + Vite](/docs/guides/vue/vue-vite)
+- Browse existing: [React + Vite](/docs/guides/react-ecosystem/react-vite), [Vue + Vite](/docs/guides/vue-ecosystem/vue-vite)
 - Read [Concepts](/docs/concepts/what-is-offline) to understand Swoff
 - Check [GitHub Issues](https://github.com/iamsuudi/swoff/issues) for open adapter requests

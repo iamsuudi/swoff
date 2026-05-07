@@ -1,10 +1,10 @@
 ---
 title: Svelte + Vite
-description: Set up Swoff with Svelte + Vite.
-icon: Svelte
+description: Set up Swoff with Svelte 5 + Vite.
+icon: svelteKit
 ---
 
-# Svelte + Vite
+## Svelte + Vite
 
 Concise adapter for **Svelte 5 + Vite** projects.
 
@@ -29,37 +29,30 @@ my-app
 
 ## Entry Point (`src/main.ts`)
 
-Add SW registration to Svelte's entry point:
-
 ```typescript
-import App from './App.svelte'
+import App from "./App.svelte";
+import { initServiceWorker } from "./sw-registration";
 
-async function registerSW() {
-  const { version } = await fetch('/version.json').then(r => r.json())
-  await navigator.serviceWorker.register(`/sw-v${version}.js`)
-}
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', registerSW)
-}
+initServiceWorker();
 
 const app = new App({
-  target: document.getElementById('app'),
-})
+  target: document.getElementById("app"),
+});
 
-export default app
+export default app;
 ```
 
 ## Add Patterns
 
-Copy these files from [Patterns](/docs/patterns):
+Copy from [Patterns](/docs/patterns):
 
 1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
-2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js` (output dir: `dist/`)
 3. **[Client Registration](/docs/patterns/client-registration)** → `src/sw-registration.js`
 4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
 
 Update `package.json`:
+
 ```json
 {
   "scripts": {
@@ -67,6 +60,10 @@ Update `package.json`:
   }
 }
 ```
+
+## Output Directory
+
+Vite outputs to `dist/` by default. Your `generate-sw.js` should write to `dist/`.
 
 ## Build & Test
 
@@ -77,6 +74,5 @@ npm run build
 
 ## Next Steps
 
-- [Svelte Stores](/docs/patterns/update-hooks) — Adapt `usePWAUpdate` for Svelte
-- [Components](/docs/patterns/components) — `UpdatePrompt`, `SWProgressBar`
-- [Core Architecture](/docs/core/offline-first) — Understand the patterns
+- [Svelte Stores](/docs/guides/svelte-ecosystem/stores) — `pwaUpdate`, `swProgress`
+- [Svelte Components](/docs/guides/svelte-ecosystem/components) — `UpdatePrompt`, `SWProgressBar`

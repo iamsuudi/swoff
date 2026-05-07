@@ -1,0 +1,75 @@
+---
+title: Framework Adapters
+description: How Swoff bridges service worker events to your framework's reactive system.
+icon: ArrowLeftRight
+---
+
+## What is an Adapter?
+
+An adapter listens to `window` events dispatched by the service worker registration code and exposes them as reactive state in your framework — hooks, composables, stores, signals, or services.
+
+The adapter layer is the **only** framework-specific code in Swoff. Everything else (SW template, build script, registration logic) is plain JavaScript.
+
+## Event Flow
+
+```
+SW Registration Code (framework-agnostic)
+     ↓ dispatches
+window.addEventListener('sw-update-available', ...)
+window.addEventListener('sw-progress', ...)
+window.addEventListener('sw-ready', ...)
+window.addEventListener('sw-error', ...)
+     ↓
+Adapter (framework-specific)
+     ↓ exposes
+usePWAUpdate() / useSWProgress() / usePWAVersion()  — React
+usePWAUpdate() / useSWProgress() / usePWAVersion()  — Vue composables
+pwaUpdate / swProgress / pwaVersion                  — Svelte stores
+...                                                   — Solid signals, Angular services
+```
+
+## Events to Listen To
+
+| Event                 | Detail                      | When                    |
+| --------------------- | --------------------------- | ----------------------- |
+| `sw-update-available` | `{ version: string }`       | New version detected    |
+| `sw-progress`         | `{ percent: number }`       | During SW download      |
+| `sw-ready`            | none                        | SW is active            |
+| `sw-error`            | none                        | Registration failed     |
+| `sw-version-detected` | none                        | Version info on window  |
+
+## Window Properties
+
+| Property                | Type    | Purpose                    |
+| ----------------------- | ------- | -------------------------- |
+| `latestSWVersion`       | string  | Server version             |
+| `currentSWVersion`      | string  | Active SW version          |
+| `swMinSupportedVersion` | string  | Minimum required version   |
+| `swUpdateRequired`      | boolean | Forced update flag         |
+
+## Adapter Responsibility
+
+Your adapter should:
+
+1. Listen to `sw-update-available` and expose `availableVersion`, `forceUpdate`
+2. Listen to `sw-progress` and expose `progress`, `status`
+3. Provide `acceptUpdate()` — registers new SW via `registerServiceWorker()`
+4. Provide `dismissUpdate()` — sets `sessionStorage['sw-dismissed-update']`
+5. Provide `checkForUpdates()` — manually fetches `version.json`
+
+## React Implementation
+
+React uses hooks with `useState`, `useEffect`, and `useCallback`. See [React Hooks](/docs/guides/react-ecosystem/hooks).
+
+## Vue Implementation
+
+Vue uses composables with `ref`, `reactive`, and `onMounted`/`onUnmounted`. See [Vue Composables](/docs/guides/vue-ecosystem/composables).
+
+## Svelte Implementation
+
+Svelte uses stores with `writable` and lifecycle functions. See [Svelte Stores](/docs/guides/svelte-ecosystem/stores).
+
+## Next Steps
+
+- See [Component Specs](/docs/integration/components-spec) — what each component does
+- Choose your ecosystem: [React](/docs/guides/react-ecosystem/), [Vue](/docs/guides/vue-ecosystem/), [Svelte](/docs/guides/svelte-ecosystem/)

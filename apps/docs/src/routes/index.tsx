@@ -1,13 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { buttonVariants } from "fumadocs-ui/components/ui/button";
-import {
-  ArrowRight,
-  Globe,
-  Code2,
-  RefreshCw,
-  Database,
-  Smartphone,
-} from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
+import { Navbar } from "@/components/Navbar";
+import { Hero } from "@/components/Hero";
+import { Features } from "@/components/Features";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -15,155 +9,151 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      {/* Background gradient */}
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-gradient-to-br from-blue-500/20 via-purple-500/10 to-transparent rounded-full blur-3xl" />
-      </div>
-
-      <div className="relative max-w-4xl mx-auto px-4 py-24 text-center">
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-fd-border bg-fd-background/80 backdrop-blur-sm text-sm text-fd-muted-foreground mb-8">
-          <Globe className="size-4" />
-          <span>Zero dependencies. Copy-paste patterns. Own your code.</span>
-        </div>
-
-        {/* Main heading */}
-        <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6">
-          Build Offline-First
-          <br />
-          <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Web Apps
-          </span>
-        </h1>
-
-        {/* Subtitle */}
-        <p className="text-xl text-fd-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-          A blueprint for building web apps that feel like native apps.
-          Versioned service workers, user-consented updates, full offline
-          capability. No npm install — just copy our patterns and make them
-          yours.
-        </p>
-
-        {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-          <Link
-            to="/docs/$"
-            params={{ _splat: "" }}
-            className={buttonVariants({ className: "text-base px-8 border" })}
-          >
-            Get Started
-            <ArrowRight className="size-4 ml-2" />
-          </Link>
-          <a
-            href="https://github.com/iamsuudi/swoff"
-            target="_blank"
-            className={buttonVariants({
-              variant: "outline",
-              className: "text-base px-8 border",
-            })}
-          >
-            View on GitHub
-          </a>
-        </div>
-
-        {/* Feature Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          <div className="flex flex-col items-center p-6 rounded-2xl border border-fd-border bg-fd-card/50 backdrop-blur-sm">
-            <div className="size-12 rounded-xl bg-blue-500/10 flex items-center justify-center mb-4">
-              <Code2 className="size-6 text-blue-600" />
+    <div className="flex flex-col min-h-screen bg-black selection:bg-white selection:text-black">
+      <style>
+        {`
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+          .font-inter { font-family: 'Inter', sans-serif; }
+        `}
+      </style>
+      <div className="font-inter">
+        <Navbar />
+        <main className="flex-grow">
+          <Hero />
+          <Features />
+        
+        {/* Tooling Section */}
+        <section className="py-32 border-t border-white/5 bg-black">
+          <div className="container mx-auto px-6 text-center">
+            <h2 className="text-2xl font-bold text-white mb-16">Built on modern browser standards</h2>
+            <div className="flex flex-wrap justify-center gap-12 md:gap-24 opacity-50 grayscale hover:grayscale-0 transition-all">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-white/10" />
+                <span className="font-bold text-white tracking-tight">Service Worker</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-white/10" />
+                <span className="font-bold text-white tracking-tight">IndexedDB</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-white/10" />
+                <span className="font-bold text-white tracking-tight">Cache API</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-white/10" />
+                <span className="font-bold text-white tracking-tight">Web Manifest</span>
+              </div>
             </div>
-            <h3 className="font-semibold mb-2">Zero Dependencies</h3>
-            <p className="text-sm text-fd-muted-foreground">
-              No npm packages. Copy our code directly into your project.
-            </p>
           </div>
+        </section>
 
-          <div className="flex flex-col items-center p-6 rounded-2xl border border-fd-border bg-fd-card/50 backdrop-blur-sm">
-            <div className="size-12 rounded-xl bg-purple-500/10 flex items-center justify-center mb-4">
-              <RefreshCw className="size-6 text-purple-600" />
+        {/* Showcase Section */}
+        <section className="py-32 border-t border-white/5 bg-black">
+          <div className="container mx-auto px-6">
+            <div className="text-center mb-20">
+              <h2 className="text-4xl md:text-6xl font-black text-white mb-6 tracking-tight">Showcase</h2>
+              <p className="text-white/40 text-lg">Apps built with the Swoff philosophy.</p>
             </div>
-            <h3 className="font-semibold mb-2">Versioned Updates</h3>
-            <p className="text-sm text-fd-muted-foreground">
-              User-consented SW updates. No silent breaks. Full control.
-            </p>
-          </div>
-
-          <div className="flex flex-col items-center p-6 rounded-2xl border border-fd-border bg-fd-card/50 backdrop-blur-sm">
-            <div className="size-12 rounded-xl bg-green-500/10 flex items-center justify-center mb-4">
-              <Database className="size-6 text-green-600" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="group relative aspect-[16/10] overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.02]">
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent z-10" />
+                <div className="absolute bottom-10 left-10 z-20">
+                  <h4 className="text-2xl font-bold text-white mb-2">Budget Manager</h4>
+                  <p className="text-white/50">Full offline budgeting with IndexedDB.</p>
+                </div>
+              </div>
+              <div className="group relative aspect-[16/10] overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.02]">
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent z-10" />
+                <div className="absolute bottom-10 left-10 z-20">
+                  <h4 className="text-2xl font-bold text-white mb-2">Note Taking App</h4>
+                  <p className="text-white/50">Encrypted, local-first notes.</p>
+                </div>
+              </div>
             </div>
-            <h3 className="font-semibold mb-2">Works Offline</h3>
-            <p className="text-sm text-fd-muted-foreground">
-              Full offline capability. All routes, all data, all the time.
-            </p>
           </div>
-        </div>
-      </div>
+        </section>
 
-      {/* Concepts Section */}
-      <div className="border-t border-fd-border">
-        <div className="max-w-4xl mx-auto px-4 py-24">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">Framework Agnostic</h2>
-            <p className="text-fd-muted-foreground max-w-xl mx-auto">
-              Works with React, Vue, Svelte, or vanilla JS. We provide patterns,
-              you choose the framework.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-6 rounded-2xl border border-fd-border bg-fd-card/50">
-              <Smartphone className="size-8 text-fd-muted-foreground mb-4" />
-              <h3 className="font-semibold mb-2">PWA Ready</h3>
-              <p className="text-sm text-fd-muted-foreground mb-4">
-                Installable on all devices. Works like a native app, built with
-                web standards.
-              </p>
-              <Link
-                to="/docs/concepts/pwa-explained"
-                className="text-sm text-fd-primary font-medium inline-flex items-center gap-1"
+        {/* Final CTA */}
+        <section className="py-40 border-t border-white/5 bg-black overflow-hidden relative">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-white/[0.02] blur-[120px] -z-10 rounded-full" />
+          <div className="container mx-auto px-6 text-center relative z-10">
+            <h2 className="text-5xl md:text-8xl font-black text-white mb-10 tracking-tight">
+              Ready to ship?
+            </h2>
+            <div className="flex flex-col sm:flex-row justify-center gap-4">
+              <a
+                href="/docs"
+                className="bg-white text-black hover:bg-white/90 px-12 py-5 rounded-xl font-bold text-lg transition-all shadow-2xl shadow-white/10"
               >
-                Learn about PWA →
-              </Link>
-            </div>
-
-            <div className="p-6 rounded-2xl border border-fd-border bg-fd-card/50">
-              <Globe className="size-8 text-fd-muted-foreground mb-4" />
-              <h3 className="font-semibold mb-2">Modern Browser APIs</h3>
-              <p className="text-sm text-fd-muted-foreground mb-4">
-                Service Worker, IndexedDB, Cache API. No frameworks needed.
-              </p>
-              <Link
-                to="/docs/concepts/browser-apis"
-                className="text-sm text-fd-primary font-medium inline-flex items-center gap-1"
+                Get Started for Free
+              </a>
+              <a
+                href="#"
+                className="bg-black border border-white/10 text-white hover:bg-white/5 px-12 py-5 rounded-xl font-bold text-lg transition-all"
               >
-                Explore Browser APIs →
-              </Link>
+                Talk to Sales
+              </a>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* Detailed Footer */}
+      <footer className="py-24 border-t border-white/5 bg-black">
+        <div className="container mx-auto px-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-12 mb-20">
+            <div className="col-span-2">
+              <div className="flex items-center gap-2 mb-6">
+                <img src="/swoff.png" alt="Swoff" className="h-5 w-auto brightness-200" />
+                <span className="font-bold text-white tracking-tight">SWOFF</span>
+              </div>
+              <p className="text-white/40 text-sm max-w-xs leading-relaxed">
+                The open source blueprint for professional offline-first web applications. 
+                Built by engineers, for engineers.
+              </p>
+            </div>
+            <div>
+              <h5 className="text-white font-bold text-sm mb-6 uppercase tracking-wider">Product</h5>
+              <ul className="space-y-4 text-sm text-white/40 font-medium">
+                <li><a href="#" className="hover:text-white transition-colors">Showcase</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Pricing</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Showcase</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Templates</a></li>
+              </ul>
+            </div>
+            <div>
+              <h5 className="text-white font-bold text-sm mb-6 uppercase tracking-wider">Resources</h5>
+              <ul className="space-y-4 text-sm text-white/40 font-medium">
+                <li><a href="#" className="hover:text-white transition-colors">Documentation</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">API Reference</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Guides</a></li>
+              </ul>
+            </div>
+            <div>
+              <h5 className="text-white font-bold text-sm mb-6 uppercase tracking-wider">Company</h5>
+              <ul className="space-y-4 text-sm text-white/40 font-medium">
+                <li><a href="#" className="hover:text-white transition-colors">About</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">GitHub</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Twitter</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6 pt-12 border-t border-white/5">
+            <p className="text-white/30 text-[13px]">
+              © {new Date().getFullYear()} Swoff, Inc. All rights reserved.
+            </p>
+            <div className="flex gap-8 text-[13px] text-white/30">
+              <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
+              <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Reference Implementation */}
-      <div className="border-t border-fd-border bg-fd-muted/30">
-        <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-          <h2 className="text-2xl font-bold mb-4">Reference Implementation</h2>
-          <p className="text-fd-muted-foreground mb-8 max-w-xl mx-auto">
-            Check out Budget Manager — a fully offline budget tracker built with
-            Swoff patterns. 24+ routes, IndexedDB storage, versioned SW updates.
-          </p>
-          <Link
-            to="/docs/reference/budget-manager"
-            className={buttonVariants({
-              variant: "outline",
-              className: "text-base",
-            })}
-          >
-            View Reference App
-          </Link>
-        </div>
+      </footer>
       </div>
     </div>
   );
 }
+
+

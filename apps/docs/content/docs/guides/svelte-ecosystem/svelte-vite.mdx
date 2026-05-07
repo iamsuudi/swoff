@@ -1,0 +1,78 @@
+---
+title: Svelte + Vite
+description: Set up Swoff with Svelte 5 + Vite.
+icon: svelteKit
+---
+
+## Svelte + Vite
+
+Concise adapter for **Svelte 5 + Vite** projects.
+
+## Create Project
+
+```bash
+npm create vite@latest my-app -- --template svelte-ts
+cd my-app && npm install
+```
+
+## Project Structure
+
+```
+my-app
+├── src
+│   ├── main.ts
+│   └── sw-template.js
+├── generate-sw.js
+├── sw.d.ts
+└── package.json
+```
+
+## Entry Point (`src/main.ts`)
+
+```typescript
+import App from "./App.svelte";
+import { initServiceWorker } from "./sw-registration";
+
+initServiceWorker();
+
+const app = new App({
+  target: document.getElementById("app"),
+});
+
+export default app;
+```
+
+## Add Patterns
+
+Copy from [Patterns](/docs/patterns):
+
+1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js` (output dir: `dist/`)
+3. **[Client Registration](/docs/patterns/client-registration)** → `src/sw-registration.js`
+4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
+
+Update `package.json`:
+
+```json
+{
+  "scripts": {
+    "build": "vite build && node generate-sw.js"
+  }
+}
+```
+
+## Output Directory
+
+Vite outputs to `dist/` by default. Your `generate-sw.js` should write to `dist/`.
+
+## Build & Test
+
+```bash
+npm version patch
+npm run build
+```
+
+## Next Steps
+
+- [Svelte Stores](/docs/guides/svelte-ecosystem/stores) — `pwaUpdate`, `swProgress`
+- [Svelte Components](/docs/guides/svelte-ecosystem/components) — `UpdatePrompt`, `SWProgressBar`

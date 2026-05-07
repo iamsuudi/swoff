@@ -5,10 +5,12 @@
   "icon": "BookOpen",
   "pages": [
     "index",
+    "introduction",
     "---",
     "concepts",
     "core",
     "patterns",
+    "integration",
     "guides",
     "reference",
     "future"

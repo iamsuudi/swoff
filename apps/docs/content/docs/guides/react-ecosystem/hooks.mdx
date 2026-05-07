@@ -1,0 +1,193 @@
+---
+title: React Hooks
+description: React hooks for Swoff's service worker system.
+icon: RefreshCw
+---
+
+## React Hooks
+
+These hooks listen to window events dispatched by the client registration code and expose reactive state for your components.
+
+## usePWAUpdate
+
+Main hook for the update flow.
+
+```typescript
+const {
+  currentVersion,       // string | null — currently registered version
+  availableVersion,     // string | null — version available for update
+  updateStatus,         // 'idle' | 'available' | 'downloading'
+  progress,             // number (0-100)
+  forceUpdate,          // boolean — whether update is mandatory
+  dismissUpdate,        // () => void — dismiss (disabled if forceUpdate)
+  acceptUpdate,         // () => Promise<void> — download and activate
+  checkForUpdates,      // () => Promise<void> — manually check version.json
+} = usePWAUpdate();
+```
+
+**Usage:**
+
+```typescript
+function App() {
+  const { updateStatus, acceptUpdate } = usePWAUpdate();
+  if (updateStatus === 'available') {
+    return <button onClick={acceptUpdate}>Update</button>;
+  }
+}
+```
+
+**Implementation:**
+
+```typescript
+import { useState, useEffect, useCallback } from "react";
+
+export function usePWAUpdate() {
+  const [updateStatus, setUpdateStatus] = useState<"idle" | "available" | "downloading">("idle");
+  const [currentVersion, setCurrentVersion] = useState<string | null>(null);
+  const [availableVersion, setAvailableVersion] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [forceUpdate, setForceUpdate] = useState(false);
+
+  useEffect(() => {
+    const handleUpdateAvailable = (e: CustomEvent) => {
+      const newVersion = e.detail.version;
+      const current = localStorage.getItem("swRegisteredVersion");
+      setCurrentVersion(current);
+      setAvailableVersion(newVersion);
+      setUpdateStatus("available");
+      const minSupported = window.swMinSupportedVersion || "0.0.0";
+      setForceUpdate(current < minSupported);
+    };
+
+    const handleProgress = (e: CustomEvent) => {
+      if (updateStatus === "downloading") setProgress(e.detail.percent);
+    };
+
+    const handleReady = () => {
+      if (updateStatus === "downloading") {
+        setUpdateStatus("idle");
+        setProgress(0);
+      }
+    };
+
+    window.addEventListener("sw-update-available", handleUpdateAvailable as any);
+    window.addEventListener("sw-progress", handleProgress as any);
+    window.addEventListener("sw-ready", handleReady);
+    return () => {
+      window.removeEventListener("sw-update-available", handleUpdateAvailable as any);
+      window.removeEventListener("sw-progress", handleProgress as any);
+      window.removeEventListener("sw-ready", handleReady);
+    };
+  }, [updateStatus]);
+
+  const acceptUpdate = useCallback(async () => {
+    setUpdateStatus("downloading");
+    await registerServiceWorker(availableVersion);
+  }, [availableVersion]);
+
+  const dismissUpdate = useCallback(() => {
+    if (!forceUpdate) {
+      setUpdateStatus("idle");
+      sessionStorage.setItem("sw-dismissed-update", "true");
+    }
+  }, [forceUpdate]);
+
+  const checkForUpdates = useCallback(async () => {
+    const manifest = await checkForUpdate();
+  }, []);
+
+  return { currentVersion, availableVersion, updateStatus, progress, forceUpdate, dismissUpdate, acceptUpdate, checkForUpdates };
+}
+```
+
+## useSWProgress
+
+Track SW download progress.
+
+```typescript
+const { progress, status } = useSWProgress();
+// status: 'idle' | 'installing' | 'ready' | 'error'
+```
+
+**Usage:**
+
+```typescript
+function ProgressBar() {
+  const { progress, status } = useSWProgress();
+  if (status !== 'installing') return null;
+  return <div style={{ width: `${progress}%` }}>...</div>;
+}
+```
+
+**Implementation:**
+
+```typescript
+import { useState, useEffect } from "react";
+
+export function useSWProgress() {
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState<"idle" | "installing" | "ready" | "error">("idle");
+
+  useEffect(() => {
+    const handleProgress = (e: CustomEvent) => {
+      setStatus("installing");
+      setProgress(e.detail.percent);
+    };
+
+    const handleReady = () => {
+      setStatus("ready");
+      setTimeout(() => setStatus("idle"), 1000);
+    };
+
+    const handleError = () => setStatus("error");
+
+    window.addEventListener("sw-progress", handleProgress as any);
+    window.addEventListener("sw-ready", handleReady);
+    window.addEventListener("sw-error", handleError);
+    return () => {
+      window.removeEventListener("sw-progress", handleProgress as any);
+      window.removeEventListener("sw-ready", handleReady);
+      window.removeEventListener("sw-error", handleError);
+    };
+  }, []);
+
+  return { progress, status };
+}
+```
+
+## usePWAVersion
+
+Read current/latest versions.
+
+```typescript
+const { currentVersion, latestVersion } = usePWAVersion();
+```
+
+**Implementation:**
+
+```typescript
+import { useState, useEffect } from "react";
+
+export function usePWAVersion() {
+  const [currentVersion, setCurrentVersion] = useState<string | null>(null);
+  const [latestVersion, setLatestVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleDetected = () => {
+      setCurrentVersion(window.currentSWVersion || null);
+      setLatestVersion(window.latestSWVersion || null);
+    };
+
+    window.addEventListener("sw-version-detected", handleDetected);
+    handleDetected();
+    return () => window.removeEventListener("sw-version-detected", handleDetected);
+  }, []);
+
+  return { currentVersion, latestVersion };
+}
+```
+
+## Next Steps
+
+- See [React Components](/docs/guides/react-ecosystem/components) — UI components using these hooks
+- Understand the [Adapter Concept](/docs/integration/adapters) — how hooks bridge window events to React

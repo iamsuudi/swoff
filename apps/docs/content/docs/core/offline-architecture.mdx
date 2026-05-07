@@ -1,0 +1,167 @@
+---
+title: Offline-First Architecture
+description: Build apps with offline-capable app shell and smart data handling.
+icon: HardDrive
+---
+
+## Principles
+
+Build web apps where the **app shell works offline** and **data is handled intelligently**:
+
+1. **Offline App Shell** — All routes and static assets cached via Service Worker
+2. **Smart Data** — Read requests cached, mutations queued when offline
+3. **Backend Optional** — Works with your existing server, or go full offline
+
+## Two Tiers
+
+Swoff supports two tiers depending on your app's needs.
+
+### Tier 1: App Shell + Smart Data (General Pattern)
+
+Works with your existing backend. The app shell is cached, read responses are cached for offline access, and mutations are queued when offline.
+
+```
+┌─────────────────────────────────────────────────┐
+│                 Browser (Client)                  │
+│                                                   │
+│  ┌──────────────┐  ┌──────────────────────────┐ │
+│  │ Service      │  │  App Logic               │ │
+│  │ Worker       │  │  (React/Vue)             │ │
+│  │              │  │                          │ │
+│  │ - App shell  │  │  - Read from Cache API   │ │
+│  │   cache      │  │  - Queue mutations       │ │
+│  │ - Read cache │  │  - Sync when online       │ │
+│  └──────────────┘  └──────────────────────────┘ │
+└─────────────────────────────────────────────────┘
+         │                              ▲
+         │ Fetch read                    │
+         │ Cache write                   │ Sync queued
+         ▼                              │
+┌─────────────────────┐                │
+│  Your Backend API   │────────────────┘
+│  (dynamic data)     │  Return data
+└─────────────────────┘
+```
+
+### Tier 2: Full Offline (Special Case)
+
+No backend needed. IndexedDB serves as the full database. This is the pattern used by Budget Manager.
+
+```
+┌────────────────────────┐
+│     Browser Tab         │
+│  ┌──────────────────┐ │
+│  │  React/Vue App   │ │
+│  │  IndexedDB data  │ │
+│  └──────────────────┘ │
+│  ┌──────────────────┐ │
+│  │ Service Worker    │ │
+│  │ (cache storage)   │ │
+│  └──────────────────┘ │
+└────────────────────────┘
+```
+
+## Storage Strategy
+
+| API                | Capacity    | Tier 1 (General)          | Tier 2 (Full Offline)    |
+| ------------------ | ----------- | ------------------------- | ------------------------ |
+| **Cache API**      | Unlimited*  | Cache read responses      | App shell assets only    |
+| **IndexedDB**      | ~50MB+      | Queue mutations           | Full app database        |
+| **localStorage**   | ~5MB        | Settings, SW version      | Settings, metadata       |
+| **sessionStorage** | ~5MB        | Session state             | Session state            |
+
+*Limited by disk space and browser quota.
+
+### Tier 1: Cache API (Read Response Caching)
+
+```javascript
+async function fetchWithCache(url) {
+  const cache = await caches.open("read-cache-v1");
+  const cached = await cache.match(url);
+  if (cached) return cached.json();
+
+  const response = await fetch(url);
+  await cache.put(url, response.clone());
+  return response.json();
+}
+```
+
+### Tier 1: IndexedDB (Mutation Queue)
+
+```javascript
+async function queueMutation(mutation) {
+  const db = await openDB("my-app", 1, {
+    upgrade(db) {
+      db.createObjectStore("mutation-queue", { keyPath: "id", autoIncrement: true });
+    },
+  });
+  await db.add("mutation-queue", { ...mutation, timestamp: Date.now() });
+}
+```
+
+### Tier 2: IndexedDB (Full Database)
+
+```javascript
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("my-app", 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      db.createObjectStore("todos", { keyPath: "id" });
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+```
+
+## Data Flow (Tier 1)
+
+**Online (First Visit):**
+1. Browser loads `index.html`
+2. SW registers and caches app shell
+3. App fetches data, caches read responses
+4. Mutations sent to backend normally
+
+**Offline:**
+1. SW serves app shell from cache
+2. Read requests served from Cache API
+3. Mutations queued in IndexedDB
+4. When back online: queued mutations synced to backend
+
+## Session Management
+
+```typescript
+// On login
+sessionStorage.setItem("auth", "true");
+
+// On page load
+if (sessionStorage.getItem("auth") === "true") {
+  showApp();
+} else {
+  showLogin();
+}
+```
+
+## Offline Checklist
+
+### Tier 1 (General)
+
+- [ ] SW caches all static assets and routes
+- [ ] Read requests cached for offline access
+- [ ] Mutation queue implemented (IndexedDB)
+- [ ] Sync logic for queued mutations
+- [ ] App shell works without network
+
+### Tier 2 (Full Offline)
+
+- [ ] SW caches all static assets and routes
+- [ ] IndexedDB initialized as full database
+- [ ] All CRUD operations use IndexedDB
+- [ ] App works 100% offline (no backend needed)
+
+## Next Steps
+
+- [Versioned SW System](/docs/core/versioned-sw) — prevent silent updates
+- [SW Template](/docs/patterns/sw-template) — app shell caching code
+- [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) — practical examples

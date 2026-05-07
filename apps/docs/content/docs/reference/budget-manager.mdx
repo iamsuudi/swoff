@@ -80,7 +80,7 @@ Object Stores:
 | File | Purpose |
 |------|---------|
 | `src/sw-template.js` | SW template with cache placeholders |
-| `public/generate-sw.js` | Build script - generates versioned SW |
+| `generate-sw.js` | Build script - generates versioned SW |
 | `src/main.tsx` | SW registration & update logic |
 
 ### Data Storage
@@ -141,15 +141,15 @@ bun run build
 ### What Worked
 
 1. **Versioned SW** — users control updates, no surprises
-2. **IndexedDB + React Query** — local-first with caching
+2. **IndexedDB** — all data stored locally, zero runtime deps
 3. **TanStack Router** — file-based routing works offline
 4. **Soft deletes** — recovery saves users from mistakes
 
 ### What's Missing (Future Swoff Features)
 
-1. **Mutation queuing** — for apps with backends
-2. **Background Sync** — retry failed requests
-3. **Push notifications** — budget reminders
+1. **[Mutation Queuing](/docs/future/mutation-queuing)** — client-side queue patterns for when you add your own backend
+2. **[Background Sync](/docs/future/background-sync)** — retry failed requests (client-side patterns)
+3. **[Push Notifications](/docs/future/push-notifications)** — client-side subscription handling
 4. **Offline indicators** — show network status
 
 ## Swoff Patterns Used
@@ -157,7 +157,7 @@ bun run build
 | Pattern | File in Budget Manager |
 |---------|------------------------|
 | SW Template | `src/sw-template.js` |
-| Build Script | `public/generate-sw.js` |
+| Build Script | `generate-sw.js` |
 | Client Registration | `src/main.tsx` |
 | Update Hook | `src/hooks/usePWAUpdate.tsx` |
 | IndexedDB Schema | `src/lib/storage/db.ts` |

@@ -1,0 +1,78 @@
+---
+title: React + Vite
+description: Set up Swoff with React + Vite.
+icon: react
+---
+
+## React + Vite
+
+Concise adapter for **React + Vite** projects.
+
+## Create Project
+
+```bash
+npm create vite@latest my-app -- --template react-ts
+cd my-app && npm install
+```
+
+## Project Structure
+
+```
+my-app
+├── src
+│   ├── main.tsx
+│   └── sw-template.js
+├── generate-sw.js
+├── sw.d.ts
+└── package.json
+```
+
+## Entry Point (`src/main.tsx`)
+
+```typescript
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App'
+import { initServiceWorker } from './sw-registration'
+
+initServiceWorker()
+
+ReactDOM.createRoot(document.getElementById('root')!).render(<App />)
+```
+
+## Add Patterns
+
+Copy from [Patterns](/docs/patterns):
+
+1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js` (output dir: `dist/`)
+3. **[Client Registration](/docs/patterns/client-registration)** → `src/sw-registration.js`
+4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
+
+Update `package.json`:
+
+```json
+{
+  "scripts": {
+    "build": "vite build && node generate-sw.js"
+  }
+}
+```
+
+## Output Directory
+
+Vite outputs to `dist/` by default. Your `generate-sw.js` should write `sw-v*.js` and `version.json` to `dist/`.
+
+## Build & Test
+
+```bash
+npm version patch
+npm run build
+```
+
+Test offline: DevTools → Application → Service Workers → Check "Offline".
+
+## Next Steps
+
+- [React Hooks](/docs/guides/react-ecosystem/hooks) — `usePWAUpdate`, `useSWProgress`
+- [React Components](/docs/guides/react-ecosystem/components) — `UpdatePrompt`, `SWProgressBar`

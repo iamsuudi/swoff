@@ -1,0 +1,75 @@
+---
+title: Vue + Vite
+description: Set up Swoff with Vue 3 + Vite.
+icon: vue
+---
+
+## Vue + Vite
+
+Concise adapter for **Vue 3 + Vite** projects.
+
+## Create Project
+
+```bash
+npm create vite@latest my-app -- --template vue-ts
+cd my-app && npm install
+```
+
+## Project Structure
+
+```
+my-app
+├── src
+│   ├── main.ts
+│   └── sw-template.js
+├── generate-sw.js
+├── sw.d.ts
+└── package.json
+```
+
+## Entry Point (`src/main.ts`)
+
+```typescript
+import { createApp } from "vue";
+import App from "./App.vue";
+import { initServiceWorker } from "./sw-registration";
+
+initServiceWorker();
+
+createApp(App).mount("#app");
+```
+
+## Add Patterns
+
+Copy from [Patterns](/docs/patterns):
+
+1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js` (output dir: `dist/`)
+3. **[Client Registration](/docs/patterns/client-registration)** → `src/sw-registration.js`
+4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
+
+Update `package.json`:
+
+```json
+{
+  "scripts": {
+    "build": "vite build && node generate-sw.js"
+  }
+}
+```
+
+## Output Directory
+
+Vite outputs to `dist/` by default. Your `generate-sw.js` should write to `dist/`.
+
+## Build & Test
+
+```bash
+npm version patch
+npm run build
+```
+
+## Next Steps
+
+- [Vue Composables](/docs/guides/vue-ecosystem/composables) — `usePWAUpdate`, `useSWProgress`
+- [Vue Components](/docs/guides/vue-ecosystem/components) — `UpdatePrompt`, `SWProgressBar`

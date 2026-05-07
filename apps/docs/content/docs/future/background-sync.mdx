@@ -17,6 +17,8 @@ A browser API that:
 - Fires when the browser has a stable connection
 - Works even if the user closed the tab
 
+**Note:** Swoff covers the client-side Background Sync registration and SW handling. Your backend (Go, Node.js, etc.) receives the synced requests — you build that part.
+
 ## Browser Support
 
 | Browser | Support |
@@ -60,10 +62,21 @@ self.addEventListener('sync', (event) => {
 })
 
 async function processMutationQueue() {
-  const cache = await caches.open('mutation-queue')
-  // ... fetch stored mutations from IndexedDB
-  // ... send requests
-  // ... clear processed mutations
+  // Fetch stored mutations from IndexedDB
+  const db = await openDB()
+  const queue = await db.getAll('mutation-queue')
+
+  for (const item of queue) {
+    try {
+      await fetch(item.url, {
+        method: item.method,
+        body: JSON.stringify(item.body)
+      })
+      await db.delete('mutation-queue', item.id)
+    } catch (error) {
+      // Keep in queue for next sync
+    }
+  }
 }
 ```
 
@@ -96,11 +109,13 @@ async function syncWhenPossible(mutation) {
 
 ## Swoff's Approach
 
-We'll provide:
+We'll provide client-side code only:
 1. **Background Sync wrapper** — handles registration + fallback
 2. **Queue storage** — IndexedDB schema for mutations
 3. **Framework hooks** — `useMutationQueue()` for React/Vue/Svelte
 4. **UI components** — pending count, retry button
+
+**Your backend:** You handle receiving the synced requests with your chosen stack (Go, Node.js, Python, etc.). Swoff doesn't provide backend code.
 
 ## Status
 
@@ -113,5 +128,5 @@ We'll provide:
 ## Next Steps
 
 - See [Mutation Queuing](/docs/future/mutation-queuing) — what we sync
-- Learn [Service Worker 101](/docs/concepts/service-worker-101) — SW basics
+- Learn [Service Workers](/docs/concepts/service-workers) — SW basics
 - Check browser support on [MDN](https://developer.mozilla.org/en-US/docs/Web/API/Background_Synchronization_API)

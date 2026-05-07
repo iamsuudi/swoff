@@ -1,0 +1,75 @@
+---
+title: Solid + Vite
+description: Set up Swoff with SolidJS + Vite.
+icon: solidStart
+---
+
+## SolidJS + Vite
+
+Concise adapter for **SolidJS + Vite** projects.
+
+## Create Project
+
+```bash
+npm create vite@latest my-app -- --template solid-ts
+cd my-app && npm install
+```
+
+## Project Structure
+
+```
+my-app
+├── src
+│   ├── index.tsx
+│   └── sw-template.js
+├── generate-sw.js
+├── sw.d.ts
+└── package.json
+```
+
+## Entry Point (`src/index.tsx`)
+
+```typescript
+import { render } from 'solid-js/web'
+import App from './App'
+import { initServiceWorker } from './sw-registration'
+
+initServiceWorker()
+
+render(() => <App />, document.getElementById('root')!)
+```
+
+## Add Patterns
+
+Copy from [Patterns](/docs/patterns):
+
+1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js` (output dir: `dist/`)
+3. **[Client Registration](/docs/patterns/client-registration)** → `src/sw-registration.js`
+4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
+
+Update `package.json`:
+
+```json
+{
+  "scripts": {
+    "build": "vite build && node generate-sw.js"
+  }
+}
+```
+
+## Output Directory
+
+Vite outputs to `dist/` by default.
+
+## Build & Test
+
+```bash
+npm version patch
+npm run build
+```
+
+## Next Steps
+
+- [Integration Concepts](/docs/integration/) — how to build adapters for Solid signals
+- Understand [Window Events](/docs/patterns/client-registration) — `sw-update-available`, `sw-ready`

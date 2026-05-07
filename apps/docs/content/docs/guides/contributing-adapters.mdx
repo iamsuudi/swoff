@@ -1,64 +1,67 @@
 ---
 title: Contributing Adapters
-description: Write framework adapters for Swoff — help the community use their favorite frameworks.
+description: Write concise framework adapters for Swoff.
 icon: GitPullRequest
 ---
 
-# Contributing Adapters
+## Contributing Adapters
 
-Swoff is framework agnostic. We rely on the community to write adapters for different frameworks.
+Swoff is framework agnostic. We rely on the community to write **concise adapters** for different frameworks.
 
 ## What is an Adapter?
 
-An adapter is a guide (like [React + Vite](/docs/guides/react-vite)) that shows how to use Swoff patterns with a specific framework.
+An adapter is a short guide showing **where to plug Swoff patterns** into a specific framework.
+
+**Key principle**: Don't repeat patterns — link to them. Adapters are 50-80 lines max.
 
 ## Frameworks Needed
 
-| Framework | Status | Contributor |
-|-----------|--------|-------------|
-| React + Vite | ✅ Done | Maintainer |
-| TanStack Router | ✅ Done | Maintainer |
-| TanStack Start | ✅ Done | Maintainer |
-| Vue + Vite | ❌ Needed | Open |
-| Svelte + Vite | ❌ Needed | Open |
-| Solid + Vite | ❌ Needed | Open |
-| Angular | ❌ Needed | Open |
-| Vanilla JS | ❌ Needed | Open |
+| Framework | Status |
+|-----------|--------|
+| React + Vite | Done |
+| Next.js | Done |
+| Remix | Done |
+| TanStack Router | Done |
+| TanStack Start | Done |
+| Vue + Vite | Done |
+| Nuxt | Done |
+| Svelte + Vite | Done |
+| SvelteKit | Needed |
+| Solid + Vite | Done |
+| Angular | Done |
+| Vanilla JS | Done |
+| Astro | Needed |
+| Qwik | Needed |
 
 ## How to Contribute
 
-### 1. Fork the Repository
+### 1. Fork & Create File
 
 ```bash
 git clone https://github.com/iamsuudi/swoff.git
 cd swoff
+
+# Example: Astro adapter
+touch apps/docs/content/docs/guides/astro.mdx
 ```
 
-### 2. Create the Guide File
-
-Create a new MDX file in `apps/docs/content/docs/guides/`:
-
-```bash
-# Example: Vue + Vite
-touch apps/docs/content/docs/guides/vue-vite.mdx
-```
-
-### 3. Follow the Template
+### 2. Follow the Template
 
 ```mdx
 ---
-title: Vue + Vite
-description: Set up Swoff with Vue + Vite.
+title: Astro
+description: Set up Swoff with Astro.
+icon: Astro
 ---
 
-# Vue + Vite
+## Astro
 
-Setup for **Vue + Vite** projects.
+Concise adapter for **Astro** projects.
 
 ## Create Project
 
 ```bash
-npm create vite@latest my-app -- --template vue-ts
+npm create astro@latest my-app
 cd my-app && npm install
 ```
 
@@ -67,34 +70,49 @@ cd my-app && npm install
 ```
 my-app
 ├── src
-│   ├── main.ts
-│   ├── App.vue
 │   └── sw-template.js
 ├── generate-sw.js
+├── sw.d.ts
 └── package.json
 ```
 
-## Update main.ts
+## Entry Point
+
+Add SW registration to your layout or client-side script (see [Client Registration](/docs/patterns/client-registration)):
 
 ```typescript
-import { createApp } from 'vue'
-import App from './App.vue'
-
-async function registerSW() {
-  const { version } = await fetch('/version.json').then(r => r.json())
-  await navigator.serviceWorker.register(`/sw-v${version}.js`)
+// src/sw-registration.client.ts
+export function initSW() {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', async () => {
+      const { version } = await fetch('/version.json').then(r => r.json())
+      await navigator.serviceWorker.register(`/sw-v${version}.js`)
+    })
+  }
 }
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', registerSW)
-}
-
-createApp(App).mount('#app')
 ```
 
-## SW Template & Build Script
+## Add Patterns
 
-Same as [React + Vite guide](/docs/guides/react-vite).
+Copy from [Patterns](/docs/patterns):
+
+1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
+3. **[Client Registration](/docs/patterns/client-registration)** → `src/sw-registration.js`
+
+## Output Directory
+
+Astro outputs to `dist/` by default. If using an adapter (Vercel, Netlify, Node), the output may differ.
+
+Update `package.json`:
+
+```json
+{
+  "scripts": {
+    "build": "astro build && node generate-sw.js"
+  }
+}
+```
 
 ## Build & Test
 
@@ -105,84 +123,70 @@ npm run build
 
 ## Next Steps
 
-- [SW Template](/docs/patterns/sw-template) — Deep dive
-- [PWA & Installability](/docs/core/pwa-installability) — Make installable
+- [Integration Concepts](/docs/integration/) — how adapters work
+- [Patterns](/docs/patterns/) — all available patterns
 ```
 
-### 4. Update meta.json
+### 3. Update meta.json
 
-Add your guide to `apps/docs/content/docs/meta.json` under the `guides` directory:
+Add to `apps/docs/content/docs/guides/meta.json`:
 
 ```json
 {
-  "type": "directory",
-  "name": "guides",
-  "title": "Framework Guides",
   "pages": [
-    // ... existing guides ...
-    {
-      "type": "page",
-      "name": "vue-vite",
-      "title": "Vue + Vite"
-    }
+    "...",
+    "astro"
   ]
 }
 ```
 
-### 5. Test Locally
+### 4. Test Locally
 
 ```bash
 cd apps/docs
 bun run dev
-# Visit http://localhost:3000/docs/guides/vue-vite
 ```
 
-### 6. Submit Pull Request
+### 5. Submit PR
 
 ```bash
-git checkout -b feat/vue-vite-adapter
+git checkout -b feat/astro-adapter
 git add .
-git commit -m "Add Vue + Vite adapter guide"
-git push origin feat/vue-vite-adapter
+git commit -m "Add Astro adapter guide"
+git push origin feat/astro-adapter
 ```
-
-Then open a PR on GitHub.
 
 ## Guidelines
 
-1. **Follow existing style** — match React/Vue/Svelte guide format
-2. **Framework agnostic patterns** — don't change SW template or build scripts
-3. **Working example** — test your guide actually works
-4. **Clear code samples** — copy-paste ready
-5. **Link to core docs** — reference patterns, don't repeat them
+1. **Keep it concise** — 50-80 lines max (excluding code blocks)
+2. **Link, don't repeat** — Reference `/docs/patterns/*`, don't paste pattern code
+3. **Show the entry point** — Where does SW registration go in this framework?
+4. **Show output directory** — Where does the build output land?
+5. **Test it** — Follow your own guide to verify it works
 
-## What to Include
+## Adapter Structure (Cheat Sheet)
 
-- ✅ Project creation steps
-- ✅ Project structure
-- ✅ Main file (where SW registration happens)
-- ✅ SW template reference
-- ✅ Build script reference
-- ✅ Build & test instructions
-- ✅ Next steps (linking to core docs)
+```
+1. Title + description (frontmatter)
+2. ## Create Project (one command)
+3. ## Project Structure (tree view)
+4. ## Entry Point (where to register SW)
+5. ## Add Patterns (list 3-4 pattern links)
+6. ## Output Directory (where files land)
+7. ## Build & Test (2-3 commands)
+8. ## Next Steps (3 links)
+```
 
 ## What NOT to Include
 
-- ❌ SW template code (link to [SW Template](/docs/patterns/sw-template))
-- ❌ Build script code (link to [Build Scripts](/docs/patterns/build-scripts))
-- ❌ Framework-agnostic patterns (link to core docs)
-
-## Future: Hook Adapters
-
-Once Swoff has the CLI, we'll also need:
-- React hooks (`usePWAUpdate`, `useSWProgress`)
-- Vue composables (`usePWAUpdate`, `useSWProgress`)
-- Svelte stores (`pwaUpdate`, `swProgress`)
-
-These go in separate repos (like `swoff-vue`, `swoff-svelte`).
+- SW template code (link to [SW Template](/docs/patterns/sw-template))
+- Build script code (link to [Build Scripts](/docs/patterns/build-scripts))
+- Client registration logic (link to [Client Registration](/docs/patterns/client-registration))
+- TypeScript declarations (link to [Utilities](/docs/patterns/utilities))
+- Hook/composable implementations (link to your ecosystem's adapter page)
 
 ## Next Steps
 
-- Browse existing guides: [React + Vite](/docs/guides/react-vite), [TanStack Router](/docs/guides/tanstack-router)
-- Read the [Concepts](/docs/concepts/what-is-offline) to understand Swoff
+- Browse existing: [React + Vite](/docs/guides/react-ecosystem/react-vite), [Vue + Vite](/docs/guides/vue-ecosystem/vue-vite)
+- Read [Concepts](/docs/concepts/what-is-offline) to understand Swoff
 - Check [GitHub Issues](https://github.com/iamsuudi/swoff/issues) for open adapter requests

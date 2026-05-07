@@ -14,11 +14,12 @@ Queue write operations (POST, PUT, DELETE) when offline, then sync when connecti
 
 In a client-only app (like Budget Manager), mutations go directly to IndexedDB — no server needed.
 
-But for apps with a backend:
-
-- User creates a todo while offline → POST fails
-- User updates profile while offline → PUT fails
+But if you choose to add your own backend (Go, Node.js, Python, etc.):
+- User creates a todo while offline → POST to your API fails
+- User updates profile while offline → PUT to your API fails
 - Data is lost
+
+**Note:** Swoff doesn't provide backend code. These patterns are for when you build your own backend separately.
 
 ## The Solution: Mutation Queue
 
@@ -38,21 +39,23 @@ Show "Synced" UI
 
 ## Planned API (Framework Agnostic)
 
+This pattern queues mutations in IndexedDB and syncs when your backend is reachable. You handle the backend — Swoff provides the client-side queue.
+
 ```javascript
-// Queue a mutation
+// Queue a mutation for your backend
 async function queueMutation(mutation) {
   const db = await openDB();
   await db.add("mutation-queue", {
     id: generateId(),
     method: mutation.method, // 'POST', 'PUT', 'DELETE'
-    url: mutation.url,
+    url: mutation.url,       // Your backend API endpoint
     body: mutation.body,
     timestamp: Date.now(),
     retryCount: 0,
   });
 }
 
-// Process queue when online
+// Process queue when online — sends to YOUR backend
 async function processMutationQueue() {
   if (!navigator.onLine) return;
 
@@ -61,6 +64,7 @@ async function processMutationQueue() {
 
   for (const item of queue) {
     try {
+      // Send to your backend (Go, Node.js, Python, whatever you chose)
       await fetch(item.url, {
         method: item.method,
         headers: { "Content-Type": "application/json" },
@@ -83,8 +87,10 @@ window.addEventListener("online", processMutationQueue);
 
 ## Integration with Background Sync (Future)
 
+This runs in your client code. Your backend handles the actual API requests.
+
 ```javascript
-// Register for background sync
+// Register for background sync (client-side)
 if ("serviceWorker" in navigator && "SyncManager" in window) {
   const registration = await navigator.serviceWorker.ready;
   await registration.sync.register("sync-mutations");
@@ -114,9 +120,10 @@ async function getPendingCount() {
 ## Considerations
 
 1. **Order matters** — process queue in timestamp order
-2. **Idempotency** — server should handle duplicate requests
-3. **Conflicts** — what if server data changed?
+2. **Idempotency** — your backend should handle duplicate requests
+3. **Conflicts** — what if your backend data changed?
 4. **Retry limits** — don't retry forever
+5. **Your backend** — Swoff provides the client queue, you build the backend
 
 ## Status
 
@@ -130,5 +137,5 @@ async function getPendingCount() {
 ## Next Steps
 
 - See [Background Sync](/docs/future/background-sync) — browser API for offline sync
-- Learn [Data Storage Strategy](/docs/core/data-storage) — where to store the queue
+- Learn [Offline-First Architecture](/docs/core/offline-architecture) — where to store the queue
 - Check [Reference Implementation](/docs/reference/budget-manager) — current (no queue needed)

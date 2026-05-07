@@ -1,110 +1,26 @@
 ---
-title: Introduction
-description: Build offline-first web apps that feel like native apps. Zero dependencies, code blueprint.
-icon: Globe
+title: Motivation
+description: Why Swoff exists and the future of client-side web apps.
+icon: Zap
 ---
 
-# Swoff
+## Why Swoff
 
-**Service Worker & Offline** — A zero-dependency blueprint for building offline-first web applications that feel like native apps.
+Modern web frameworks (Next.js, Nuxt, etc.) have shifted toward server-side rendering, leaving powerful browser APIs — Service Worker, IndexedDB, Cache API — underutilized. Meanwhile, state management libraries lock you into specific frameworks, and most tools abstract away the browser's native offline capabilities.
 
-## What is Swoff?
+Swoff is a framework-agnostic, zero-dependency blueprint for client-first web apps. It's code you **own**, not an npm package:
 
-Swoff provides patterns, code snippets, and architecture guides to build web apps with:
+- Copy patterns directly into your project and modify them
+- Pair with any framework (React, Vue, Svelte, vanilla JS)
+- Build offline-first, installable PWAs that feel native
+- Ship updates instantly — no app store friction
 
-- **Guaranteed offline capability** — Versioned service worker with asset caching
-- **Zero runtime dependencies** — We give you code, not npm packages
-- **User-consented updates** — No silent SW updates, users control when to update
-- **Framework agnostic** — Works with React, Vue, Svelte, or vanilla JS
-- **Installable** — PWA-ready with manifest and install prompts
+:::success
+Developers ship updates instantly, users get them immediately — no controlled native release cycles.
+:::
 
-## Philosophy
+## Next Steps
 
-> "We provide code, not dependencies."
-
-Swoff is not a traditional library. We don't ship an npm package you install. Instead:
-
-1. **Learn the concepts** — Understand offline-first architecture step by step
-2. **Copy our patterns** — Take our service worker, hooks, and utilities into your project
-3. **Own your code** — Modify, extend, and maintain it yourself
-
-## Why Swoff?
-
-Modern browsers give us powerful APIs: Service Worker, IndexedDB, Cache API, Fetch, Push, Background Sync. Most frameworks ignore them or abstract them away.
-
-Swoff brings them to the forefront:
-
-- **Offline capability** through architecture, not caching tricks
-- **Versioned updates** with user consent (not browser auto-updates)
-- **Client-first** apps that work without a backend
-- **Native feel** with installable PWAs and shortcuts
-
-## Key Features
-
-### Versioned Service Worker
-
-Each build generates a uniquely versioned service worker (`sw-v1.0.0.js`, `sw-v1.0.1.js`, etc.). This prevents browsers from silently updating your SW and gives users control over when to update.
-
-### Consent-Based Updates
-
-Users explicitly approve updates. No surprise reloads. The update flow:
-- Detect new version → Show update prompt → User accepts → Download → Activate
-
-### Offline-First Architecture
-
-Apps built with Swoff patterns work fully offline:
-- Service worker caches all static assets
-- App logic runs entirely in the browser
-- Data stored in IndexedDB for offline access
-- All routes accessible without network
-
-### Framework Support
-
-Currently providing guides for:
-- **React + Vite**
-- **TanStack Router + Vite**
-- **TanStack Start + Vite**
-
-Community contributors can add more frameworks.
-
-## Quick Start
-
-```bash
-# No install needed! Just read our guides and copy the code.
-```
-
-1. Start with [Concepts](/docs/concepts/what-is-offline) — understand offline capability
-2. Follow the [Core Architecture](/docs/core/offline-first) guides
-3. Copy [Framework-Agnostic Patterns](/docs/patterns/sw-template)
-4. Choose your framework: [React](/docs/guides/react-vite), [TanStack Router](/docs/guides/tanstack-router), or [TanStack Start](/docs/guides/tanstack-start)
-5. See our [Reference Implementation](/docs/reference/budget-manager) — Budget Manager app
-
-## Comparison
-
-| Feature | Swoff | Traditional PWA Libraries |
-|---------|-------|---------------------------|
-| Dependencies | Zero runtime deps | Often requires npm packages |
-| Control | You own the code | Library updates break your app |
-| Updates | Consent-based, versioned | Often automatic |
-| Offline | Guaranteed by architecture | Depends on library |
-| Framework | Agnostic | Often framework-specific |
-
-## Reference Implementation
-
-Check out **Budget Manager** — a fully offline budget tracking app built with Swoff patterns:
-- 24+ routes working offline
-- IndexedDB for data storage
-- Versioned SW updates
-- PWA installable
-
-[See the reference implementation →](/docs/reference/budget-manager)
-
-## Community
-
-- **GitHub**: [github.com/iamsuudi/swoff](https://github.com/iamsuudi/swoff)
-- **Issues**: Report bugs or request features on GitHub
-- **Discussions**: Share your implementations and patterns
-
-## License
-
-MIT — Use freely in your projects.
+- Read the [Introduction](/docs/introduction) to get started
+- Follow the [Core Architecture](/docs/core/offline-architecture) guides
+- Check the [Reference Implementation](/docs/reference/budget-manager) (Budget Manager app)

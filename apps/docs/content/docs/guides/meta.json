@@ -1,10 +1,13 @@
 {
   "title": "Framework Guides",
-  "icon": "BookOpenCheck",
+  "icon": "Cable",
   "pages": [
-    "react-vite",
-    "tanstack-router",
-    "tanstack-start",
+    "react-ecosystem",
+    "vue-ecosystem",
+    "svelte-ecosystem",
+    "solid-vite",
+    "angular",
+    "vanilla-js",
     "contributing-adapters"
   ]
 }

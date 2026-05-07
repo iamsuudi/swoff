@@ -1,0 +1,123 @@
+---
+title: React Components
+description: UI components for Swoff — UpdatePrompt, SWProgressBar, InstallButton.
+icon: Puzzle
+---
+
+## React Components
+
+These components use the React hooks to provide ready-to-use UI elements. See [Component Specs](/docs/integration/components-spec) for behavioral details.
+
+## UpdatePrompt
+
+```tsx title="@/components/UpdatePrompt.tsx"
+import { usePWAUpdate } from "./hooks";
+
+export function UpdatePrompt() {
+  const { updateStatus, currentVersion, availableVersion, progress, forceUpdate, acceptUpdate, dismissUpdate } = usePWAUpdate();
+  if (updateStatus === "idle") return null;
+
+  return (
+    <div className={`update-prompt ${forceUpdate ? "fullscreen" : "bottom-sheet"}`}>
+      <p>Update available: v{currentVersion} → v{availableVersion}</p>
+      {updateStatus === "downloading" ? (
+        <div className="progress-bar" style={{ width: `${progress}%` }} />
+      ) : (
+        <>
+          <button onClick={acceptUpdate}>Update</button>
+          {!forceUpdate && <button onClick={dismissUpdate}>Later</button>}
+        </>
+      )}
+    </div>
+  );
+}
+```
+
+**Usage:**
+
+```tsx
+function App() {
+  return (
+    <>
+      <AppContent />
+      <UpdatePrompt />
+    </>
+  );
+}
+```
+
+## SWProgressBar
+
+```tsx title="@/components/SWProgressBar.tsx"
+import { useSWProgress } from "./hooks";
+
+export function SWProgressBar() {
+  const { progress, status } = useSWProgress();
+  if (status !== "installing") return null;
+
+  return (
+    <div className="fixed top-0 left-0 w-full h-1 bg-gray-200">
+      <div className="h-full bg-blue-500 transition-all" style={{ width: `${progress}%` }} />
+    </div>
+  );
+}
+```
+
+**Usage:**
+
+```tsx
+function App() {
+  return (
+    <>
+      <SWProgressBar />
+      <AppContent />
+    </>
+  );
+}
+```
+
+## InstallButton
+
+```tsx title="@/components/InstallButton.tsx"
+import { useState, useEffect } from "react";
+
+export function InstallButton() {
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      setDeferredPrompt((e as any));
+    });
+  }, []);
+
+  if (!deferredPrompt) return null;
+
+  const handleInstall = async () => {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") setDeferredPrompt(null);
+  };
+
+  return <button onClick={handleInstall}>Install App</button>;
+}
+```
+
+**Usage:**
+
+```tsx
+function Header() {
+  return (
+    <header>
+      <h1>My App</h1>
+      <InstallButton />
+    </header>
+  );
+}
+```
+
+## Next Steps
+
+- See [React Hooks](/docs/guides/react-ecosystem/hooks) — underlying hooks
+- Follow your framework guide: [React + Vite](/docs/guides/react-ecosystem/react-vite)
+- Understand the [Component Specs](/docs/integration/components-spec) — behavioral requirements

@@ -3,9 +3,8 @@
   "icon": "Lightbulb",
   "pages": [
     "what-is-offline",
-    "service-worker-101",
+    "service-workers",
     "pwa-explained",
-    "versioned-app-vs-pwa",
     "browser-apis"
   ]
 }

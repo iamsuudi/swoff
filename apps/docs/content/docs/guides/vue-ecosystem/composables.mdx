@@ -1,5 +1,5 @@
 ---
-title: Vue Composables
+title: Composables
 description: Vue composables for Swoff's service worker system.
 icon: RefreshCw
 ---
@@ -14,14 +14,14 @@ Main composable for the update flow.
 
 ```typescript
 const {
-  currentVersion,       // Ref<string | null>
-  availableVersion,     // Ref<string | null>
-  updateStatus,         // Ref<'idle' | 'available' | 'downloading'>
-  progress,             // Ref<number>
-  forceUpdate,          // Ref<boolean>
-  dismissUpdate,        // () => void
-  acceptUpdate,         // () => Promise<void>
-  checkForUpdates,      // () => Promise<void>
+  currentVersion, // Ref<string | null>
+  availableVersion, // Ref<string | null>
+  updateStatus, // Ref<'idle' | 'available' | 'downloading'>
+  progress, // Ref<number>
+  forceUpdate, // Ref<boolean>
+  dismissUpdate, // () => void
+  acceptUpdate, // () => Promise<void>
+  checkForUpdates, // () => Promise<void>
 } = usePWAUpdate();
 ```
 
@@ -29,9 +29,9 @@ const {
 
 ```vue
 <script setup>
-import { usePWAUpdate } from './composables/usePWAUpdate'
+import { usePWAUpdate } from "./composables/usePWAUpdate";
 
-const { updateStatus, acceptUpdate } = usePWAUpdate()
+const { updateStatus, acceptUpdate } = usePWAUpdate();
 </script>
 
 <template>
@@ -44,66 +44,75 @@ const { updateStatus, acceptUpdate } = usePWAUpdate()
 **Implementation:**
 
 ```typescript
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from "vue";
 
 export function usePWAUpdate() {
-  const updateStatus = ref<'idle' | 'available' | 'downloading'>('idle')
-  const currentVersion = ref<string | null>(null)
-  const availableVersion = ref<string | null>(null)
-  const progress = ref(0)
-  const forceUpdate = ref(false)
+  const updateStatus = ref<"idle" | "available" | "downloading">("idle");
+  const currentVersion = ref<string | null>(null);
+  const availableVersion = ref<string | null>(null);
+  const progress = ref(0);
+  const forceUpdate = ref(false);
 
   const handleUpdateAvailable = (e: Event) => {
-    const detail = (e as CustomEvent).detail
-    const current = localStorage.getItem('swRegisteredVersion')
-    currentVersion.value = current
-    availableVersion.value = detail.version
-    updateStatus.value = 'available'
-    forceUpdate.value = current < (window.swMinSupportedVersion || '0.0.0')
-  }
+    const detail = (e as CustomEvent).detail;
+    const current = localStorage.getItem("swRegisteredVersion");
+    currentVersion.value = current;
+    availableVersion.value = detail.version;
+    updateStatus.value = "available";
+    forceUpdate.value = current < (window.swMinSupportedVersion || "0.0.0");
+  };
 
   const handleProgress = (e: Event) => {
-    if (updateStatus.value === 'downloading') {
-      progress.value = (e as CustomEvent).detail.percent
+    if (updateStatus.value === "downloading") {
+      progress.value = (e as CustomEvent).detail.percent;
     }
-  }
+  };
 
   const handleReady = () => {
-    if (updateStatus.value === 'downloading') {
-      updateStatus.value = 'idle'
-      progress.value = 0
+    if (updateStatus.value === "downloading") {
+      updateStatus.value = "idle";
+      progress.value = 0;
     }
-  }
+  };
 
   const acceptUpdate = async () => {
-    updateStatus.value = 'downloading'
-    await registerServiceWorker(availableVersion.value)
-  }
+    updateStatus.value = "downloading";
+    await registerServiceWorker(availableVersion.value);
+  };
 
   const dismissUpdate = () => {
     if (!forceUpdate.value) {
-      updateStatus.value = 'idle'
-      sessionStorage.setItem('sw-dismissed-update', 'true')
+      updateStatus.value = "idle";
+      sessionStorage.setItem("sw-dismissed-update", "true");
     }
-  }
+  };
 
   const checkForUpdates = async () => {
-    const manifest = await checkForUpdate()
-  }
+    const manifest = await checkForUpdate();
+  };
 
   onMounted(() => {
-    window.addEventListener('sw-update-available', handleUpdateAvailable)
-    window.addEventListener('sw-progress', handleProgress)
-    window.addEventListener('sw-ready', handleReady)
-  })
+    window.addEventListener("sw-update-available", handleUpdateAvailable);
+    window.addEventListener("sw-progress", handleProgress);
+    window.addEventListener("sw-ready", handleReady);
+  });
 
   onUnmounted(() => {
-    window.removeEventListener('sw-update-available', handleUpdateAvailable)
-    window.removeEventListener('sw-progress', handleProgress)
-    window.removeEventListener('sw-ready', handleReady)
-  })
+    window.removeEventListener("sw-update-available", handleUpdateAvailable);
+    window.removeEventListener("sw-progress", handleProgress);
+    window.removeEventListener("sw-ready", handleReady);
+  });
 
-  return { currentVersion, availableVersion, updateStatus, progress, forceUpdate, dismissUpdate, acceptUpdate, checkForUpdates }
+  return {
+    currentVersion,
+    availableVersion,
+    updateStatus,
+    progress,
+    forceUpdate,
+    dismissUpdate,
+    acceptUpdate,
+    checkForUpdates,
+  };
 }
 ```
 
@@ -112,44 +121,48 @@ export function usePWAUpdate() {
 Track SW download progress.
 
 ```typescript
-const { progress, status } = useSWProgress()
+const { progress, status } = useSWProgress();
 // status: 'idle' | 'installing' | 'ready' | 'error'
 ```
 
 **Implementation:**
 
 ```typescript
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from "vue";
 
 export function useSWProgress() {
-  const progress = ref(0)
-  const status = ref<'idle' | 'installing' | 'ready' | 'error'>('idle')
+  const progress = ref(0);
+  const status = ref<"idle" | "installing" | "ready" | "error">("idle");
 
   const handleProgress = (e: Event) => {
-    status.value = 'installing'
-    progress.value = (e as CustomEvent).detail.percent
-  }
+    status.value = "installing";
+    progress.value = (e as CustomEvent).detail.percent;
+  };
 
   const handleReady = () => {
-    status.value = 'ready'
-    setTimeout(() => { status.value = 'idle' }, 1000)
-  }
+    status.value = "ready";
+    setTimeout(() => {
+      status.value = "idle";
+    }, 1000);
+  };
 
-  const handleError = () => { status.value = 'error' }
+  const handleError = () => {
+    status.value = "error";
+  };
 
   onMounted(() => {
-    window.addEventListener('sw-progress', handleProgress)
-    window.addEventListener('sw-ready', handleReady)
-    window.addEventListener('sw-error', handleError)
-  })
+    window.addEventListener("sw-progress", handleProgress);
+    window.addEventListener("sw-ready", handleReady);
+    window.addEventListener("sw-error", handleError);
+  });
 
   onUnmounted(() => {
-    window.removeEventListener('sw-progress', handleProgress)
-    window.removeEventListener('sw-ready', handleReady)
-    window.removeEventListener('sw-error', handleError)
-  })
+    window.removeEventListener("sw-progress", handleProgress);
+    window.removeEventListener("sw-ready", handleReady);
+    window.removeEventListener("sw-error", handleError);
+  });
 
-  return { progress, status }
+  return { progress, status };
 }
 ```
 
@@ -158,33 +171,33 @@ export function useSWProgress() {
 Read current/latest versions.
 
 ```typescript
-const { currentVersion, latestVersion } = usePWAVersion()
+const { currentVersion, latestVersion } = usePWAVersion();
 ```
 
 **Implementation:**
 
 ```typescript
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from "vue";
 
 export function usePWAVersion() {
-  const currentVersion = ref<string | null>(null)
-  const latestVersion = ref<string | null>(null)
+  const currentVersion = ref<string | null>(null);
+  const latestVersion = ref<string | null>(null);
 
   const handleDetected = () => {
-    currentVersion.value = window.currentSWVersion || null
-    latestVersion.value = window.latestSWVersion || null
-  }
+    currentVersion.value = window.currentSWVersion || null;
+    latestVersion.value = window.latestSWVersion || null;
+  };
 
   onMounted(() => {
-    window.addEventListener('sw-version-detected', handleDetected)
-    handleDetected()
-  })
+    window.addEventListener("sw-version-detected", handleDetected);
+    handleDetected();
+  });
 
   onUnmounted(() => {
-    window.removeEventListener('sw-version-detected', handleDetected)
-  })
+    window.removeEventListener("sw-version-detected", handleDetected);
+  });
 
-  return { currentVersion, latestVersion }
+  return { currentVersion, latestVersion };
 }
 ```
 

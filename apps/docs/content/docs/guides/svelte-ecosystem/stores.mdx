@@ -1,5 +1,5 @@
 ---
-title: Svelte Stores
+title: Stores
 description: Svelte stores for Swoff's service worker system.
 icon: RefreshCw
 ---
@@ -14,55 +14,57 @@ Main store for the update flow.
 
 ```typescript
 // stores/pwaUpdate.ts
-import { writable } from 'svelte/store'
+import { writable } from "svelte/store";
 
-export const updateStatus = writable<'idle' | 'available' | 'downloading'>('idle')
-export const currentVersion = writable<string | null>(null)
-export const availableVersion = writable<string | null>(null)
-export const progress = writable(0)
-export const forceUpdate = writable(false)
+export const updateStatus = writable<"idle" | "available" | "downloading">(
+  "idle",
+);
+export const currentVersion = writable<string | null>(null);
+export const availableVersion = writable<string | null>(null);
+export const progress = writable(0);
+export const forceUpdate = writable(false);
 
 export function acceptUpdate() {
-  updateStatus.set('downloading')
-  registerServiceWorker(availableVersion)
+  updateStatus.set("downloading");
+  registerServiceWorker(availableVersion);
 }
 
 export function dismissUpdate() {
   if (!forceUpdate) {
-    updateStatus.set('idle')
-    sessionStorage.setItem('sw-dismissed-update', 'true')
+    updateStatus.set("idle");
+    sessionStorage.setItem("sw-dismissed-update", "true");
   }
 }
 
 export async function checkForUpdates() {
-  const manifest = await checkForUpdate()
+  const manifest = await checkForUpdate();
 }
 
 // Initialize listeners
-if (typeof window !== 'undefined') {
-  window.addEventListener('sw-update-available', (e: Event) => {
-    const detail = (e as CustomEvent).detail
-    const current = localStorage.getItem('swRegisteredVersion')
-    currentVersion.set(current)
-    availableVersion.set(detail.version)
-    updateStatus.set('available')
-    forceUpdate.set(current < (window.swMinSupportedVersion || '0.0.0'))
-  })
+if (typeof window !== "undefined") {
+  window.addEventListener("sw-update-available", (e: Event) => {
+    const detail = (e as CustomEvent).detail;
+    const current = localStorage.getItem("swRegisteredVersion");
+    currentVersion.set(current);
+    availableVersion.set(detail.version);
+    updateStatus.set("available");
+    forceUpdate.set(current < (window.swMinSupportedVersion || "0.0.0"));
+  });
 
-  window.addEventListener('sw-progress', (e: Event) => {
-    const status = get(updateStatus)
-    if (status === 'downloading') {
-      progress.set((e as CustomEvent).detail.percent)
+  window.addEventListener("sw-progress", (e: Event) => {
+    const status = get(updateStatus);
+    if (status === "downloading") {
+      progress.set((e as CustomEvent).detail.percent);
     }
-  })
+  });
 
-  window.addEventListener('sw-ready', () => {
-    const status = get(updateStatus)
-    if (status === 'downloading') {
-      updateStatus.set('idle')
-      progress.set(0)
+  window.addEventListener("sw-ready", () => {
+    const status = get(updateStatus);
+    if (status === "downloading") {
+      updateStatus.set("idle");
+      progress.set(0);
     }
-  })
+  });
 }
 ```
 
@@ -90,23 +92,25 @@ Track SW download progress.
 
 ```typescript
 // stores/swProgress.ts
-import { writable } from 'svelte/store'
+import { writable } from "svelte/store";
 
-export const progress = writable(0)
-export const status = writable<'idle' | 'installing' | 'ready' | 'error'>('idle')
+export const progress = writable(0);
+export const status = writable<"idle" | "installing" | "ready" | "error">(
+  "idle",
+);
 
-if (typeof window !== 'undefined') {
-  window.addEventListener('sw-progress', (e: Event) => {
-    status.set('installing')
-    progress.set((e as CustomEvent).detail.percent)
-  })
+if (typeof window !== "undefined") {
+  window.addEventListener("sw-progress", (e: Event) => {
+    status.set("installing");
+    progress.set((e as CustomEvent).detail.percent);
+  });
 
-  window.addEventListener('sw-ready', () => {
-    status.set('ready')
-    setTimeout(() => status.set('idle'), 1000)
-  })
+  window.addEventListener("sw-ready", () => {
+    status.set("ready");
+    setTimeout(() => status.set("idle"), 1000);
+  });
 
-  window.addEventListener('sw-error', () => status.set('error'))
+  window.addEventListener("sw-error", () => status.set("error"));
 }
 ```
 
@@ -116,18 +120,18 @@ Read current/latest versions.
 
 ```typescript
 // stores/pwaVersion.ts
-import { writable } from 'svelte/store'
+import { writable } from "svelte/store";
 
-export const currentVersion = writable<string | null>(null)
-export const latestVersion = writable<string | null>(null)
+export const currentVersion = writable<string | null>(null);
+export const latestVersion = writable<string | null>(null);
 
-if (typeof window !== 'undefined') {
-  window.addEventListener('sw-version-detected', () => {
-    currentVersion.set(window.currentSWVersion || null)
-    latestVersion.set(window.latestSWVersion || null)
-  })
-  currentVersion.set(window.currentSWVersion || null)
-  latestVersion.set(window.latestSWVersion || null)
+if (typeof window !== "undefined") {
+  window.addEventListener("sw-version-detected", () => {
+    currentVersion.set(window.currentSWVersion || null);
+    latestVersion.set(window.latestSWVersion || null);
+  });
+  currentVersion.set(window.currentSWVersion || null);
+  latestVersion.set(window.latestSWVersion || null);
 }
 ```
 

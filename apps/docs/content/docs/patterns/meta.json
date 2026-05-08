@@ -6,6 +6,7 @@
     "build-scripts",
     "client-registration",
     "utilities",
+    "pwa-installability",
     "indexeddb-patterns"
   ]
 }

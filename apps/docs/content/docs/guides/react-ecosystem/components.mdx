@@ -1,5 +1,5 @@
 ---
-title: React Components
+title: Components
 description: UI components for Swoff — UpdatePrompt, SWProgressBar, InstallButton.
 icon: Puzzle
 ---
@@ -14,12 +14,24 @@ These components use the React hooks to provide ready-to-use UI elements. See [C
 import { usePWAUpdate } from "./hooks";
 
 export function UpdatePrompt() {
-  const { updateStatus, currentVersion, availableVersion, progress, forceUpdate, acceptUpdate, dismissUpdate } = usePWAUpdate();
+  const {
+    updateStatus,
+    currentVersion,
+    availableVersion,
+    progress,
+    forceUpdate,
+    acceptUpdate,
+    dismissUpdate,
+  } = usePWAUpdate();
   if (updateStatus === "idle") return null;
 
   return (
-    <div className={`update-prompt ${forceUpdate ? "fullscreen" : "bottom-sheet"}`}>
-      <p>Update available: v{currentVersion} → v{availableVersion}</p>
+    <div
+      className={`update-prompt ${forceUpdate ? "fullscreen" : "bottom-sheet"}`}
+    >
+      <p>
+        Update available: v{currentVersion} → v{availableVersion}
+      </p>
       {updateStatus === "downloading" ? (
         <div className="progress-bar" style={{ width: `${progress}%` }} />
       ) : (
@@ -57,7 +69,10 @@ export function SWProgressBar() {
 
   return (
     <div className="fixed top-0 left-0 w-full h-1 bg-gray-200">
-      <div className="h-full bg-blue-500 transition-all" style={{ width: `${progress}%` }} />
+      <div
+        className="h-full bg-blue-500 transition-all"
+        style={{ width: `${progress}%` }}
+      />
     </div>
   );
 }
@@ -87,7 +102,7 @@ export function InstallButton() {
   useEffect(() => {
     window.addEventListener("beforeinstallprompt", (e) => {
       e.preventDefault();
-      setDeferredPrompt((e as any));
+      setDeferredPrompt(e as any);
     });
   }, []);
 

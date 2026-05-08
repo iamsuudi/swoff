@@ -3,7 +3,6 @@
   "icon": "Cog",
   "pages": [
     "offline-architecture",
-    "versioned-sw",
-    "pwa-installability"
+    "versioned-sw"
   ]
 }

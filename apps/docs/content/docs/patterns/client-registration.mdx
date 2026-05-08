@@ -4,9 +4,11 @@ description: Register service workers with version checking — framework agnost
 icon: UserPlus
 ---
 
+**Prerequisites:** Your build script produces versioned SW files and `version.json` (see [Build Scripts](/docs/patterns/build-scripts)). This script registers the generated SW from your app.
+
 ## Basic Registration
 
-```javascript
+```js
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     const manifest = await fetch("/version.json").then((r) => r.json());
@@ -18,9 +20,7 @@ if ("serviceWorker" in navigator) {
 
 ## Full Registration with Version Checking
 
-```javascript
-// sw-registration.js — copy into your project
-
+```js title="swoff/sw-injector.js"
 async function checkForUpdate() {
   const response = await fetch("/version.json");
   const manifest = await response.json();
@@ -56,10 +56,13 @@ async function initServiceWorker() {
     }
   } else if (currentVersion && currentVersion !== manifest.version) {
     window.swAvailableVersion = manifest.version;
-    window.swUpdateRequired = currentVersion < (manifest.minSupportedVersion || "0.0.0");
-    window.dispatchEvent(new CustomEvent("sw-update-available", {
-      detail: { version: manifest.version },
-    }));
+    window.swUpdateRequired =
+      currentVersion < (manifest.minSupportedVersion || "0.0.0");
+    window.dispatchEvent(
+      new CustomEvent("sw-update-available", {
+        detail: { version: manifest.version },
+      }),
+    );
   } else {
     await registerServiceWorker(manifest.version);
   }

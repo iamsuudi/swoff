@@ -1,5 +1,5 @@
 {
-  "title": "Integration",
+  "title": "Integration Concepts",
   "icon": "Blocks",
-  "pages": ["index", "adapters", "components-spec"]
+  "pages": ["adapters", "components-spec"]
 }

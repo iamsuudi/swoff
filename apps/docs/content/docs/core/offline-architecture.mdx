@@ -63,59 +63,43 @@ No backend needed. IndexedDB serves as the full database. This is the pattern us
 
 ## Storage Strategy
 
-| API                | Capacity                              | Tier 1 (General)     | Tier 2 (Full Offline) |
-| ------------------ | ------------------------------------- | -------------------- | --------------------- |
-| **Cache API**      | Unlimited (often 60-80% of free disk) | Cache read responses | App shell assets only |
-| **IndexedDB**      | Unlimited (often 60-80% of free disk) | Queue mutations      | Full app database     |
-| **localStorage**   | ~5-10 MB                              | Settings, SW version | Settings, metadata    |
-| **sessionStorage** | ~5-10 MB                              | Session state        | Session state         |
+| API                | Capacity                         | Tier 1 (General)     | Tier 2 (Full Offline) |
+| ------------------ | -------------------------------- | -------------------- | --------------------- |
+| **Cache API**      | Unlimited (depends on free disk) | Cache read responses | App shell assets only |
+| **IndexedDB**      | Unlimited (depends on free disk) | Queue mutations      | Full app database     |
+| **localStorage**   | ~5-10 MB                         | Settings, SW version | Settings, metadata    |
+| **sessionStorage** | ~5-10 MB                         | Session state        | Session state         |
 
-\*Limited by disk space and browser quota.
+:::warn
+Limited by disk space and browser quota.
+:::
 
 ### Tier 1: Cache API (Read Response Caching)
 
-```javascript
-async function fetchWithCache(url) {
-  const cache = await caches.open("read-cache-v1");
-  const cached = await cache.match(url);
-  if (cached) return cached.json();
+When online, fetch and cache read responses; when offline, serve from cache. The Service Worker handles this transparently — see the [SW Template](/docs/patterns/sw-template) for the implementation.
 
-  const response = await fetch(url);
-  await cache.put(url, response.clone());
-  return response.json();
-}
+```javascript
+// Core concept: read-through cache
+const response = (await caches.match(url)) || (await fetch(url));
 ```
 
 ### Tier 1: IndexedDB (Mutation Queue)
 
+When offline, queue mutations locally. When back online, drain the queue. See [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) for the implementation.
+
 ```javascript
-async function queueMutation(mutation) {
-  const db = await openDB("my-app", 1, {
-    upgrade(db) {
-      db.createObjectStore("mutation-queue", {
-        keyPath: "id",
-        autoIncrement: true,
-      });
-    },
-  });
-  await db.add("mutation-queue", { ...mutation, timestamp: Date.now() });
-}
+// Core concept: queue offline mutations
+await db.add("mutation-queue", { ...mutation, timestamp: Date.now() });
 ```
 
 ### Tier 2: IndexedDB (Full Database)
 
+Use IndexedDB as your primary database — all CRUD operations go through it. See [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) for the implementation.
+
 ```javascript
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open("my-app", 1);
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      db.createObjectStore("todos", { keyPath: "id" });
-    };
-    request.onsuccess = (e) => resolve(e.target.result);
-    request.onerror = (e) => reject(e.target.error);
-  });
-}
+// Core concept: store data locally
+const db = await openDB("my-app", 1);
+db.createObjectStore("todos", { keyPath: "id" });
 ```
 
 ## Data Flow (Tier 1)
@@ -148,25 +132,8 @@ if (sessionStorage.getItem("auth") === "true") {
 }
 ```
 
-## Offline Checklist
-
-### Tier 1 (General)
-
-- [ ] SW caches all static assets and routes
-- [ ] Read requests cached for offline access
-- [ ] Mutation queue implemented (IndexedDB)
-- [ ] Sync logic for queued mutations
-- [ ] App shell works without network
-
-### Tier 2 (Full Offline)
-
-- [ ] SW caches all static assets and routes
-- [ ] IndexedDB initialized as full database
-- [ ] All CRUD operations use IndexedDB
-- [ ] App works 100% offline (no backend needed)
-
 ## Next Steps
 
-- [Versioned SW System](/docs/core/versioned-sw) — prevent silent updates
-- [SW Template](/docs/patterns/sw-template) — app shell caching code
-- [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) — practical examples
+- [Versioned SW System](/docs/core/versioned-sw) — how versioning prevents silent updates
+- Follow the [Patterns](/docs/patterns/) sequentially to implement everything
+- Start with the [SW Template](/docs/patterns/sw-template) — the foundation

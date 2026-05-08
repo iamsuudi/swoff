@@ -4,33 +4,32 @@ description: Generate versioned SW + version.json from your package.json.
 icon: Hammer
 ---
 
+**Prerequisite:** You've created `swoff/sw-template.js` from the [SW Template](/docs/patterns/sw-template) pattern. This script reads that template and generates versioned output.
+
 ## Quick Setup
 
-### 1. Create SW Template
+### 1. Confirm SW Template Exists
 
-Place at `src/sw-template.js`. See [SW Template](/docs/patterns/sw-template) for the code.
+You created `swoff/sw-template.js` in the previous step. If not, see [SW Template](/docs/patterns/sw-template) first.
 
 ### 2. Create Build Script
 
-Create `generate-sw.js` at project root:
+Create `swoff/sw-generator.js`:
 
-```javascript
+```js title="swoff/sw-generator.js"
 import { readFileSync, writeFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { join, dirname } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "package.json"), "utf8"));
-const template = readFileSync(join(__dirname, "src/sw-template.js"), "utf8");
+const template = readFileSync(join(__dirname, "swoff/sw-template.js"), "utf8");
 
 let sw = template.replace(
   "// [[CACHE_NAME]]",
-  `const CACHE_NAME = 'sw-v${pkg.version}'`,
+  `CACHE_NAME = 'sw-v${pkg.version}'`,
 );
-sw = sw.replace(
-  "// [[ASSETS_LIST]]",
-  `const ASSETS_TO_CACHE = ['/', '/index.html']`,
-);
+sw = sw.replace("// [[ASSETS_LIST]]", `ASSETS_TO_CACHE = ['/', '/index.html']`);
 
 writeFileSync(join(__dirname, "dist", `sw-v${pkg.version}.js`), sw);
 writeFileSync(
@@ -43,21 +42,23 @@ writeFileSync(
 );
 ```
 
-**Important:** The `dist` path above is the default. Your framework may use a different output directory (e.g., `.output`, `.next/export`, `build`). See your [framework guide] for the correct path.
+**Important:** The `dist` path above is the default. Your framework may use a different output directory (e.g., `.output`, `.next/export`, `build`). See your [framework guide](/docs/guides) for the correct path.
 
 ### 3. Update package.json
 
-```json
+Append the `sw generating script` at the end of the `build` script in `package.json`.
+
+```json title="package.json"
 {
   "scripts": {
-    "build": "vite build && node generate-sw.js"
+    "build": " ..... && node swoff/sw-generator.js"
   }
 }
 ```
 
-### 4. Add TypeScript Declarations
+### 4. Add TypeScript Declarations (optional)
 
-Create `sw.d.ts`. See [Utilities](/docs/patterns/utilities).
+If you use TypeScript, create `sw.d.ts` at the root of your project. See [Utilities](/docs/patterns/utilities).
 
 ### 5. Build & Test
 

@@ -69,21 +69,21 @@ See [Versioned SW System](/docs/core/versioned-sw) for implementation details.
 
 These are two completely different things that people confuse because both use the word "install":
 
-### PWA Install (User Experience)
+### 1. PWA Install (User Experience)
 
 Creates a **shortcut** on the user's device. The app opens in a standalone window without browser UI. This is purely cosmetic — it doesn't change what the app does.
 
-### App Version Update (Technical)
+### 2. App Version Update (Technical)
 
 Replaces the **code** with a new version. This is functional — it changes what the app does.
 
-| Aspect        | PWA Install      | App Version Update   |
-| ------------- | ---------------- | -------------------- |
-| **What**      | Creates shortcut | Replaces code        |
-| **Trigger**   | User chooses     | Developer releases   |
-| **Frequency** | Once per device  | Every release        |
-| **Effect**    | UI changes       | Functionality changes|
-| **Offline**   | Doesn't help     | Makes it possible    |
+| Aspect        | PWA Install      | App Version Update    |
+| ------------- | ---------------- | --------------------- |
+| **What**      | Creates shortcut | Replaces code         |
+| **Trigger**   | User chooses     | Developer releases    |
+| **Frequency** | Once per device  | Every release         |
+| **Effect**    | UI changes       | Functionality changes |
+| **Offline**   | Doesn't help     | Makes it possible     |
 
 You can have an offline app without PWA install (user accesses via bookmark). You can have versioned updates without PWA. Swoff treats these as independent features — versioned updates are core, PWA is optional.
 

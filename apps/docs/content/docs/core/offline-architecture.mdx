@@ -63,14 +63,14 @@ No backend needed. IndexedDB serves as the full database. This is the pattern us
 
 ## Storage Strategy
 
-| API                | Capacity    | Tier 1 (General)          | Tier 2 (Full Offline)    |
-| ------------------ | ----------- | ------------------------- | ------------------------ |
-| **Cache API**      | Unlimited*  | Cache read responses      | App shell assets only    |
-| **IndexedDB**      | ~50MB+      | Queue mutations           | Full app database        |
-| **localStorage**   | ~5MB        | Settings, SW version      | Settings, metadata       |
-| **sessionStorage** | ~5MB        | Session state             | Session state            |
+| API                | Capacity                              | Tier 1 (General)     | Tier 2 (Full Offline) |
+| ------------------ | ------------------------------------- | -------------------- | --------------------- |
+| **Cache API**      | Unlimited (often 60-80% of free disk) | Cache read responses | App shell assets only |
+| **IndexedDB**      | Unlimited (often 60-80% of free disk) | Queue mutations      | Full app database     |
+| **localStorage**   | ~5-10 MB                              | Settings, SW version | Settings, metadata    |
+| **sessionStorage** | ~5-10 MB                              | Session state        | Session state         |
 
-*Limited by disk space and browser quota.
+\*Limited by disk space and browser quota.
 
 ### Tier 1: Cache API (Read Response Caching)
 
@@ -92,7 +92,10 @@ async function fetchWithCache(url) {
 async function queueMutation(mutation) {
   const db = await openDB("my-app", 1, {
     upgrade(db) {
-      db.createObjectStore("mutation-queue", { keyPath: "id", autoIncrement: true });
+      db.createObjectStore("mutation-queue", {
+        keyPath: "id",
+        autoIncrement: true,
+      });
     },
   });
   await db.add("mutation-queue", { ...mutation, timestamp: Date.now() });
@@ -118,12 +121,14 @@ function openDB() {
 ## Data Flow (Tier 1)
 
 **Online (First Visit):**
+
 1. Browser loads `index.html`
 2. SW registers and caches app shell
 3. App fetches data, caches read responses
 4. Mutations sent to backend normally
 
 **Offline:**
+
 1. SW serves app shell from cache
 2. Read requests served from Cache API
 3. Mutations queued in IndexedDB

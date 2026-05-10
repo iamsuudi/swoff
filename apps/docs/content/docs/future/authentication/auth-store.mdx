@@ -1,0 +1,163 @@
+---
+title: Token Storage
+description: Store auth tokens securely using IndexedDB + memory cache.
+icon: Database
+---
+
+# Token Storage
+
+**Prerequisites:** None. This module is self-contained and independent of your auth mechanism.
+
+## Storage Strategy
+
+Three tiers, each with different guarantees:
+
+| Storage | Persists | Scope | Use for |
+|---------|----------|-------|---------|
+| Memory | Until page refresh | Tab | Active session — fast access |
+| IndexedDB | Indefinitely | Origin | Persistent auth across reloads & SW updates |
+| sessionStorage | Until tab closes | Tab | Tab-scoped session flags |
+
+:::warn
+**Never store auth tokens in `localStorage`.** It's synchronous, accessible by any JavaScript in the same origin, and persists indefinitely — making it a prime XSS target.
+:::
+
+## Implementation
+
+```javascript
+// swoff/auth-store.js — Zero dependency, native IndexedDB + memory cache
+
+const DB_NAME = "swoff-auth";
+const STORE_NAME = "auth";
+
+let memoryAuth = null;
+
+function openAuthDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: "key" });
+      }
+    };
+
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+/**
+ * Store auth data — writes to both memory and IndexedDB.
+ * @param {object} authData - { token, user, expiresAt, ...yourBackendFields }
+ */
+export async function setAuth(authData) {
+  memoryAuth = authData;
+  const db = await openAuthDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.put({ key: "session", value: authData });
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/**
+ * Get stored auth — returns memory copy or reads from IndexedDB.
+ */
+export async function getAuth() {
+  if (memoryAuth) return memoryAuth;
+
+  const db = await openAuthDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.get("session");
+    request.onsuccess = () => {
+      memoryAuth = request.result?.value || null;
+      resolve(memoryAuth);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/**
+ * Clear auth — removes from memory and IndexedDB.
+ */
+export async function clearAuth() {
+  memoryAuth = null;
+  const db = await openAuthDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.delete("session");
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/**
+ * Check if auth exists and is not expired.
+ * @param {object} auth - The auth object from getAuth()
+ */
+export function isAuthValid(auth) {
+  if (!auth) return false;
+  if (!auth.expiresAt) return true; // No expiry = valid until cleared
+  return Date.now() < auth.expiresAt;
+}
+```
+
+## Your Login / Logout
+
+These are **your functions** — Swoff provides the storage infrastructure:
+
+```javascript
+// In your app — you provide login/logout, Swoff provides storage
+import { setAuth, clearAuth } from "./swoff/auth-store.js";
+
+async function login(email, password) {
+  // Your auth mechanism: JWT, session, OAuth, whatever
+  const response = await fetch("/api/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await response.json();
+
+  // Store in Swoff's auth infrastructure
+  await setAuth({
+    token: data.token,          // Your token (or null if http-only cookie)
+    user: data.user,            // Current user object
+    expiresAt: data.expiresAt,  // Expiry timestamp (ms), or omit
+  });
+
+  window.dispatchEvent(new CustomEvent("sw-auth-state-change", {
+    detail: { authenticated: true },
+  }));
+}
+
+async function logout() {
+  await fetch("/api/logout", { method: "POST" }).catch(() => {});
+  await clearAuth();
+  window.dispatchEvent(new CustomEvent("sw-auth-state-change", {
+    detail: { authenticated: false },
+  }));
+}
+```
+
+## What `authData` Should Contain
+
+The shape depends on your backend:
+
+| Field | Required? | Purpose |
+|---|---|---|
+| `token` | Cookie: no / Bearer: yes | The token string to attach to requests |
+| `user` | Recommended | Current user object for offline display |
+| `expiresAt` | Optional | Timestamp (ms) for offline expiry checking |
+
+## Next Steps
+
+- **Identify your auth type**: [Auth Libraries Reference](/docs/future/authentication/auth-libraries) — do you need header setup?
+- **Set up the fetch wrapper**: [Auth-Aware Fetch](/docs/future/authentication/auth-fetch)
+- **Fetch + cache user data**: [Current User](/docs/future/authentication/auth-user)

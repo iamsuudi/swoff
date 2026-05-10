@@ -1,0 +1,186 @@
+---
+title: Offline Auth State
+description: Handle all four combinations of online/offline and authenticated/unauthenticated.
+icon: WifiOff
+---
+
+# Offline Auth State
+
+**Prerequisites:** [Auth Store](/docs/future/authentication/auth-store), [Current User](/docs/future/authentication/auth-user).
+
+Your app needs to know the user's auth state even when offline. There are four possible states to handle.
+
+## Auth State Detection
+
+```javascript
+// swoff/auth-state.js
+import { getAuth, isAuthValid } from "./auth-store.js";
+import { getCachedUser } from "./auth-user.js";
+
+export async function getAuthState() {
+  const auth = await getAuth();
+  const valid = isAuthValid(auth);
+  const user = valid ? await getCachedUser() : null;
+
+  return {
+    authenticated: valid,
+    user,
+    online: navigator.onLine,
+  };
+}
+```
+
+## The Four States
+
+| State | Online | Authenticated | What to Show |
+|---|---|---|---|
+| **Normal** | ✅ Yes | ✅ Yes | Fresh data, full UI, normal experience |
+| **Login prompt** | ✅ Yes | ❌ No | Show login/signup, redirect to auth |
+| **Offline access** | ❌ No | ✅ Yes | Cached data, offline indicator, queue mutations |
+| **Strict offline** | ❌ No | ❌ No | Cached public content only, or offline-aware login |
+
+### State 1: Online + Authenticated (Normal)
+
+Full experience. Fetch fresh data, cache for offline, mutate normally.
+
+```javascript
+// Everything works normally
+const user = await authenticatedFetch("/api/me").then(r => r.json());
+await cacheUser(user);
+```
+
+### State 2: Online + Unauthenticated (Login)
+
+Redirect to login page or show login form.
+
+```javascript
+import { getAuthState } from "./swoff/auth-state.js";
+
+const state = await getAuthState();
+if (state.online && !state.authenticated) {
+  // Show login page
+  renderLoginPage();
+}
+```
+
+### State 3: Offline + Authenticated (Offline Access)
+
+Show cached data, indicate offline mode, queue mutations.
+
+```javascript
+const state = await getAuthState();
+if (!state.online && state.authenticated) {
+  // Show cached user data
+  const user = await getCachedUser();
+  renderApp({ user, offline: true });
+
+  // Mutations are queued for later
+  // (see Mutation Queuing pattern)
+}
+```
+
+### State 4: Offline + Unauthenticated (Strict Offline)
+
+Limited experience. Show cached public pages or an offline-aware login hint.
+
+```javascript
+const state = await getAuthState();
+if (!state.online && !state.authenticated) {
+  // Show cached public content only
+  renderOfflinePage();
+  // Or show a message: "Login requires internet connection"
+}
+```
+
+## Reactive State in Your Framework
+
+### React
+
+```javascript
+import { useState, useEffect } from "react";
+import { getAuthState } from "./swoff/auth-state.js";
+
+export function useAuth() {
+  const [state, setState] = useState({
+    authenticated: false,
+    user: null,
+    online: navigator.onLine,
+  });
+
+  useEffect(() => {
+    getAuthState().then(setState);
+
+    const onOnline = () => setState((s) => ({ ...s, online: true }));
+    const onOffline = () => setState((s) => ({ ...s, online: false }));
+    const onAuthChange = () => getAuthState().then(setState);
+
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("sw-auth-state-change", onAuthChange);
+
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("sw-auth-state-change", onAuthChange);
+    };
+  }, []);
+
+  return state;
+}
+```
+
+### Vue
+
+```javascript
+import { ref, onMounted, onUnmounted } from "vue";
+import { getAuthState } from "./swoff/auth-state.js";
+
+export function useAuth() {
+  const state = ref({ authenticated: false, user: null, online: navigator.onLine });
+
+  onMounted(async () => {
+    state.value = await getAuthState();
+
+    const onOnline = () => state.value.online = true;
+    const onOffline = () => state.value.online = false;
+    const onAuthChange = () => getAuthState().then((s) => state.value = s);
+
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("sw-auth-state-change", onAuthChange);
+
+    onUnmounted(() => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("sw-auth-state-change", onAuthChange);
+    });
+  });
+
+  return state;
+}
+```
+
+## Events
+
+| Event | Detail | When |
+|---|---|---|
+| `sw-auth-unauthorized` | none | 401 response received (token expired) |
+| `sw-auth-state-change` | `{ authenticated: boolean }` | Login or logout |
+
+## Window Properties (Optional)
+
+```typescript
+// Add to swoff/swoff.d.ts
+declare global {
+  interface Window {
+    swAuthState?: "authenticated" | "unauthenticated" | "loading";
+    swCurrentUser?: object | null;
+  }
+}
+```
+
+## Next Steps
+
+- **Add local security**: [Lock Screen](/docs/future/authentication/lock-screen) — PIN/biometric for fully offline apps
+- **Queue mutations**: [Mutation Queuing](/docs/future/mutation-queuing) — handle writes when offline
+- **Review the SW integration**: [SW Integration](/docs/future/authentication/sw-integration)

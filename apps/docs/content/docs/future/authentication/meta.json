@@ -1,0 +1,13 @@
+{
+  "title": "Authentication",
+  "icon": "Shield",
+  "pages": [
+    "auth-store",
+    "auth-fetch",
+    "auth-libraries",
+    "auth-user",
+    "sw-integration",
+    "offline-state",
+    "lock-screen"
+  ]
+}

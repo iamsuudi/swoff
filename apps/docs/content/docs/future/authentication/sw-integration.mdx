@@ -1,0 +1,101 @@
+---
+title: Service Worker Integration
+description: How the service worker handles authenticated requests and cache invalidation on logout.
+icon: Network
+---
+
+# Service Worker Integration
+
+**Prerequisites:** [SW Template](/docs/patterns/sw-template), [Auth Store](/docs/future/authentication/auth-store).
+
+## Principle: SW is Auth-Unaware
+
+The service worker **does not need to know about auth**. It doesn't read tokens, check sessions, or manage identity. It just passes headers through.
+
+This is by design:
+- Tokens stored in the SW would be lost when the SW is terminated
+- The SW has no DOM access — can't redirect to login
+- Keeping auth in the client layer is simpler and more secure
+
+## What the SW Does
+
+| Request type | `X-SW-Cache-Strategy` | SW behavior |
+|---|---|---|
+| Login / Logout / Register | `mutation` (set by `authenticatedFetch`) | Pass through, no caching |
+| Token refresh | `mutation` | Pass through, no caching |
+| Authenticated read (e.g., `/api/me`) | `read` (default for GET) | Cache response, serve offline |
+| Unauthenticated read | `read` | Cache response, serve offline |
+
+The SW template's fetch handler already handles this — see the [SW Template](/docs/patterns/sw-template#5-fetch--cache-first-with-read-detection).
+
+## Auth Endpoint Exclusion
+
+Auth endpoints must reach the server every time — no caching. `authenticatedFetch` marks them as `mutation` automatically:
+
+```javascript
+// auth-fetch.js — isAuthUrl() checks these paths
+const authPaths = [
+  "/login", "/logout", "/refresh", "/register",
+  "/api/login", "/api/logout", "/api/refresh",
+];
+```
+
+If your backend uses different paths, edit `isAuthUrl()` in [auth-fetch.js](/docs/future/authentication/auth-fetch).
+
+## Logout Cache Invalidation
+
+When a user logs out, their user-specific cached data should be cleared. Add this handler to your SW template:
+
+```javascript
+// In sw-template.js — add to the existing message handler
+self.addEventListener("message", (event) => {
+  if (event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+
+  // Clear runtime cache on logout
+  if (event.data.type === "CLEAR_RUNTIME_CACHE") {
+    event.waitUntil(
+      caches.delete(CACHE_NAME_RUNTIME).then(() => {
+        return caches.open(CACHE_NAME_RUNTIME);
+      }),
+    );
+  }
+});
+```
+
+The client sends this message on logout:
+
+```javascript
+// In your logout function
+if ("serviceWorker" in navigator) {
+  const registration = await navigator.serviceWorker.getRegistration();
+  if (registration?.active) {
+    registration.active.postMessage({ type: "CLEAR_RUNTIME_CACHE" });
+  }
+}
+```
+
+## What NOT to Do in the SW
+
+| ❌ Don't | Why |
+|---|---|
+| Don't store tokens in the SW | SW is terminated when idle — tokens are lost |
+| Don't check auth in the fetch handler | Auth is the client's responsibility |
+| Don't cache auth endpoints | Login/logout/refresh must reach the server |
+| Don't try to redirect to login from SW | SW has no DOM or navigation access |
+
+## Background Sync Consideration
+
+When the SW syncing queued mutations (see [Mutation Queuing](/docs/future/mutation-queuing)), it runs in the SW context where cookies are **not** available. If your backend uses cookie-based auth:
+
+- The SW sync will fail because cookies are scoped to the page, not the SW
+- Solution: Include the auth token **in the queued mutation payload** or use the client-side sync fallback (`window.addEventListener("online", processMutationQueue)`)
+
+This is why mutation queuing is best handled client-side when using cookie auth.
+
+## Next Steps
+
+- **Handle offline states**: [Offline Auth State](/docs/future/authentication/offline-state) — the four auth states
+- **Queue mutations behind auth**: [Mutation Queuing](/docs/future/mutation-queuing)
+- **Review the SW template**: [SW Template](/docs/patterns/sw-template)

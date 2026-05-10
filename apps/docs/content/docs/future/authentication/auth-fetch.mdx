@@ -1,0 +1,198 @@
+---
+title: Auth-Aware Fetch
+description: Extend fetchWithCache to attach auth credentials and handle 401 responses.
+icon: ArrowLeftRight
+---
+
+# Auth-Aware Fetch
+
+**Prerequisites:** [Auth Store](/docs/future/authentication/auth-store) set up, [API Integration](/docs/patterns/api-integration) `fetchWithCache` in place.
+
+## When You Need This
+
+- **Cookie/Session auth** → Your fetch wrapper doesn't change. The browser auto-sends cookies. But you still need `authenticatedFetch` for 401 handling and user data management.
+- **Bearer / Custom header auth** → You **must** configure `withAuthHeaders()` to attach the token.
+
+## Implementation
+
+```javascript
+// swoff/auth-fetch.js
+import { fetchWithCache } from "./fetch-wrapper.js";
+import { getAuth, clearAuth } from "./auth-store.js";
+
+/**
+ * YOUR extension point.
+ * Attach auth to request based on your backend's mechanism.
+ *
+ * Different auth types need different headers:
+ *
+ *   Cookie/Session:    nothing needed — browser auto-sends cookies.
+ *                      Return headers unchanged.
+ *
+ *   JWT Bearer:        headers.set("Authorization", `Bearer ${auth.token}`)
+ *
+ *   DRF TokenAuth:     headers.set("Authorization", `Token ${auth.token}`)
+ *
+ *   API Key:           headers.set("X-API-Key", auth.token)
+ *
+ *   Supabase SDK:      If using raw fetch: headers.set("Authorization", `Bearer ${auth.token}`)
+ *                      If using Supabase client: skip this file, use supabase.from() directly.
+ *
+ *   Better-Auth:       Default (cookie mode): nothing needed.
+ *                      Bearer plugin: headers.set("Authorization", `Bearer ${auth.token}`)
+ *
+ * Modify this function to match your backend.
+ */
+function withAuthHeaders(headers, auth) {
+  // --- EDIT THIS BLOCK FOR YOUR BACKEND ---
+  // Cookie/Session auth — nothing to do:
+  // return headers;
+
+  // Bearer token:
+  // if (auth?.token) {
+  //   headers.set("Authorization", `Bearer ${auth.token}`);
+  // }
+
+  // Custom header:
+  // if (auth?.token) {
+  //   headers.set("X-Auth-Token", auth.token);
+  // }
+  // --- END OF EDITABLE BLOCK ---
+
+  return headers;
+}
+
+/**
+ * Auth endpoints that should never be cached by the SW.
+ * Edit this list to match your backend's auth routes.
+ */
+function isAuthUrl(url) {
+  const authPaths = [
+    "/login", "/logout", "/refresh", "/register",
+    "/api/login", "/api/logout", "/api/refresh",
+  ];
+  return authPaths.some((path) => url.includes(path));
+}
+
+/**
+ * Auth-aware fetch wrapper.
+ * Attaches identity, excludes auth endpoints from cache, handles 401.
+ */
+export async function authenticatedFetch(input, options = {}) {
+  const auth = await getAuth();
+  const headers = new Headers(options.headers);
+
+  // Attach auth headers (your backend determines how)
+  withAuthHeaders(headers, auth);
+
+  // Determine if this is an auth endpoint (login, logout, refresh)
+  const url = typeof input === "string" ? input : input.url;
+
+  // Mark auth endpoints as mutation to bypass SW cache
+  if (isAuthUrl(url) && !headers.has("X-SW-Cache-Strategy")) {
+    headers.set("X-SW-Cache-Strategy", "mutation");
+  }
+
+  const response = await fetchWithCache(input, { ...options, headers });
+
+  // Handle 401 — auth expired or invalidated server-side
+  if (response.status === 401) {
+    await clearAuth();
+    window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
+  }
+
+  return response;
+}
+```
+
+## Usage
+
+`authenticatedFetch` is your replacement for raw `fetch` (and `fetchWithCache`) for **all** API calls after login:
+
+```javascript
+import { authenticatedFetch } from "./swoff/auth-fetch.js";
+
+// Authenticated read — cached by SW for offline
+const profile = await authenticatedFetch("/api/me").then((r) => r.json());
+const notes = await authenticatedFetch("/api/notes").then((r) => r.json());
+const todos = await authenticatedFetch("/api/todos").then((r) => r.json());
+
+// Authenticated mutation — passes through to server
+await authenticatedFetch("/api/posts", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ title: "Hello" }),
+});
+
+// Login — bypasses SW cache entirely
+await authenticatedFetch("/api/login", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email, password }),
+});
+```
+
+Every call to `authenticatedFetch()` runs `getAuth()` internally. After login, `getAuth()` returns the token from memory (instant). `withAuthHeaders()` injects it. No manual token passing needed.
+
+## Token Refresh (Optional)
+
+If your backend uses short-lived access tokens with a refresh token:
+
+```javascript
+// swoff/auth-refresh.js
+import { authenticatedFetch } from "./auth-fetch.js";
+import { getAuth, setAuth, clearAuth } from "./auth-store.js";
+
+let refreshPromise = null;
+
+export async function ensureValidAuth() {
+  const auth = await getAuth();
+  if (!auth) return null;
+  if (!auth.expiresAt || Date.now() < auth.expiresAt) return auth;
+
+  // Token expired — refresh it (deduplicated)
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const response = await authenticatedFetch("/api/refresh", {
+        method: "POST",
+        headers: { "X-SW-Cache-Strategy": "mutation" },
+      });
+
+      if (!response.ok) {
+        await clearAuth();
+        window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
+        return null;
+      }
+
+      const data = await response.json();
+      const updated = { ...auth, token: data.token, expiresAt: data.expiresAt };
+      await setAuth(updated);
+      return updated;
+    })();
+  }
+
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
+}
+```
+
+## Changing `withAuthHeaders` Based on Your Auth Type
+
+Check [Auth Libraries Reference](/docs/future/authentication/auth-libraries) to determine your category:
+
+| Auth Category | `withAuthHeaders()` | Example |
+|---|---|---|
+| Cookie/Session | No-op (return headers as-is) | Better-Auth default, Auth.js |
+| Bearer Token | `headers.set("Authorization", "Bearer " + auth.token)` | Auth0, Firebase, Supabase raw fetch |
+| Custom Header | Set your custom header name | DRF TokenAuth, API keys |
+| SDK-managed | Skip this file, use SDK's client | Supabase JS SDK, Better-Auth client |
+
+## Next Steps
+
+- **Determine your auth type**: [Auth Libraries Reference](/docs/future/authentication/auth-libraries)
+- **Fetch + cache user data**: [Current User](/docs/future/authentication/auth-user)
+- **Integrate with SW**: [SW Integration](/docs/future/authentication/sw-integration)
+- **Handle offline states**: [Offline Auth State](/docs/future/authentication/offline-state)

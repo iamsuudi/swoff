@@ -94,13 +94,17 @@ async function handleUpdateApproved(newVersion) {
 // In your app
 navigator.serviceWorker.addEventListener("message", (event) => {
   if (event.data.type === "SW_PROGRESS") {
-    const { downloaded, total } = event.data;
-    updateProgressBar(downloaded, total);
+    const { percent, downloaded, total } = event.data;
+    updateProgressBar(percent, downloaded, total);
   }
 });
 ```
 
 The SW reports progress via `postMessage` during the install event. See [SW Template](/docs/patterns/sw-template) for the SW-side implementation.
+
+The payload includes `percent` (0-100 integer), `downloaded`, and `total` — use whichever suits your UI best.
+
+Learn how to set the `X-SW-Cache-Strategy` header on client requests: [API Integration](/docs/patterns/api-integration).
 
 ## Deferred Registration
 
@@ -115,5 +119,6 @@ function shouldRegisterSW() {
 ## Next Steps
 
 - Set up [Build Scripts](/docs/patterns/build-scripts) — automate versioning
+- Coordinate client requests: [API Integration](/docs/patterns/api-integration)
 - Add [Utilities](/docs/patterns/utilities) — TypeScript declarations
 - Follow your [Framework Guide](/docs/guides/) — where to register in your stack

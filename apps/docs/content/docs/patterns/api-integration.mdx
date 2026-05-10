@@ -1,0 +1,95 @@
+---
+title: API Integration
+description: Coordinate client-side fetches with the service worker for REST, GraphQL, and more.
+icon: Plug
+---
+
+**Prerequisites:** You have the SW template set up (see [SW Template](/docs/patterns/sw-template)). This pattern shows how to mark client requests so the SW can distinguish reads from mutations.
+
+## How It Works
+
+The SW checks the `X-SW-Cache-Strategy` request header:
+
+| Header value | SW behavior |
+|---|---|
+| `read` | Cache the response, serve from cache on repeat requests |
+| `mutation` or absent | Let the request pass through to the server, no caching |
+
+If the header is absent, the SW falls back to method-based heuristic: GET/HEAD are reads, everything else is a mutation.
+
+## Fetch Wrapper
+
+```js title="swoff/fetch-wrapper.js"
+export async function fetchWithCache(input, options = {}) {
+  const headers = new Headers(options.headers);
+  if (!headers.has("X-SW-Cache-Strategy")) {
+    const method = options.method || "GET";
+    headers.set(
+      "X-SW-Cache-Strategy",
+      method === "GET" || method === "HEAD" ? "read" : "mutation",
+    );
+  }
+  return fetch(input, { ...options, headers });
+}
+```
+
+Defaults to `read` for GET/HEAD and `mutation` for everything else. Override by passing the header explicitly.
+
+## REST API
+
+```javascript
+import { fetchWithCache } from "./swoff/fetch-wrapper.js";
+
+// GET — cached automatically
+const todos = await fetchWithCache("/api/todos").then((r) => r.json());
+
+// POST search — override to read
+const results = await fetchWithCache("/api/search", {
+  method: "POST",
+  headers: { "X-SW-Cache-Strategy": "read" },
+  body: JSON.stringify({ query: "hello" }),
+}).then((r) => r.json());
+
+// POST create — mutation, passes through to server
+await fetchWithCache("/api/todos", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ title: "New task" }),
+});
+```
+
+## GraphQL
+
+Queries and mutations both POST to one endpoint. Inspect the operation string to set the right header:
+
+```javascript
+import { fetchWithCache } from "./swoff/fetch-wrapper.js";
+
+async function graphql(query, variables = {}) {
+  const isMutation = query.trimStart().startsWith("mutation");
+  const data = await fetchWithCache("/api/graphql", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-SW-Cache-Strategy": isMutation ? "mutation" : "read",
+    },
+    body: JSON.stringify({ query, variables }),
+  }).then((r) => r.json());
+
+  if (data.errors) throw new Error(data.errors[0].message);
+  return data.data;
+}
+
+// Query — cached by the SW
+const user = await graphql(`query { user(id: 1) { name } }`);
+
+// Mutation — reaches the server
+const updated = await graphql(
+  `mutation { updateUser(id: 1, name: "Alice") { name } }`,
+);
+```
+
+## Next Steps
+
+- Set up [Client Registration](/docs/patterns/client-registration) — register the SW from your app
+- Add [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) — store complex data offline

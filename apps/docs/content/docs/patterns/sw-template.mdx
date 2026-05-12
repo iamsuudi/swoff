@@ -108,7 +108,13 @@ self.addEventListener("message", (event) => {
 
 Client sends `SKIP_WAITING` after user approves an update (see [Client Registration](/docs/patterns/client-registration)). Client sends `INVALIDATE_TAG` after a mutation syncs, to flush stale cached responses with the given tag.
 
-### 5. Fetch — Cache-First with Read Detection
+### 5. Fetch — Cache Strategies
+
+Three caching strategies: **Cache-First** (default), **Stale-While-Revalidate**, and **Network-First**.
+
+The strategy is set by the client via the `X-SW-Stale` header (see [API Integration](/docs/patterns/api-integration)).
+
+#### Read Detection
 
 ```js
 function isReadRequest(request) {
@@ -117,9 +123,67 @@ function isReadRequest(request) {
   if (strategy === "mutation") return false;
   return request.method === "GET" || request.method === "HEAD";
 }
+```
 
+#### Stale-While-Revalidate
+
+Serve cached data instantly, refresh in the background. Best for data that changes infrequently but needs to appear instant.
+
+```js
+async function staleWhileRevalidate(event, request) {
+  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
+  const cached = await runtimeCache.match(request);
+
+  if (cached) {
+    event.waitUntil(refreshCache(runtimeCache, request));
+    return cached;
+  }
+
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      await runtimeCache.put(request, response.clone());
+      const tagsHeader = request.headers.get("X-SW-Cache-Tags");
+      if (tagsHeader) {
+        const url = new URL(request.url).href;
+        const tags = tagsHeader.split(",").map((t) => t.trim());
+        await cacheTagUrl(url, tags);
+      }
+    }
+    return response;
+  } catch {
+    return new Response("Offline: content not available", { status: 503 });
+  }
+}
+
+async function refreshCache(cache, request) {
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      await cache.put(request, response.clone());
+      const tagsHeader = request.headers.get("X-SW-Cache-Tags");
+      if (tagsHeader) {
+        const url = new URL(request.url).href;
+        const tags = tagsHeader.split(",").map((t) => t.trim());
+        await cacheTagUrl(url, tags);
+      }
+    }
+  } catch {
+    // Background refresh failed — stale cache remains usable
+  }
+}
+```
+
+#### Cache-First (Default)
+
+```js
 self.addEventListener("fetch", (event) => {
   if (!isReadRequest(event.request)) return;
+
+  if (event.request.headers.get("X-SW-Stale") === "true") {
+    event.respondWith(staleWhileRevalidate(event, event.request));
+    return;
+  }
 
   event.respondWith(
     (async () => {
@@ -127,29 +191,17 @@ self.addEventListener("fetch", (event) => {
       const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
       const url = new URL(event.request.url);
 
-      // First check cache by pathname.
-      // This is install time cache for static assets and navigation requests.
       const byPath = await cache.match(url.pathname);
       if (byPath) return byPath;
 
-      // Second check cache by request.
-      // This is runtime cache for dynamic content.
       const byRequest = await runtimeCache.match(event.request);
       if (byRequest) return byRequest;
 
-      // Third check for navigation requests. This serves the SPA shell.
-      // If the request is a navigation request and no cache entry is found, the SPA shell is served.
-      // If your app doesn't use a SPA shell, this check can be removed.
       if (event.request.mode === "navigate") {
         const spa = await cache.match("/index.html");
         if (spa) return spa;
       }
 
-      // Fourth check for dynamic content.
-      // If the request is not a navigation request and no cache entry is found,
-      // the request is fetched from the network and cached for future use.
-      // The client can set X-SW-Cache-Tags to enable tag-based invalidation.
-      // See API Integration pattern for tag setup.
       try {
         const response = await fetch(event.request);
         if (response.ok) {
@@ -175,7 +227,7 @@ self.addEventListener("fetch", (event) => {
 });
 ```
 
-`isReadRequest` checks the `X-SW-Cache-Strategy` header (set by the client, see [API Integration](/docs/patterns/api-integration)), then falls back to method. Mutations bypass the SW entirely. Reads check in order: install cache by pathname, runtime cache by full URL, SPA `/index.html` for navigations, network with cache-on-success. When the response is cached from network, the `X-SW-Cache-Tags` header is also stored (see [tag management](#6-tag-management) below) so the cache can be selectively invalidated after mutations sync.
+`isReadRequest` checks the `X-SW-Cache-Strategy` header (set by the client, see [API Integration](/docs/patterns/api-integration)), then falls back to method. Mutations bypass the SW entirely. When `X-SW-Stale: true` is set, the SW serves cached data immediately and refreshes in the background. Without it, the default cache-first strategy is used: install cache by pathname, runtime cache by full URL, SPA `/index.html` for navigations, network with cache-on-success. In both modes, the `X-SW-Cache-Tags` header is stored (see [tag management](#6-tag-management)) so selective invalidation works after mutations sync.
 
 ### 6. Tag Management
 

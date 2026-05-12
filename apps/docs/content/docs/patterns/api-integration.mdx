@@ -15,24 +15,27 @@ The SW checks two request headers:
 | `X-SW-Cache-Strategy` | `read` | Cache the response, serve from cache on repeat requests |
 | `X-SW-Cache-Strategy` | `mutation` or absent | Let the request pass through to the server, no caching |
 | `X-SW-Cache-Tags` | `todos,user:1` | Index the cached response under these tags for later invalidation |
+| `X-SW-Stale` | `true` | Serve cached immediately, refresh in background (stale-while-revalidate) |
 
 If the strategy header is absent, the SW falls back to method-based heuristic: GET/HEAD are reads, everything else is a mutation.
 
 ## Fetch Wrapper
 
 ```js title="swoff/fetch-wrapper.js"
+const inFlightRequests = new Map();
+
 /**
- * Fetch with cache strategy and optional cache tags.
+ * Fetch with cache strategy, optional tags, stale-while-revalidate, and query dedup.
  * @param {Request|string} input
  * @param {object} [options]
  * @param {string} [options.strategy] - "read" | "mutation" (auto-detected by method)
  * @param {string[]} [options.tags] - Cache tags for invalidation (e.g., ["todos"])
+ * @param {boolean} [options.staleWhileRevalidate] - Serve cached, refresh in background
  */
 export async function fetchWithCache(input, options = {}) {
   const headers = new Headers(options.headers);
   const method = options.method || "GET";
 
-  // Set cache strategy
   if (!headers.has("X-SW-Cache-Strategy")) {
     headers.set(
       "X-SW-Cache-Strategy",
@@ -40,9 +43,25 @@ export async function fetchWithCache(input, options = {}) {
     );
   }
 
-  // Attach cache tags for invalidation (reads only)
+  if (options.staleWhileRevalidate) {
+    headers.set("X-SW-Stale", "true");
+  }
+
   if (options.tags && options.tags.length > 0) {
     headers.set("X-SW-Cache-Tags", options.tags.join(","));
+  }
+
+  // Query deduplication: collapse concurrent GET requests for the same URL
+  if (method === "GET" || method === "HEAD") {
+    const url = typeof input === "string" ? input : input.url;
+    if (inFlightRequests.has(url)) {
+      return inFlightRequests.get(url).then((r) => r.clone());
+    }
+    const promise = fetch(input, { ...options, headers }).finally(() => {
+      inFlightRequests.delete(url);
+    });
+    inFlightRequests.set(url, promise);
+    return promise;
   }
 
   return fetch(input, { ...options, headers });
@@ -193,6 +212,58 @@ function invalidationTags(url, method, body) {
   return tags;
 }
 ```
+
+## Stale-While-Revalidate
+
+Serve cached data instantly, refresh in the background. The user always sees data immediately if it's been fetched before.
+
+### Usage
+
+```javascript
+// Stale-while-revalidate: serve cached, refresh in background
+const todos = await fetchWithCache("/api/todos", {
+  tags: ["todos"],
+  staleWhileRevalidate: true,
+}).then((r) => r.json());
+
+// Same API, without stale-while-revalidate (cache-first default)
+const fresh = await fetchWithCache("/api/todos/1", {
+  tags: ["todos", "todo:1"],
+}).then((r) => r.json());
+```
+
+When `staleWhileRevalidate: true` is set, the SW:
+1. Returns the cached response immediately (if available)
+2. Fetches fresh data from the network in the background
+3. Updates the cache with fresh data for next time
+
+If no cached response exists yet, the SW fetches from network and caches normally.
+
+### When to Use
+
+| Strategy | Best For | Trade-off |
+|---|---|---|
+| Cache-First (default) | Static data, navigation, assets | User sees slightly stale data until SW refreshes |
+| Stale-While-Revalidate | Frequently accessed API data | Extra background request on every read |
+| Network-First | Real-time data, forms | Slower when offline, no stale data risk |
+
+## Query Deduplication
+
+When two components request the same URL concurrently, the second caller reuses the in-flight request instead of firing a duplicate.
+
+### How It Works
+
+```javascript
+// Component A and B both mount and request the same data
+// Without dedup: two fetch requests to the SW
+// With dedup: one fetch request, both get the response
+
+const wrapper = await fetchWithCache("/api/todos", { tags: ["todos"] });
+const details = await fetchWithCache("/api/todos", { tags: ["todos"] });
+// Only one network request is made — the second gets a clone of the first response
+```
+
+The dedup map tracks in-flight GET requests by URL. When a request completes, its entry is removed so subsequent calls go to the network (or SW cache). The cloned response ensures both callers can consume the body independently.
 
 ## Next Steps
 

@@ -64,6 +64,7 @@ Each mutation in the queue stores:
 | `url` | string | Backend API endpoint |
 | `body` | object | Payload sent to server |
 | `headers` | object | Extra headers (e.g., auth tokens) |
+| `previousData` | object\|null | Snapshot of data before optimistic update (for rollback on failure) |
 | `timestamp` | number | When queued (for FIFO ordering) |
 | `retryCount` | number | How many times sync has been attempted |
 | `tags` | string[] | Cache tags to invalidate on success |
@@ -116,6 +117,7 @@ export async function queueMutation(mutation) {
     url: mutation.url,
     body: mutation.body,
     headers: mutation.headers || {},
+    previousData: mutation.previousData || null,
     timestamp: Date.now(),
     retryCount: 0,
     tags: mutation.tags || [],
@@ -155,6 +157,7 @@ export async function processMutationQueue() {
 
     for (const item of queue) {
       if (item.retryCount >= MAX_RETRIES) {
+        await rollbackMutation(item);
         await removeFromQueue(item.id);
         failed++;
         continue;
@@ -222,6 +225,43 @@ async function updateInQueue(item) {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
+}
+
+async function rollbackMutation(item) {
+  if (!item.storeName) return;
+
+  const { getRecord, putRecord, deleteRecord } = await import("./store.js");
+
+  if (item.method === "POST" && item.tempId) {
+    // Created record never reached the server — delete optimistic data
+    await deleteRecord(item.storeName, item.tempId);
+  } else if (
+    (item.method === "PUT" || item.method === "PATCH") &&
+    item.previousData
+  ) {
+    // Update failed — restore previous state
+    await putRecord(item.storeName, {
+      ...item.previousData,
+      $synced: true,
+    });
+  } else if (item.method === "DELETE" && item.tempId && item.previousData) {
+    // Deletion failed — restore the record
+    await putRecord(item.storeName, {
+      ...item.previousData,
+      $synced: true,
+    });
+  }
+
+  window.dispatchEvent(
+    new CustomEvent("mutation-rollback", {
+      detail: {
+        method: item.method,
+        url: item.url,
+        tempId: item.tempId,
+        previousData: item.previousData,
+      },
+    }),
+  );
 }
 
 // Auto-process when back online
@@ -405,7 +445,6 @@ async function createTodo(title) {
   const tempId = crypto.randomUUID();
   const todo = { title, completed: false };
 
-  // Optimistically add to local store
   await putRecord("todos", {
     id: tempId,
     ...todo,
@@ -414,7 +453,6 @@ async function createTodo(title) {
   addTodoToUI({ id: tempId, ...todo, $synced: false });
 
   if (navigator.onLine) {
-    // Send directly — SW lets mutations pass through
     const response = await fetchWithCache("/api/todos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -424,7 +462,6 @@ async function createTodo(title) {
     await reconcileRecord("todos", tempId, serverData);
     await invalidateByTag("todos");
   } else {
-    // Queue for later — sync, reconcile, and invalidate will run when online
     await queueMutation({
       method: "POST",
       url: "/api/todos",
@@ -434,6 +471,41 @@ async function createTodo(title) {
       tempId,
     });
   }
+}
+
+async function updateTodo(id, changes) {
+  const existing = await getRecord("todos", id);
+  const updated = { ...existing, ...changes, $synced: false };
+
+  await putRecord("todos", updated);
+  updateTodoInUI(updated);
+
+  await queueMutation({
+    method: "PUT",
+    url: `/api/todos/${id}`,
+    body: changes,
+    tags: ["todos", `todo:${id}`],
+    storeName: "todos",
+    tempId: id,
+    previousData: existing,
+  });
+}
+
+async function deleteTodo(id) {
+  const existing = await getRecord("todos", id);
+
+  await deleteRecord("todos", id);
+  removeTodoFromUI(id);
+
+  await queueMutation({
+    method: "DELETE",
+    url: `/api/todos/${id}`,
+    body: null,
+    tags: ["todos", `todo:${id}`],
+    storeName: "todos",
+    tempId: id,
+    previousData: existing,
+  });
 }
 ```
 
@@ -496,6 +568,7 @@ export async function getPendingCount() {
 |---|---|---|
 | `mutation-queue-changed` | none | Queue added/removed/updated |
 | `mutation-sync-complete` | `{ succeeded, failed }` | After queue drain |
+| `mutation-rollback` | `{ method, url, tempId, previousData }` | Mutation exhausted retries, optimistic data reverted |
 | `cache-invalidated` | `{ tags: string[] }` | After cache tags cleared |
 
 ## Framework Adapters
@@ -508,6 +581,7 @@ import { getPendingCount, processMutationQueue } from "../swoff/mutation-queue.j
 
 export function useMutationQueue() {
   const [pendingCount, setPendingCount] = useState(0);
+  const [rollback, setRollback] = useState(null);
 
   useEffect(() => {
     async function update() {
@@ -515,17 +589,23 @@ export function useMutationQueue() {
     }
     update();
 
+    function onRollback(e) {
+      setRollback(e.detail);
+    }
+
     window.addEventListener("mutation-queue-changed", update);
     window.addEventListener("online", update);
     window.addEventListener("offline", update);
+    window.addEventListener("mutation-rollback", onRollback);
     return () => {
       window.removeEventListener("mutation-queue-changed", update);
       window.removeEventListener("online", update);
       window.removeEventListener("offline", update);
+      window.removeEventListener("mutation-rollback", onRollback);
     };
   }, []);
 
-  return { pendingCount, syncNow: processMutationQueue };
+  return { pendingCount, syncNow: processMutationQueue, rollback };
 }
 ```
 
@@ -537,9 +617,14 @@ import { getPendingCount, processMutationQueue } from "../swoff/mutation-queue.j
 
 export function useMutationQueue() {
   const pendingCount = ref(0);
+  const rollback = ref(null);
 
   async function update() {
     pendingCount.value = await getPendingCount();
+  }
+
+  function onRollback(e) {
+    rollback.value = e.detail;
   }
 
   onMounted(() => {
@@ -547,15 +632,17 @@ export function useMutationQueue() {
     window.addEventListener("mutation-queue-changed", update);
     window.addEventListener("online", update);
     window.addEventListener("offline", update);
+    window.addEventListener("mutation-rollback", onRollback);
   });
 
   onUnmounted(() => {
     window.removeEventListener("mutation-queue-changed", update);
     window.removeEventListener("online", update);
     window.removeEventListener("offline", update);
+    window.removeEventListener("mutation-rollback", onRollback);
   });
 
-  return { pendingCount, syncNow: processMutationQueue };
+  return { pendingCount, syncNow: processMutationQueue, rollback };
 }
 ```
 
@@ -566,21 +653,24 @@ export function useMutationQueue() {
 - [ ] Create `swoff/cache.js` with `invalidateByTag()` for SW cache invalidation
 - [ ] Tag your read requests via `fetchWithCache(url, { tags })`
 - [ ] Pass `tags`, `storeName`, and `tempId` when calling `queueMutation()` for offline writes
+- [ ] Pass `previousData` with a snapshot of data before PUT/DELETE for rollback safety
 - [ ] Add `$synced: false` to locally-created records
 - [ ] Call `reconcileRecord()` + `invalidateByTag()` after online mutations too
 - [ ] Add `mutation-queue-changed` listener to show pending count in UI
+- [ ] Add `mutation-rollback` listener to handle sync failures in the UI
 - [ ] _(Optional)_ Implement `useMutationQueue` for your framework
 - [ ] Your backend receives the synced requests — you build that part
 
 ## Status
 
 - [x] Queue schema with tags, storeName, tempId
-- [x] `queueMutation()` with full metadata
-- [x] `processMutationQueue()` with fetch, reconcile, invalidate
+- [x] `queueMutation()` with full metadata (including `previousData` for rollback)
+- [x] `processMutationQueue()` with fetch, reconcile, invalidate, rollback
 - [x] ID reconciliation via `reconcileRecord()` (any backend ID type)
 - [x] Cache invalidation via `invalidateByTag()`
 - [x] `$synced` tracking on local records
 - [x] Online event listener
+- [x] Rollback on terminal failure — optimistic data reverted, event dispatched
 - [x] Window events for UI reactivity
 - [x] Framework adapters (React hook, Vue composable)
 - [x] Background Sync integration

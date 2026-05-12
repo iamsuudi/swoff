@@ -201,6 +201,61 @@ export function usePWAVersion() {
 }
 ```
 
+## useCrossTabCache
+
+Reactively respond to cache invalidations triggered by other tabs.
+
+```typescript
+const { invalidatedTags } = useCrossTabCache();
+// invalidatedTags: Ref<string[]> — tag names invalidated by another tab (clears after tick)
+```
+
+**Usage:**
+
+```vue
+<script setup>
+import { watch } from "vue";
+import { useCrossTabCache } from "./composables/useCrossTabCache";
+import { fetchWithCache } from "./swoff/fetch-wrapper.js";
+
+const { invalidatedTags } = useCrossTabCache();
+
+watch(invalidatedTags, async (tags) => {
+  if (tags.includes("todos")) {
+    const fresh = await fetchWithCache("/api/todos", { tags: ["todos"] }).then((r) => r.json());
+    // update store or state
+  }
+});
+</script>
+```
+
+**Implementation:**
+
+```typescript
+import { ref, onMounted, onUnmounted } from "vue";
+
+export function useCrossTabCache() {
+  const invalidatedTags = ref<string[]>([]);
+
+  function handleInvalidation(e: Event) {
+    invalidatedTags.value = (e as CustomEvent).detail.tags;
+    setTimeout(() => {
+      invalidatedTags.value = [];
+    }, 0);
+  }
+
+  onMounted(() => {
+    window.addEventListener("cache-invalidated", handleInvalidation);
+  });
+
+  onUnmounted(() => {
+    window.removeEventListener("cache-invalidated", handleInvalidation);
+  });
+
+  return { invalidatedTags };
+}
+```
+
 ## Next Steps
 
 - See [Vue Components](/docs/guides/vue-ecosystem/components) — UI components using these composables

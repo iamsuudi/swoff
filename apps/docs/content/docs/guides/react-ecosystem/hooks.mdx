@@ -207,6 +207,63 @@ export function usePWAVersion() {
 }
 ```
 
+## useCrossTabCache
+
+Reactively respond to cache invalidations triggered by other tabs.
+
+```typescript
+const { invalidatedTags } = useCrossTabCache();
+// invalidatedTags: string[] — tag names invalidated by another tab (clears after tick)
+```
+
+**Usage:**
+
+```typescript
+function TodoList() {
+  const { invalidatedTags } = useCrossTabCache();
+  const [todos, setTodos] = useState([]);
+
+  useEffect(() => {
+    if (invalidatedTags.includes("todos")) {
+      fetchWithCache("/api/todos", { tags: ["todos"] })
+        .then((r) => r.json())
+        .then(setTodos);
+    }
+  }, [invalidatedTags]);
+
+  // ...
+}
+```
+
+**Implementation:**
+
+```typescript
+import { useState, useEffect } from "react";
+
+export function useCrossTabCache() {
+  const [invalidatedTags, setInvalidatedTags] = useState<string[]>([]);
+
+  useEffect(() => {
+    function handleInvalidation(e: CustomEvent) {
+      setInvalidatedTags(e.detail.tags);
+      setTimeout(() => setInvalidatedTags([]), 0);
+    }
+
+    window.addEventListener(
+      "cache-invalidated",
+      handleInvalidation as EventListener,
+    );
+    return () =>
+      window.removeEventListener(
+        "cache-invalidated",
+        handleInvalidation as EventListener,
+      );
+  }, []);
+
+  return { invalidatedTags };
+}
+```
+
 ## Next Steps
 
 - See [React Components](/docs/guides/react-ecosystem/components) — UI components using these hooks

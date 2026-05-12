@@ -60,7 +60,7 @@ After a mutation syncs, two things happen:
 
 **Reconcile:** Replace temporary local IDs with server-assigned IDs, merge server fields, update references in related records.
 
-**Invalidate:** Delete all cached responses tagged with related tags (e.g., after POST `/api/todos`, invalidate all cached queries tagged `todos`). The next read fetches fresh data.
+**Invalidate:** Delete all cached responses tagged with related tags (e.g., after POST `/api/todos`, invalidate all cached queries tagged `todos`). The next read fetches fresh data. The SW also broadcasts `TAG_INVALIDATED` to all open tabs so they refetch automatically (see [Cross-Tab Sync](/docs/patterns/api-integration#cross-tab-sync)).
 
 ```
 reconcileRecord("todos", tempId, serverData)
@@ -113,13 +113,16 @@ swoff/
 │  │              IndexedDB (app data + queue)                │  │
 │  └─────────────────────────────────────────────────────────┘  │
 │                                                               │
-│  Events dispatched to window:                                 │
-│  ┌─────────────────────────────────────────────────────────┐  │
-│  │ cache-invalidated { tags }  →  useQuery auto-refetches   │  │
-│  │ mutation-queue-changed      →  pending count updates     │  │
-│  │ mutation-sync-complete      →  sync summary              │  │
-│  └─────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────┘
+  │  Events dispatched to window:                                 │
+  │  ┌─────────────────────────────────────────────────────────┐  │
+  │  │ cache-invalidated { tags }  →  refetch + cross-tab sync  │  │
+  │  │ mutation-queue-changed      →  pending count updates     │  │
+  │  │ mutation-sync-complete      →  sync summary              │  │
+  │  └─────────────────────────────────────────────────────────┘  │
+  │                                                               │
+  │  SW broadcasts TAG_INVALIDATED to ALL tabs                    │
+  │  → other tabs dispatch cache-invalidated locally → refetch    │
+  └──────────────────────────────────────────────────────────────┘
          │                                          ▲
          │ fetch read / mutate                      │ sync queued
          ▼                                          │
@@ -137,6 +140,24 @@ swoff/
 | `mutation-queue-changed` | none | Queue added/removed/updated |
 | `mutation-rollback` | `{ method, url, tempId, previousData }` | Mutation exhausted retries, optimistic data reverted |
 | `mutation-sync-complete` | `{ succeeded, failed }` | After queue drain |
+
+## Cross-Tab Flow
+
+When a mutation syncs in one tab, all other tabs with cached data for the same tags refetch automatically:
+
+```
+Tab A: invalidateByTag("todos")
+    ↓
+SW clears runtime cache entries tagged "todos"
+    ↓
+SW broadcasts TAG_INVALIDATED { tag: "todos" } → Tab A, Tab B, Tab C
+    ↓
+Tab A: already dispatched cache-invalidated → refetches
+Tab B: initCrossTabSync receives TAG_INVALIDATED → dispatches cache-invalidated → refetches
+Tab C: initCrossTabSync receives TAG_INVALIDATED → dispatches cache-invalidated → refetches
+```
+
+Setup requires calling `initCrossTabSync()` once after SW registration (see [API Integration](/docs/patterns/api-integration#cross-tab-sync)).
 
 ## Data Flow
 
@@ -165,3 +186,4 @@ swoff/
 - **Query + Cache:** [API Integration](/docs/patterns/api-integration) — tag-aware fetch wrapper
 - **Mutate + Sync:** [Mutation Queuing](/docs/future/mutation-queuing) — queue, reconcile, invalidate
 - **Background Sync:** [Background Sync](/docs/future/background-sync) — SW-side sync with client notification
+- **Cross-Tab Sync:** [API Integration](/docs/patterns/api-integration#cross-tab-sync) — keep all tabs in sync automatically

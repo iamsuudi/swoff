@@ -306,7 +306,7 @@ async function invalidateByTag(tag) {
 | `sw-progress`         | main.tsx (from SW) | `{ percent: number }` | Download progress                |
 | `sw-ready`            | main.tsx           | none                  | SW active and controlling page   |
 | `sw-error`            | main.tsx           | none                  | SW registration failed           |
-| `TAG_INVALIDATED`     | SW (postMessage)   | `{ tag: string }`     | Cache entries with tag cleared   |
+| `TAG_INVALIDATED`     | SW (postMessage)   | `{ tag: string }`     | Cache entries with tag cleared — broadcast to all tabs for cross-tab sync |
 
 ## Storage
 
@@ -321,3 +321,4 @@ async function invalidateByTag(tag) {
 - Set up [Build Scripts](/docs/patterns/build-scripts) — automate versioning
 - Coordinate client requests: [API Integration](/docs/patterns/api-integration)
 - Register from your app: [Client Registration](/docs/patterns/client-registration)
+- Sync across tabs: [Cross-Tab Sync](/docs/patterns/api-integration#cross-tab-sync)

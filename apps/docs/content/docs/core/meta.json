@@ -3,6 +3,7 @@
   "icon": "Cog",
   "pages": [
     "offline-architecture",
-    "versioned-sw"
+    "versioned-sw",
+    "data-layer"
   ]
 }

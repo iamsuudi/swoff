@@ -2,6 +2,7 @@
   "title": "Future & Advanced",
   "icon": "Rocket",
   "pages": [
+    "authentication",
     "mutation-queuing",
     "background-sync",
     "push-notifications",

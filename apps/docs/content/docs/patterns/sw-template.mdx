@@ -1,10 +1,10 @@
 ---
 title: SW Template
-description: Versioned service worker template.
+description: Versioned service worker template with progress tracking and offline-first caching.
 icon: FileCode
 ---
 
-**This is the starting point. Save the code below as `swoff/sw-template.js` — the following patterns will build on it.**
+**Save the code below as `swoff/sw-template.js` — the following patterns build on it.**
 
 ## Overview
 
@@ -14,70 +14,169 @@ dist/
 └── version.json      ← Version manifest
 ```
 
-## SW Template
+## Build the Service Worker
 
-Create `swoff` directory at the root of your project. Save the code below as `swoff/sw-template.js`.
+Create `swoff/sw-template.js` and append each snippet in order. Lines with `// [[...]]` are placeholders replaced by the build script.
 
-```js title="swoff/sw-template.js"
+### 1. Placeholders & Configuration
+
+```js
 let CACHE_NAME = "";
 let ASSETS_TO_CACHE = [];
 
 // [[CACHE_NAME]]
 // [[ASSETS_LIST]]
 
+const AUTO_SKIP_WAITING = false;
+const CACHE_NAME_RUNTIME = "swoff-runtime";
+```
+
+`// [[CACHE_NAME]]` and `// [[ASSETS_LIST]]` are replaced by the build script (see [Build Scripts](/docs/patterns/build-scripts)). `AUTO_SKIP_WAITING` — set to `true` to activate new versions immediately. `CACHE_NAME_RUNTIME` — a separate cache for API responses that persists across SW updates.
+
+### 2. Install — Download with Progress
+
+```js
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE)),
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      let downloaded = 0;
+      for (const url of ASSETS_TO_CACHE) {
+        try {
+          await cache.add(url);
+          downloaded++;
+          const percent = Math.round(
+            (downloaded / ASSETS_TO_CACHE.length) * 100,
+          );
+          const clients = await self.clients.matchAll({
+            includeUncontrolled: true,
+          });
+          clients.forEach((client) => {
+            client.postMessage({
+              type: "SW_PROGRESS",
+              percent,
+              downloaded,
+              total: ASSETS_TO_CACHE.length,
+            });
+          });
+        } catch (err) {
+          console.error(`Failed to cache ${url}:`, err);
+        }
+      }
+      if (AUTO_SKIP_WAITING) self.skipWaiting();
+    })(),
   );
 });
+```
 
-self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
-  event.respondWith(
-    caches
-      .match(event.request)
-      .then(
-        (cached) =>
-          cached ||
-          (event.request.mode === "navigate"
-            ? caches.match("/index.html")
-            : fetch(event.request)),
-      ),
-  );
-});
+Iterates assets one-by-one, reports progress via `SW_PROGRESS` postMessage after each success. Auto-activates if `AUTO_SKIP_WAITING` is `true`.
 
+### 3. Activate — Clean Up Old Caches
+
+```js
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
       .then((keys) =>
         Promise.all(
-          keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)),
+          keys
+            .filter((key) => key !== CACHE_NAME && key !== CACHE_NAME_RUNTIME)
+            .map((key) => caches.delete(key)),
         ),
       ),
   );
 });
 ```
 
+Deletes old version caches. Keeps `CACHE_NAME_RUNTIME` so cached API data survives SW updates.
+
+### 4. Message — Skip Waiting on User Consent
+
+```js
+self.addEventListener("message", (event) => {
+  if (event.data.type === "SKIP_WAITING") self.skipWaiting();
+});
+```
+
+Client sends `SKIP_WAITING` after user approves an update (see [Client Registration](/docs/patterns/client-registration)).
+
+### 5. Fetch — Cache-First with Read Detection
+
+```js
+function isReadRequest(request) {
+  const strategy = request.headers.get("X-SW-Cache-Strategy");
+  if (strategy === "read") return true;
+  if (strategy === "mutation") return false;
+  return request.method === "GET" || request.method === "HEAD";
+}
+
+self.addEventListener("fetch", (event) => {
+  if (!isReadRequest(event.request)) return;
+
+  event.respondWith(
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
+      const url = new URL(event.request.url);
+
+      // First check cache by pathname.
+      // This is install time cache for static assets and navigation requests.
+      const byPath = await cache.match(url.pathname);
+      if (byPath) return byPath;
+
+      // Second check cache by request.
+      // This is runtime cache for dynamic content.
+      const byRequest = await runtimeCache.match(event.request);
+      if (byRequest) return byRequest;
+
+      // Third check for navigation requests. This serves the SPA shell.
+      // If the request is a navigation request and no cache entry is found, the SPA shell is served.
+      // If your app doesn't use a SPA shell, this check can be removed.
+      if (event.request.mode === "navigate") {
+        const spa = await cache.match("/index.html");
+        if (spa) return spa;
+      }
+
+      // Fourth check for dynamic content.
+      // If the request is not a navigation request and no cache entry is found,
+      // the request is fetched from the network and cached for future use.
+      try {
+        const response = await fetch(event.request);
+        if (response.ok) {
+          const cloned = response.clone();
+          event.waitUntil(runtimeCache.put(event.request, cloned));
+        }
+        return response;
+      } catch {
+        return new Response("Offline: content not available", { status: 503 });
+      }
+    })(),
+  );
+});
+```
+
+`isReadRequest` checks the `X-SW-Cache-Strategy` header (set by the client, see [API Integration](/docs/patterns/api-integration)), then falls back to method. Mutations bypass the SW entirely. Reads check in order: install cache by pathname, runtime cache by full URL, SPA `/index.html` for navigations, network with cache-on-success.
+
 ## Events
 
-| Event                 | Source                         | Detail                | Purpose                                            |
-| --------------------- | ------------------------------ | --------------------- | -------------------------------------------------- |
-| `sw-version-detected` | main.tsx                       | none                  | Signals version info is available on window object |
-| `sw-update-available` | main.tsx                       | `{ version: string }` | New version detected on server                     |
-| `sw-progress`         | main.tsx (from SW postMessage) | `{ percent: number }` | Download progress during SW install                |
-| `sw-ready`            | main.tsx                       | none                  | SW is active and controlling the page              |
-| `sw-error`            | main.tsx                       | none                  | SW registration failed                             |
+| Event                 | Source             | Detail                | Purpose                          |
+| --------------------- | ------------------ | --------------------- | -------------------------------- |
+| `sw-version-detected` | main.tsx           | none                  | Version info available on window |
+| `sw-update-available` | main.tsx           | `{ version: string }` | New version on server            |
+| `sw-progress`         | main.tsx (from SW) | `{ percent: number }` | Download progress                |
+| `sw-ready`            | main.tsx           | none                  | SW active and controlling page   |
+| `sw-error`            | main.tsx           | none                  | SW registration failed           |
 
 ## Storage
 
-| Key                                     | Type                   | Purpose                                      |
-| --------------------------------------- | ---------------------- | -------------------------------------------- |
-| `localStorage['swRegisteredVersion']`   | string (e.g., "0.0.2") | Tracks which SW version is registered        |
-| `sessionStorage['sw-dismissed-update']` | string ("true")        | Suppresses update dialog for current session |
+| Key                                     | Type            | Purpose                              |
+| --------------------------------------- | --------------- | ------------------------------------ |
+| `localStorage['swRegisteredVersion']`   | string          | Tracks registered SW version         |
+| `sessionStorage['sw-dismissed-update']` | string ("true") | Suppresses update dialog for session |
 
 ## Next Steps
 
 - Set up [Build Scripts](/docs/patterns/build-scripts) — automate versioning
+- Coordinate client requests: [API Integration](/docs/patterns/api-integration)
 - Register from your app: [Client Registration](/docs/patterns/client-registration)
-- Understand the full system: [Versioned SW](/docs/core/versioned-sw)

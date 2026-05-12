@@ -1,0 +1,84 @@
+---
+title: Authentication & Session Management
+description: Client-side auth patterns for offline-first apps — framework and backend agnostic.
+# icon: Shield
+---
+
+# Authentication & Session Management
+
+**Status: Available Pattern**
+
+Authentication in Swoff is **identity plumbing** — how the client proves to your backend who the user is. We don't care _how_ you sign in (JWT, cookies, OAuth, biometric). We care about the browser-native infrastructure for storing, attaching, and invalidating that proof.
+
+## Two Worlds of Auth
+
+Auth mechanisms fall into two categories at the transmission level:
+
+### Cookie / Session Auth (Automatic)
+
+The server sets an http-only cookie on login. The browser automatically sends it on subsequent same-origin requests. **No client header setup needed.**
+
+Examples: Better-Auth (default), Auth.js / NextAuth.js, Clerk (same-origin), Laravel Sanctum (SPA), Passport.js (session), Django SessionAuth, Supabase SSR, Logto (web).
+
+### Bearer / Custom Header Auth (Manual)
+
+The server returns a token on login. The client stores it and **manually attaches** it to every request via `Authorization` or a custom header.
+
+Examples: Auth0, Firebase Auth, Better-Auth (bearer plugin), Supabase (raw fetch), Laravel Sanctum (API), DRF JWT, Passport.js (JWT), Clerk (cross-origin), Logto (SPA).
+
+## Quick Decision Flow
+
+```
+Your login response includes a Set-Cookie header with http-only?
+  └─ Yes → You're using cookie auth. Skip to [SW Integration](/docs/future/authentication/sw-integration).
+  └─ No → Your login response returns a token string.
+       └─ You need to set it as a header on requests.
+           └─ See [Auth Libraries](/docs/future/authentication/auth-libraries) for your exact mechanism.
+           └─ Then [Auth-Aware Fetch](/docs/future/authentication/auth-fetch) to implement it.
+```
+
+## Prerequisites
+
+1. [API Integration](/docs/patterns/api-integration) — `fetchWithCache` base wrapper
+2. [SW Template](/docs/patterns/sw-template) — fetch handler with read/mutation detection
+3. [Client Registration](/docs/patterns/client-registration) — SW registered and active
+
+## Learning Path
+
+```
+[API Integration](/docs/patterns/api-integration) — base fetch wrapper
+    ↓
+Auth Store ([auth-store](/docs/future/authentication/auth-store)) — store auth tokens
+    ↓
+Auth Libraries ([auth-libraries](/docs/future/authentication/auth-libraries)) — identify your category
+    ↓
+Auth Fetch ([auth-fetch](/docs/future/authentication/auth-fetch)) — attach auth to requests
+    ↓
+Current User ([auth-user](/docs/future/authentication/auth-user)) — fetch + cache user data
+    ↓
+SW Integration ([sw-integration](/docs/future/authentication/sw-integration)) — SW awareness
+    ↓
+Offline State ([offline-state](/docs/future/authentication/offline-state)) — handle all four states
+    ↓
+Lock Screen ([lock-screen](/docs/future/authentication/lock-screen)) — optional local security
+```
+
+## Integration Checklist
+
+- [ ] **Identify your auth type** — cookie or header-based? ([auth-libraries](/docs/future/authentication/auth-libraries))
+- [ ] **Auth Store** — `swoff/auth-store.js` with IndexedDB + memory
+- [ ] **Auth-Aware Fetch** — `swoff/auth-fetch.js` extending `fetchWithCache`
+- [ ] **Header Strategy** — Configure `withAuthHeaders()` per your auth type
+- [ ] **Current User** — Fetch and cache on login, clear on logout
+- [ ] **401 Handling** — Clear auth, dispatch event, redirect to login
+- [ ] **SW Message Handler** — Add `CLEAR_RUNTIME_CACHE` to SW template
+- [ ] **Auth Endpoint Exclusion** — Login/logout/refresh bypass SW cache
+- [ ] **Offline Auth States** — Handle all four online/authentication combinations
+- [ ] **(Optional) Lock Screen** — PIN, biometric, auto-lock for fully offline apps
+
+## Next Steps
+
+- **Identify your auth type**: [Auth Libraries Reference](/docs/future/authentication/auth-libraries)
+- **Start with storage**: [Auth Store](/docs/future/authentication/auth-store)
+- **Queue mutations behind auth**: [Mutation Queuing](/docs/future/mutation-queuing)
+- **See Budget Manager**: [Reference Implementation](/docs/reference/budget-manager) — PIN/biometric

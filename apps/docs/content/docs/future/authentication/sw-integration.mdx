@@ -1,7 +1,7 @@
 ---
 title: Service Worker Integration
 description: How the service worker handles authenticated requests and cache invalidation on logout.
-icon: Network
+# icon: Network
 ---
 
 # Service Worker Integration
@@ -13,18 +13,19 @@ icon: Network
 The service worker **does not need to know about auth**. It doesn't read tokens, check sessions, or manage identity. It just passes headers through.
 
 This is by design:
+
 - Tokens stored in the SW would be lost when the SW is terminated
 - The SW has no DOM access — can't redirect to login
 - Keeping auth in the client layer is simpler and more secure
 
 ## What the SW Does
 
-| Request type | `X-SW-Cache-Strategy` | SW behavior |
-|---|---|---|
-| Login / Logout / Register | `mutation` (set by `authenticatedFetch`) | Pass through, no caching |
-| Token refresh | `mutation` | Pass through, no caching |
-| Authenticated read (e.g., `/api/me`) | `read` (default for GET) | Cache response, serve offline |
-| Unauthenticated read | `read` | Cache response, serve offline |
+| Request type                         | `X-SW-Cache-Strategy`                    | SW behavior                   |
+| ------------------------------------ | ---------------------------------------- | ----------------------------- |
+| Login / Logout / Register            | `mutation` (set by `authenticatedFetch`) | Pass through, no caching      |
+| Token refresh                        | `mutation`                               | Pass through, no caching      |
+| Authenticated read (e.g., `/api/me`) | `read` (default for GET)                 | Cache response, serve offline |
+| Unauthenticated read                 | `read`                                   | Cache response, serve offline |
 
 The SW template's fetch handler already handles this — see the [SW Template](/docs/patterns/sw-template#5-fetch--cache-first-with-read-detection).
 
@@ -32,11 +33,16 @@ The SW template's fetch handler already handles this — see the [SW Template](/
 
 Auth endpoints must reach the server every time — no caching. `authenticatedFetch` marks them as `mutation` automatically:
 
-```javascript
-// auth-fetch.js — isAuthUrl() checks these paths
+```js title="swoff/auth/fetch.js"
+// swoff/auth/fetch.js — isAuthUrl() checks these paths
 const authPaths = [
-  "/login", "/logout", "/refresh", "/register",
-  "/api/login", "/api/logout", "/api/refresh",
+  "/login",
+  "/logout",
+  "/refresh",
+  "/register",
+  "/api/login",
+  "/api/logout",
+  "/api/refresh",
 ];
 ```
 
@@ -46,8 +52,7 @@ If your backend uses different paths, edit `isAuthUrl()` in [auth-fetch.js](/doc
 
 When a user logs out, their user-specific cached data should be cleared. Add this handler to your SW template:
 
-```javascript
-// In sw-template.js — add to the existing message handler
+```js title="swoff/sw-template.js"
 self.addEventListener("message", (event) => {
   if (event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
@@ -66,7 +71,7 @@ self.addEventListener("message", (event) => {
 
 The client sends this message on logout:
 
-```javascript
+```js
 // In your logout function
 if ("serviceWorker" in navigator) {
   const registration = await navigator.serviceWorker.getRegistration();
@@ -78,12 +83,12 @@ if ("serviceWorker" in navigator) {
 
 ## What NOT to Do in the SW
 
-| ❌ Don't | Why |
-|---|---|
-| Don't store tokens in the SW | SW is terminated when idle — tokens are lost |
-| Don't check auth in the fetch handler | Auth is the client's responsibility |
-| Don't cache auth endpoints | Login/logout/refresh must reach the server |
-| Don't try to redirect to login from SW | SW has no DOM or navigation access |
+| ❌ Don't                               | Why                                          |
+| -------------------------------------- | -------------------------------------------- |
+| Don't store tokens in the SW           | SW is terminated when idle — tokens are lost |
+| Don't check auth in the fetch handler  | Auth is the client's responsibility          |
+| Don't cache auth endpoints             | Login/logout/refresh must reach the server   |
+| Don't try to redirect to login from SW | SW has no DOM or navigation access           |
 
 ## Background Sync Consideration
 

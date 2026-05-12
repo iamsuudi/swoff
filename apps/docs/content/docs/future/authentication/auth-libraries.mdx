@@ -1,7 +1,7 @@
 ---
 title: Auth Libraries Reference
 description: How popular auth libraries transmit identity under the hood — and whether you need to set headers.
-icon: BookOpen
+# icon: BookOpen
 ---
 
 # Auth Libraries Reference
@@ -30,27 +30,27 @@ You must edit `withAuthHeaders()` to inject the token with your custom header.
 
 ## Quick Reference Table
 
-| Library / Framework | Category | Transmission | Need to Edit `withAuthHeaders()`? |
-|---|---|---|---|
-| **Better-Auth** (default) | Cookie | `better-auth.session-token` http-only cookie (HMAC-signed) | No |
-| **Better-Auth** (bearer plugin) | Bearer | `Authorization: Bearer <session_token>` | Yes |
-| **Auth.js / NextAuth.js** (v4 & v5) | Cookie | `next-auth.session-token` / `__Secure-authjs.session-token` http-only encrypted JWT | No |
-| **Clerk** (same-origin) | Cookie | `__session` cookie (set via JS on app domain) | No |
-| **Clerk** (cross-origin) | Bearer | `Authorization: Bearer <token>` from `getToken()` | Yes |
-| **Supabase** (browser SDK) | SDK-managed | `Authorization: Bearer <JWT>` — auto-injected by SDK client | No (use SDK client) |
-| **Supabase** (raw fetch) | Bearer | `Authorization: Bearer <JWT>` | Yes |
-| **Supabase** (SSR mode) | Cookie | `sb-{ref}-auth-token` http-only cookie | No |
-| **Auth0 SPA SDK** | Bearer | `Authorization: Bearer <token>` from `getTokenSilently()` | Yes (always) |
-| **Firebase Auth** | Bearer | `Authorization: Bearer <id_token>` from `getIdToken()` | Yes (always) |
-| **Laravel Sanctum** (SPA mode) | Cookie | `laravel_session` http-only cookie + `X-XSRF-TOKEN` CSRF header | No (CSRF only) |
-| **Laravel Sanctum** (API mode) | Bearer | `Authorization: Bearer <personal_access_token>` | Yes |
-| **DRF SessionAuthentication** | Cookie | `sessionid` http-only cookie + `X-CSRFToken` header | No (CSRF only) |
-| **DRF TokenAuthentication** | Custom Header | `Authorization: Token <token>` | Yes |
-| **DRF SimpleJWT** | Bearer | `Authorization: Bearer <JWT>` | Yes |
-| **Passport.js** (session strategy) | Cookie | `connect.sid` http-only cookie (via express-session) | No |
-| **Passport.js** (JWT strategy) | Bearer / Configurable | Typically `Authorization: Bearer <JWT>` | Yes |
-| **Logto** (web / SSR) | Cookie | `logto`-prefixed http-only encrypted cookie | No |
-| **Logto** (SPA / API) | Bearer | `Authorization: Bearer <token>` from `getAccessToken()` | Yes |
+| Library / Framework                 | Category              | Transmission                                                                        | Need to Edit `withAuthHeaders()`? |
+| ----------------------------------- | --------------------- | ----------------------------------------------------------------------------------- | --------------------------------- |
+| **Better-Auth** (default)           | Cookie                | `better-auth.session-token` http-only cookie (HMAC-signed)                          | No                                |
+| **Better-Auth** (bearer plugin)     | Bearer                | `Authorization: Bearer <session_token>`                                             | Yes                               |
+| **Auth.js / NextAuth.js** (v4 & v5) | Cookie                | `next-auth.session-token` / `__Secure-authjs.session-token` http-only encrypted JWT | No                                |
+| **Clerk** (same-origin)             | Cookie                | `__session` cookie (set via JS on app domain)                                       | No                                |
+| **Clerk** (cross-origin)            | Bearer                | `Authorization: Bearer <token>` from `getToken()`                                   | Yes                               |
+| **Supabase** (browser SDK)          | SDK-managed           | `Authorization: Bearer <JWT>` — auto-injected by SDK client                         | No (use SDK client)               |
+| **Supabase** (raw fetch)            | Bearer                | `Authorization: Bearer <JWT>`                                                       | Yes                               |
+| **Supabase** (SSR mode)             | Cookie                | `sb-{ref}-auth-token` http-only cookie                                              | No                                |
+| **Auth0 SPA SDK**                   | Bearer                | `Authorization: Bearer <token>` from `getTokenSilently()`                           | Yes (always)                      |
+| **Firebase Auth**                   | Bearer                | `Authorization: Bearer <id_token>` from `getIdToken()`                              | Yes (always)                      |
+| **Laravel Sanctum** (SPA mode)      | Cookie                | `laravel_session` http-only cookie + `X-XSRF-TOKEN` CSRF header                     | No (CSRF only)                    |
+| **Laravel Sanctum** (API mode)      | Bearer                | `Authorization: Bearer <personal_access_token>`                                     | Yes                               |
+| **DRF SessionAuthentication**       | Cookie                | `sessionid` http-only cookie + `X-CSRFToken` header                                 | No (CSRF only)                    |
+| **DRF TokenAuthentication**         | Custom Header         | `Authorization: Token <token>`                                                      | Yes                               |
+| **DRF SimpleJWT**                   | Bearer                | `Authorization: Bearer <JWT>`                                                       | Yes                               |
+| **Passport.js** (session strategy)  | Cookie                | `connect.sid` http-only cookie (via express-session)                                | No                                |
+| **Passport.js** (JWT strategy)      | Bearer / Configurable | Typically `Authorization: Bearer <JWT>`                                             | Yes                               |
+| **Logto** (web / SSR)               | Cookie                | `logto`-prefixed http-only encrypted cookie                                         | No                                |
+| **Logto** (SPA / API)               | Bearer                | `Authorization: Bearer <token>` from `getAccessToken()`                             | Yes                               |
 
 ## How to Determine Your Category
 
@@ -111,6 +111,7 @@ function withAuthHeaders(headers, auth) {
 ```
 
 **Note:** Some cookie-based backends require a CSRF token for unsafe methods (POST, PUT, DELETE):
+
 - Laravel Sanctum: `X-XSRF-TOKEN` header from `XSRF-TOKEN` cookie
 - Django: `X-CSRFToken` header from `csrftoken` cookie
 
@@ -170,7 +171,10 @@ import { supabase } from "./supabase-client.js";
 import { setAuth } from "./swoff/auth-store.js";
 
 async function loginWithSupabase(email, password) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
   if (error) throw error;
 
   // Extract session and store in Swoff's auth store
@@ -206,12 +210,12 @@ const { data: notes } = await supabase.from("notes").select("*");
 
 ## Summary
 
-| Your Auth Type | `withAuthHeaders()` | `authenticatedFetch` Needed? |
-|---|---|---|
-| Cookie / Session | No-op (skip) | Yes (for 401 handling + user cache) |
-| Bearer Token | Set `Authorization: Bearer` | Yes |
-| Custom Header | Set your header | Yes |
-| SDK-managed | Extract token → set as Bearer | Optional (gives you caching) |
+| Your Auth Type   | `withAuthHeaders()`           | `authenticatedFetch` Needed?        |
+| ---------------- | ----------------------------- | ----------------------------------- |
+| Cookie / Session | No-op (skip)                  | Yes (for 401 handling + user cache) |
+| Bearer Token     | Set `Authorization: Bearer`   | Yes                                 |
+| Custom Header    | Set your header               | Yes                                 |
+| SDK-managed      | Extract token → set as Bearer | Optional (gives you caching)        |
 
 ## Next Steps
 

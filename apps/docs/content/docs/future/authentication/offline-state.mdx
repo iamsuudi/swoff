@@ -1,7 +1,7 @@
 ---
 title: Offline Auth State
 description: Handle all four combinations of online/offline and authenticated/unauthenticated.
-icon: WifiOff
+# icon: WifiOff
 ---
 
 # Offline Auth State
@@ -12,10 +12,9 @@ Your app needs to know the user's auth state even when offline. There are four p
 
 ## Auth State Detection
 
-```javascript
-// swoff/auth-state.js
-import { getAuth, isAuthValid } from "./auth-store.js";
-import { getCachedUser } from "./auth-user.js";
+```js title="swoff/auth/state.js"
+import { getAuth, isAuthValid } from "./store.js";
+import { getCachedUser } from "./user.js";
 
 export async function getAuthState() {
   const auth = await getAuth();
@@ -32,20 +31,20 @@ export async function getAuthState() {
 
 ## The Four States
 
-| State | Online | Authenticated | What to Show |
-|---|---|---|---|
-| **Normal** | ✅ Yes | ✅ Yes | Fresh data, full UI, normal experience |
-| **Login prompt** | ✅ Yes | ❌ No | Show login/signup, redirect to auth |
-| **Offline access** | ❌ No | ✅ Yes | Cached data, offline indicator, queue mutations |
-| **Strict offline** | ❌ No | ❌ No | Cached public content only, or offline-aware login |
+| State              | Online | Authenticated | What to Show                                       |
+| ------------------ | ------ | ------------- | -------------------------------------------------- |
+| **Normal**         | ✅ Yes | ✅ Yes        | Fresh data, full UI, normal experience             |
+| **Login prompt**   | ✅ Yes | ❌ No         | Show login/signup, redirect to auth                |
+| **Offline access** | ❌ No  | ✅ Yes        | Cached data, offline indicator, queue mutations    |
+| **Strict offline** | ❌ No  | ❌ No         | Cached public content only, or offline-aware login |
 
 ### State 1: Online + Authenticated (Normal)
 
 Full experience. Fetch fresh data, cache for offline, mutate normally.
 
-```javascript
+```js
 // Everything works normally
-const user = await authenticatedFetch("/api/me").then(r => r.json());
+const user = await authenticatedFetch("/api/me").then((r) => r.json());
 await cacheUser(user);
 ```
 
@@ -53,8 +52,8 @@ await cacheUser(user);
 
 Redirect to login page or show login form.
 
-```javascript
-import { getAuthState } from "./swoff/auth-state.js";
+```js
+import { getAuthState } from "./swoff/auth/state.js";
 
 const state = await getAuthState();
 if (state.online && !state.authenticated) {
@@ -67,7 +66,7 @@ if (state.online && !state.authenticated) {
 
 Show cached data, indicate offline mode, queue mutations.
 
-```javascript
+```js
 const state = await getAuthState();
 if (!state.online && state.authenticated) {
   // Show cached user data
@@ -83,7 +82,7 @@ if (!state.online && state.authenticated) {
 
 Limited experience. Show cached public pages or an offline-aware login hint.
 
-```javascript
+```js
 const state = await getAuthState();
 if (!state.online && !state.authenticated) {
   // Show cached public content only
@@ -96,9 +95,9 @@ if (!state.online && !state.authenticated) {
 
 ### React
 
-```javascript
+```js
 import { useState, useEffect } from "react";
-import { getAuthState } from "./swoff/auth-state.js";
+import { getAuthState } from "./swoff/auth/state.js";
 
 export function useAuth() {
   const [state, setState] = useState({
@@ -131,19 +130,23 @@ export function useAuth() {
 
 ### Vue
 
-```javascript
+```js
 import { ref, onMounted, onUnmounted } from "vue";
-import { getAuthState } from "./swoff/auth-state.js";
+import { getAuthState } from "./swoff/auth/state.js";
 
 export function useAuth() {
-  const state = ref({ authenticated: false, user: null, online: navigator.onLine });
+  const state = ref({
+    authenticated: false,
+    user: null,
+    online: navigator.onLine,
+  });
 
   onMounted(async () => {
     state.value = await getAuthState();
 
-    const onOnline = () => state.value.online = true;
-    const onOffline = () => state.value.online = false;
-    const onAuthChange = () => getAuthState().then((s) => state.value = s);
+    const onOnline = () => (state.value.online = true);
+    const onOffline = () => (state.value.online = false);
+    const onAuthChange = () => getAuthState().then((s) => (state.value = s));
 
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
@@ -162,14 +165,14 @@ export function useAuth() {
 
 ## Events
 
-| Event | Detail | When |
-|---|---|---|
-| `sw-auth-unauthorized` | none | 401 response received (token expired) |
-| `sw-auth-state-change` | `{ authenticated: boolean }` | Login or logout |
+| Event                  | Detail                       | When                                  |
+| ---------------------- | ---------------------------- | ------------------------------------- |
+| `sw-auth-unauthorized` | none                         | 401 response received (token expired) |
+| `sw-auth-state-change` | `{ authenticated: boolean }` | Login or logout                       |
 
 ## Window Properties (Optional)
 
-```typescript
+```ts title="swoff/swoff.d.ts"
 // Add to swoff/swoff.d.ts
 declare global {
   interface Window {

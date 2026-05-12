@@ -1,7 +1,7 @@
 ---
 title: Auth-Aware Fetch
 description: Extend fetchWithCache to attach auth credentials and handle 401 responses.
-icon: ArrowLeftRight
+# icon: ArrowLeftRight
 ---
 
 # Auth-Aware Fetch
@@ -15,10 +15,9 @@ icon: ArrowLeftRight
 
 ## Implementation
 
-```javascript
-// swoff/auth-fetch.js
-import { fetchWithCache } from "./fetch-wrapper.js";
-import { getAuth, clearAuth } from "./auth-store.js";
+```js title="swoff/auth/fetch.js"
+import { fetchWithCache } from "../fetch-wrapper.js";
+import { getAuth, clearAuth } from "./store.js";
 
 /**
  * YOUR extension point.
@@ -68,8 +67,13 @@ function withAuthHeaders(headers, auth) {
  */
 function isAuthUrl(url) {
   const authPaths = [
-    "/login", "/logout", "/refresh", "/register",
-    "/api/login", "/api/logout", "/api/refresh",
+    "/login",
+    "/logout",
+    "/refresh",
+    "/register",
+    "/api/login",
+    "/api/logout",
+    "/api/refresh",
   ];
   return authPaths.some((path) => url.includes(path));
 }
@@ -109,8 +113,9 @@ export async function authenticatedFetch(input, options = {}) {
 
 `authenticatedFetch` is your replacement for raw `fetch` (and `fetchWithCache`) for **all** API calls after login:
 
-```javascript
-import { authenticatedFetch } from "./swoff/auth-fetch.js";
+```js
+// In your app, replace raw fetch with authenticatedFetch
+import { authenticatedFetch } from "./swoff/auth/fetch.js";
 
 // Authenticated read — cached by SW for offline
 const profile = await authenticatedFetch("/api/me").then((r) => r.json());
@@ -138,10 +143,9 @@ Every call to `authenticatedFetch()` runs `getAuth()` internally. After login, `
 
 If your backend uses short-lived access tokens with a refresh token:
 
-```javascript
-// swoff/auth-refresh.js
-import { authenticatedFetch } from "./auth-fetch.js";
-import { getAuth, setAuth, clearAuth } from "./auth-store.js";
+```js title="swoff/auth/refresh.js"
+import { authenticatedFetch } from "./fetch.js";
+import { getAuth, setAuth, clearAuth } from "./store.js";
 
 let refreshPromise = null;
 
@@ -183,12 +187,12 @@ export async function ensureValidAuth() {
 
 Check [Auth Libraries Reference](/docs/future/authentication/auth-libraries) to determine your category:
 
-| Auth Category | `withAuthHeaders()` | Example |
-|---|---|---|
-| Cookie/Session | No-op (return headers as-is) | Better-Auth default, Auth.js |
-| Bearer Token | `headers.set("Authorization", "Bearer " + auth.token)` | Auth0, Firebase, Supabase raw fetch |
-| Custom Header | Set your custom header name | DRF TokenAuth, API keys |
-| SDK-managed | Skip this file, use SDK's client | Supabase JS SDK, Better-Auth client |
+| Auth Category  | `withAuthHeaders()`                                    | Example                             |
+| -------------- | ------------------------------------------------------ | ----------------------------------- |
+| Cookie/Session | No-op (return headers as-is)                           | Better-Auth default, Auth.js        |
+| Bearer Token   | `headers.set("Authorization", "Bearer " + auth.token)` | Auth0, Firebase, Supabase raw fetch |
+| Custom Header  | Set your custom header name                            | DRF TokenAuth, API keys             |
+| SDK-managed    | Skip this file, use SDK's client                       | Supabase JS SDK, Better-Auth client |
 
 ## Next Steps
 

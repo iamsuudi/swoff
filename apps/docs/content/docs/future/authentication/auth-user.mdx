@@ -1,7 +1,7 @@
 ---
 title: Current User
 description: Fetch, cache, and invalidate the current user for offline access.
-icon: User
+# icon: User
 ---
 
 # Current User
@@ -12,9 +12,8 @@ Once authenticated, fetch and cache the current user so their data is available 
 
 ## User Store
 
-```javascript
-// swoff/auth-user.js
-import { getAuth } from "./auth-store.js";
+```js title="swoff/auth/user.js"
+import { getAuth } from "./store.js";
 
 const DB_NAME = "swoff-auth";
 const STORE_NAME = "current-user";
@@ -136,9 +135,11 @@ async function onLogin(authResponse) {
   }
 
   // 3. Notify the app
-  window.dispatchEvent(new CustomEvent("sw-auth-state-change", {
-    detail: { authenticated: true },
-  }));
+  window.dispatchEvent(
+    new CustomEvent("sw-auth-state-change", {
+      detail: { authenticated: true },
+    }),
+  );
 }
 ```
 
@@ -161,9 +162,11 @@ async function onLogout() {
     }
   }
 
-  window.dispatchEvent(new CustomEvent("sw-auth-state-change", {
-    detail: { authenticated: false },
-  }));
+  window.dispatchEvent(
+    new CustomEvent("sw-auth-state-change", {
+      detail: { authenticated: false },
+    }),
+  );
 }
 ```
 

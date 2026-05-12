@@ -1,7 +1,7 @@
 ---
 title: Token Storage
 description: Store auth tokens securely using IndexedDB + memory cache.
-icon: Database
+# icon: Database
 ---
 
 # Token Storage
@@ -12,11 +12,11 @@ icon: Database
 
 Three tiers, each with different guarantees:
 
-| Storage | Persists | Scope | Use for |
-|---------|----------|-------|---------|
-| Memory | Until page refresh | Tab | Active session — fast access |
-| IndexedDB | Indefinitely | Origin | Persistent auth across reloads & SW updates |
-| sessionStorage | Until tab closes | Tab | Tab-scoped session flags |
+| Storage        | Persists           | Scope  | Use for                                     |
+| -------------- | ------------------ | ------ | ------------------------------------------- |
+| Memory         | Until page refresh | Tab    | Active session — fast access                |
+| IndexedDB      | Indefinitely       | Origin | Persistent auth across reloads & SW updates |
+| sessionStorage | Until tab closes   | Tab    | Tab-scoped session flags                    |
 
 :::warn
 **Never store auth tokens in `localStorage`.** It's synchronous, accessible by any JavaScript in the same origin, and persists indefinitely — making it a prime XSS target.
@@ -24,8 +24,8 @@ Three tiers, each with different guarantees:
 
 ## Implementation
 
-```javascript
-// swoff/auth-store.js — Zero dependency, native IndexedDB + memory cache
+```js title="swoff/auth/store.js"
+// swoff/auth/store.js — Zero dependency, native IndexedDB + memory cache
 
 const DB_NAME = "swoff-auth";
 const STORE_NAME = "auth";
@@ -113,7 +113,7 @@ export function isAuthValid(auth) {
 
 These are **your functions** — Swoff provides the storage infrastructure:
 
-```javascript
+```js
 // In your app — you provide login/logout, Swoff provides storage
 import { setAuth, clearAuth } from "./swoff/auth-store.js";
 
@@ -127,22 +127,26 @@ async function login(email, password) {
 
   // Store in Swoff's auth infrastructure
   await setAuth({
-    token: data.token,          // Your token (or null if http-only cookie)
-    user: data.user,            // Current user object
-    expiresAt: data.expiresAt,  // Expiry timestamp (ms), or omit
+    token: data.token, // Your token (or null if http-only cookie)
+    user: data.user, // Current user object
+    expiresAt: data.expiresAt, // Expiry timestamp (ms), or omit
   });
 
-  window.dispatchEvent(new CustomEvent("sw-auth-state-change", {
-    detail: { authenticated: true },
-  }));
+  window.dispatchEvent(
+    new CustomEvent("sw-auth-state-change", {
+      detail: { authenticated: true },
+    }),
+  );
 }
 
 async function logout() {
   await fetch("/api/logout", { method: "POST" }).catch(() => {});
   await clearAuth();
-  window.dispatchEvent(new CustomEvent("sw-auth-state-change", {
-    detail: { authenticated: false },
-  }));
+  window.dispatchEvent(
+    new CustomEvent("sw-auth-state-change", {
+      detail: { authenticated: false },
+    }),
+  );
 }
 ```
 
@@ -150,11 +154,11 @@ async function logout() {
 
 The shape depends on your backend:
 
-| Field | Required? | Purpose |
-|---|---|---|
-| `token` | Cookie: no / Bearer: yes | The token string to attach to requests |
-| `user` | Recommended | Current user object for offline display |
-| `expiresAt` | Optional | Timestamp (ms) for offline expiry checking |
+| Field       | Required?                | Purpose                                    |
+| ----------- | ------------------------ | ------------------------------------------ |
+| `token`     | Cookie: no / Bearer: yes | The token string to attach to requests     |
+| `user`      | Recommended              | Current user object for offline display    |
+| `expiresAt` | Optional                 | Timestamp (ms) for offline expiry checking |
 
 ## Next Steps
 

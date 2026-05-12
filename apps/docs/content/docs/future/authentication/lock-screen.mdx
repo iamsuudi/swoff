@@ -1,7 +1,7 @@
 ---
 title: Local Security
 description: PIN protection, biometric authentication, and auto-lock for fully offline apps.
-icon: Lock
+# icon: Lock
 ---
 
 # Local Security
@@ -16,8 +16,7 @@ This pattern is **not needed** if your app always requires a backend connection 
 
 ### PIN Store
 
-```javascript
-// swoff/lock-screen.js
+```js title="swoff/auth/lock-screen.js"
 const PIN_STORE = "lock-pin";
 
 function openLockDB() {
@@ -69,9 +68,7 @@ export async function verifyPin(pin) {
 
 ## Biometric / WebAuthn
 
-```javascript
-// swoff/biometric-auth.js
-
+```js title="swoff/auth/biometric-auth.js"
 /**
  * Check if biometric auth is available on this device.
  */
@@ -110,8 +107,7 @@ export async function authenticateWithBiometric() {
 
 Lock the app after a period of inactivity. User sets the timeout in settings.
 
-```javascript
-// swoff/auto-lock.js
+```js title="swoff/auth/auto-lock.js"
 let lockTimer = null;
 let lockTimeout = 5 * 60 * 1000; // Default: 5 minutes
 
@@ -147,7 +143,7 @@ document.addEventListener("touchstart", resetLockTimer);
 
 Lock when the app goes to background and returns after a threshold.
 
-```javascript
+```js
 // In your app initialization
 const LOCK_THRESHOLD = 30000; // 30 seconds
 
@@ -170,7 +166,7 @@ document.addEventListener("visibilitychange", () => {
 
 When your app receives `sw-lock-required`, show a lock screen:
 
-```javascript
+```js
 window.addEventListener("sw-lock-required", () => {
   showLockScreen();
 });
@@ -190,8 +186,8 @@ async function showLockScreen() {
 
 ## Events
 
-| Event | When |
-|---|---|
+| Event              | When                                                    |
+| ------------------ | ------------------------------------------------------- |
 | `sw-lock-required` | Auto-lock timer expired, or app resumed from background |
 
 ## Integration Checklist

@@ -1,52 +1,117 @@
 ---
 title: API Integration
-description: Coordinate client-side fetches with the service worker for REST, GraphQL, and more.
+description: Coordinate client-side fetches with the service worker — cache strategy, tags, and invalidation.
 icon: Plug
 ---
 
-**Prerequisites:** You have the SW template set up (see [SW Template](/docs/patterns/sw-template)). This pattern shows how to mark client requests so the SW can distinguish reads from mutations.
+**Prerequisites:** You have the SW template set up (see [SW Template](/docs/patterns/sw-template)). This pattern shows how to mark client requests so the SW can distinguish reads from mutations, and how to tag cached responses for selective invalidation.
 
 ## How It Works
 
-The SW checks the `X-SW-Cache-Strategy` request header:
+The SW checks two request headers:
 
-| Header value | SW behavior |
-|---|---|
-| `read` | Cache the response, serve from cache on repeat requests |
-| `mutation` or absent | Let the request pass through to the server, no caching |
+| Header | Value | SW behavior |
+|---|---|---|
+| `X-SW-Cache-Strategy` | `read` | Cache the response, serve from cache on repeat requests |
+| `X-SW-Cache-Strategy` | `mutation` or absent | Let the request pass through to the server, no caching |
+| `X-SW-Cache-Tags` | `todos,user:1` | Index the cached response under these tags for later invalidation |
 
-If the header is absent, the SW falls back to method-based heuristic: GET/HEAD are reads, everything else is a mutation.
+If the strategy header is absent, the SW falls back to method-based heuristic: GET/HEAD are reads, everything else is a mutation.
 
 ## Fetch Wrapper
 
 ```js title="swoff/fetch-wrapper.js"
+/**
+ * Fetch with cache strategy and optional cache tags.
+ * @param {Request|string} input
+ * @param {object} [options]
+ * @param {string} [options.strategy] - "read" | "mutation" (auto-detected by method)
+ * @param {string[]} [options.tags] - Cache tags for invalidation (e.g., ["todos"])
+ */
 export async function fetchWithCache(input, options = {}) {
   const headers = new Headers(options.headers);
+  const method = options.method || "GET";
+
+  // Set cache strategy
   if (!headers.has("X-SW-Cache-Strategy")) {
-    const method = options.method || "GET";
     headers.set(
       "X-SW-Cache-Strategy",
       method === "GET" || method === "HEAD" ? "read" : "mutation",
     );
   }
+
+  // Attach cache tags for invalidation (reads only)
+  if (options.tags && options.tags.length > 0) {
+    headers.set("X-SW-Cache-Tags", options.tags.join(","));
+  }
+
   return fetch(input, { ...options, headers });
 }
 ```
 
 Defaults to `read` for GET/HEAD and `mutation` for everything else. Override by passing the header explicitly.
 
+## Cache Invalidation
+
+After a mutation syncs to the server, cached GET responses become stale. Call `invalidateByTag` to flush them:
+
+```js title="swoff/cache.js"
+const CACHE_TAG_DB = "swoff-cache-tags";
+const CACHE_TAG_STORE = "tags";
+
+/**
+ * Invalidate all cached responses tagged with the given tag.
+ * Clears the SW runtime cache and dispatches "cache-invalidated" on window.
+ * @param {string} tag - Cache tag to invalidate (e.g., "todos")
+ */
+export async function invalidateByTag(tag) {
+  if (!navigator.serviceWorker?.controller) return;
+
+  // Tell SW to clear cached responses with this tag
+  navigator.serviceWorker.controller.postMessage({
+    type: "INVALIDATE_TAG",
+    tag,
+  });
+
+  // Notify framework adapters
+  window.dispatchEvent(
+    new CustomEvent("cache-invalidated", { detail: { tags: [tag] } }),
+  );
+}
+
+/**
+ * Invalidate multiple tags at once.
+ * @param {string[]} tags
+ */
+export async function invalidateByTags(tags) {
+  for (const tag of tags) {
+    await invalidateByTag(tag);
+  }
+}
+```
+
+The SW receives the `INVALIDATE_TAG` message, looks up all cached URLs indexed under that tag, deletes them from the runtime cache, and broadcasts `TAG_INVALIDATED` back. See [SW Template](/docs/patterns/sw-template#4-message--skip-waiting--cache-invalidation) for the SW-side handler.
+
 ## REST API
 
 ```javascript
 import { fetchWithCache } from "./swoff/fetch-wrapper.js";
 
-// GET — cached automatically
-const todos = await fetchWithCache("/api/todos").then((r) => r.json());
+// GET — cached with tag for later invalidation
+const todos = await fetchWithCache("/api/todos", {
+  tags: ["todos"],
+}).then((r) => r.json());
 
-// POST search — override to read
+// GET single item
+const todo = await fetchWithCache("/api/todos/1", {
+  tags: ["todos", "todo:1"],
+}).then((r) => r.json());
+
+// POST search — override to read with tag
 const results = await fetchWithCache("/api/search", {
   method: "POST",
   headers: { "X-SW-Cache-Strategy": "read" },
+  tags: ["search"],
   body: JSON.stringify({ query: "hello" }),
 }).then((r) => r.json());
 
@@ -60,19 +125,22 @@ await fetchWithCache("/api/todos", {
 
 ## GraphQL
 
-Queries and mutations both POST to one endpoint. Inspect the operation string to set the right header:
+Queries and mutations both POST to one endpoint. Inspect the operation string to set the right strategy and tags:
 
 ```javascript
 import { fetchWithCache } from "./swoff/fetch-wrapper.js";
 
 async function graphql(query, variables = {}) {
   const isMutation = query.trimStart().startsWith("mutation");
+  const operationName = extractOperationName(query);
+
   const data = await fetchWithCache("/api/graphql", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-SW-Cache-Strategy": isMutation ? "mutation" : "read",
     },
+    tags: isMutation ? undefined : [operationName],
     body: JSON.stringify({ query, variables }),
   }).then((r) => r.json());
 
@@ -80,16 +148,54 @@ async function graphql(query, variables = {}) {
   return data.data;
 }
 
-// Query — cached by the SW
-const user = await graphql(`query { user(id: 1) { name } }`);
+function extractOperationName(query) {
+  const match = query.trim().match(/^(query|mutation)\s+(\w+)/);
+  return match ? match[2] : "unknown";
+}
 
-// Mutation — reaches the server
+// Query — cached with tag "todos", invalidatable
+const user = await graphql(`query todos { todos { id title } }`);
+
+// Mutation — reaches the server, triggers invalidation
 const updated = await graphql(
   `mutation { updateUser(id: 1, name: "Alice") { name } }`,
 );
 ```
 
+## Invalidation Strategy
+
+| After this mutation | Invalidate these tags |
+|---|---|
+| `POST /api/todos` | `["todos"]` |
+| `PUT /api/todos/:id` | `["todos", "todo:{id}"]` |
+| `DELETE /api/todos/:id` | `["todos", "todo:{id}"]` |
+| `POST /api/todos/:id/comments` | `["todos", "todo:{id}", "comments"]` |
+
+A helper for tagging mutation-related cache invalidation:
+
+```javascript
+function invalidationTags(url, method, body) {
+  const urlObj = new URL(url, location.origin);
+  const parts = urlObj.pathname.split("/").filter(Boolean);
+
+  // /api/todos → ["todos"]
+  // /api/todos/42 → ["todos", "todo:42"]
+  // /api/todos/42/comments → ["todos", "todo:42", "comments"]
+  const tags = [];
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i] === "api") continue;
+    if (i > 0 && /^\d+$/.test(parts[i])) {
+      tags.push(`${parts[i - 1]}:${parts[i]}`);
+    } else if (!/^\d+$/.test(parts[i])) {
+      tags.push(parts[i]);
+    }
+  }
+  return tags;
+}
+```
+
 ## Next Steps
 
 - Set up [Client Registration](/docs/patterns/client-registration) — register the SW from your app
-- Add [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) — store complex data offline
+- Add [Mutation Queuing](/docs/future/mutation-queuing) — queue offline writes, then invalidate on sync
+- See [Data Layer](/docs/core/data-layer) — how reads, writes, and invalidation connect

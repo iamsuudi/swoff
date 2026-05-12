@@ -1,132 +1,373 @@
 ---
 title: Background Sync
-description: Use the Background Sync API to retry requests when connection returns. (Future)
+description: Use the Background Sync API to retry requests when connection returns — even after the user closes the tab.
 icon: RefreshCw
 ---
 
 # Background Sync
 
-**Status: Future Feature**
+**Status: Available Pattern**
 
-Background Sync lets your SW retry failed requests even after the user closes the app.
+Background Sync lets your service worker process the mutation queue even after the user closes the app.
 
 ## What is Background Sync?
 
 A browser API that:
-- Registers a "sync" event in the SW
-- Fires when the browser has a stable connection
+- Registers a "sync" event tag in the SW from your client code
+- Fires the SW's `sync` event when the browser detects a stable connection
 - Works even if the user closed the tab
+- Sync events are **one-time** — must re-register after each sync
 
-**Note:** Swoff covers the client-side Background Sync registration and SW handling. Your backend (Go, Node.js, etc.) receives the synced requests — you build that part.
+**Note:** Swoff covers the client-side registration and SW handler. Your backend (Go, Node.js, etc.) receives the synced requests — you build that part.
+
+## When to Use This
+
+| Scenario | Use Background Sync? |
+|---|---|
+| User creates data and closes the tab | ✅ Yes — sync happens in background |
+| User switches to another app | ✅ Yes — sync when connection stabilizes |
+| User has unstable network | ✅ Yes — retries automatically |
+| You only need sync while app is open | ❌ No — use Mutation Queuing's `online` event alone |
+| Firefox / Safari users | ❌ Not supported — falls back to `online` event |
 
 ## Browser Support
 
 | Browser | Support |
-|---------|---------|
-| Chrome  | ✅ Yes  |
-| Edge    | ✅ Yes  |
+|---|---|
+| Chrome | ✅ Yes |
+| Edge | ✅ Yes |
 | Firefox | ❌ No (under consideration) |
-| Safari  | ❌ No (not on roadmap) |
+| Safari | ❌ No (not on roadmap) |
 
-**Note**: Limited support. Use with fallback (process queue on `online` event).
+**Fallback:** For unsupported browsers, the mutation queue auto-processes on the `online` event (already set up in [Mutation Queuing](/docs/future/mutation-queuing)). The fallback only works while the tab is open.
 
-## Basic Usage
+## Prerequisites
 
-### Register Sync in Your App
+1. [Mutation Queuing](/docs/future/mutation-queuing) — the queue must be set up first
+2. [SW Template](/docs/patterns/sw-template) — you'll add a `sync` event handler
+3. [Client Registration](/docs/patterns/client-registration) — SW must be registered
 
-```javascript
-async function queueForBackgroundSync(mutation) {
-  if (!('serviceWorker' in navigator) || !('SyncManager' in window)) {
-    // Fallback: queue in IndexedDB, process on 'online' event
-    return queueMutation(mutation)
+## Implementation
+
+### Client: Register Sync After Queuing
+
+Create `swoff/background-sync.js`:
+
+```js title="swoff/background-sync.js"
+import { queueMutation, processMutationQueue, getPendingCount } from "./mutation-queue.js";
+
+const SYNC_TAG = "sync-mutations";
+
+async function registerSync() {
+  if (!("serviceWorker" in navigator) || !("SyncManager" in window)) {
+    // Fallback: process when tab comes online
+    window.addEventListener("online", processMutationQueue, { once: true });
+    return;
   }
 
-  // Store mutation
-  const db = await openDB()
-  await db.add('mutation-queue', mutation)
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    await registration.sync.register(SYNC_TAG);
+  } catch {
+    // Registration failed — fallback to online event
+    window.addEventListener("online", processMutationQueue, { once: true });
+  }
+}
 
-  // Register sync
-  const registration = await navigator.serviceWorker.ready
-  await registration.sync.register('sync-mutations')
+/**
+ * Queue a mutation and try background sync.
+ * Falls back to online event listener in unsupported browsers.
+ * @param {object} mutation - { method, url, body, headers }
+ */
+export async function syncWhenPossible(mutation) {
+  await queueMutation(mutation);
+  await registerSync();
 }
 ```
 
-### Handle Sync in SW
+### Service Worker: Handle Sync Event
 
-```javascript
-// sw-template.js
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-mutations') {
-    event.waitUntil(processMutationQueue())
+The SW needs its own queue processor since it has no DOM access. Add this to `swoff/sw-template.js`:
+
+```js title="swoff/sw-template.js (appended)"
+// Background sync — process mutation queue
+self.addEventListener("sync", (event) => {
+  if (event.tag === "sync-mutations") {
+    event.waitUntil(processMutationQueueInSW());
   }
-})
+});
 
-async function processMutationQueue() {
-  // Fetch stored mutations from IndexedDB
-  const db = await openDB()
-  const queue = await db.getAll('mutation-queue')
+const SW_DB_NAME = "swoff-queue";
+const SW_STORE_NAME = "mutations";
+const SW_MAX_RETRIES = 5;
 
-  for (const item of queue) {
-    try {
-      await fetch(item.url, {
-        method: item.method,
-        body: JSON.stringify(item.body)
-      })
-      await db.delete('mutation-queue', item.id)
-    } catch (error) {
-      // Keep in queue for next sync
+function openSWQueueDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(SW_DB_NAME, 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(SW_STORE_NAME)) {
+        const store = db.createObjectStore(SW_STORE_NAME, { keyPath: "id" });
+        store.createIndex("by-timestamp", "timestamp");
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function processMutationQueueInSW() {
+  let succeeded = 0;
+  let failed = 0;
+  const tagsToInvalidate = new Set();
+
+  try {
+    const db = await openSWQueueDB();
+    const tx = db.transaction(SW_STORE_NAME, "readonly");
+    const store = tx.objectStore(SW_STORE_NAME);
+    const index = store.index("by-timestamp");
+    const queue = await new Promise((resolve, reject) => {
+      const request = index.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+
+    for (const item of queue) {
+      if (item.retryCount >= SW_MAX_RETRIES) {
+        await removeFromSWQueue(item.id);
+        failed++;
+        continue;
+      }
+      try {
+        const response = await fetch(item.url, {
+          method: item.method,
+          headers: {
+            "Content-Type": "application/json",
+            ...item.headers,
+          },
+          body: JSON.stringify(item.body),
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const serverData = await response.json();
+
+        // Reconcile: update local record with server response
+        if (item.tempId && item.storeName) {
+          await reconcileRecordInSW(item.storeName, item.tempId, serverData);
+        }
+
+        // Collect tags for invalidation
+        if (item.tags) {
+          item.tags.forEach((tag) => tagsToInvalidate.add(tag));
+        }
+
+        await removeFromSWQueue(item.id);
+        succeeded++;
+      } catch {
+        item.retryCount++;
+        await updateInSWQueue(item);
+        failed++;
+      }
     }
+  } catch (err) {
+    console.error("Background sync failed:", err);
+  }
+
+  // Invalidate cached responses
+  for (const tag of tagsToInvalidate) {
+    await invalidateByTag(tag);
+  }
+
+  // Notify all clients so they can dispatch window events
+  const clients = await self.clients.matchAll();
+  for (const client of clients) {
+    client.postMessage({
+      type: "BACKGROUND_SYNC_COMPLETE",
+      detail: { succeeded, failed, tags: [...tagsToInvalidate] },
+    });
   }
 }
+
+// SW-side reconcile — same logic as client-side reconcileRecord,
+// but uses the shared app IndexedDB directly (no DOM needed)
+async function reconcileRecordInSW(storeName, tempId, serverData) {
+  const db = await openAppDB(storeName);
+  const tx = db.transaction(storeName, "readwrite");
+  const store = tx.objectStore(storeName);
+
+  const existing = await new Promise((resolve, reject) => {
+    const request = store.get(tempId);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  if (!existing) return;
+
+  const reconciled = {
+    ...existing,
+    ...serverData,
+    id: serverData.id,
+    $synced: true,
+    $syncedAt: Date.now(),
+  };
+
+  store.put(reconciled);
+  if (String(tempId) !== String(serverData.id)) {
+    store.delete(tempId);
+  }
+
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// Open the app's main IndexedDB to reconcile records
+// Change DB_NAME to match your app's database name
+async function openAppDB(storeName) {
+  const APP_DB_NAME = "my-app"; // ← Change to your app's DB name
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(APP_DB_NAME);
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function removeFromSWQueue(id) {
+  const db = await openSWQueueDB();
+  const tx = db.transaction(SW_STORE_NAME, "readwrite");
+  tx.objectStore(SW_STORE_NAME).delete(id);
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function updateInSWQueue(item) {
+  const db = await openSWQueueDB();
+  const tx = db.transaction(SW_STORE_NAME, "readwrite");
+  tx.objectStore(SW_STORE_NAME).put(item);
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
 ```
+
+**Important:** The SW accesses the same IndexedDB database (`swoff-queue`) as the client code. Both must use the same `DB_NAME` and `STORE_NAME`. The `onupgradeneeded` handler is a no-op if the database already exists, so it's safe to include in both places.
+
+## SW Template Changes Summary
+
+Add these blocks to your existing `swoff/sw-template.js`:
+
+| Block | Location | Purpose |
+|---|---|---|
+| `self.addEventListener("sync", ...)` | Anywhere in file | Listen for background sync events |
+| `openSWQueueDB()`, `processMutationQueueInSW()`, helpers | After event listeners | Queue processing, reconcile, invalidate, client notification |
+| `reconcileRecordInSW()` | After helpers | Server response → local record update |
+| `openAppDB()` | After helpers | Open app's IndexedDB for reconciliation |
+
+The SW template's fetch handler already lets mutations pass through (see `isReadRequest` in [SW Template](/docs/patterns/sw-template)). No changes needed there. The tag-indexed caching and `INVALIDATE_TAG` handler are added separately — see [SW Template](/docs/patterns/sw-template).
+
+### Client: Handle SW Sync Completion
+
+When the SW processes the queue in background (tab may be closed), the client needs to pick up the results when the user returns. Add this listener in your app init:
+
+```js title="swoff/sw-injector.js (appended)"
+// Listen for background sync results from the SW
+navigator.serviceWorker.addEventListener("message", (event) => {
+  if (event.data.type === "BACKGROUND_SYNC_COMPLETE") {
+    const { succeeded, failed, tags } = event.data.detail;
+
+    window.dispatchEvent(
+      new CustomEvent("mutation-sync-complete", {
+        detail: { succeeded, failed },
+      }),
+    );
+
+    if (tags && tags.length > 0) {
+      window.dispatchEvent(
+        new CustomEvent("cache-invalidated", { detail: { tags } }),
+      );
+    }
+
+    window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
+  }
+});
+```
+
+This ensures that even if the background sync happens while the tab is closed, when the user returns the UI updates correctly — stale data is refetched, indicators update.
+
+## Re-registration Pattern
+
+Sync events are **one-time** — after the SW processes the queue, it won't fire again until a new `sync.register()` call. If the queue still has items after processing (e.g., some failed), re-register:
+
+```js title="swoff/background-sync.js"
+// Append to swoff/background-sync.js
+
+/**
+ * Re-register for background sync if there are still pending mutations.
+ */
+export async function retrySync() {
+  if (!("serviceWorker" in navigator) || !("SyncManager" in window)) return;
+  const count = await getPendingCount();
+  if (count > 0) {
+    await registerSync();
+  }
+}
+
+// Auto-retry after each sync completes
+window.addEventListener("mutation-sync-complete", retrySync);
+```
+
+## Fallback Strategy
+
+The `syncWhenPossible()` implementation above already handles unsupported browsers — it falls back to the `online` event listener. For browsers that support Background Sync but where registration fails, it also falls back.
+
+The mutation queue's primary `online` event listener (set up in `swoff/mutation-queue.js`) serves as a secondary fallback for any queued items not caught by background sync.
+
+No additional code needed — the client implementation above covers all cases:
+
+| Browser | Behavior |
+|---|---|
+| Chrome / Edge | Background sync — works even after tab close |
+| Firefox / Safari | `online` event listener — works while tab is open |
+| Any (sync registration fails) | `online` event listener — works while tab is open |
 
 ## Limitations
 
 1. **No payload** — can't pass data to sync event (must store in IDB)
 2. **No guarantee** — browser decides when to fire
 3. **One-time** — must re-register after each sync
-4. **Browser support** — Chrome/Edge only
+4. **Browser support** — Chrome/Edge only (Firefox/Safari fall back to `online` event)
+5. **SW lifespan** — the SW can be terminated at any time; long-running sync may be interrupted
 
-## Fallback Strategy
+## Integration Checklist
 
-Since Firefox/Safari don't support Background Sync:
-
-```javascript
-async function syncWhenPossible(mutation) {
-  // Store in IndexedDB
-  await queueMutation(mutation)
-
-  if ('serviceWorker' in navigator && 'SyncManager' in window) {
-    // Try Background Sync
-    const registration = await navigator.serviceWorker.ready
-    await registration.sync.register('sync-mutations')
-  } else {
-    // Fallback: listen for online event
-    window.addEventListener('online', processMutationQueue, { once: true })
-  }
-}
-```
-
-## Swoff's Approach
-
-We'll provide client-side code only:
-1. **Background Sync wrapper** — handles registration + fallback
-2. **Queue storage** — IndexedDB schema for mutations
-3. **Framework hooks** — `useMutationQueue()` for React/Vue/Svelte
-4. **UI components** — pending count, retry button
-
-**Your backend:** You handle receiving the synced requests with your chosen stack (Go, Node.js, Python, etc.). Swoff doesn't provide backend code.
+- [ ] Add `sync` event listener + `processMutationQueueInSW()` + `reconcileRecordInSW()` + `openAppDB()` to `swoff/sw-template.js`
+- [ ] Create `swoff/background-sync.js` with `syncWhenPossible()` + support detection
+- [ ] Add `BACKGROUND_SYNC_COMPLETE` message listener in your app init (e.g., `sw-injector.js`)
+- [ ] Replace direct `queueMutation()` calls with `syncWhenPossible()` where background sync is desired
+- [ ] _(Optional)_ Add `retrySync()` + `mutation-sync-complete` listener for persistent retry
+- [ ] Update `openAppDB(storeName)` in SW to match your app's IndexedDB database name
+- [ ] Test in Chrome/Edge (background sync works after tab close)
+- [ ] Test in Firefox/Safari (falls back to `online` event while tab is open)
+- [ ] Your backend receives the synced requests — you build that part
 
 ## Status
 
-- [ ] Detect Background Sync support
-- [ ] Implement fallback for unsupported browsers
-- [ ] SW sync event handler
-- [ ] Integration with mutation queue
-- [ ] Framework adapters
+- [x] Background Sync support detection
+- [x] Client-side registration wrapper (`syncWhenPossible()`)
+- [x] Fallback for unsupported browsers (Firefox, Safari)
+- [x] SW `sync` event handler (`processMutationQueueInSW()`)
+- [x] SW-side reconcile + cache invalidation
+- [x] Client notification on background sync completion
+- [x] Re-registration pattern for persistent retry
+- [x] Integration with mutation queue (shared `swoff-queue` database)
+- [x] Framework adapters — reuse `useMutationQueue` from Mutation Queuing
 
 ## Next Steps
 
-- See [Mutation Queuing](/docs/future/mutation-queuing) — what we sync
+- See [Mutation Queuing](/docs/future/mutation-queuing) — the queue that powers the sync
+- See [Data Layer](/docs/core/data-layer) — how query, mutate, reconcile, invalidate connect
 - Learn [Service Workers](/docs/concepts/service-workers) — SW basics
 - Check browser support on [MDN](https://developer.mozilla.org/en-US/docs/Web/API/Background_Synchronization_API)

@@ -29,9 +29,11 @@ let ASSETS_TO_CACHE = [];
 
 const AUTO_SKIP_WAITING = false;
 const CACHE_NAME_RUNTIME = "swoff-runtime";
+const TAG_DB_NAME = "swoff-cache-tags";
+const TAG_STORE_NAME = "tags";
 ```
 
-`// [[CACHE_NAME]]` and `// [[ASSETS_LIST]]` are replaced by the build script (see [Build Scripts](/docs/patterns/build-scripts)). `AUTO_SKIP_WAITING` — set to `true` to activate new versions immediately. `CACHE_NAME_RUNTIME` — a separate cache for API responses that persists across SW updates.
+`// [[CACHE_NAME]]` and `// [[ASSETS_LIST]]` are replaced by the build script (see [Build Scripts](/docs/patterns/build-scripts)). `AUTO_SKIP_WAITING` — set to `true` to activate new versions immediately. `CACHE_NAME_RUNTIME` — a separate cache for API responses that persists across SW updates. `TAG_DB_NAME` / `TAG_STORE_NAME` — IndexedDB database for cache tag indexing, used by the invalidation system.
 
 ### 2. Install — Download with Progress
 
@@ -91,15 +93,20 @@ self.addEventListener("activate", (event) => {
 
 Deletes old version caches. Keeps `CACHE_NAME_RUNTIME` so cached API data survives SW updates.
 
-### 4. Message — Skip Waiting on User Consent
+### 4. Message — Skip Waiting & Cache Invalidation
 
 ```js
 self.addEventListener("message", (event) => {
-  if (event.data.type === "SKIP_WAITING") self.skipWaiting();
+  if (event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+  if (event.data.type === "INVALIDATE_TAG" && event.data.tag) {
+    event.waitUntil(invalidateByTag(event.data.tag));
+  }
 });
 ```
 
-Client sends `SKIP_WAITING` after user approves an update (see [Client Registration](/docs/patterns/client-registration)).
+Client sends `SKIP_WAITING` after user approves an update (see [Client Registration](/docs/patterns/client-registration)). Client sends `INVALIDATE_TAG` after a mutation syncs, to flush stale cached responses with the given tag.
 
 ### 5. Fetch — Cache-First with Read Detection
 
@@ -141,11 +148,23 @@ self.addEventListener("fetch", (event) => {
       // Fourth check for dynamic content.
       // If the request is not a navigation request and no cache entry is found,
       // the request is fetched from the network and cached for future use.
+      // The client can set X-SW-Cache-Tags to enable tag-based invalidation.
+      // See API Integration pattern for tag setup.
       try {
         const response = await fetch(event.request);
         if (response.ok) {
           const cloned = response.clone();
-          event.waitUntil(runtimeCache.put(event.request, cloned));
+          event.waitUntil(
+            (async () => {
+              await runtimeCache.put(event.request, cloned);
+              const tagsHeader = event.request.headers.get("X-SW-Cache-Tags");
+              if (tagsHeader) {
+                const url = new URL(event.request.url).href;
+                const tags = tagsHeader.split(",").map((t) => t.trim());
+                await cacheTagUrl(url, tags);
+              }
+            })(),
+          );
         }
         return response;
       } catch {
@@ -156,7 +175,75 @@ self.addEventListener("fetch", (event) => {
 });
 ```
 
-`isReadRequest` checks the `X-SW-Cache-Strategy` header (set by the client, see [API Integration](/docs/patterns/api-integration)), then falls back to method. Mutations bypass the SW entirely. Reads check in order: install cache by pathname, runtime cache by full URL, SPA `/index.html` for navigations, network with cache-on-success.
+`isReadRequest` checks the `X-SW-Cache-Strategy` header (set by the client, see [API Integration](/docs/patterns/api-integration)), then falls back to method. Mutations bypass the SW entirely. Reads check in order: install cache by pathname, runtime cache by full URL, SPA `/index.html` for navigations, network with cache-on-success. When the response is cached from network, the `X-SW-Cache-Tags` header is also stored (see [tag management](#6-tag-management) below) so the cache can be selectively invalidated after mutations sync.
+
+### 6. Tag Management
+
+These functions manage the tag-to-URL index used by `INVALIDATE_TAG`:
+
+```js
+function openTagDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(TAG_DB_NAME, 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(TAG_STORE_NAME)) {
+        const store = db.createObjectStore(TAG_STORE_NAME, { keyPath: "url" });
+        store.createIndex("by-tag", "tags", { multiEntry: true });
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function cacheTagUrl(url, tags) {
+  const db = await openTagDB();
+  const tx = db.transaction(TAG_STORE_NAME, "readwrite");
+  const store = tx.objectStore(TAG_STORE_NAME);
+  store.put({ url, tags });
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function invalidateByTag(tag) {
+  const db = await openTagDB();
+  const tx = db.transaction(TAG_STORE_NAME, "readonly");
+  const store = tx.objectStore(TAG_STORE_NAME);
+  const index = store.index("by-tag");
+  const entries = await new Promise((resolve, reject) => {
+    const request = index.getAll(tag);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  await db.close();
+
+  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
+  for (const entry of entries) {
+    await runtimeCache.delete(entry.url);
+  }
+
+  // Remove entries from tag index
+  const writeDb = await openTagDB();
+  const writeTx = writeDb.transaction(TAG_STORE_NAME, "readwrite");
+  const writeStore = writeTx.objectStore(TAG_STORE_NAME);
+  for (const entry of entries) {
+    writeStore.delete(entry.url);
+  }
+  await new Promise((resolve, reject) => {
+    writeTx.oncomplete = () => resolve();
+    writeTx.onerror = () => reject(writeTx.error);
+  });
+
+  // Notify all clients
+  const clients = await self.clients.matchAll();
+  clients.forEach((client) => {
+    client.postMessage({ type: "TAG_INVALIDATED", tag });
+  });
+}
+```
 
 ## Events
 
@@ -167,6 +254,7 @@ self.addEventListener("fetch", (event) => {
 | `sw-progress`         | main.tsx (from SW) | `{ percent: number }` | Download progress                |
 | `sw-ready`            | main.tsx           | none                  | SW active and controlling page   |
 | `sw-error`            | main.tsx           | none                  | SW registration failed           |
+| `TAG_INVALIDATED`     | SW (postMessage)   | `{ tag: string }`     | Cache entries with tag cleared   |
 
 ## Storage
 
@@ -174,6 +262,7 @@ self.addEventListener("fetch", (event) => {
 | --------------------------------------- | --------------- | ------------------------------------ |
 | `localStorage['swRegisteredVersion']`   | string          | Tracks registered SW version         |
 | `sessionStorage['sw-dismissed-update']` | string ("true") | Suppresses update dialog for session |
+| `swoff-cache-tags` (IDB)                | object store    | URL-to-tags index for invalidation   |
 
 ## Next Steps
 

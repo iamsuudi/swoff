@@ -6,7 +6,7 @@ icon: GitMerge
 
 # Conflict Resolution
 
-**Prerequisites:** [Mutation Queuing](/docs/future/mutation-queuing) with ID reconciliation and `$synced` tracking.
+**Prerequisites:** [Mutation Queuing](/docs/advanced/mutation-queuing) with ID reconciliation and `$synced` tracking.
 
 ## The Problem
 
@@ -466,7 +466,7 @@ async function updateTodo(id, changes) {
 
 ## Next Steps
 
-- See [Mutation Queuing](/docs/future/mutation-queuing) — the queue that triggers conflict detection
+- See [Mutation Queuing](/docs/advanced/mutation-queuing) — the queue that triggers conflict detection
 - Review [Data Layer](/docs/core/data-layer) — how query, mutate, reconcile, and invalidate connect
 - Learn [Offline-First Architecture](/docs/core/offline-architecture) — where conflict resolution fits
-- See [Testing](/docs/patterns/testing) — test conflict scenarios with fake-indexeddb
+- See [Testing](/docs/advanced/testing) — test conflict scenarios with fake-indexeddb

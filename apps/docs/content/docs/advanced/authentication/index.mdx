@@ -30,11 +30,11 @@ Examples: Auth0, Firebase Auth, Better-Auth (bearer plugin), Supabase (raw fetch
 
 ```
 Your login response includes a Set-Cookie header with http-only?
-  └─ Yes → You're using cookie auth. Skip to [SW Integration](/docs/future/authentication/sw-integration).
+  └─ Yes → You're using cookie auth. Skip to [SW Integration](/docs/advanced/authentication/sw-integration).
   └─ No → Your login response returns a token string.
        └─ You need to set it as a header on requests.
-           └─ See [Auth Libraries](/docs/future/authentication/auth-libraries) for your exact mechanism.
-           └─ Then [Auth-Aware Fetch](/docs/future/authentication/auth-fetch) to implement it.
+           └─ See [Auth Libraries](/docs/advanced/authentication/auth-libraries) for your exact mechanism.
+           └─ Then [Auth-Aware Fetch](/docs/advanced/authentication/auth-fetch) to implement it.
 ```
 
 ## Prerequisites
@@ -48,24 +48,24 @@ Your login response includes a Set-Cookie header with http-only?
 ```
 [API Integration](/docs/patterns/api-integration) — base fetch wrapper
     ↓
-Auth Store ([auth-store](/docs/future/authentication/auth-store)) — store auth tokens
+Auth Store ([auth-store](/docs/advanced/authentication/auth-store)) — store auth tokens
     ↓
-Auth Libraries ([auth-libraries](/docs/future/authentication/auth-libraries)) — identify your category
+Auth Libraries ([auth-libraries](/docs/advanced/authentication/auth-libraries)) — identify your category
     ↓
-Auth Fetch ([auth-fetch](/docs/future/authentication/auth-fetch)) — attach auth to requests
+Auth Fetch ([auth-fetch](/docs/advanced/authentication/auth-fetch)) — attach auth to requests
     ↓
-Current User ([auth-user](/docs/future/authentication/auth-user)) — fetch + cache user data
+Current User ([auth-user](/docs/advanced/authentication/auth-user)) — fetch + cache user data
     ↓
-SW Integration ([sw-integration](/docs/future/authentication/sw-integration)) — SW awareness
+SW Integration ([sw-integration](/docs/advanced/authentication/sw-integration)) — SW awareness
     ↓
-Offline State ([offline-state](/docs/future/authentication/offline-state)) — handle all four states
+Offline State ([offline-state](/docs/advanced/authentication/offline-state)) — handle all four states
     ↓
-Lock Screen ([lock-screen](/docs/future/authentication/lock-screen)) — optional local security
+Lock Screen ([lock-screen](/docs/advanced/authentication/lock-screen)) — optional local security
 ```
 
 ## Integration Checklist
 
-- [ ] **Identify your auth type** — cookie or header-based? ([auth-libraries](/docs/future/authentication/auth-libraries))
+- [ ] **Identify your auth type** — cookie or header-based? ([auth-libraries](/docs/advanced/authentication/auth-libraries))
 - [ ] **Auth Store** — `swoff/auth-store.js` with IndexedDB + memory
 - [ ] **Auth-Aware Fetch** — `swoff/auth-fetch.js` extending `fetchWithCache`
 - [ ] **Header Strategy** — Configure `withAuthHeaders()` per your auth type
@@ -78,7 +78,7 @@ Lock Screen ([lock-screen](/docs/future/authentication/lock-screen)) — optiona
 
 ## Next Steps
 
-- **Identify your auth type**: [Auth Libraries Reference](/docs/future/authentication/auth-libraries)
-- **Start with storage**: [Auth Store](/docs/future/authentication/auth-store)
-- **Queue mutations behind auth**: [Mutation Queuing](/docs/future/mutation-queuing)
+- **Identify your auth type**: [Auth Libraries Reference](/docs/advanced/authentication/auth-libraries)
+- **Start with storage**: [Auth Store](/docs/advanced/authentication/auth-store)
+- **Queue mutations behind auth**: [Mutation Queuing](/docs/advanced/mutation-queuing)
 - **See Budget Manager**: [Reference Implementation](/docs/reference/budget-manager) — PIN/biometric

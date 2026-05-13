@@ -8,9 +8,6 @@
     "api-integration",
     "utilities",
     "pwa-installability",
-    "indexeddb-patterns",
-    "testing",
-    "debugging",
-    "conflict-resolution"
+    "indexeddb-patterns"
   ]
 }

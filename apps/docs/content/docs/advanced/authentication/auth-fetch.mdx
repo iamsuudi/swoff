@@ -6,7 +6,7 @@ description: Extend fetchWithCache to attach auth credentials and handle 401 res
 
 # Auth-Aware Fetch
 
-**Prerequisites:** [Auth Store](/docs/future/authentication/auth-store) set up, [API Integration](/docs/patterns/api-integration) `fetchWithCache` in place.
+**Prerequisites:** [Auth Store](/docs/advanced/authentication/auth-store) set up, [API Integration](/docs/patterns/api-integration) `fetchWithCache` in place.
 
 ## When You Need This
 
@@ -185,7 +185,7 @@ export async function ensureValidAuth() {
 
 ## Changing `withAuthHeaders` Based on Your Auth Type
 
-Check [Auth Libraries Reference](/docs/future/authentication/auth-libraries) to determine your category:
+Check [Auth Libraries Reference](/docs/advanced/authentication/auth-libraries) to determine your category:
 
 | Auth Category  | `withAuthHeaders()`                                    | Example                             |
 | -------------- | ------------------------------------------------------ | ----------------------------------- |
@@ -196,7 +196,7 @@ Check [Auth Libraries Reference](/docs/future/authentication/auth-libraries) to 
 
 ## Next Steps
 
-- **Determine your auth type**: [Auth Libraries Reference](/docs/future/authentication/auth-libraries)
-- **Fetch + cache user data**: [Current User](/docs/future/authentication/auth-user)
-- **Integrate with SW**: [SW Integration](/docs/future/authentication/sw-integration)
-- **Handle offline states**: [Offline Auth State](/docs/future/authentication/offline-state)
+- **Determine your auth type**: [Auth Libraries Reference](/docs/advanced/authentication/auth-libraries)
+- **Fetch + cache user data**: [Current User](/docs/advanced/authentication/auth-user)
+- **Integrate with SW**: [SW Integration](/docs/advanced/authentication/sw-integration)
+- **Handle offline states**: [Offline Auth State](/docs/advanced/authentication/offline-state)

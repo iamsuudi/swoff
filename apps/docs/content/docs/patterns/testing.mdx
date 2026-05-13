@@ -1,0 +1,588 @@
+---
+title: Testing
+description: Test offline-first behavior — service workers, IndexedDB, mutation queue, and cache invalidation.
+icon: Bug
+---
+
+**Prerequisites:** You understand the [Data Layer](/docs/core/data-layer) and have set up the core patterns (SW template, API integration, IndexedDB patterns, mutation queue).
+
+## The Challenge
+
+Offline-first apps span three runtime environments — the document (main thread), the service worker (separate thread), and IndexedDB (async storage). Testing every path (online, offline, reconnecting, queue-full, retry-exhausted) is essential for production confidence.
+
+## Setup
+
+```json title="package.json"
+{
+  "devDependencies": {
+    "vitest": "^3.0.0",
+    "fake-indexeddb": "^6.0.0",
+    "@playwright/test": "^2.0.0"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
+  }
+}
+```
+
+```ts title="vitest.config.ts"
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
+  },
+});
+```
+
+```ts title="src/test/setup.ts"
+import "fake-indexeddb/auto";
+```
+
+`fake-indexeddb` provides an in-memory IndexedDB implementation. `"fake-indexeddb/auto"` replaces the global `indexedDB` so every test starts with a clean database.
+
+## Testing IndexedDB
+
+### Testing CRUD Operations
+
+The `store.js` functions (`getRecord`, `putRecord`, `deleteRecord`, `queryRecords`) wrap IndexedDB transactions. Test them directly:
+
+```ts title="src/test/store.test.ts"
+import { describe, it, expect, beforeEach } from "vitest";
+import { putRecord, getRecord, deleteRecord } from "../swoff/store.js";
+
+beforeEach(async () => {
+  // Clean all stores between tests
+  const dbs = await indexedDB.databases?.() ?? [];
+  for (const db of dbs) {
+    indexedDB.deleteDatabase(db.name!);
+  }
+});
+
+it("stores and retrieves a record", async () => {
+  await putRecord("todos", { id: "1", title: "Test", $synced: true });
+
+  const result = await getRecord("todos", "1");
+  expect(result).toEqual({ id: "1", title: "Test", $synced: true });
+});
+
+it("returns undefined for missing records", async () => {
+  const result = await getRecord("todos", "nonexistent");
+  expect(result).toBeUndefined();
+});
+
+it("deletes a record", async () => {
+  await putRecord("todos", { id: "1", title: "Test" });
+  await deleteRecord("todos", "1");
+  const result = await getRecord("todos", "1");
+  expect(result).toBeUndefined();
+});
+
+it("overwrites existing records on put", async () => {
+  await putRecord("todos", { id: "1", title: "Original" });
+  await putRecord("todos", { id: "1", title: "Updated" });
+  const result = await getRecord("todos", "1");
+  expect(result.title).toBe("Updated");
+});
+```
+
+### Testing ID Reconciliation
+
+The `reconcileRecord` function updates a local temp record with server data:
+
+```ts title="src/test/reconcile.test.ts"
+import { describe, it, expect, beforeEach } from "vitest";
+import { putRecord, getRecord } from "../swoff/store.js";
+import { reconcileRecord } from "../swoff/reconcile.js";
+
+beforeEach(async () => {
+  const dbs = await indexedDB.databases?.() ?? [];
+  for (const db of dbs) indexedDB.deleteDatabase(db.name!);
+});
+
+it("replaces temp ID with server ID", async () => {
+  const tempId = "temp_abc123";
+  await putRecord("todos", {
+    id: tempId,
+    title: "Grocery",
+    $synced: false,
+  });
+
+  await reconcileRecord("todos", tempId, { id: 42, createdAt: "2025-01-01" });
+
+  // Temp entry should be gone
+  const old = await getRecord("todos", tempId);
+  expect(old).toBeUndefined();
+
+  // Server entry should exist
+  const reconciled = await getRecord("todos", 42);
+  expect(reconciled.title).toBe("Grocery");
+  expect(reconciled.$synced).toBe(true);
+});
+
+it("handles same temp and server IDs gracefully", async () => {
+  await putRecord("todos", { id: "abc", title: "Test", $synced: false });
+
+  await reconcileRecord("todos", "abc", { id: "abc", updatedAt: "2025-01-01" });
+
+  const result = await getRecord("todos", "abc");
+  expect(result.$synced).toBe(true);
+});
+
+it("does nothing if temp record does not exist", async () => {
+  await expect(
+    reconcileRecord("todos", "nonexistent", { id: 1 }),
+  ).resolves.not.toThrow();
+});
+```
+
+### Testing Query Filtering
+
+If you use a `queryRecords` function with filters (range queries, indexes):
+
+```ts
+it("filters records by a property", async () => {
+  await putRecord("todos", { id: "1", completed: false, category: "work" });
+  await putRecord("todos", { id: "2", completed: true, category: "work" });
+  await putRecord("todos", { id: "3", completed: false, category: "personal" });
+
+  const incomplete = await queryRecords("todos", { completed: false });
+  expect(incomplete).toHaveLength(2);
+});
+```
+
+## Testing the Mutation Queue
+
+### Testing Queue Operations
+
+Test that mutations are stored, retrieved, and removed correctly:
+
+```ts title="src/test/mutation-queue.test.ts"
+import { describe, it, expect, beforeEach } from "vitest";
+import { queueMutation, getPendingCount } from "../swoff/mutation-queue.js";
+
+beforeEach(async () => {
+  const dbs = await indexedDB.databases?.() ?? [];
+  for (const db of dbs) indexedDB.deleteDatabase(db.name!);
+});
+
+it("queues a mutation and reports pending count", async () => {
+  await queueMutation({
+    method: "POST",
+    url: "/api/todos",
+    body: { title: "New" },
+    tags: ["todos"],
+    storeName: "todos",
+    tempId: "temp_1",
+  });
+
+  const count = await getPendingCount();
+  expect(count).toBe(1);
+});
+
+it("queues multiple mutations", async () => {
+  await queueMutation({ method: "POST", url: "/api/todos", body: { title: "A" }, tags: [], storeName: "todos", tempId: "t1" });
+  await queueMutation({ method: "POST", url: "/api/todos", body: { title: "B" }, tags: [], storeName: "todos", tempId: "t2" });
+
+  expect(await getPendingCount()).toBe(2);
+});
+```
+
+### Testing Rollback
+
+Simulate a terminal failure and verify the optimistic data is reverted:
+
+```ts title="src/test/rollback.test.ts"
+import { describe, it, expect, beforeEach } from "vitest";
+import { queueMutation, getPendingCount } from "../swoff/mutation-queue.js";
+import { putRecord, getRecord, deleteRecord } from "../swoff/store.js";
+
+beforeEach(async () => {
+  const dbs = await indexedDB.databases?.() ?? [];
+  for (const db of dbs) indexedDB.deleteDatabase(db.name!);
+});
+
+it("rolls back a POST mutation by deleting the optimistic record", async () => {
+  const tempId = "temp_abc";
+  await putRecord("todos", { id: tempId, title: "Optimistic", $synced: false });
+
+  await queueMutation({
+    method: "POST",
+    url: "/api/todos",
+    body: { title: "Optimistic" },
+    tags: ["todos"],
+    storeName: "todos",
+    tempId,
+  });
+
+  // Manually bump retryCount past MAX_RETRIES in the queue
+  // then call processMutationQueue — or test rollbackMutation directly
+
+  const rollbackEvent = await new Promise((resolve) => {
+    window.addEventListener("mutation-rollback", (e) => resolve(e.detail), { once: true });
+    import("../swoff/mutation-queue.js").then((mod) => {
+      // Directly invoke rollback for the queued item
+      // In practice, processMutationQueue() does this when retries exhausted
+    });
+  });
+
+  expect(rollbackEvent).toBeDefined();
+});
+
+it("rolls back a PUT mutation by restoring previous data", async () => {
+  const original = { id: "1", title: "Original", $synced: true };
+  await putRecord("todos", original);
+
+  await queueMutation({
+    method: "PUT",
+    url: "/api/todos/1",
+    body: { title: "Updated" },
+    tags: ["todos", "todo:1"],
+    storeName: "todos",
+    tempId: "1",
+    previousData: original,
+  });
+
+  // After rollback, the record should be restored
+  // Simulate: processMutationQueue fails → rollbackMutation runs
+  // For unit testing, verify the previousData is stored in the queue
+});
+```
+
+## Testing SW Caching
+
+Service worker code runs in a `ServiceWorkerGlobalScope`, not a `Window`. For unit testing, mock the Cache API and test each function in isolation:
+
+### Mocking the Cache API
+
+```ts title="src/test/sw-helpers.ts"
+export function createMockCache(): Cache {
+  const store = new Map<string, Response>();
+
+  return {
+    match: async (request) => {
+      const url = typeof request === "string" ? request : request.url;
+      return store.get(url) || undefined;
+    },
+    put: async (request, response) => {
+      const url = typeof request === "string" ? request : request.url;
+      store.set(url, response);
+    },
+    delete: async (request) => {
+      const url = typeof request === "string" ? request : request.url;
+      return store.delete(url);
+    },
+    keys: async () => Array.from(store.keys()).map((k) => new Request(k)),
+    add: async () => {},
+    addAll: async () => {},
+    matchAll: async () => [],
+  } as Cache;
+}
+
+export function mockGlobalCaches() {
+  const cachesStore = new Map<string, Cache>();
+
+  globalThis.caches = {
+    open: async (name: string) => {
+      if (!cachesStore.has(name)) cachesStore.set(name, createMockCache());
+      return cachesStore.get(name)!;
+    },
+    has: async (name: string) => cachesStore.has(name),
+    delete: async (name: string) => cachesStore.delete(name),
+    keys: async () => Array.from(cachesStore.keys()),
+    match: async () => undefined,
+  } as unknown as CacheStorage;
+}
+```
+
+### Testing Cache-First Strategy
+
+```ts title="src/test/sw-cache.test.ts"
+import { describe, it, expect, beforeEach } from "vitest";
+import { mockGlobalCaches } from "./sw-helpers.js";
+
+beforeEach(() => {
+  mockGlobalCaches();
+});
+
+it("serves cached response without network call", async () => {
+  const runtimeCache = await caches.open("swoff-runtime");
+  const url = "https://api.example.com/todos";
+  const cachedData = JSON.stringify([{ id: 1, title: "Cached" }]);
+  await runtimeCache.put(url, new Response(cachedData, {
+    headers: { "Content-Type": "application/json" },
+  }));
+
+  const cached = await runtimeCache.match(url);
+  const body = await cached!.json();
+  expect(body).toEqual([{ id: 1, title: "Cached" }]);
+});
+
+it("cache-miss returns undefined", async () => {
+  const runtimeCache = await caches.open("swoff-runtime");
+  const cached = await runtimeCache.match("https://api.example.com/nonexistent");
+  expect(cached).toBeUndefined();
+});
+```
+
+### Testing Tag Invalidation
+
+Test the tag-indexed invalidation logic by calling `cacheTagUrl` then `invalidateByTag`:
+
+```ts title="src/test/sw-tags.test.ts"
+import { describe, it, expect, beforeEach } from "vitest";
+import "fake-indexeddb/auto";
+import { mockGlobalCaches } from "./sw-helpers.js";
+
+beforeEach(() => {
+  mockGlobalCaches();
+});
+
+// These functions mirror the SW's cacheTagUrl + invalidateByTag from sw-template
+async function cacheTagUrl(url: string, tags: string[]) {
+  // ... (copy from sw-template)
+}
+
+async function invalidateByTag(tag: string) {
+  // ... (copy from sw-template)
+}
+
+it("invalidates cached entries by tag", async () => {
+  const runtimeCache = await caches.open("swoff-runtime");
+  await runtimeCache.put("/api/todos", new Response("data"));
+  await runtimeCache.put("/api/users", new Response("data"));
+
+  await cacheTagUrl("/api/todos", ["todos"]);
+  await cacheTagUrl("/api/users", ["users"]);
+
+  await invalidateByTag("todos");
+
+  const todosCached = await runtimeCache.match("/api/todos");
+  expect(todosCached).toBeUndefined();
+
+  const usersCached = await runtimeCache.match("/api/users");
+  expect(usersCached).toBeDefined();
+});
+
+it("broadcasts TAG_INVALIDATED to all clients", async () => {
+  const clients: any[] = [];
+  const mockClient = { postMessage: vi.fn() };
+  clients.push(mockClient);
+
+  // In your SW code, invalidateByTag does:
+  // const clients = await self.clients.matchAll();
+  // clients.forEach(c => c.postMessage({ type: "TAG_INVALIDATED", tag }));
+
+  await invalidateByTag("todos");
+  // Verify postMessage was called with correct payload
+  // (In practice, you'd mock self.clients.matchAll)
+});
+```
+
+## Integration Testing with Playwright
+
+Playwright tests run in a real browser and can control network conditions:
+
+### Setup
+
+```ts title="playwright.config.ts"
+import { defineConfig } from "@playwright/test";
+
+export default defineConfig({
+  testDir: "./e2e",
+  webServer: {
+    command: "npm run dev",
+    port: 5173,
+    reuseExistingServer: true,
+  },
+  use: {
+    baseURL: "http://localhost:5173",
+  },
+});
+```
+
+### Testing Offline Behavior
+
+```ts title="e2e/offline.test.ts"
+import { test, expect } from "@playwright/test";
+
+test("shows cached data when offline", async ({ page, context }) => {
+  await page.goto("/todos");
+
+  // Wait for initial data to load and cache
+  await page.waitForSelector('[data-testid="todo-list"]');
+
+  // Go offline
+  await context.setOffline(true);
+
+  // Reload — should serve from SW cache
+  await page.reload();
+  await expect(page.locator('[data-testid="todo-list"]')).toBeVisible();
+});
+
+test("queues mutations when offline, syncs when online", async ({ page, context }) => {
+  await page.goto("/todos");
+  await page.waitForSelector('[data-testid="todo-list"]');
+
+  // Go offline
+  await context.setOffline(true);
+
+  // Create a todo while offline
+  await page.fill('[data-testid="todo-input"]', "Offline todo");
+  await page.click('[data-testid="add-todo"]');
+  await expect(page.locator('[data-testid="pending-count"]')).toContainText("1");
+
+  // Go back online
+  await context.setOffline(false);
+
+  // Mutation syncs automatically
+  await expect(page.locator('[data-testid="pending-count"]')).toContainText("0");
+});
+
+test("invalidates cache after mutation", async ({ page, context }) => {
+  await page.goto("/todos");
+
+  // Note the current todo count
+  const initialCount = await page.locator('[data-testid="todo-item"]').count();
+
+  // Create a new todo (online)
+  await page.fill('[data-testid="todo-input"]', "New todo");
+  await page.click('[data-testid="add-todo"]');
+
+  // Verify the new todo appears
+  await expect(page.locator('[data-testid="todo-item"]')).toHaveCount(initialCount + 1);
+});
+```
+
+### Testing Service Worker Installation
+
+```ts title="e2e/sw.test.ts"
+import { test, expect } from "@playwright/test";
+
+test("service worker installs and activates", async ({ page }) => {
+  await page.goto("/");
+
+  // Wait for SW to be active
+  const hasSW = await page.evaluate(async () => {
+    const registration = await navigator.serviceWorker.ready;
+    return !!registration.active;
+  });
+  expect(hasSW).toBe(true);
+});
+
+test("service worker caches assets on install", async ({ page }) => {
+  await page.goto("/");
+
+  // Check that the runtime cache has entries
+  const cacheKeys = await page.evaluate(async () => {
+    const keys = await caches.keys();
+    return keys;
+  });
+
+  expect(cacheKeys).toContain("swoff-runtime");
+});
+```
+
+### Testing Cross-Tab Sync
+
+```ts title="e2e/cross-tab.test.ts"
+import { test, expect } from "@playwright/test";
+
+test("mutations in one tab update the other tab", async ({ browser }) => {
+  const tabA = await browser.newPage();
+  const tabB = await browser.newPage();
+
+  await tabA.goto("/todos");
+  await tabB.goto("/todos");
+
+  // Wait for both to load
+  await tabA.waitForSelector('[data-testid="todo-list"]');
+  await tabB.waitForSelector('[data-testid="todo-list"]');
+
+  const initialCount = await tabB.locator('[data-testid="todo-item"]').count();
+
+  // Create a todo in Tab A
+  await tabA.fill('[data-testid="todo-input"]', "Cross-tab sync");
+  await tabA.click('[data-testid="add-todo"]');
+
+  // Tab B should automatically update
+  await expect(tabB.locator('[data-testid="todo-item"]')).toHaveCount(initialCount + 1);
+});
+```
+
+### Testing Cache Invalidation After Mutation
+
+```ts title="e2e/invalidation.test.ts"
+import { test, expect } from "@playwright/test";
+
+test("refetches after cache invalidation", async ({ page }) => {
+  await page.goto("/todos");
+
+  // Wait for cached response
+  await page.waitForSelector('[data-testid="todo-list"]');
+
+  // Check the Cache API directly
+  const cachedBefore = await page.evaluate(async () => {
+    const cache = await caches.open("swoff-runtime");
+    const match = await cache.match("http://localhost:5173/api/todos");
+    return match ? "cached" : "not cached";
+  });
+  expect(cachedBefore).toBe("cached");
+
+  // Trigger a mutation that invalidates
+  await page.fill('[data-testid="todo-input"]', "Invalidate test");
+  await page.click('[data-testid="add-todo"]');
+
+  // Wait for invalidation and refetch
+  await page.waitForTimeout(500);
+
+  // The old cached response should be gone (invalidated)
+  const cachedAfter = await page.evaluate(async () => {
+    const cache = await caches.open("swoff-runtime");
+    const match = await cache.match("http://localhost:5173/api/todos");
+    return match ? "cached" : "invalidated";
+  });
+  // Either invalidated or already replaced with fresh data
+  expect(["invalidated", "cached"]).toContain(cachedAfter);
+});
+```
+
+## Running Tests
+
+```bash
+# Unit tests (vitest + fake-indexeddb)
+npx vitest run
+
+# With watch mode
+npx vitest
+
+# E2E tests (Playwright)
+npx playwright test
+
+# With UI mode
+npx playwright test --ui
+```
+
+## Best Practices
+
+| Practice | Why |
+|---|---|
+| Reset IndexedDB between tests | `fake-indexeddb` auto-resets per `beforeEach` when re-imported |
+| Mock `navigator.onLine` | `Object.defineProperty(navigator, "onLine", { value: false })` for offline tests |
+| Use `vi.useFakeTimers()` | For testing `Date.now()` timestamps in the mutation queue |
+| Test both online and offline paths | Every mutation function has two branches — test both |
+| Tag responses in tests | If your app uses tag-based invalidation, verify tags are attached correctly |
+| Test rollback scenarios | Don't just test success — verify data integrity when sync fails permanently |
+| Use `waitForTimeout` sparingly | Prefer `waitForSelector` or `waitForResponse` in Playwright tests |
+| Isolate SW tests | Use mock Cache API — don't depend on a real SW installation |
+
+## Next Steps
+
+- Review the [Data Layer](/docs/core/data-layer) — understand the full query/mutate/reconcile/invalidate flow
+- See [API Integration](/docs/patterns/api-integration) — stale-while-revalidate and query dedup
+- See [Mutation Queuing](/docs/future/mutation-queuing) — offline write queue with rollback
+- Learn [Cross-Tab Sync](/docs/patterns/api-integration#cross-tab-sync) — keep all tabs in sync

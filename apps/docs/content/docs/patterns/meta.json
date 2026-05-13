@@ -10,6 +10,7 @@
     "pwa-installability",
     "indexeddb-patterns",
     "testing",
-    "debugging"
+    "debugging",
+    "conflict-resolution"
   ]
 }

@@ -15,24 +15,27 @@ The SW checks two request headers:
 | `X-SW-Cache-Strategy` | `read` | Cache the response, serve from cache on repeat requests |
 | `X-SW-Cache-Strategy` | `mutation` or absent | Let the request pass through to the server, no caching |
 | `X-SW-Cache-Tags` | `todos,user:1` | Index the cached response under these tags for later invalidation |
+| `X-SW-Stale` | `true` | Serve cached immediately, refresh in background (stale-while-revalidate) |
 
 If the strategy header is absent, the SW falls back to method-based heuristic: GET/HEAD are reads, everything else is a mutation.
 
 ## Fetch Wrapper
 
 ```js title="swoff/fetch-wrapper.js"
+const inFlightRequests = new Map();
+
 /**
- * Fetch with cache strategy and optional cache tags.
+ * Fetch with cache strategy, optional tags, stale-while-revalidate, and query dedup.
  * @param {Request|string} input
  * @param {object} [options]
  * @param {string} [options.strategy] - "read" | "mutation" (auto-detected by method)
  * @param {string[]} [options.tags] - Cache tags for invalidation (e.g., ["todos"])
+ * @param {boolean} [options.staleWhileRevalidate] - Serve cached, refresh in background
  */
 export async function fetchWithCache(input, options = {}) {
   const headers = new Headers(options.headers);
   const method = options.method || "GET";
 
-  // Set cache strategy
   if (!headers.has("X-SW-Cache-Strategy")) {
     headers.set(
       "X-SW-Cache-Strategy",
@@ -40,9 +43,25 @@ export async function fetchWithCache(input, options = {}) {
     );
   }
 
-  // Attach cache tags for invalidation (reads only)
+  if (options.staleWhileRevalidate) {
+    headers.set("X-SW-Stale", "true");
+  }
+
   if (options.tags && options.tags.length > 0) {
     headers.set("X-SW-Cache-Tags", options.tags.join(","));
+  }
+
+  // Query deduplication: collapse concurrent GET requests for the same URL
+  if (method === "GET" || method === "HEAD") {
+    const url = typeof input === "string" ? input : input.url;
+    if (inFlightRequests.has(url)) {
+      return inFlightRequests.get(url).then((r) => r.clone());
+    }
+    const promise = fetch(input, { ...options, headers }).finally(() => {
+      inFlightRequests.delete(url);
+    });
+    inFlightRequests.set(url, promise);
+    return promise;
   }
 
   return fetch(input, { ...options, headers });
@@ -88,9 +107,30 @@ export async function invalidateByTags(tags) {
     await invalidateByTag(tag);
   }
 }
+
+/**
+ * Initialize cross-tab cache invalidation.
+ * Listens for TAG_INVALIDATED messages from the SW (broadcast when
+ * another tab invalidates a tag) and dispatches cache-invalidated
+ * locally so components can refetch.
+ * Call once during app initialization.
+ */
+export function initCrossTabSync() {
+  if (!navigator.serviceWorker) return;
+
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
+      window.dispatchEvent(
+        new CustomEvent("cache-invalidated", {
+          detail: { tags: [event.data.tag] },
+        }),
+      );
+    }
+  });
+}
 ```
 
-The SW receives the `INVALIDATE_TAG` message, looks up all cached URLs indexed under that tag, deletes them from the runtime cache, and broadcasts `TAG_INVALIDATED` back. See [SW Template](/docs/patterns/sw-template#4-message--skip-waiting--cache-invalidation) for the SW-side handler.
+The SW receives the `INVALIDATE_TAG` message, looks up all cached URLs indexed under that tag, deletes them from the runtime cache, and broadcasts `TAG_INVALIDATED` back to ALL clients — including other tabs. See [SW Template](/docs/patterns/sw-template#4-message--skip-waiting--cache-invalidation) for the SW-side handler. To receive these broadcasts in every tab, call `initCrossTabSync()` during app initialization (see [Cross-Tab Sync](#cross-tab-sync) below).
 
 ## REST API
 
@@ -192,6 +232,189 @@ function invalidationTags(url, method, body) {
   }
   return tags;
 }
+```
+
+## Stale-While-Revalidate
+
+Serve cached data instantly, refresh in the background. The user always sees data immediately if it's been fetched before.
+
+### Usage
+
+```javascript
+// Stale-while-revalidate: serve cached, refresh in background
+const todos = await fetchWithCache("/api/todos", {
+  tags: ["todos"],
+  staleWhileRevalidate: true,
+}).then((r) => r.json());
+
+// Same API, without stale-while-revalidate (cache-first default)
+const fresh = await fetchWithCache("/api/todos/1", {
+  tags: ["todos", "todo:1"],
+}).then((r) => r.json());
+```
+
+When `staleWhileRevalidate: true` is set, the SW:
+1. Returns the cached response immediately (if available)
+2. Fetches fresh data from the network in the background
+3. Updates the cache with fresh data for next time
+
+If no cached response exists yet, the SW fetches from network and caches normally.
+
+### When to Use
+
+| Strategy | Best For | Trade-off |
+|---|---|---|
+| Cache-First (default) | Static data, navigation, assets | User sees slightly stale data until SW refreshes |
+| Stale-While-Revalidate | Frequently accessed API data | Extra background request on every read |
+| Network-First | Real-time data, forms | Slower when offline, no stale data risk |
+
+## Query Deduplication
+
+When two components request the same URL concurrently, the second caller reuses the in-flight request instead of firing a duplicate.
+
+### How It Works
+
+```javascript
+// Component A and B both mount and request the same data
+// Without dedup: two fetch requests to the SW
+// With dedup: one fetch request, both get the response
+
+const wrapper = await fetchWithCache("/api/todos", { tags: ["todos"] });
+const details = await fetchWithCache("/api/todos", { tags: ["todos"] });
+// Only one network request is made — the second gets a clone of the first response
+```
+
+The dedup map tracks in-flight GET requests by URL. When a request completes, its entry is removed so subsequent calls go to the network (or SW cache). The cloned response ensures both callers can consume the body independently.
+
+## Cross-Tab Sync
+
+When a user has two tabs open and a mutation syncs in one tab, the cached data in the other tab goes stale. Cross-tab sync bridges this gap: the SW broadcasts a `TAG_INVALIDATED` message to all clients after clearing cached entries, and each tab refetches automatically.
+
+### The Problem
+
+```
+Tab A: fetchWithCache("/api/todos", { tags: ["todos"] })
+  → cached in SW with tag "todos"
+
+Tab B: fetchWithCache("/api/todos", { tags: ["todos"] })
+  → cached in SW with tag "todos"
+
+User edits a todo in Tab B → mutation syncs → invalidateByTag("todos")
+  → SW clears cached /api/todos for Tab B
+  → Tab B refetches → ✅ Tab B shows fresh data
+  → Tab A still has stale cached Response → ❌ Tab A shows old data
+```
+
+### The Solution
+
+After clearing cache entries, the SW posts a `TAG_INVALIDATED` message to every connected client:
+
+```
+SW: clients.forEach(c => c.postMessage({ type: "TAG_INVALIDATED", tag: "todos" }))
+  → Tab A: receives message → dispatches "cache-invalidated" → refetches ✅
+  → Tab B: also receives it (already refetched, but idempotent) ✅
+```
+
+### Setup
+
+Call `initCrossTabSync()` once during app initialization — typically after registering the service worker:
+
+```javascript
+import { initCrossTabSync } from "./swoff/cache.js";
+
+// After SW registration succeeds:
+initCrossTabSync();
+```
+
+### How It Works
+
+1. Tab A calls `invalidateByTag("todos")` → posts `INVALIDATE_TAG` to SW
+2. SW clears cached entries tagged `todos` from the runtime cache
+3. SW broadcasts `TAG_INVALIDATED { tag: "todos" }` to ALL clients
+4. Each client's `initCrossTabSync` handler receives the message
+5. Handler dispatches `cache-invalidated { tags: ["todos"] }` on the window
+6. Components watching `cache-invalidated` refetch with fresh data
+
+The SW-side broadcast already exists in the SW template's `invalidateByTag` function — no SW changes needed.
+
+### Framework Adapters
+
+#### React
+
+```typescript title="hooks/useCrossTabCache.ts"
+import { useState, useEffect } from "react";
+
+export function useCrossTabCache() {
+  const [invalidatedTags, setInvalidatedTags] = useState<string[]>([]);
+
+  useEffect(() => {
+    function handleInvalidation(e: CustomEvent) {
+      setInvalidatedTags(e.detail.tags);
+      // Clear after a tick so components can react
+      setTimeout(() => setInvalidatedTags([]), 0);
+    }
+
+    window.addEventListener(
+      "cache-invalidated",
+      handleInvalidation as EventListener,
+    );
+    return () =>
+      window.removeEventListener(
+        "cache-invalidated",
+        handleInvalidation as EventListener,
+      );
+  }, []);
+
+  return { invalidatedTags };
+}
+```
+
+#### Vue
+
+```typescript title="composables/useCrossTabCache.ts"
+import { ref, onMounted, onUnmounted } from "vue";
+
+export function useCrossTabCache() {
+  const invalidatedTags = ref<string[]>([]);
+
+  function handleInvalidation(e: Event) {
+    invalidatedTags.value = (e as CustomEvent).detail.tags;
+    setTimeout(() => {
+      invalidatedTags.value = [];
+    }, 0);
+  }
+
+  onMounted(() => {
+    window.addEventListener("cache-invalidated", handleInvalidation);
+  });
+
+  onUnmounted(() => {
+    window.removeEventListener("cache-invalidated", handleInvalidation);
+  });
+
+  return { invalidatedTags };
+}
+```
+
+### Usage
+
+```javascript
+import { fetchWithCache } from "./swoff/fetch-wrapper.js";
+import { initCrossTabSync } from "./swoff/cache.js";
+
+// One-time setup
+initCrossTabSync();
+
+// Components can watch for cross-tab invalidations and refetch:
+window.addEventListener("cache-invalidated", async (e) => {
+  const { tags } = e.detail;
+  if (tags.includes("todos")) {
+    const fresh = await fetchWithCache("/api/todos", {
+      tags: ["todos"],
+    }).then((r) => r.json());
+    updateUI(fresh);
+  }
+});
 ```
 
 ## Next Steps

@@ -9,6 +9,7 @@
     "utilities",
     "pwa-installability",
     "indexeddb-patterns",
-    "testing"
+    "testing",
+    "debugging"
   ]
 }

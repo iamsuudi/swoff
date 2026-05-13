@@ -5,6 +5,7 @@
     "what-is-offline",
     "service-workers",
     "pwa-explained",
-    "browser-apis"
+    "browser-apis",
+    "ios-safari-limitations"
   ]
 }

@@ -1,0 +1,260 @@
+---
+title: Features
+description: Swoff's modular feature set — use what you need, customize the rest.
+icon: Puzzle
+---
+
+## Modular by Design
+
+Swoff is a **toolbox**, not a framework. Every feature is a file you copy into your project and own.
+
+<Cards>
+  <Card title="Pick what you need" icon={<CheckIcon />}>
+    Don't need push notifications? Skip the file. Each feature is independent or
+    has minimal, clear dependencies.
+  </Card>
+  <Card title="Tweak everything" icon={<SlidersIcon />}>
+    The code is yours. Change caching strategies, swap IndexedDB wrappers, or
+    rewrite the merge logic — no library fights you.
+  </Card>
+  <Card title="Zero lock-in" icon={<UnlinkIcon />}>
+    Walk away any time. There's no npm install to undo — just delete the files
+    you don't need anymore.
+  </Card>
+</Cards>
+
+## Feature Map
+
+The diagram below shows every feature Swoff provides and how they relate. Required features are in green, optional add-ons in blue, and advanced in purple.
+
+<Mermaid chart={`
+flowchart TB
+    classDef required fill:#1b5e20,color:#fff,stroke:#2e7d32
+    classDef optional fill:#0d47a1,color:#fff,stroke:#1565c0
+    classDef advanced fill:#4a148c,color:#fff,stroke:#6a1b9a
+    classDef foundation fill:#3e2723,color:#fff,stroke:#5d4037
+
+    subgraph Foundation["Foundation (Background Knowledge)"]
+        direction TB
+        C1[Offline Concepts]
+        C2[Service Workers]
+        C3[PWA Explained]
+        C4[Browser APIs]
+    end
+
+    subgraph Core["Required Core — Copy These 4 Files"]
+        direction TB
+        SW[SW Template] --> BUILD[Build Scripts]
+        BUILD --> REG[Client Registration]
+        SW --> API[API Integration]
+    end
+
+    subgraph Options["Optional Enhancements — Add as Needed"]
+        PWA[PWA Installability]
+        IDB[IndexedDB Patterns]
+        TS[TypeScript Utilities]
+    end
+
+    subgraph AdvancedFeatures["Advanced Patterns"]
+        direction TB
+        MQ[Mutation Queuing]
+        AUTH[Auth Stack<br/>8 sub-pages]
+        BSYNC[Background Sync]
+        CONFLICT[Conflict Resolution]
+        TEST[Testing]
+        DEBUG[Debugging]
+    end
+
+    C1 --> SW
+    C2 --> SW
+    BUILD --> REG
+    API --> DL[Data Layer<br/>conceptual]
+    REG --> PWA
+    REG --> TS
+    API --> MQ
+    API --> AUTH
+    MQ --> BSYNC
+    MQ --> CONFLICT
+    DL --> TEST
+    SW --> DEBUG
+    REG --> DEBUG
+
+    class SW,BUILD,REG,API required
+    class PWA,IDB,TS optional
+    class MQ,AUTH,BSYNC,CONFLICT,TEST,DEBUG advanced
+    class C1,C2,C3,C4 foundation
+
+`} />
+
+## Feature Reference
+
+### Required Core
+
+These four files form the backbone of every Swoff app. Copy them in order.
+
+| Feature                                                   | File                                        | What it does                                                                                                                                         | Customize                                                                      |
+| --------------------------------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [SW Template](/docs/patterns/sw-template)                 | `swoff/sw-template.js`                      | Versioned service worker with cache-first, stale-while-revalidate, and network-first strategies. Tag-based invalidation system. Cross-tab broadcast. | Caching strategy per route, cache names, asset list, stale TTL, max cache size |
+| [Build Scripts](/docs/patterns/build-scripts)             | `swoff/sw-generator.js`                     | Reads `package.json` version, replaces placeholders in SW template, outputs versioned SW + `version.json`.                                           | Output directory, template path, version source                                |
+| [Client Registration](/docs/patterns/client-registration) | `swoff/sw-injector.js`                      | Fetches `version.json`, compares stored version, shows update prompt on mismatch. Supports deferred and forced updates.                              | Update prompt UI, deferred registration logic, min supported version           |
+| [API Integration](/docs/patterns/api-integration)         | `swoff/fetch-wrapper.js` + `swoff/cache.js` | Fetch wrapper with cache strategy headers, query deduplication, tag invalidation, cross-tab sync.                                                    | Endpoint strategy mapping, dedup window, invalidation triggers                 |
+
+### Optional Enhancements
+
+Add these when you need them — no feature requires all of them.
+
+| Feature                                                 | Adds                                                                                       | Customize                                                                                             |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| [PWA Installability](/docs/patterns/pwa-installability) | Manifest JSON, install prompt handler, PWA mode detection, app icons                       | Icon sizes, install prompt behavior, display mode                                                     |
+| [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) | DB setup, CRUD, indexed queries, soft deletes, schema migrations, storage quota management | DB name, store schema, migration steps, storage thresholds (80%/95%), use native API or `idb` wrapper |
+| [TypeScript Utilities](/docs/patterns/utilities)        | Type declarations for SW window properties, `checkForUpdate()` helper                      | Type definitions, helper function behavior                                                            |
+
+### Advanced Patterns
+
+Solve specific production needs. Each depends on the required core but is independent of other advanced features.
+
+| Feature                                                   | Depends On                                        | What it does                                                                                                 | Customize                                                                          |
+| --------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| [Mutation Queuing](/docs/advanced/mutation-queuing)       | API Integration, IndexedDB Patterns               | Queues offline writes (POST/PUT/DELETE) in IndexedDB, auto-syncs on reconnect, reconciles temp IDs           | Retry count, queue schema, sync triggers, rollback behavior                        |
+| [Background Sync](/docs/advanced/background-sync)         | Mutation Queuing                                  | Processes mutation queue after tab close via Background Sync API (Chrome/Edge)                               | Sync registration strategy, SW-side queue processing, retry re-registration        |
+| [Conflict Resolution](/docs/advanced/conflict-resolution) | Mutation Queuing                                  | Five strategies for multi-user offline edits: LWW, server wins, custom merge, manual merge (three-way), CRDT | Merge function per field, conflict UI, `$conflict` tracking                        |
+| [Auth Stack](/docs/advanced/authentication)               | API Integration                                   | Token storage, auth-aware fetch, current user cache, SW auth integration, offline auth state, lock screen    | Storage tier (memory vs IndexedDB), auth library type, 401 handling, token refresh |
+| [Testing](/docs/advanced/testing)                         | Data Layer, API Integration                       | Vitest + fake-indexeddb + Playwright test patterns for SW, IndexedDB, mutation queue, offline behavior       | Test coverage scope, mock implementations, CI integration                          |
+| [Debugging](/docs/advanced/debugging)                     | SW Template, Client Registration, API Integration | DevTools walkthrough, postMessage monitoring, troubleshooting tables for common failure modes                | NA — reference guide                                                               |
+
+## Build Your Stack
+
+Swoff's modular design lets you start minimal and add complexity as needed.
+
+<Accordions type="multiple">
+  <Accordion title="Minimal — Versioned SW Updates Only">
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Files</th>
+        <th>Use case</th>
+      </tr>
+      <tr>
+        <td>SW Template</td>
+        <td>
+          <code>sw-template.js</code>
+        </td>
+        <td rowspan="3">
+          You already have an app and just want consent-based, versioned SW
+          updates. No offline data, no PWA.
+        </td>
+      </tr>
+      <tr>
+        <td>Build Scripts</td>
+        <td>
+          <code>sw-generator.js</code>
+        </td>
+      </tr>
+      <tr>
+        <td>Client Registration</td>
+        <td>
+          <code>sw-injector.js</code>
+        </td>
+      </tr>
+    </table>
+  </Accordion>
+  <Accordion title="Standard — Offline-First with Cached Reads">
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Files</th>
+        <th>Use case</th>
+      </tr>
+      <tr>
+        <td>Minimal stack</td>
+        <td>3 files above</td>
+        <td rowspan="3">
+          Your app reads data from an API and you want it to work offline.
+          Writes go through when online.
+        </td>
+      </tr>
+      <tr>
+        <td>API Integration</td>
+        <td>
+          <code>fetch-wrapper.js</code> + <code>cache.js</code>
+        </td>
+      </tr>
+      <tr>
+        <td>IndexedDB Patterns</td>
+        <td>Your own DB layer</td>
+      </tr>
+    </table>
+  </Accordion>
+  <Accordion title="Full Offline — Queued Writes with Reconciliation">
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Files</th>
+        <th>Use case</th>
+      </tr>
+      <tr>
+        <td>Standard stack</td>
+        <td>5 files above</td>
+        <td rowspan="3">
+          Users create/edit/delete data offline. Mutations queue, sync on
+          reconnect, and resolve conflicts automatically.
+        </td>
+      </tr>
+      <tr>
+        <td>Mutation Queuing</td>
+        <td>
+          <code>mutation-queue.js</code> + <code>reconcile.js</code>
+        </td>
+      </tr>
+      <tr>
+        <td>Conflict Resolution</td>
+        <td>
+          <code>conflict.js</code> + <code>merge.js</code>
+        </td>
+      </tr>
+    </table>
+  </Accordion>
+  <Accordion title="Full Offline + Auth">
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Files</th>
+        <th>Use case</th>
+      </tr>
+      <tr>
+        <td>Full Offline stack</td>
+        <td>7+ files above</td>
+        <td rowspan="2">
+          Full offline app with authentication, token management, and lock
+          screen for sensitive data.
+        </td>
+      </tr>
+      <tr>
+        <td>Auth Stack</td>
+        <td>
+          5+ files under <code>swoff/auth/</code>
+        </td>
+      </tr>
+    </table>
+  </Accordion>
+</Accordions>
+
+## Customization Examples
+
+Every Swoff feature is designed to be modified. Here's what that looks like in practice:
+
+- **Change a caching strategy**: In `sw-template.js`, modify the `fetch` handler to use `NetworkFirst` for API routes instead of `CacheFirst`
+- **Swap IndexedDB wrappers**: Start with native IndexedDB, later switch to the `idb` library — only the DB utility functions change, not your app logic
+- **Custom merge logic**: In `conflict.js`, write a per-field merge function — e.g., `title: serverWins, completed: localOrServer, tags: union, comments: append`
+- **Replace the update prompt**: The `sw-update-available` event lets you build any UI you want — toast, modal, banner, or auto-update
+- **Add more retries**: In `mutation-queue.js`, bump `MAX_RETRIES` from 5 to 10, or implement exponential backoff
+- **Scope auth to cookie-based**: Edit `withAuthHeaders()` in `auth-fetch.js` to be a no-op when using cookie/session auth
+
+## Next Steps
+
+- Start with the [Introduction](/docs/introduction) if you haven't already
+- Learn the [concepts](/docs/concepts/what-is-offline) — offline capability and service workers
+- Follow the [Core Architecture](/docs/core/offline-architecture) design
+- Copy the [required patterns](/docs/patterns/) in order
+
+import { CheckIcon, SlidersIcon, UnlinkIcon } from "lucide-react";

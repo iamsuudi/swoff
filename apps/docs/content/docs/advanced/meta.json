@@ -1,11 +1,14 @@
 {
-  "title": "Future & Advanced",
+  "title": "Advanced",
   "icon": "Rocket",
   "pages": [
+    "index",
     "authentication",
     "mutation-queuing",
     "background-sync",
     "push-notifications",
-    "cli"
+    "testing",
+    "debugging",
+    "conflict-resolution"
   ]
 }

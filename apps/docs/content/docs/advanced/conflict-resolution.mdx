@@ -1,0 +1,472 @@
+---
+title: Conflict Resolution
+description: Handle concurrent offline edits — detect conflicts, choose a strategy, and reconcile divergent data.
+icon: GitMerge
+---
+
+# Conflict Resolution
+
+**Prerequisites:** [Mutation Queuing](/docs/advanced/mutation-queuing) with ID reconciliation and `$synced` tracking.
+
+## The Problem
+
+Two users edit the same record while offline. When both come back online, their mutations sync — but the server only has one copy of the record. Whose changes win?
+
+```
+User A (offline): updates todo title from "Grocery" to "Grocery List"
+User B (offline): updates todo title from "Grocery" to "Groceries"
+
+Both sync when online:
+
+Server has: { title: ??? } — which one?
+```
+
+This is not a theoretical edge case. Any multi-user app with offline writes WILL encounter conflicts. The question is not if, but how you resolve them.
+
+## Conflict Detection
+
+Before you can resolve a conflict, you need to detect one. The server can detect conflicts if you track **version stamps** — a field that changes on every write.
+
+### Server Version Stamp
+
+```javascript
+// When reading a record, the server returns a version:
+// GET /api/todos/42 → { id: 42, title: "Grocery", version: 5 }
+
+// On mutation, the client sends the version it last saw:
+// PUT /api/todos/42 → { title: "Grocery List", version: 5 }
+```
+
+The server compares the client's version against the current version:
+
+```
+Server receives PUT { title: "Grocery List", version: 5 }
+  → Current version is 5 → OK, accepted. Version bumps to 6.
+  → Current version is 6 → CONFLICT. Client's version is stale.
+```
+
+### Client-Side Tracking
+
+Extend the `$synced` system with a `$version` field:
+
+```javascript
+// On read, store the version:
+const record = await fetchWithCache("/api/todos/42", {
+  tags: ["todos", "todo:42"],
+}).then(r => r.json());
+
+await putRecord("todos", {
+  ...record,
+  $synced: true,
+  $version: record.version || record.$version || 0,
+});
+
+// On optimistic update, keep the version:
+await queueMutation({
+  method: "PUT",
+  url: "/api/todos/42",
+  body: { title: "Grocery List", $version: existing.$version },
+  tags: ["todos", "todo:42"],
+  storeName: "todos",
+  tempId: "42",
+  previousData: existing,
+});
+```
+
+### Detecting Conflicts on Sync
+
+When the mutation queue processes and the server returns a conflict:
+
+```javascript
+async function processMutationQueue() {
+  // ...existing code...
+
+  for (const item of queue) {
+    try {
+      const response = await fetch(item.url, { method: item.method, ... });
+
+      if (response.status === 409) {
+        // Conflict detected — server returns current state
+        const serverState = await response.json();
+        await handleConflict(item, serverState);
+        await removeFromQueue(item.id);
+        continue;
+      }
+
+      // ...existing success handling...
+    } catch (error) {
+      // ...existing retry logic...
+    }
+  }
+}
+```
+
+## Conflict Resolution Strategies
+
+### 1. Last-Write-Wins (LWW)
+
+The simplest strategy: the most recent write wins. Requires a reliable timestamp.
+
+```js title="swoff/conflict.js"
+/**
+ * Resolve conflict by selecting the record with the latest timestamp.
+ * Server timestamp is authoritative over client timestamps.
+ */
+export function resolveLWW(localRecord, serverRecord, options = {}) {
+  const { serverWeight = true } = options;
+
+  if (serverWeight && serverRecord.$serverUpdatedAt) {
+    // Server timestamp wins if it's newer
+    if (serverRecord.$serverUpdatedAt >= localRecord.updatedAt) {
+      return { winner: "server", resolved: serverRecord };
+    }
+  }
+
+  // Compare client-side timestamps
+  const localTime = localRecord.updatedAt || 0;
+  const serverTime = serverRecord.updatedAt || 0;
+
+  if (serverTime > localTime) {
+    return { winner: "server", resolved: serverRecord };
+  }
+  return { winner: "local", resolved: localRecord };
+}
+```
+
+**Best for:** Simple data, single-user-per-record, non-critical fields.
+**Risks:** Silent data loss — one user's changes are discarded without notification.
+
+### 2. Server Wins
+
+The server always has the authoritative version. The client's optimistic changes are discarded.
+
+```javascript
+async function handleConflict(item, serverState) {
+  // Discard the optimistic local change
+  // The server's version replaces local state
+  await putRecord(item.storeName, {
+    ...serverState,
+    $synced: true,
+    $version: serverState.version,
+  });
+
+  // Notify the UI
+  window.dispatchEvent(
+    new CustomEvent("cache-invalidated", {
+      detail: { tags: item.tags },
+    }),
+  );
+}
+```
+
+**Best for:** Server-authoritative data (inventory counts, seat availability, locked documents).
+**Risks:** Users lose unsaved work without warning.
+
+### 3. Custom Merge Functions
+
+Define per-field merge logic. Some fields are LWW, others are additive.
+
+```js title="swoff/merge.js"
+/**
+ * Per-field merge strategies for a record.
+ *
+ * @param {object} local - The client's optimistic version
+ * @param {object} server - The server's current version
+ * @param {object} strategies - Per-field merge functions
+ * @returns {object} Merged record
+ */
+export function mergeRecord(local, server, strategies) {
+  const merged = {};
+
+  // Collect all field names from both versions
+  const allFields = new Set([
+    ...Object.keys(local),
+    ...Object.keys(server),
+  ]);
+
+  for (const field of allFields) {
+    if (strategies[field]) {
+      // Use the custom merge strategy for this field
+      merged[field] = strategies[field](local[field], server[field], { local, server });
+    } else {
+      // Default: server wins
+      merged[field] = server[field] !== undefined
+        ? server[field]
+        : local[field];
+    }
+  }
+
+  return merged;
+}
+```
+
+Example merge strategies for a todo app:
+
+```javascript
+const todoMergeStrategies = {
+  // Title: server wins (typographical corrections from other user)
+  title: (local, server) => server ?? local,
+
+  // Completed: false → true is always valid, true → false needs confirmation
+  completed: (local, server) => local || server,
+
+  // Assignee: last writer wins
+  assignee: (local, server) => server ?? local,
+
+  // Tags: union of both sets
+  tags: (local = [], server = []) => [...new Set([...local, ...server])],
+
+  // Comments: append server's new comments, keep local's optimistic ones
+  comments: (local = [], server = []) => {
+    const serverIds = new Set(server.map((c) => c.id));
+    const localNew = local.filter((c) => !serverIds.has(c.id));
+    return [...server, ...localNew];
+  },
+};
+
+async function handleConflict(item, serverState) {
+  const localRecord = await getRecord(item.storeName, item.tempId);
+  if (!localRecord) return;
+
+  const merged = mergeRecord(localRecord, serverState, todoMergeStrategies);
+  merged.$synced = true;
+  merged.$version = serverState.version;
+
+  await putRecord(item.storeName, merged);
+  window.dispatchEvent(
+    new CustomEvent("cache-invalidated", { detail: { tags: item.tags } }),
+  );
+}
+```
+
+**Best for:** Apps with structured data where field-level control is needed.
+**Risks:** Complex to implement and test.
+
+### 4. Manual Merge (Three-Way Merge)
+
+When automatic resolution is impossible, present the conflict to the user.
+
+```javascript
+async function handleConflict(item, serverState) {
+  const localRecord = await getRecord(item.storeName, item.tempId);
+  if (!localRecord) return;
+
+  // Mark as conflicted — do NOT auto-resolve
+  await putRecord(item.storeName, {
+    ...localRecord,
+    $conflict: true,
+    $conflictingFields: findConflictingFields(localRecord, serverState),
+    $serverState: serverState,
+    $synced: false,
+  });
+
+  // Notify the UI to show conflict resolution dialog
+  window.dispatchEvent(
+    new CustomEvent("conflict-detected", {
+      detail: {
+        storeName: item.storeName,
+        recordId: item.tempId,
+        local: localRecord,
+        server: serverState,
+        conflictingFields: findConflictingFields(localRecord, serverState),
+      },
+    }),
+  );
+}
+
+function findConflictingFields(local, server) {
+  const conflicts = [];
+  for (const key of Object.keys(server)) {
+    if (key.startsWith("$")) continue; // Skip meta fields
+    if (JSON.stringify(local[key]) !== JSON.stringify(server[key])) {
+      conflicts.push(key);
+    }
+  }
+  return conflicts;
+}
+```
+
+Then in the UI:
+
+```javascript
+// Conflict resolution dialog
+window.addEventListener("conflict-detected", (e) => {
+  const { recordId, local, server, conflictingFields } = e.detail;
+
+  showDialog({
+    title: "Sync Conflict",
+    message: `This record was edited while you were offline.`,
+    fields: conflictingFields.map((field) => ({
+      name: field,
+      localValue: local[field],
+      serverValue: server[field],
+    })),
+    onResolve(fieldChoices) {
+      // fieldChoices: { title: "server", completed: "local", ... }
+      resolveConflict(recordId, local, server, fieldChoices);
+    },
+  });
+});
+
+async function resolveConflict(recordId, local, server, choices) {
+  const resolved = { ...server, $conflict: false, $conflictingFields: null, $serverState: null };
+
+  for (const [field, choice] of Object.entries(choices)) {
+    resolved[field] = choice === "local" ? local[field] : server[field];
+  }
+
+  resolved.$synced = true;
+  await putRecord("todos", resolved);
+}
+```
+
+**Best for:** User-facing data (documents, profiles, task descriptions) where losing data is unacceptable.
+**Risks:** User friction. Should be rare — most conflicts should be auto-resolved.
+
+### 5. Conflict-Free Replicated Data Types (CRDT)
+
+CRDTs are data structures that converge automatically across replicas without coordination. For text editing and list data:
+
+```javascript
+// Simplified LWW-Register (Last-Writer-Wins Register)
+class LWWRegister {
+  constructor(value, timestamp = Date.now(), peerId = "local") {
+    this.value = value;
+    this.timestamp = timestamp;
+    this.peerId = peerId;
+  }
+
+  merge(other) {
+    if (other.timestamp > this.timestamp) return other;
+    if (other.timestamp < this.timestamp) return this;
+    // Same timestamp: higher peer ID wins
+    return other.peerId > this.peerId ? other : this;
+  }
+}
+
+// Usage for field-level LWW
+const local = new LWWRegister("Grocery List", 100, "peer_a");
+const server = new LWWRegister("Groceries", 101, "peer_b");
+
+const resolved = local.merge(server);
+console.log(resolved.value); // "Groceries" (server has newer timestamp)
+```
+
+For production CRDTs, use dedicated libraries like [Automerge](https://github.com/automerge/automerge) or [Yjs](https://github.com/yjs/yjs). These are not zero-dependency — they add significant bundle size — but provide mathematically guaranteed convergence for collaborative editing.
+
+**Best for:** Collaborative text editing, list reordering, any data where automatic convergence is critical.
+**Risks:** Library dependency, bundle size, learning curve.
+
+### Strategy Comparison
+
+| Strategy | Data Loss | User Friction | Complexity | Use Case |
+|---|---|---|---|---|
+| **LWW** | Possible | None | Low | Non-critical, single-user-per-record |
+| **Server Wins** | Possible | None | Low | Server-authoritative data |
+| **Custom Merge** | Minimal | None | Medium | Structured records with clear field semantics |
+| **Manual Merge** | None | High | High | Documents, profiles, task descriptions |
+| **CRDT** | None | None | Very High | Collaborative editing, list data |
+
+## The $conflict System
+
+The `$synced` system tracks server confirmation. Add `$conflict` to track unresolved conflicts:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `$synced` | boolean | `true` = confirmed by server |
+| `$version` | number | Version stamp for conflict detection |
+| `$conflict` | boolean | `true` = unresolved sync conflict |
+| `$conflictingFields` | string[] | Which fields differ between local and server |
+| `$serverState` | object|null | Snapshot of server state at time of conflict |
+
+```javascript
+function withMeta(record, meta = {}) {
+  return {
+    ...record,
+    $synced: meta.synced ?? record.$synced ?? false,
+    $version: meta.version ?? record.$version ?? 0,
+    $conflict: meta.conflict ?? false,
+    $conflictingFields: meta.conflictingFields ?? null,
+    $serverState: meta.serverState ?? null,
+  };
+}
+
+// When creating a record optimistically:
+const record = withMeta(
+  { id: tempId, title: "Grocery", completed: false },
+  { synced: false, version: 0 },
+);
+
+// After successful sync:
+const reconciled = withMeta(
+  { ...existing, ...serverData },
+  { synced: true, version: serverData.version },
+);
+
+// On conflict:
+const conflicted = withMeta(
+  localRecord,
+  { synced: false, conflict: true, conflictingFields: ["title"], serverState },
+);
+```
+
+## Full Example: Multi-User Todo App
+
+```javascript
+import { fetchWithCache } from "./swoff/fetch-wrapper.js";
+import { queueMutation, processMutationQueue } from "./swoff/mutation-queue.js";
+import { mergeRecord } from "./swoff/merge.js";
+
+const todoMergeStrategies = {
+  title: (local, server) => server ?? local,
+  completed: (local, server) => local || server,
+  tags: (local = [], server = []) => [...new Set([...local, ...server])],
+};
+
+async function updateTodo(id, changes) {
+  const existing = await getRecord("todos", id);
+  const updated = { ...existing, ...changes, $synced: false };
+
+  await putRecord("todos", updated);
+
+  await queueMutation({
+    method: "PUT",
+    url: `/api/todos/${id}`,
+    body: { ...changes, $version: existing.$version },
+    tags: ["todos", `todo:${id}`],
+    storeName: "todos",
+    tempId: id,
+    previousData: existing,
+  });
+}
+
+// In processMutationQueue, handle 409 conflicts:
+// if (response.status === 409) {
+//   const serverState = await response.json();
+//   const local = await getRecord(item.storeName, item.tempId);
+//   const merged = mergeRecord(local, serverState, todoMergeStrategies);
+//   merged.$synced = true;
+//   merged.$version = serverState.version;
+//   await putRecord(item.storeName, merged);
+//   await removeFromQueue(item.id);
+// }
+```
+
+## Integration Checklist
+
+- [ ] Add `$version` tracking to your records (read from server, store locally)
+- [ ] Send `$version` with mutation body for conflict detection
+- [ ] Handle HTTP 409 in `processMutationQueue` — detect the conflict
+- [ ] Choose a resolution strategy for each entity type
+- [ ] Implement `resolveConflict()` for auto-resolution or `conflict-detected` event for manual resolution
+- [ ] Add `$conflict` meta fields for unresolved conflicts
+- [ ] Build a conflict resolution UI (if using manual merge)
+- [ ] Test both auto-resolve and manual-resolve paths
+- [ ] Verify rollback works correctly when conflicts are detected
+
+## Next Steps
+
+- See [Mutation Queuing](/docs/advanced/mutation-queuing) — the queue that triggers conflict detection
+- Review [Data Layer](/docs/core/data-layer) — how query, mutate, reconcile, and invalidate connect
+- Learn [Offline-First Architecture](/docs/core/offline-architecture) — where conflict resolution fits
+- See [Testing](/docs/advanced/testing) — test conflict scenarios with fake-indexeddb

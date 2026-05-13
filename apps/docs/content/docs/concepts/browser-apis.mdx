@@ -75,8 +75,13 @@ const data = await response.json();
 | Cache API       | Yes    | Yes     | Yes    | Yes  |
 | IndexedDB       | Yes    | Yes     | Yes    | Yes  |
 | Fetch           | Yes    | Yes     | Yes    | Yes  |
-| Background Sync | Yes    | No      | No     | Yes  |
-| Push API        | Yes    | Yes     | Yes    | Yes  |
+| Background Sync | Yes    | No      | No¹    | Yes  |
+| Push API        | Yes    | Yes     | Yes²   | Yes  |
+
+¹ Background Sync is not supported on iOS Safari. Use the `online` event listener instead.
+² Push API on iOS Safari requires iOS 16.4+ and standalone PWA mode (added to Home Screen).
+
+See [iOS Safari Limitations](/docs/concepts/ios-safari-limitations) for detailed platform constraints.
 
 ## Why No Libraries?
 
@@ -87,3 +92,4 @@ These APIs are stable, well-documented on MDN, sufficient for offline-first apps
 - Start with [Offline-First Architecture](/docs/core/offline-architecture) — how to build with these APIs
 - See [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) — practical usage
 - Check the [SW Template](/docs/patterns/sw-template) — service worker in practice
+- Learn about platform constraints: [iOS Safari Limitations](/docs/concepts/ios-safari-limitations)

@@ -6,7 +6,7 @@ description: How popular auth libraries transmit identity under the hood — and
 
 # Auth Libraries Reference
 
-Identify your auth library's mechanism to know whether you need to configure `withAuthHeaders()` in [Auth-Aware Fetch](/docs/future/authentication/auth-fetch) or can skip it entirely.
+Identify your auth library's mechanism to know whether you need to configure `withAuthHeaders()` in [Auth-Aware Fetch](/docs/advanced/authentication/auth-fetch) or can skip it entirely.
 
 ## The Three Categories
 
@@ -219,6 +219,6 @@ const { data: notes } = await supabase.from("notes").select("*");
 
 ## Next Steps
 
-- **Configure your fetch**: [Auth-Aware Fetch](/docs/future/authentication/auth-fetch)
-- **Fetch + cache user data**: [Current User](/docs/future/authentication/auth-user)
-- **Integrate with SW**: [SW Integration](/docs/future/authentication/sw-integration)
+- **Configure your fetch**: [Auth-Aware Fetch](/docs/advanced/authentication/auth-fetch)
+- **Fetch + cache user data**: [Current User](/docs/advanced/authentication/auth-user)
+- **Integrate with SW**: [SW Integration](/docs/advanced/authentication/sw-integration)

@@ -1,0 +1,312 @@
+---
+title: iOS Safari Limitations
+description: Understand iOS Safari's PWA constraints — storage limits, eviction, service worker lifecycle, and workarounds.
+icon: Smartphone
+---
+
+# iOS Safari Limitations
+
+Safari on iOS supports Service Workers, Cache API, and IndexedDB — but with significant constraints that differ from desktop browsers. Understanding these is essential for production offline-first apps.
+
+## 7-Day Eviction Policy
+
+The most critical limitation: iOS Safari evicts all website data — IndexedDB, Cache API, and Service Worker registrations — after **7 days of no user engagement**.
+
+### How It Works
+
+```
+Day 1:  User visits app → SW installs, data cached
+Day 7:  User does not open app → all data evicted
+Day 8:  User reopens app → fresh install, cache is empty, IDB is empty
+```
+
+"Engagement" means the user navigates to the origin or interacts with the page. Simply having a push notification or background fetch does not count.
+
+### Standalone PWA (Home Screen) Exception
+
+If the user adds the app to their Home Screen (standalone mode), eviction is **permanently suspended**. Data persists indefinitely.
+
+```javascript
+// Check if running in standalone mode
+const isStandalone = window.navigator.standalone
+  || window.matchMedia("(display-mode: standalone)").matches;
+
+// Warn users who haven't installed
+if (!isStandalone) {
+  showInstallPrompt("Install this app to prevent data loss after 7 days.");
+}
+```
+
+### Practical Implications
+
+| Scenario | Data Persistence |
+|---|---|
+| User visits weekly | Data survives (engagement resets 7-day timer) |
+| User installs to Home Screen | Data persists indefinitely |
+| User visits once, never returns | Data evicted after 7 days |
+| User visits via installed PWA | Data persists (standalone exception) |
+| User clears Safari data | Immediate eviction (user-initiated) |
+
+### Mitigation Strategies
+
+1. **Encourage PWA installation** — Prompt users to add to Home Screen. The standalone mode exemption is the most reliable protection.
+2. **Engagement reminders** — Use push notifications (iOS 16.4+) to bring users back before the 7-day window.
+3. **Graceful degradation** — Handle empty database on startup as expected behavior, not a bug:
+
+```javascript
+async function loadAppData() {
+  try {
+    const data = await getAllRecords();
+    if (data.length === 0) {
+      // Data was evicted or first visit — re-fetch from server
+      await seedFromServer();
+    }
+    return data;
+  } catch {
+    // Database might not exist (evicted)
+    await initializeDatabase();
+    return [];
+  }
+}
+```
+
+4. **Detect eviction on startup** — Compare a stored version marker with expected values:
+
+```javascript
+async function detectEviction() {
+  try {
+    const db = await openDB();
+    const tx = db.transaction("meta", "readonly");
+    const store = tx.objectStore("meta");
+    const marker = await new Promise((r) => {
+      const req = store.get("app-initialized");
+      req.onsuccess = () => r(req.result);
+    });
+    return !marker;
+  } catch {
+    return true; // DB doesn't exist → evicted or first visit
+  }
+}
+```
+
+## IndexedDB Storage Limit
+
+iOS Safari imposes a ~50 MB soft limit on IndexedDB storage — significantly lower than desktop browsers (which are typically unlimited up to free disk space).
+
+### Behavior
+
+- **Under 50 MB**: Normal operation
+- **Approaching 50 MB**: Writes may slow down as the browser manages quota pressure
+- **Above 50 MB**: The `QuotaExceededError` is thrown on write operations. Some data may be silently evicted (LRU) to stay under quota
+
+### Monitoring
+
+```javascript
+async function monitorStorage() {
+  const estimate = await navigator.storage.estimate();
+  const usageMB = estimate.usage / (1024 * 1024);
+  const quotaMB = estimate.quota / (1024 * 1024;
+
+  console.log(`Usage: ${usageMB.toFixed(1)} MB / ${quotaMB.toFixed(1)} MB`);
+
+  if (usageMB > 40) {
+    console.warn("Approaching iOS IndexedDB limit");
+    // Trigger proactive cleanup
+  }
+
+  return { usageMB, quotaMB };
+}
+```
+
+Note: `navigator.storage.estimate()` on iOS often reports a very large quota (~500 MB+) but writes will still fail around 50 MB. The reported quota is not always accurate.
+
+### Mitigation
+
+- **Trim cached data aggressively** — Delete stale Cache API entries (they count toward the same quota pool on iOS)
+- **Use the Cache API for large blobs** — On some iOS versions, Cache API has different quota behavior
+- **Implement proactive cleanup** — Archive old records before hitting the limit
+- **Request persistent storage** (see [Storage Quota Management](/docs/patterns/indexeddb-patterns#persistent-storage))
+
+## No beforeinstallprompt
+
+iOS Safari does **not** fire the `beforeinstallprompt` event. The standard PWA install prompt pattern does not work.
+
+### The Workaround
+
+```javascript
+// Using the "Add to Home Screen" guide
+function showInstallGuide() {
+  if (window.navigator.standalone) return; // Already installed
+
+  // Detect iOS Safari
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+  if (isIOS && "serviceWorker" in navigator) {
+    // Show iOS-specific install instructions:
+    // 1. Tap Share button (bottom toolbar)
+    // 2. Scroll down
+    // 3. Tap "Add to Home Screen"
+    showIOSInstallInstructions();
+  }
+}
+```
+
+The `beforeinstallprompt` event works on Chrome (Android/Desktop) and Samsung Internet. iOS requires manual steps via the Share menu.
+
+### Detect Standalone Mode
+
+```javascript
+const standalone = {
+  ios: window.navigator.standalone,           // iOS Safari only
+  standard: window.matchMedia("(display-mode: standalone)").matches, // Standard API
+};
+
+if (!standalone.ios && !standalone.standard) {
+  // Running in browser tab — offer install prompt
+}
+```
+
+## WKWebView Constraints
+
+Third-party browsers on iOS (Chrome, Firefox, Edge, Brave) are all **WKWebView wrappers** around Safari's engine. They share Safari's limitations plus additional constraints:
+
+| Constraint | Detail |
+|---|---|
+| **Service Worker support** | Available from iOS 16.4+ in WKWebView. Before 16.4, no SW support in 3rd-party browsers. |
+| **Storage sharing** | Each browser has its own storage sandbox. Chrome on iOS does not share data with Safari. |
+| **IndexedDB limits** | Same 50 MB soft limit as Safari |
+| **Eviction policy** | Same 7-day eviction (no standalone exception unless the browser itself supports PWA installation — few do) |
+
+### Detection
+
+```javascript
+function isWKWebView() {
+  const ua = navigator.userAgent;
+  return /(iphone|ipad|ipod)/i.test(ua)
+    && !/safari/i.test(ua)
+    && /applewebkit/i.test(ua);
+}
+```
+
+## Push Notifications
+
+| iOS Version | Push Support | Notes |
+|---|---|---|
+| < 16.4 | ❌ Not supported | No push API available |
+| 16.4+ | ✅ Supported | Requires APNs entitlement + standalone mode |
+
+### Requirements
+
+1. iOS 16.4 or later
+2. App must be added to Home Screen (standalone mode)
+3. Server must use APNs (Apple Push Notification service) — VAPID-only push does not work on iOS
+4. User must grant notification permission (standard `Notification.requestPermission()`)
+
+### Testing
+
+Push notifications on iOS can only be tested on a physical device (iOS simulator does not support push). Use [PushCompanion](https://github.com/ios-tooling/PushCompanion) or a service like Pusher for testing.
+
+## Private Browsing Mode
+
+In Safari private browsing, IndexedDB and Cache API may:
+
+- Throw errors on access (`SecurityError` or `NotFoundError`)
+- Return empty databases regardless of actual data
+- Not persist data after the private session ends
+
+### Detection
+
+```javascript
+async function isPrivateMode() {
+  try {
+    const db = indexedDB.open("__detect_private__");
+    return new Promise((resolve) => {
+      db.onerror = () => resolve(true);
+      db.onsuccess = () => {
+        indexedDB.deleteDatabase("__detect_private__");
+        resolve(false);
+      };
+    });
+  } catch {
+    return true;
+  }
+}
+```
+
+If private mode is detected, fall back to read-only mode or show a warning.
+
+## Service Worker Lifecycle on iOS
+
+iOS terminates service workers more aggressively than desktop browsers:
+
+| Behavior | Desktop (Chrome) | iOS Safari |
+|---|---|---|
+| SW idle timeout | ~30 seconds | ~5-10 seconds |
+| SW wakes on fetch | Yes | Yes |
+| SW wakes on push | Yes | Yes (iOS 16.4+) |
+| SW wakes on sync event | Yes | N/A (no Background Sync) |
+| SW stays alive with `waitUntil` | Yes | Yes, but shorter window |
+| Extension lifetime via `event.waitUntil()` | Full operation completes | May be interrupted earlier |
+
+### Implications
+
+- **Cache-on-fetch is reliable** — The SW always wakes to handle fetch events
+- **Background sync does not exist** — Use the online event listener instead
+- **Mutation queue processing** must happen in the main thread, not the SW:
+
+```javascript
+// On iOS, process the queue from the main thread:
+window.addEventListener("online", () => {
+  processMutationQueue(); // Runs in document context, not SW
+});
+```
+
+- **Keep `event.waitUntil()` calls short** — Long-running SW operations may be terminated
+
+## navigator.storage.persist() on iOS
+
+| Query | Behavior |
+|---|---|
+| `navigator.storage.persist()` | Returns `false` on iOS Safari (request denied) |
+| `navigator.storage.persisted()` | Returns `false` (storage is not persistent) |
+| Standalone PWA exception | Data is not evicted even without persistent storage |
+
+On iOS, persistent storage requests are always denied. The only reliable way to prevent eviction is standalone mode (Home Screen installation).
+
+## Compatibility Summary
+
+| Feature | Desktop Chrome | iOS Safari | iOS Standalone PWA |
+|---|---|---|---|
+| Service Worker | ✅ Full | ✅ Supported | ✅ Supported |
+| Cache API | ✅ Full | ✅ Supported | ✅ Supported |
+| IndexedDB | ✅ Unlimited | ⚠️ ~50 MB limit | ⚠️ ~50 MB limit |
+| 7-Day Eviction | ❌ No | ⚠️ Yes | ✅ No (exempt) |
+| Background Sync | ✅ Supported | ❌ Not supported | ❌ Not supported |
+| Push Notifications | ✅ Full | ⚠️ iOS 16.4+ only | ✅ iOS 16.4+ |
+| beforeinstallprompt | ✅ Supported | ❌ Not supported | ❌ N/A (already installed) |
+| Persistent Storage | ✅ Supported | ❌ Denied | ❌ N/A |
+| Private Browsing IDB | ✅ Works | ❌ May fail | ❌ N/A |
+| SW Idle Timeout | ~30s | ~5-10s | ~5-10s |
+
+## Testing on iOS
+
+| Method | Limitation |
+|---|---|
+| **Safari on real device** | Best option — reflects actual behavior |
+| **iOS Simulator (Xcode)** | Safari works, but no push, no standalone mode simulation |
+| **Remote debugging** | Safari → Develop → [Device Name] → Web Inspector |
+| **BrowserStack / Sauce Labs** | Good for quick checks, limited SW debugging |
+| **TestFlight / Ad-hoc** | Required for full PWA + push testing |
+
+### Remote Debugging Steps
+
+1. Connect iOS device via USB to Mac
+2. Open Safari on device → Settings → Safari → Advanced → Web Inspector = ON
+3. Open Safari on Mac → Develop menu → [Device Name] → [Your Page]
+4. Full DevTools available (Console, Network, Storage, etc.)
+
+## Next Steps
+
+- See [Storage Quota Management](/docs/patterns/indexeddb-patterns#persistent-storage) — handle quota limits and eviction
+- Review [Browser APIs Overview](/docs/concepts/browser-apis) — understand the cross-browser landscape
+- Learn [Offline-First Architecture](/docs/core/offline-architecture) — build resilient for all platforms

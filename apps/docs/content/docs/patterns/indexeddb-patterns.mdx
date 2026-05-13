@@ -186,49 +186,440 @@ Add an index for efficient queries:
 todos.createIndex("by-deleted", "deletedAt");
 ```
 
-## Migration Pattern
+## Schema Migrations
 
-Handle schema changes with version upgrades:
+Schema changes are inevitable as your app evolves. IndexedDB handles migrations through version upgrades in `onupgradeneeded`.
+
+### Simple Version Bump
+
+Each time you change the schema, increment `DB_VERSION`:
 
 ```javascript
+const DB_NAME = "my-app";
+const DB_VERSION = 2; // Updated from 1
+
 function openDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 2); // Version 2
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onupgradeneeded = (e) => {
       const db = e.target.result;
       const oldVersion = e.oldVersion;
 
       if (oldVersion < 1) {
-        // Initial creation
+        // Version 1: initial schema
         db.createObjectStore("todos", { keyPath: "id" });
       }
 
       if (oldVersion < 2) {
-        // Add new store in version 2
+        // Version 2: add new store
         db.createObjectStore("categories", { keyPath: "id" });
       }
     };
 
     request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
   });
 }
 ```
 
-## Storage Size Tracking
+### Multi-Step Migration Example
+
+Real apps evolve through many versions. Each step handles one schema change:
 
 ```javascript
-async function estimateStorage() {
-  const estimate = await navigator.storage.estimate();
-  return {
-    usage: estimate.usage,
-    quota: estimate.quota,
-    percent: (estimate.usage / estimate.quota) * 100,
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 4); // Current version
+
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      const oldVersion = e.oldVersion;
+      const tx = e.target.transaction; // Versionchange transaction
+
+      if (oldVersion < 1) {
+        // v1: initial stores
+        const todos = db.createObjectStore("todos", { keyPath: "id" });
+        todos.createIndex("by-date", "date");
+        todos.createIndex("by-completed", "completed");
+        db.createObjectStore("categories", { keyPath: "id" });
+      }
+
+      if (oldVersion < 2) {
+        // v2: add priority field with default
+        // IndexedDB has no "add column" — loop existing records
+        const todos = tx.objectStore("todos");
+        todos.getAll().onsuccess = (ev) => {
+          for (const record of ev.target.result) {
+            record.priority = "medium";
+            todos.put(record);
+          }
+        };
+      }
+
+      if (oldVersion < 3) {
+        // v3: rename "categories" to "tags" by copying data
+        const oldStore = tx.objectStore("categories");
+        const newStore = db.createObjectStore("tags", { keyPath: "id" });
+
+        oldStore.getAll().onsuccess = (ev) => {
+          for (const record of ev.target.result) {
+            newStore.put(record);
+          }
+        };
+        db.deleteObjectStore("categories");
+      }
+
+      if (oldVersion < 4) {
+        // v4: add new index to existing store
+        const todos = tx.objectStore("todos");
+        todos.createIndex("by-priority", "priority");
+        // Delete an old index no longer needed
+        todos.deleteIndex("by-completed");
+      }
+    };
+
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+```
+
+### Migration Operations Reference
+
+| Operation | Code | Notes |
+|---|---|---|
+| **Add store** | `db.createObjectStore("name", { keyPath: "id" })` | Only in `onupgradeneeded` |
+| **Delete store** | `db.deleteObjectStore("name")` | Irreversible — data is gone |
+| **Add index** | `store.createIndex("name", "field")` | Only after store exists |
+| **Delete index** | `store.deleteIndex("name")` | Irreversible |
+| **Add field** | Loop records, `put()` with new field | IndexedDB has no schema-per-record; add field via data migration |
+| **Rename store** | Create new → copy data → delete old | No direct rename API |
+| **Rename index** | Delete old → create new | No direct rename API |
+
+### Data Transformation
+
+When adding a new required field to existing records:
+
+```javascript
+if (oldVersion < 3) {
+  const todos = tx.objectStore("todos");
+  const request = todos.getAll();
+
+  request.onsuccess = () => {
+    for (const record of request.result) {
+      // Add new field with computed default
+      record.displayName = record.title
+        ? record.title.trim()
+        : "Untitled";
+      record.sortOrder = record.createdAt || Date.now();
+      todos.put(record);
+    }
   };
 }
 ```
 
+### Error Handling
+
+Migrations run inside a **versionchange transaction**. If any step throws, the entire migration is aborted and the database stays at the old version.
+
+```javascript
+if (oldVersion < 2) {
+  try {
+    const todos = tx.objectStore("todos");
+    const request = todos.getAll();
+
+    request.onsuccess = () => {
+      for (const record of request.result) {
+        record.newField = computeValue(record);
+        todos.put(record);
+      }
+    };
+
+    request.onerror = () => {
+      // Log migration failure — transaction will abort
+      console.error("Migration v2 failed:", request.error);
+    };
+  } catch (err) {
+    console.error("Migration v2 threw:", err);
+    // The versionchange transaction aborts automatically
+  }
+}
+```
+
+### Testing Migrations
+
+Use `fake-indexeddb` to test each migration step:
+
+```javascript
+import "fake-indexeddb/auto";
+
+async function testMigration() {
+  // Open at old version to create initial schema
+  const db1 = await openDBAtVersion(1);
+  db1.close();
+
+  // Now open at the current version — migration runs
+  const db = await openDB();
+
+  // Verify new stores exist
+  const storeNames = Array.from(db.objectStoreNames);
+  assert(storeNames.includes("todos"));
+
+  // Verify indexes exist on upgraded stores
+  const tx = db.transaction("todos", "readonly");
+  const indexNames = Array.from(tx.objectStore("todos").indexNames);
+  assert(indexNames.includes("by-priority"));
+}
+```
+
+### SW / Client Migration Coordination
+
+If both the Service Worker and the client access the same IndexedDB database, only **one context** should perform migrations. Since the client's `onupgradeneeded` runs automatically when opening the DB at a new version, call `openDB()` in the client first, then notify the SW:
+
+```javascript
+// Client: migrate then tell SW
+await openDB(); // Triggers migration if needed
+navigator.serviceWorker.controller?.postMessage({
+  type: "DB_MIGRATED",
+  version: DB_VERSION,
+});
+```
+
+```javascript
+// SW: refresh caches that depend on the DB
+self.addEventListener("message", (event) => {
+  if (event.data.type === "DB_MIGRATED") {
+    // Clear runtime cache entries that reference migrated data
+    event.waitUntil(clearDataDependentCache());
+  }
+});
+```
+
+### Deferred Migration for Large Datasets
+
+For databases with thousands of records, migration inside `onupgradeneeded` can block the database. Process records in batches:
+
+```javascript
+if (oldVersion < 3) {
+  const todos = tx.objectStore("todos");
+  const count = await new Promise((r) => {
+    const req = todos.count();
+    req.onsuccess = () => r(req.result);
+  });
+
+  const BATCH_SIZE = 100;
+  let cursor = await new Promise((r) => {
+    const req = todos.openCursor();
+    req.onsuccess = () => r(req.result);
+  });
+
+  while (cursor) {
+    const record = cursor.value;
+    record.newField = computeValue(record);
+    cursor.update(record);
+
+    if (++processed % BATCH_SIZE === 0) {
+      // Yield to avoid blocking the transaction
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    cursor = await new Promise((r) => {
+      cursor.continue();
+      // The cursor request is reused; listen for next success
+      cursor.source.transaction.addEventListener("complete", () => r(null));
+    });
+  }
+}
+```
+
+### Downgrade Considerations
+
+IndexedDB does not support opening a database at a version lower than its current version. If a user visits an old version of your app after the schema has been upgraded:
+
+```
+App deployed:  DB_VERSION = 4
+User visits:   indexedDB.open("my-app", 4) → migration runs → DB is now v4
+
+App rolled back:  DB_VERSION = 3 (deploy rollback)
+User visits:      indexedDB.open("my-app", 3) →
+  → ERROR: The requested version (3) is less than the existing version (4)
+```
+
+**Solutions:**
+
+1. **Never use strict version numbers in old client code** — always open with the latest version the client knows about. If you roll back, the new (old) client can still open at v3 and ignore v4 stores.
+
+2. **Backward-compatible reads** — When the app starts, check if stores from a future version exist and handle gracefully:
+
+```javascript
+async function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, CURRENT_VERSION);
+
+    request.onupgradeneeded = async (e) => {
+      // Only add stores that DON'T already exist
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains("todos")) {
+        db.createObjectStore("todos", { keyPath: "id" });
+      }
+    };
+
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+```
+
+3. **Detect and handle** — Check `e.oldVersion > CURRENT_VERSION` in `onupgradeneeded` (should not happen with normal use, but protects against rollback scenarios).
+
+## Persistent Storage
+
+Browsers may evict website data under storage pressure. Request persistent storage to prevent this:
+
+```javascript
+async function requestPersistentStorage() {
+  if (!navigator.storage?.persist) return false;
+
+  const isPersisted = await navigator.storage.persisted();
+  if (isPersisted) return true;
+
+  // Request persistent storage (must be triggered by user gesture)
+  try {
+    return await navigator.storage.persist();
+  } catch {
+    return false;
+  }
+}
+
+// Call after user interaction (click, tap)
+document.addEventListener("click", async () => {
+  const persisted = await requestPersistentStorage();
+  console.log("Storage persistence:", persisted ? "granted" : "denied");
+});
+```
+
+**Note:** On iOS Safari, `persist()` always returns `false`. The only way to prevent eviction on iOS is standalone mode (added to Home Screen). See [iOS Safari Limitations](/docs/concepts/ios-safari-limitations).
+
+## QuotaExceededError Handling
+
+When storage is full, writes throw `QuotaExceededError`. Handle it gracefully:
+
+```javascript
+async function safePut(storeName, record) {
+  const db = await openDB();
+
+  try {
+    const tx = db.transaction(storeName, "readwrite");
+    tx.objectStore(storeName).put(record);
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (err) {
+    if (err.name === "QuotaExceededError") {
+      await handleQuotaExceeded(storeName);
+      // Retry after cleanup
+      return safePut(storeName, record);
+    }
+    throw err;
+  }
+}
+
+async function handleQuotaExceeded(storeName) {
+  const estimate = await navigator.storage.estimate();
+  console.warn(
+    `Storage full: ${(estimate.usage / 1024 / 1024).toFixed(1)} MB used`,
+  );
+
+  // Strategy 1: evict old cache entries
+  await trimOldCacheEntries();
+
+  // Strategy 2: archive soft-deleted records
+  await purgeSoftDeleted(storeName);
+
+  // Strategy 3: notify user
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+  if (isStandalone) {
+    showStorageWarning("Storage is full. Old data will be removed.");
+  }
+}
+```
+
+## Proactive Storage Monitoring
+
+Monitor storage usage and warn before it becomes critical:
+
+```javascript
+const STORAGE_WARN_THRESHOLD = 0.8; // 80% of quota
+const STORAGE_CRIT_THRESHOLD = 0.95; // 95% of quota
+
+export async function monitorStorage() {
+  const estimate = await navigator.storage.estimate();
+  const ratio = estimate.usage / estimate.quota;
+
+  if (ratio >= STORAGE_CRIT_THRESHOLD) {
+    console.error("Storage critically full — starting emergency cleanup");
+    await emergencyCleanup();
+    dispatchEvent(new CustomEvent("storage-critical"));
+  } else if (ratio >= STORAGE_WARN_THRESHOLD) {
+    console.warn("Storage approaching limit — consider cleanup");
+    dispatchEvent(new CustomEvent("storage-warning", {
+      detail: { usage: estimate.usage, quota: estimate.quota },
+    }));
+  }
+
+  return {
+    usage: estimate.usage,
+    quota: estimate.quota,
+    ratio,
+    status: ratio >= STORAGE_CRIT_THRESHOLD ? "critical"
+      : ratio >= STORAGE_WARN_THRESHOLD ? "warning"
+      : "ok",
+  };
+}
+```
+
+### Cache Trimming
+
+Evict old Cache API entries proactively:
+
+```javascript
+const MAX_CACHE_ENTRIES = 500;
+const MAX_CACHE_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+export async function trimCache() {
+  const cache = await caches.open("swoff-runtime");
+  const keys = await cache.keys();
+
+  // Evict by age
+  const now = Date.now();
+  for (const request of keys) {
+    const response = await cache.match(request);
+    const date = response?.headers.get("date");
+    if (date) {
+      const age = now - new Date(date).getTime();
+      if (age > MAX_CACHE_AGE_MS) {
+        await cache.delete(request);
+      }
+    }
+  }
+
+  // Evict by count (oldest first)
+  if (keys.length > MAX_CACHE_ENTRIES) {
+    const toDelete = keys.length - MAX_CACHE_ENTRIES;
+    for (let i = 0; i < toDelete; i++) {
+      await cache.delete(keys[i]);
+    }
+  }
+}
+
+// Run periodically
+setInterval(trimCache, 24 * 60 * 60 * 1000); // Once per day
+```
+
 ## Next Steps
 
+- Understand [iOS Safari Limitations](/docs/concepts/ios-safari-limitations) — platform-specific storage restrictions
 - See [Offline-First Architecture](/docs/core/offline-architecture) — storage strategy
+- Handle sync conflicts: [Conflict Resolution](/docs/advanced/conflict-resolution)
 - Check the [Reference Implementation](/docs/reference/budget-manager) — real-world usage

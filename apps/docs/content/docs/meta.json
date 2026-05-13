@@ -6,13 +6,15 @@
   "pages": [
     "index",
     "introduction",
+    "features",
     "---",
     "concepts",
     "core",
     "patterns",
+    "advanced",
+    "cli",
     "integration",
     "guides",
-    "reference",
-    "future"
+    "reference"
   ]
 }

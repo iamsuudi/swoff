@@ -39,11 +39,11 @@ A browser API that:
 | Firefox | ❌ No (under consideration) |
 | Safari | ❌ No (not on roadmap) |
 
-**Fallback:** For unsupported browsers, the mutation queue auto-processes on the `online` event (already set up in [Mutation Queuing](/docs/future/mutation-queuing)). The fallback only works while the tab is open.
+**Fallback:** For unsupported browsers, the mutation queue auto-processes on the `online` event (already set up in [Mutation Queuing](/docs/advanced/mutation-queuing)). The fallback only works while the tab is open.
 
 ## Prerequisites
 
-1. [Mutation Queuing](/docs/future/mutation-queuing) — the queue must be set up first
+1. [Mutation Queuing](/docs/advanced/mutation-queuing) — the queue must be set up first
 2. [SW Template](/docs/patterns/sw-template) — you'll add a `sync` event handler
 3. [Client Registration](/docs/patterns/client-registration) — SW must be registered
 
@@ -367,7 +367,7 @@ No additional code needed — the client implementation above covers all cases:
 
 ## Next Steps
 
-- See [Mutation Queuing](/docs/future/mutation-queuing) — the queue that powers the sync
+- See [Mutation Queuing](/docs/advanced/mutation-queuing) — the queue that powers the sync
 - See [Data Layer](/docs/core/data-layer) — how query, mutate, reconcile, invalidate connect
 - Learn [Service Workers](/docs/concepts/service-workers) — SW basics
 - Check browser support on [MDN](https://developer.mozilla.org/en-US/docs/Web/API/Background_Synchronization_API)

@@ -6,7 +6,7 @@ description: How the service worker handles authenticated requests and cache inv
 
 # Service Worker Integration
 
-**Prerequisites:** [SW Template](/docs/patterns/sw-template), [Auth Store](/docs/future/authentication/auth-store).
+**Prerequisites:** [SW Template](/docs/patterns/sw-template), [Auth Store](/docs/advanced/authentication/auth-store).
 
 ## Principle: SW is Auth-Unaware
 
@@ -46,7 +46,7 @@ const authPaths = [
 ];
 ```
 
-If your backend uses different paths, edit `isAuthUrl()` in [auth-fetch.js](/docs/future/authentication/auth-fetch).
+If your backend uses different paths, edit `isAuthUrl()` in [auth-fetch.js](/docs/advanced/authentication/auth-fetch).
 
 ## Logout Cache Invalidation
 
@@ -92,7 +92,7 @@ if ("serviceWorker" in navigator) {
 
 ## Background Sync Consideration
 
-When the SW syncing queued mutations (see [Mutation Queuing](/docs/future/mutation-queuing)), it runs in the SW context where cookies are **not** available. If your backend uses cookie-based auth:
+When the SW syncing queued mutations (see [Mutation Queuing](/docs/advanced/mutation-queuing)), it runs in the SW context where cookies are **not** available. If your backend uses cookie-based auth:
 
 - The SW sync will fail because cookies are scoped to the page, not the SW
 - Solution: Include the auth token **in the queued mutation payload** or use the client-side sync fallback (`window.addEventListener("online", processMutationQueue)`)
@@ -101,6 +101,6 @@ This is why mutation queuing is best handled client-side when using cookie auth.
 
 ## Next Steps
 
-- **Handle offline states**: [Offline Auth State](/docs/future/authentication/offline-state) — the four auth states
-- **Queue mutations behind auth**: [Mutation Queuing](/docs/future/mutation-queuing)
+- **Handle offline states**: [Offline Auth State](/docs/advanced/authentication/offline-state) — the four auth states
+- **Queue mutations behind auth**: [Mutation Queuing](/docs/advanced/mutation-queuing)
 - **Review the SW template**: [SW Template](/docs/patterns/sw-template)

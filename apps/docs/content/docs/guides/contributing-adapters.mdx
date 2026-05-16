@@ -69,10 +69,11 @@ cd my-app && npm install
 
 ```
 my-app
-├── src
-│   └── sw-template.js
-├── generate-sw.js
-├── sw.d.ts
+├── swoff
+│   ├── sw-template.js
+│   ├── sw-generator.js
+│   ├── sw-injector.js
+│   └── swoff.d.ts
 └── package.json
 ```
 
@@ -81,7 +82,7 @@ my-app
 Add SW registration to your layout or client-side script (see [Client Registration](/docs/patterns/client-registration)):
 
 ```typescript
-// src/sw-registration.client.ts
+// src/sw-injector.client.ts
 export function initSW() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', async () => {
@@ -96,9 +97,9 @@ export function initSW() {
 
 Copy from [Patterns](/docs/patterns):
 
-1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
-2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
-3. **[Client Registration](/docs/patterns/client-registration)** → `src/sw-registration.js`
+1. **[SW Template](/docs/patterns/sw-template)** → `swoff/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `swoff/sw-generator.js`
+3. **[Client Registration](/docs/patterns/client-registration)** → `swoff/sw-injector.js`
 
 ## Output Directory
 
@@ -109,7 +110,7 @@ Update `package.json`:
 ```json
 {
   "scripts": {
-    "build": "astro build && node generate-sw.js"
+    "build": "astro build && node swoff/sw-generator.js"
   }
 }
 ```
@@ -182,11 +183,11 @@ git push origin feat/astro-adapter
 - SW template code (link to [SW Template](/docs/patterns/sw-template))
 - Build script code (link to [Build Scripts](/docs/patterns/build-scripts))
 - Client registration logic (link to [Client Registration](/docs/patterns/client-registration))
-- TypeScript declarations (link to [Utilities](/docs/patterns/utilities))
+- TypeScript declarations (link to [Utilities](/docs/patterns/client-registration#typescript-declarations))
 - Hook/composable implementations (link to your ecosystem's adapter page)
 
 ## Next Steps
 
 - Browse existing: [React + Vite](/docs/guides/react-ecosystem/react-vite), [Vue + Vite](/docs/guides/vue-ecosystem/vue-vite)
-- Read [Concepts](/docs/concepts/what-is-offline) to understand Swoff
+- Read [Concepts](/docs/concepts/what-is-offline-and-sw) to understand Swoff
 - Check [GitHub Issues](https://github.com/iamsuudi/swoff/issues) for open adapter requests

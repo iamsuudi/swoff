@@ -32,10 +32,11 @@ module.exports = nextConfig;
 
 ```
 my-app
-├── src
-│   └── sw-template.js
-├── generate-sw.js
-├── sw.d.ts
+├── swoff
+│   ├── sw-template.js
+│   ├── sw-generator.js
+│   ├── sw-injector.js
+│   └── swoff.d.ts
 └── package.json
 ```
 
@@ -46,7 +47,7 @@ my-app
 ```tsx
 "use client";
 import { useEffect } from "react";
-import { initServiceWorker } from "../sw-registration";
+import { initServiceWorker } from "../swoff/sw-injector";
 
 export default function RootLayout({
   children,
@@ -68,7 +69,7 @@ export default function RootLayout({
 
 ```tsx
 import { useEffect } from "react";
-import { initServiceWorker } from "../sw-registration";
+import { initServiceWorker } from "../swoff/sw-injector";
 
 export default function App({ Component, pageProps }: any) {
   useEffect(() => {
@@ -82,18 +83,18 @@ export default function App({ Component, pageProps }: any) {
 
 Copy from [Patterns](/docs/patterns):
 
-1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
-2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
-3. **[Client Registration](/docs/patterns/client-registration)** → `sw-registration.js`
-4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
+1. **[SW Template](/docs/patterns/sw-template)** → `swoff/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `swoff/sw-generator.js`
+3. **[Client Registration](/docs/patterns/client-registration)** → `swoff/sw-injector.js`
+4. **[TypeScript Declarations](/docs/patterns/client-registration#typescript-declarations)** → `swoff/swoff.d.ts`
 
 ## Output Directory
 
-Next.js static export outputs to `out/` by default. Update your `generate-sw.js` to write to `out/`:
+Next.js static export outputs to `out/` by default. Update your `swoff/sw-generator.js` to write to `out/`:
 
 ```javascript
-writeFileSync(join(__dirname, "out", `sw-v${pkg.version}.js`), sw);
-writeFileSync(join(__dirname, "out", "version.json"), JSON.stringify({ ... }));
+writeFileSync(join(__dirname, "..", "out", `sw-v${pkg.version}.js`), sw);
+writeFileSync(join(__dirname, "..", "out", "version.json"), JSON.stringify({ ... }));
 ```
 
 If deploying to Vercel, the output may differ. Check your deployment platform's docs for the final output path.
@@ -103,7 +104,7 @@ Update `package.json`:
 ```json
 {
   "scripts": {
-    "build": "next build && node generate-sw.js"
+    "build": "next build && node swoff/sw-generator.js"
   }
 }
 ```

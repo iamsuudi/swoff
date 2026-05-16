@@ -21,9 +21,9 @@ cd my-app && npm install
 // svelte.config.js
 const config = {
   kit: {
-    adapter: adapter({ fallback: 'index.html' }), // SPA mode
+    adapter: adapter({ fallback: "index.html" }), // SPA mode
   },
-}
+};
 ```
 
 ## Entry Point (`src/routes/+layout.svelte`)
@@ -31,7 +31,7 @@ const config = {
 ```svelte
 <script>
 import { onMount } from 'svelte'
-import { initServiceWorker } from '../sw-registration'
+import { initServiceWorker } from '../../swoff/sw-injector'
 
 onMount(() => { initServiceWorker() })
 </script>
@@ -43,30 +43,30 @@ onMount(() => { initServiceWorker() })
 
 Copy from [Patterns](/docs/patterns):
 
-1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
-2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
-3. **[Client Registration](/docs/patterns/client-registration)** → `src/sw-registration.js`
-4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
+1. **[SW Template](/docs/patterns/sw-template)** → `swoff/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `swoff/sw-generator.js`
+3. **[Client Registration](/docs/patterns/client-registration)** → `swoff/sw-injector.js`
+4. **[TypeScript Declarations](/docs/patterns/client-registration#typescript-declarations)** → `swoff/swoff.d.ts`
 
 ## Output Directory
 
 SvelteKit's output directory depends on your adapter:
 
-| Adapter | Output Directory |
-|---------|-----------------|
+| Adapter                           | Output Directory  |
+| --------------------------------- | ----------------- |
 | `@sveltejs/adapter-auto` (Vercel) | `.vercel/output/` |
-| `@sveltejs/adapter-netlify` | `netlify/` |
-| `@sveltejs/adapter-node` | `build/` |
-| `@sveltejs/adapter-static` | `build/` |
+| `@sveltejs/adapter-netlify`       | `netlify/`        |
+| `@sveltejs/adapter-node`          | `build/`          |
+| `@sveltejs/adapter-static`        | `build/`          |
 
-Update your `generate-sw.js` to write to the correct output directory for your deployment target.
+Update your `swoff/sw-generator.js` to write to the correct output directory for your deployment target.
 
 Update `package.json`:
 
 ```json
 {
   "scripts": {
-    "build": "vite build && node generate-sw.js"
+    "build": "vite build && node swoff/sw-generator.js"
   }
 }
 ```

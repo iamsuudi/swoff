@@ -20,10 +20,12 @@ cd my-app && npm install
 ```
 my-app
 ├── src
-│   ├── main.ts
-│   └── sw-template.js
-├── generate-sw.js
-├── sw.d.ts
+│   └── main.ts
+├── swoff
+│   ├── sw-template.js
+│   ├── sw-generator.js
+│   ├── sw-injector.js
+│   └── swoff.d.ts
 └── package.json
 ```
 
@@ -32,7 +34,7 @@ my-app
 ```typescript
 import { platformBrowserDynamic } from "@angular/platform-browser-dynamic";
 import { AppModule } from "./app/app.module";
-import { initServiceWorker } from "./sw-registration";
+import { initServiceWorker } from "../swoff/sw-injector";
 
 initServiceWorker();
 
@@ -45,28 +47,28 @@ platformBrowserDynamic()
 
 Copy from [Patterns](/docs/patterns):
 
-1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
-2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js` (output dir: `dist/my-app/`)
-3. **[Client Registration](/docs/patterns/client-registration)** → `src/sw-registration.ts`
-4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
+1. **[SW Template](/docs/patterns/sw-template)** → `swoff/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `swoff/sw-generator.js` (output dir: `dist/my-app/`)
+3. **[Client Registration](/docs/patterns/client-registration)** → `swoff/sw-injector.js`
+4. **[TypeScript Declarations](/docs/patterns/client-registration#typescript-declarations)** → `swoff/swoff.d.ts`
 
 Update `package.json`:
 
 ```json
 {
   "scripts": {
-    "build": "ng build && node generate-sw.js"
+    "build": "ng build && node swoff/sw-generator.js"
   }
 }
 ```
 
 ## Output Directory
 
-Angular outputs to `dist/<project-name>/` by default. Update your `generate-sw.js`:
+Angular outputs to `dist/<project-name>/` by default. Update your `swoff/sw-generator.js`:
 
 ```javascript
-writeFileSync(join(__dirname, "dist", "my-app", `sw-v${pkg.version}.js`), sw);
-writeFileSync(join(__dirname, "dist", "my-app", "version.json"), JSON.stringify({ ... }));
+writeFileSync(join(__dirname, "..", "dist", "my-app", `sw-v${pkg.version}.js`), sw);
+writeFileSync(join(__dirname, "..", "dist", "my-app", "version.json"), JSON.stringify({ ... }));
 ```
 
 ## Note on Angular Service Worker

@@ -23,11 +23,150 @@ Swoff is a **toolbox**, not a framework. Every feature is a file you copy into y
   </Card>
 </Cards>
 
+## Feature Categories
+
+Features are grouped into three tiers matching the dependency diagram below.
+
+### Required Core
+
+<Cards>
+  <Card
+    title="SW Template"
+    icon={<FileCodeIcon className="text-emerald-500" />}
+    href="/docs/patterns/sw-template"
+  >
+    Versioned service worker with cache-first, stale-while-revalidate, and
+    network-first strategies. Tag-based invalidation. Cross-tab broadcast.
+  </Card>
+  <Card
+    title="Build Scripts"
+    icon={<HammerIcon className="text-emerald-500" />}
+    href="/docs/patterns/build-scripts"
+  >
+    Reads package.json version, replaces placeholders in SW template, outputs
+    versioned SW + version.json.
+  </Card>
+  <Card
+    title="Client Registration"
+    icon={<UserPlusIcon className="text-emerald-500" />}
+    href="/docs/patterns/client-registration"
+  >
+    Fetches version.json, compares stored version, shows update prompt on
+    mismatch. Supports deferred and forced updates.
+  </Card>
+  <Card
+    title="API Integration"
+    icon={<PlugIcon className="text-emerald-500" />}
+    href="/docs/patterns/api-integration"
+  >
+    Fetch wrapper with cache strategy headers, query deduplication, tag
+    invalidation, and cross-tab sync.
+  </Card>
+</Cards>
+
+### Optional Enhancements
+
+<Cards>
+  <Card
+    title="PWA Installability"
+    icon={<DownloadIcon className="text-blue-500" />}
+    href="/docs/patterns/pwa-installability"
+  >
+    Manifest JSON, install prompt handler, PWA mode detection, and app icons.
+  </Card>
+  <Card
+    title="IndexedDB Patterns"
+    icon={<DatabaseIcon className="text-blue-500" />}
+    href="/docs/patterns/indexeddb-patterns"
+  >
+    DB setup, CRUD, indexed queries, soft deletes, schema migrations, and
+    storage quota management.
+  </Card>
+  <Card
+    title="TypeScript Declarations"
+    icon={<WrenchIcon className="text-blue-500" />}
+    href="/docs/patterns/client-registration#typescript-declarations"
+  >
+    Type declarations for SW window properties and checkForUpdate helper.
+  </Card>
+</Cards>
+
+### Advanced Patterns
+
+<Cards>
+  <Card
+    title="Mutation Queuing"
+    icon={<WorkflowIcon className="text-purple-500" />}
+    href="/docs/advanced/mutation-queuing"
+  >
+    Queues offline writes in IndexedDB, auto-syncs on reconnect, reconciles
+    temp IDs.
+  </Card>
+  <Card
+    title="Background Sync"
+    icon={<RefreshCwIcon className="text-purple-500" />}
+    href="/docs/advanced/background-sync"
+  >
+    Processes mutation queue after tab close via Background Sync API
+    (Chrome/Edge).
+  </Card>
+  <Card
+    title="Push Notifications"
+    icon={<BellIcon className="text-purple-500" />}
+    href="/docs/advanced/push-notifications"
+  >
+    Subscribe to push, handle notifications in the SW, and integrate with your
+    data layer.
+  </Card>
+  <Card
+    title="Conflict Resolution"
+    icon={<GitMergeIcon className="text-purple-500" />}
+    href="/docs/advanced/conflict-resolution"
+  >
+    Five strategies for multi-user offline edits: LWW, server wins, custom
+    merge, manual, CRDT.
+  </Card>
+  <Card
+    title="Auth Stack"
+    icon={<ShieldIcon className="text-purple-500" />}
+    href="/docs/advanced/authentication"
+  >
+    Token storage, auth-aware fetch, current user cache, SW integration,
+    offline state, lock screen.
+  </Card>
+  <Card
+    title="Testing"
+    icon={<BugIcon className="text-purple-500" />}
+    href="/docs/advanced/testing"
+  >
+    Vitest + fake-indexeddb + Playwright test patterns for SW, IndexedDB,
+    mutation queue, and offline behavior.
+  </Card>
+  <Card
+    title="Debugging"
+    icon={<SearchIcon className="text-purple-500" />}
+    href="/docs/advanced/debugging"
+  >
+    DevTools walkthrough, postMessage monitoring, and troubleshooting tables
+    for common failure modes.
+  </Card>
+</Cards>
+
+## Swoff vs Traditional PWA Libraries
+
+| Feature      | Swoff                      | Traditional PWA Libraries          |
+| ------------ | -------------------------- | ---------------------------------- |
+| Dependencies | Zero runtime deps          | npm packages                       |
+| Control      | You own the code           | Library updates can break your app |
+| Updates      | Consent-based, versioned   | Often automatic                    |
+| Offline      | Guaranteed by architecture | Depends on library                 |
+| Framework    | Agnostic                   | Often framework-specific           |
+
 ## Feature Map
 
 The diagram below shows every feature Swoff provides and how they relate. Required features are in green, optional add-ons in blue, and advanced in purple.
 
-<Mermaid chart={`
+```mermaid
 flowchart TB
     classDef required fill:#1b5e20,color:#fff,stroke:#2e7d32
     classDef optional fill:#0d47a1,color:#fff,stroke:#1565c0
@@ -83,8 +222,7 @@ flowchart TB
     class PWA,IDB,TS optional
     class MQ,AUTH,BSYNC,CONFLICT,TEST,DEBUG advanced
     class C1,C2,C3,C4 foundation
-
-`} />
+```
 
 ## Feature Reference
 
@@ -107,7 +245,7 @@ Add these when you need them — no feature requires all of them.
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
 | [PWA Installability](/docs/patterns/pwa-installability) | Manifest JSON, install prompt handler, PWA mode detection, app icons                       | Icon sizes, install prompt behavior, display mode                                                     |
 | [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) | DB setup, CRUD, indexed queries, soft deletes, schema migrations, storage quota management | DB name, store schema, migration steps, storage thresholds (80%/95%), use native API or `idb` wrapper |
-| [TypeScript Utilities](/docs/patterns/utilities)        | Type declarations for SW window properties, `checkForUpdate()` helper                      | Type definitions, helper function behavior                                                            |
+| [TypeScript Utilities](/docs/patterns/client-registration#typescript-declarations)        | Type declarations for SW window properties, `checkForUpdate()` helper                      | Type definitions, helper function behavior                                                            |
 
 ### Advanced Patterns
 
@@ -241,20 +379,40 @@ Swoff's modular design lets you start minimal and add complexity as needed.
 
 ## Customization Examples
 
-Every Swoff feature is designed to be modified. Here's what that looks like in practice:
+Every Swoff feature is designed to be modified.
 
-- **Change a caching strategy**: In `sw-template.js`, modify the `fetch` handler to use `NetworkFirst` for API routes instead of `CacheFirst`
-- **Swap IndexedDB wrappers**: Start with native IndexedDB, later switch to the `idb` library — only the DB utility functions change, not your app logic
-- **Custom merge logic**: In `conflict.js`, write a per-field merge function — e.g., `title: serverWins, completed: localOrServer, tags: union, comments: append`
-- **Replace the update prompt**: The `sw-update-available` event lets you build any UI you want — toast, modal, banner, or auto-update
-- **Add more retries**: In `mutation-queue.js`, bump `MAX_RETRIES` from 5 to 10, or implement exponential backoff
-- **Scope auth to cookie-based**: Edit `withAuthHeaders()` in `auth-fetch.js` to be a no-op when using cookie/session auth
+<Cards>
+  <Card title="Change a caching strategy" icon={<ShuffleIcon />}>
+    In <code>sw-template.js</code>, modify the fetch handler to use
+    <code>NetworkFirst</code> for API routes instead of <code>CacheFirst</code>.
+  </Card>
+  <Card title="Swap IndexedDB wrappers" icon={<DatabaseIcon />}>
+    Start with native IndexedDB, later switch to the <code>idb</code> library —
+    only the DB utility functions change, not your app logic.
+  </Card>
+  <Card title="Custom merge logic" icon={<GitMergeIcon />}>
+    In <code>conflict.js</code>, write a per-field merge function — e.g.,
+    <code>title: serverWins, completed: localOrServer, tags: union</code>.
+  </Card>
+  <Card title="Replace the update prompt" icon={<BellIcon />}>
+    The <code>sw-update-available</code> event lets you build any UI — toast,
+    modal, banner, or auto-update.
+  </Card>
+  <Card title="Add more retries" icon={<RotateCwIcon />}>
+    In <code>mutation-queue.js</code>, bump <code>MAX_RETRIES</code> from 5 to 10,
+    or implement exponential backoff.
+  </Card>
+  <Card title="Scope auth to cookie-based" icon={<ShieldIcon />}>
+    Edit <code>withAuthHeaders()</code> in <code>auth-fetch.js</code> to be a
+    no-op when using cookie/session auth.
+  </Card>
+</Cards>
 
 ## Next Steps
 
 - Start with the [Introduction](/docs/introduction) if you haven't already
-- Learn the [concepts](/docs/concepts/what-is-offline) — offline capability and service workers
+- Learn the [concepts](/docs/concepts/what-is-offline-and-sw) — offline capability and service workers
 - Follow the [Core Architecture](/docs/core/offline-architecture) design
 - Copy the [required patterns](/docs/patterns/) in order
 
-import { CheckIcon, SlidersIcon, UnlinkIcon } from "lucide-react";
+import { CheckIcon, SlidersIcon, UnlinkIcon, FileCodeIcon, HammerIcon, UserPlusIcon, PlugIcon, DownloadIcon, DatabaseIcon, WrenchIcon, WorkflowIcon, RefreshCwIcon, BellIcon, GitMergeIcon, ShieldIcon, BugIcon, SearchIcon, ShuffleIcon, RotateCwIcon } from "lucide-react";

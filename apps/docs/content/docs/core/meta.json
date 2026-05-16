@@ -1,9 +1,5 @@
 {
   "title": "Core Architecture",
   "icon": "Cog",
-  "pages": [
-    "offline-architecture",
-    "versioned-sw",
-    "data-layer"
-  ]
+  "pages": ["offline-architecture", "versioned-sw", "data-layer"]
 }

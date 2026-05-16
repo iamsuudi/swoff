@@ -12,54 +12,35 @@ Swoff is a zero-dependency blueprint for building offline-first, versioned web a
 
 Swoff is not a traditional library. You copy our service worker, hooks, and utilities into your project, then modify them to fit your needs. No waiting for library updates, no bundle bloat.
 
-## What Swoff is NOT
-
-- Not an npm package — code you copy, not install
-- Not a backend framework — bring your own Go, Node.js, Python
-- Not tied to any fullstack framework
-- Not focused on server-side features — this is purely client-side
-
-:::warning
-Swoff focuses on **client-side browser APIs** (offline app shell, data caching, sync). Your backend is your responsibility.
-:::
-
 ## Key Features
 
 import {
-  BookOpenIcon,
-  HistoryIcon,
   RocketIcon,
   WifiOffIcon,
+  PuzzleIcon,
 } from "lucide-react";
 
 <Cards>
   <Card
     title="Versioned Service Worker"
-    icon={<RocketIcon className="text-blue-500" />}
+    icon={<RocketIcon className="text-emerald-500" />}
   >
     Each build generates a versioned SW (e.g., <code>sw-v1.0.0.js</code>) from
-    your package.json. No silent updates.
-  </Card>
-  <Card
-    title="Consent-Based Updates"
-    icon={<HistoryIcon className="text-green-500" />}
-  >
-    Detect new version → Show prompt → User accepts → Download → Activate. No
-    surprise reloads.
+    your package.json. No silent updates. See the [full feature map](/docs/features).
   </Card>
   <Card
     title="Offline-First Architecture"
-    icon={<WifiOffIcon className="text-yellow-500" />}
+    icon={<WifiOffIcon className="text-emerald-500" />}
   >
     App shell cached via Service Worker. Read queries cached for offline access.
     Mutations queued and synced when back online.
   </Card>
   <Card
-    title="Framework Agnostic"
-    icon={<BookOpenIcon className="text-purple-500" />}
+    title="Modular by Design"
+    icon={<PuzzleIcon className="text-emerald-500" />}
   >
-    Works with React, Vue, Svelte, Solid, or vanilla JS. Guides available for
-    popular ecosystems.
+    Pick only what you need — core SW, optional PWA, or full offline with
+    mutation queuing. Browse all [features](/docs/features).
   </Card>
 </Cards>
 
@@ -69,21 +50,11 @@ import {
 No install needed. Read the guides and copy the code.
 :::
 
-1. Understand the [concepts](/docs/concepts/what-is-offline) — offline capability and service workers
+1. Understand the [concepts](/docs/concepts/what-is-offline-and-sw) — offline capability and service workers
 2. Learn the [core architecture](/docs/core/offline-architecture) — offline-first principles and data storage
 3. Follow the [patterns](/docs/patterns/) sequentially — SW Template → Build Scripts → Client Registration → PWA Installability → IndexedDB Patterns
 4. Follow a [framework guide](/docs/guides) — React, TanStack Router, or TanStack Start
 5. See the [reference implementation](/docs/reference/budget-manager) — Budget Manager app
-
-## Swoff vs Traditional PWA Libraries
-
-| Feature      | Swoff                      | Traditional PWA Libraries          |
-| ------------ | -------------------------- | ---------------------------------- |
-| Dependencies | Zero runtime deps          | npm packages                       |
-| Control      | You own the code           | Library updates can break your app |
-| Updates      | Consent-based, versioned   | Often automatic                    |
-| Offline      | Guaranteed by architecture | Depends on library                 |
-| Framework    | Agnostic                   | Often framework-specific           |
 
 ## Reference Implementation
 

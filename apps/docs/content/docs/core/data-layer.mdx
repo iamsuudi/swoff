@@ -4,7 +4,7 @@ description: The unified read/write data layer — query, mutate, reconcile, and
 icon: Database
 ---
 
-# Data Layer
+## Data Layer
 
 Read caching, mutation queuing, ID reconciliation, and cache invalidation are not separate concerns. They are **different faces of the same problem**: keeping local data consistent with your backend.
 
@@ -71,65 +71,6 @@ invalidateByTag("todos")
     → Cache API entries cleared
     → window event: "cache-invalidated"
     → framework adapters react → refetch
-```
-
-## swoff/ File Map
-
-```
-swoff/
-├── sw-template.js        # SW with tag-indexed caching + invalidation message handler
-├── sw-generator.js        # Build script (unchanged)
-├── sw-injector.js         # Client registration (unchanged)
-├── fetch-wrapper.js       # Tag-aware fetch: set X-SW-Cache-Strategy + attach tags
-├── mutation-queue.js      # Queue + sync + reconcile + invalidate + rollback
-├── background-sync.js     # Background sync registration + SW handler
-├── swoff.d.ts             # TypeScript declarations
-└── auth/                  # Auth patterns (optional)
-    ├── store.js
-    ├── fetch.js
-    └── state.js
-```
-
-## How They Connect
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│                     Client (Browser Tab)                      │
-│                                                               │
-│  ┌──────────────┐    ┌──────────────────┐    ┌─────────────┐  │
-│  │ query.js     │    │ mutation-queue   │    │ reconcile   │  │
-│  │ fetch+tag    │◄───│ .js              │───►│ .js         │  │
-│  │ +cache       │    │ sync + capture   │    │ merge IDs   │  │
-│  └──────┬───────┘    │ response         │    │ + fields    │  │
-│         │            └────────┬─────────┘    └──────┬──────┘  │
-│         │                     │                      │        │
-│         │         invalidateByTag("todos")           │        │
-│         ◄─────────────────────┘                      │        │
-│         │                                            │        │
-│         │                                   reconcileRecord() │
-│         │                                            │        │
-│         ▼                                            ▼        │
-│  ┌─────────────────────────────────────────────────────────┐  │
-│  │              IndexedDB (app data + queue)                │  │
-│  └─────────────────────────────────────────────────────────┘  │
-│                                                               │
-  │  Events dispatched to window:                                 │
-  │  ┌─────────────────────────────────────────────────────────┐  │
-  │  │ cache-invalidated { tags }  →  refetch + cross-tab sync  │  │
-  │  │ mutation-queue-changed      →  pending count updates     │  │
-  │  │ mutation-sync-complete      →  sync summary              │  │
-  │  └─────────────────────────────────────────────────────────┘  │
-  │                                                               │
-  │  SW broadcasts TAG_INVALIDATED to ALL tabs                    │
-  │  → other tabs dispatch cache-invalidated locally → refetch    │
-  └──────────────────────────────────────────────────────────────┘
-         │                                          ▲
-         │ fetch read / mutate                      │ sync queued
-         ▼                                          │
-┌────────────────────────────────────────────────────┘
-│         Your Backend API
-│         (Go, Node.js, Python, etc.)
-└─────────────────────────────────────────
 ```
 
 ## Window Events

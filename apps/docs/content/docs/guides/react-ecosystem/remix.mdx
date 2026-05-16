@@ -20,10 +20,12 @@ cd my-remix-app && npm install
 ```
 my-remix-app
 ├── app
-│   ├── root.tsx
-│   └── sw-template.js
-├── generate-sw.js
-├── sw.d.ts
+│   └── root.tsx
+├── swoff
+│   ├── sw-template.js
+│   ├── sw-generator.js
+│   ├── sw-injector.js
+│   └── swoff.d.ts
 └── package.json
 ```
 
@@ -32,7 +34,7 @@ my-remix-app
 ```tsx
 import { useEffect } from "react";
 import { Outlet } from "@remix-run/react";
-import { initServiceWorker } from "./sw-registration";
+import { initServiceWorker } from "../swoff/sw-injector";
 
 export default function App() {
   useEffect(() => {
@@ -46,18 +48,18 @@ export default function App() {
 
 Copy from [Patterns](/docs/patterns):
 
-1. **[SW Template](/docs/patterns/sw-template)** → `app/sw-template.js`
-2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
-3. **[Client Registration](/docs/patterns/client-registration)** → `app/sw-registration.js`
-4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
+1. **[SW Template](/docs/patterns/sw-template)** → `swoff/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `swoff/sw-generator.js`
+3. **[Client Registration](/docs/patterns/client-registration)** → `swoff/sw-injector.js`
+4. **[TypeScript Declarations](/docs/patterns/client-registration#typescript-declarations)** → `swoff/swoff.d.ts`
 
 ## Output Directory
 
-Remix outputs to `build/client/` by default. Update your `generate-sw.js`:
+Remix outputs to `build/client/` by default. Update your `swoff/sw-generator.js`:
 
 ```javascript
-writeFileSync(join(__dirname, "build", "client", `sw-v${pkg.version}.js`), sw);
-writeFileSync(join(__dirname, "build", "client", "version.json"), JSON.stringify({ ... }));
+writeFileSync(join(__dirname, "..", "build", "client", `sw-v${pkg.version}.js`), sw);
+writeFileSync(join(__dirname, "..", "build", "client", "version.json"), JSON.stringify({ ... }));
 ```
 
 If using a hosting adapter (Vercel, Netlify, Cloudflare), the output directory may differ. Check your adapter's docs.
@@ -67,7 +69,7 @@ Update `package.json`:
 ```json
 {
   "scripts": {
-    "build": "remix build && node generate-sw.js"
+    "build": "remix build && node swoff/sw-generator.js"
   }
 }
 ```

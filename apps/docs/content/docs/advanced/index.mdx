@@ -8,12 +8,65 @@ icon: Rocket
 
 These patterns solve real-world production needs — conflict resolution, authentication, push notifications, and more. Each is optional and independent.
 
-| Pattern | What it solves |
-|---|---|
-| [Mutation Queuing](/docs/advanced/mutation-queuing) | Queue offline writes and sync when online |
-| [Background Sync](/docs/advanced/background-sync) | Process queue after tab close (Chrome/Edge) |
-| [Push Notifications](/docs/advanced/push-notifications) | Re-engage users with push notifications |
-| [Testing](/docs/advanced/testing) | Test service workers, IndexedDB, and offline behavior |
-| [Debugging](/docs/advanced/debugging) | Debug SW, cache, IndexedDB with DevTools |
-| [Conflict Resolution](/docs/advanced/conflict-resolution) | Handle concurrent offline edits |
-| [Authentication](/docs/advanced/authentication) | Auth-aware offline architecture |
+import {
+  WorkflowIcon,
+  RefreshCwIcon,
+  BellIcon,
+  BugIcon,
+  SearchIcon,
+  GitMergeIcon,
+  ShieldIcon,
+} from "lucide-react";
+
+<Cards>
+  <Card
+    title="Mutation Queuing"
+    icon={<WorkflowIcon className="text-purple-500" />}
+    href="/docs/advanced/mutation-queuing"
+  >
+    Queue offline writes and sync when connection returns.
+  </Card>
+  <Card
+    title="Background Sync"
+    icon={<RefreshCwIcon className="text-purple-500" />}
+    href="/docs/advanced/background-sync"
+  >
+    Process mutation queue after tab close via Background Sync API.
+  </Card>
+  <Card
+    title="Push Notifications"
+    icon={<BellIcon className="text-purple-500" />}
+    href="/docs/advanced/push-notifications"
+  >
+    Subscribe to push, handle notifications, and integrate with your data layer.
+  </Card>
+  <Card
+    title="Conflict Resolution"
+    icon={<GitMergeIcon className="text-purple-500" />}
+    href="/docs/advanced/conflict-resolution"
+  >
+    Handle concurrent offline edits — LWW, custom merge, manual, CRDT.
+  </Card>
+  <Card
+    title="Authentication"
+    icon={<ShieldIcon className="text-purple-500" />}
+    href="/docs/advanced/authentication"
+  >
+    Auth-aware offline architecture: store tokens, cache user, handle 401s.
+  </Card>
+  <Card
+    title="Testing"
+    icon={<BugIcon className="text-purple-500" />}
+    href="/docs/advanced/testing"
+  >
+    Test SW, IndexedDB, mutation queue, and offline behavior with Vitest +
+    Playwright.
+  </Card>
+  <Card
+    title="Debugging"
+    icon={<SearchIcon className="text-purple-500" />}
+    href="/docs/advanced/debugging"
+  >
+    Debug SW, cache, IndexedDB, and postMessage communication with DevTools.
+  </Card>
+</Cards>

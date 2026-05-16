@@ -3,6 +3,7 @@ import remarkDirective from "remark-directive";
 import {
   remarkDirectiveAdmonition,
   remarkMdxFiles,
+  remarkMdxMermaid,
   remarkNpm,
   remarkSteps,
   remarkStructure,
@@ -25,6 +26,7 @@ export default defineConfig({
       remarkDirective,
       remarkDirectiveAdmonition,
       remarkMdxFiles,
+      remarkMdxMermaid,
       remarkNpm,
       remarkSteps,
       remarkStructure,

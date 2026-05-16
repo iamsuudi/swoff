@@ -47,6 +47,23 @@ Works with your existing backend. The app shell is cached, read responses are ca
 
 No backend needed. IndexedDB serves as the full database. This is the pattern used by Budget Manager.
 
+## App Shell & Rendering Modes
+
+"All routes cached" works differently depending on how your framework renders pages:
+
+| Mode | How Shell Works | SW Caching Strategy | Examples |
+| ---- | --------------- | ------------------- | -------- |
+| **SPA** | Single `index.html` + JS bundles. All routes served from the same HTML. | Cache `index.html` + assets at install. Serve `index.html` for all navigation (SPA fallback). | React/Vue/Svelte via Vite |
+| **SSG** | Pre-built HTML files for each route. Fully static output. | Cache all HTML files + assets at install via asset list. CacheFirst for everything. | Astro, Next.js SSG, Nuxt SSG, Gatsby |
+| **SSR** | HTML generated per-request. Only static assets are pre-buildable. | NetworkFirst for HTML (cache after first visit). CacheFirst for JS/CSS/images. | Next.js, Nuxt, SvelteKit, Remix |
+| **Hybrid** | Mix of static and dynamic routes (e.g., ISR). | Pre-cache static routes at install. NetworkFirst for dynamic routes after first visit. | Next.js ISR, Nuxt Hybrid |
+
+Your bundler (Vite, Webpack, Turbopack) generates the output that feeds the SW's asset list (`// [[ASSETS_LIST]]`). For a SPA that's `['/index.html']`; for SSG it's the full set of route HTML files.
+
+:::tip
+With SSR, consider **stale-while-revalidate** for HTML routes: serve cached HTML immediately (after first visit) while fetching fresh in the background. This gives instant loads without sacrificing freshness.
+:::
+
 ```
 ┌────────────────────────┐
 │     Browser Tab         │

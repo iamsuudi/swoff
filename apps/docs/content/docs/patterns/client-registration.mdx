@@ -116,9 +116,47 @@ function shouldRegisterSW() {
 }
 ```
 
+## TypeScript Declarations
+
+Create `swoff/swoff.d.ts`:
+
+```typescript
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
+declare global {
+  interface Window {
+    deferredInstallPrompt: BeforeInstallPromptEvent | null;
+    latestSWVersion?: string;
+    currentSWVersion?: string;
+    swRegisteredVersion?: string;
+    swAvailableVersion?: string;
+    swUpdateRequired?: boolean;
+    swMinSupportedVersion?: string;
+    swReady?: boolean;
+    swError?: boolean;
+  }
+}
+export {};
+```
+
+### Window Properties
+
+| Property | Type | Purpose |
+|---|---|---|
+| `window.latestSWVersion` | `string` | From version.json (server version) |
+| `window.currentSWVersion` | `string` | Version of the active/registered SW |
+| `window.swRegisteredVersion` | `string` | Same as localStorage value |
+| `window.swAvailableVersion` | `string` | Pending update version |
+| `window.swUpdateRequired` | `boolean` | Whether update is mandatory |
+| `window.swMinSupportedVersion` | `string` | Minimum supported version from version.json |
+| `window.swReady` | `boolean` | SW is active |
+| `window.swError` | `boolean` | SW registration failed |
+
 ## Next Steps
 
 - Set up [Build Scripts](/docs/patterns/build-scripts) — automate versioning
 - Coordinate client requests: [API Integration](/docs/patterns/api-integration)
-- Add [Utilities](/docs/patterns/utilities) — TypeScript declarations
 - Follow your [Framework Guide](/docs/guides/) — where to register in your stack

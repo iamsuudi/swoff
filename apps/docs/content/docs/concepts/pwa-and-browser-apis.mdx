@@ -1,24 +1,83 @@
 ---
-title: Browser APIs Overview
-description: Modern browser APIs that make offline-first apps possible.
-icon: Globe
+title: PWA & Browser APIs
+description: PWA is a tiny addition to your app — and the browser APIs that make offline-first possible.
+icon: Smartphone
 ---
 
-## The Offline Stack
+## What PWA Actually Is
 
-Swoff is built on standard browser APIs — no frameworks, no libraries. These APIs are available in all modern browsers.
+PWA is **three small additions** to your web app:
 
-## Core APIs
+### 1. Web App Manifest
 
-### Service Worker API
+A JSON file that tells the browser the app is installable:
 
-Background script for intercepting requests and caching.
-
-```javascript
-navigator.serviceWorker.register("/sw-v1.0.0.js");
+```json
+{
+  "name": "My App",
+  "short_name": "MyApp",
+  "start_url": "/",
+  "display": "standalone",
+  "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+}
 ```
 
-**Key Methods**: `register()`, `addEventListener('fetch')`, `addEventListener('install')`, `clients.claim()`
+Linked in HTML: `<link rel="manifest" href="/manifest.json" />`
+
+### 2. Install Prompt
+
+Handle the browser's install prompt:
+
+```javascript
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  window.deferredInstallPrompt = e;
+});
+
+async function installApp() {
+  await window.deferredInstallPrompt?.prompt();
+  const { outcome } = await window.deferredInstallPrompt.userChoice;
+}
+```
+
+### 3. HTTPS
+
+Service Workers only work over HTTPS (or localhost).
+
+## That's It
+
+PWA is not a framework, build tool, or magic that makes your app work offline. It's a manifest file, an optional install prompt, and a way to "install" your web app to the home screen.
+
+When you "install" a PWA, the browser creates a shortcut and the app opens in a standalone window. That's all — it's still a web app. Installing doesn't download the app, make it work offline automatically, or give it native APIs.
+
+## PWA vs Offline Capability
+
+| Feature            | PWA               | Offline Capability |
+| ------------------ | ----------------- | ------------------ |
+| Manifest file      | Required          | Not needed         |
+| Install prompt     | Optional          | Not needed         |
+| Service Worker     | Required          | Required           |
+| Assets cached      | Yes               | Yes                |
+| Data works offline | Not guaranteed    | Required           |
+| App feels native   | Yes               | Not required       |
+
+## Swoff's Position
+
+PWA is a **tiny addition** to Swoff apps:
+
+```
+Swoff Core (offline app shell, versioned SW, data caching & sync)
+         +
+PWA Layer (manifest + install prompt)
+         =
+Installable Offline-Ready App
+```
+
+We document PWA setup, but it's not the focus. The focus is **offline capability through architecture**. Every browser supports "Add to Home Screen" or "Create Shortcut" — PWA just provides a nicer prompt.
+
+## The Browser Offline Stack
+
+Swoff is built on standard browser APIs — no frameworks, no libraries. These APIs are available in all modern browsers.
 
 ### Cache API
 
@@ -91,5 +150,5 @@ These APIs are stable, well-documented on MDN, sufficient for offline-first apps
 
 - Start with [Offline-First Architecture](/docs/core/offline-architecture) — how to build with these APIs
 - See [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) — practical usage
-- Check the [SW Template](/docs/patterns/sw-template) — service worker in practice
 - Learn about platform constraints: [iOS Safari Limitations](/docs/concepts/ios-safari-limitations)
+- Configure [PWA & Installability](/docs/patterns/pwa-installability) in your app

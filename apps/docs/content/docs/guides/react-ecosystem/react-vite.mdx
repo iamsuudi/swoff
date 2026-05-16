@@ -20,10 +20,12 @@ cd my-app && npm install
 ```
 my-app
 ├── src
-│   ├── main.tsx
-│   └── sw-template.js
-├── generate-sw.js
-├── sw.d.ts
+│   └── main.tsx
+├── swoff
+│   ├── sw-template.js
+│   ├── sw-generator.js
+│   ├── sw-injector.js
+│   └── swoff.d.ts
 └── package.json
 ```
 
@@ -33,7 +35,7 @@ my-app
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
-import { initServiceWorker } from './sw-registration'
+import { initServiceWorker } from '../swoff/sw-injector'
 
 initServiceWorker()
 
@@ -44,24 +46,24 @@ ReactDOM.createRoot(document.getElementById('root')!).render(<App />)
 
 Copy from [Patterns](/docs/patterns):
 
-1. **[SW Template](/docs/patterns/sw-template)** → `src/sw-template.js`
-2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js` (output dir: `dist/`)
-3. **[Client Registration](/docs/patterns/client-registration)** → `src/sw-registration.js`
-4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
+1. **[SW Template](/docs/patterns/sw-template)** → `swoff/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `swoff/sw-generator.js` (output dir: `dist/`)
+3. **[Client Registration](/docs/patterns/client-registration)** → `swoff/sw-injector.js`
+4. **[TypeScript Declarations](/docs/patterns/client-registration#typescript-declarations)** → `swoff/swoff.d.ts`
 
 Update `package.json`:
 
 ```json
 {
   "scripts": {
-    "build": "vite build && node generate-sw.js"
+    "build": "vite build && node swoff/sw-generator.js"
   }
 }
 ```
 
 ## Output Directory
 
-Vite outputs to `dist/` by default. Your `generate-sw.js` should write `sw-v*.js` and `version.json` to `dist/`.
+Vite outputs to `dist/` by default. Your `swoff/sw-generator.js` should write `sw-v*.js` and `version.json` to `dist/`.
 
 ## Build & Test
 

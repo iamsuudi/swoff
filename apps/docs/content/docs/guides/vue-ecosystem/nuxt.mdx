@@ -28,12 +28,13 @@ export default defineNuxtConfig({
 
 ```
 my-app
-├── app
-│   └── sw-template.js
 ├── plugins
 │   └── sw.client.ts
-├── generate-sw.js
-├── sw.d.ts
+├── swoff
+│   ├── sw-template.js
+│   ├── sw-generator.js
+│   ├── sw-injector.js
+│   └── swoff.d.ts
 └── package.json
 ```
 
@@ -55,18 +56,18 @@ export default defineNuxtPlugin(() => {
 
 Copy from [Patterns](/docs/patterns):
 
-1. **[SW Template](/docs/patterns/sw-template)** → `app/sw-template.js`
-2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
-3. **[Client Registration](/docs/patterns/client-registration)** → `app/sw-registration.js`
-4. **[TypeScript Declarations](/docs/patterns/utilities)** → `sw.d.ts`
+1. **[SW Template](/docs/patterns/sw-template)** → `swoff/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `swoff/sw-generator.js`
+3. **[Client Registration](/docs/patterns/client-registration)** → `swoff/sw-injector.js`
+4. **[TypeScript Declarations](/docs/patterns/client-registration#typescript-declarations)** → `swoff/swoff.d.ts`
 
 ## Output Directory
 
-Nuxt outputs to `.output/public/` by default. Update your `generate-sw.js`:
+Nuxt outputs to `.output/public/` by default. Update your `swoff/sw-generator.js`:
 
 ```javascript
-writeFileSync(join(__dirname, ".output", "public", `sw-v${pkg.version}.js`), sw);
-writeFileSync(join(__dirname, ".output", "public", "version.json"), JSON.stringify({ ... }));
+writeFileSync(join(__dirname, "..", ".output", "public", `sw-v${pkg.version}.js`), sw);
+writeFileSync(join(__dirname, "..", ".output", "public", "version.json"), JSON.stringify({ ... }));
 ```
 
 If deploying to Vercel, Netlify, or Cloudflare, the output path may differ.
@@ -76,7 +77,7 @@ Update `package.json`:
 ```json
 {
   "scripts": {
-    "build": "nuxt build && node generate-sw.js"
+    "build": "nuxt build && node swoff/sw-generator.js"
   }
 }
 ```

@@ -2,10 +2,8 @@
   "title": "Concepts",
   "icon": "Lightbulb",
   "pages": [
-    "what-is-offline",
-    "service-workers",
-    "pwa-explained",
-    "browser-apis",
+    "what-is-offline-and-sw",
+    "pwa-and-browser-apis",
     "ios-safari-limitations"
   ]
 }

@@ -1,12 +1,37 @@
 ---
-title: Service Workers
-description: Understanding service workers, versioning, and the difference between PWA install and app updates.
-icon: Network
+title: Offline Capability & SW
+description: Understanding offline capability and the service workers that make it possible.
+icon: WifiOff
 ---
+
+## What Offline Capability Means
+
+Most developers think offline capability means "caching assets so the page loads without internet." That's incomplete. For Swoff, an offline-capable app ensures:
+
+- **Static assets & routes load** — all HTML, CSS, JS, images served via Service Worker
+- **App logic runs** — JavaScript executes in the browser
+- **Dynamic data handled intelligently** — reads cached, mutations queued when offline
+- **Navigation works** — all routes accessible without network
+
+## The Offline Spectrum
+
+| Level        | What Works                                                               | Example                                         |
+| ------------ | ------------------------------------------------------------------------ | ----------------------------------------------- |
+| None         | Nothing without internet                                                 | Traditional server-rendered apps                |
+| Partial      | Assets cached, but data needs network                                    | Basic PWA with no local storage                 |
+| App Shell    | Assets + all routes offline, reads cached, mutations queued when offline | General Swoff apps (with your existing backend) |
+| Full Offline | Assets + data + all features offline (IndexedDB as DB, no server needed) | Budget Manager (special 100% offline case)      |
+
+## Why Most PWAs Fail at Offline
+
+1. **Cache assets but not data** — app loads, then crashes trying to fetch API
+2. **Rely on runtime caching** — `stale-while-revalidate` doesn't help if cache is empty
+3. **Don't version their SW** — browser auto-updates break things silently
+4. **Don't handle failed fetches** — no fallback UI for missing data
 
 ## What is a Service Worker?
 
-A service worker (SW) is a JavaScript file that runs in the background, separate from your web page. It's the foundation of offline capability:
+A service worker (SW) is a JavaScript file that runs in the background, separate from your web page. It is the foundation of offline capability:
 
 - **Runs in the background** — separate from the main thread
 - **Intercepts network requests** — can serve cached responses
@@ -14,28 +39,16 @@ A service worker (SW) is a JavaScript file that runs in the background, separate
 - **Persists after page close** — stays alive until explicitly removed
 - **HTTPS required** — except localhost for development
 
-## Lifecycle
+## SW Lifecycle
 
 ```
-┌─────────────┐
-│   Register  │ ← Your app registers the SW
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│   Install   │ ← SW downloads and caches assets
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│   Activate  │ ← Old SW cleaned up, new SW takes over
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│   Fetch     │ ← Intercepts requests, serves from cache
-└─────────────┘
+Register → Install → Activate → Fetch
 ```
+
+1. **Register** — Your app registers the SW
+2. **Install** — SW downloads and caches assets
+3. **Activate** — Old SW cleaned up, new SW takes over
+4. **Fetch** — Intercepts requests, serves from cache
 
 ## The Problem with Default SW Behavior
 
@@ -44,13 +57,6 @@ Browsers automatically download new SW files when detected, install them in the 
 ## Swoff's Solution: Versioned SW Files
 
 Instead of `/sw.js`, we use `/sw-v1.0.0.js`, `/sw-v1.0.1.js`, etc. Each version is a unique file. The browser only loads the version you tell it to.
-
-```javascript
-// Instead of: /sw.js (always the same file)
-// We use:    /sw-v1.0.0.js, /sw-v1.0.1.js, etc.
-```
-
-The version flow:
 
 ```
 package.json version: 1.0.0
@@ -105,6 +111,6 @@ You can have an offline app without PWA install (user accesses via bookmark). Yo
 
 ## Next Steps
 
+- Understand [PWA & Browser APIs](/docs/concepts/pwa-and-browser-apis) — the supporting stack
 - Learn the [Versioned SW System](/docs/core/versioned-sw) — how we implement versioning
-- Understand the [Update Consent Flow](/docs/core/versioned-sw#update-consent-flow) — user control over updates
 - See the [SW Template](/docs/patterns/sw-template) — copy-paste ready code

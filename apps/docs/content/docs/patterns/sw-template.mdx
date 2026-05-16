@@ -297,6 +297,22 @@ async function invalidateByTag(tag) {
 }
 ```
 
+## Security Considerations
+
+### Subresource Integrity
+
+The SW caches all assets at install time via `ASSETS_TO_CACHE` + `cache.addAll()`. If your build pipeline or CDN is compromised, the SW will cache and serve malicious content — even offline. Consider adding an integrity check after caching by verifying a hash of each cached response against a known value. Alternatively, pin your asset versions and use lockfiles in your build process.
+
+### Runtime Cache Persists Across SW Updates
+
+The `swoff-runtime` cache (for API responses) is intentionally preserved when the SW updates — this is what keeps cached data available after an update. However, it also means a poisoned API response (e.g., from a supply-chain attack) will survive SW updates. It is only cleared by:
+
+- Calling `invalidateByTag(tag)` from client code
+- The `activate` event cleaning old version caches (runtime cache is exempt)
+- The user manually clearing site data
+
+To mitigate this, call `invalidateByTag()` aggressively after mutations, and consider periodically trimming the runtime cache (see [Cache Trimming](/docs/patterns/indexeddb-patterns#cache-trimming)).
+
 ## Events
 
 | Event                 | Source             | Detail                | Purpose                          |

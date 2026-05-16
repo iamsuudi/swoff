@@ -20,6 +20,8 @@ Three tiers, each with different guarantees:
 
 :::warn
 **Never store auth tokens in `localStorage`.** It's synchronous, accessible by any JavaScript in the same origin, and persists indefinitely — making it a prime XSS target.
+
+**IndexedDB has the same origin-level access** as localStorage. Any script running on your origin can call `indexedDB.open("swoff-auth")` and read stored tokens. The memory cache (cleared on page refresh) provides the only protection against same-origin XSS. For high-security apps, prefer http-only cookies over bearer tokens.
 :::
 
 ## Implementation

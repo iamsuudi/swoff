@@ -4,7 +4,7 @@ import * as FilesComponents from "@/components/files";
 import defaultMdxComponents from "fumadocs-ui/mdx";
 import type { MDXComponents } from "mdx/types";
 import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
-import { Mermaid } from "@/components/Mermaid";
+import { Mermaid } from "./mdx/mermaid";
 
 export function getMDXComponents(components?: MDXComponents) {
   return {
@@ -13,12 +13,12 @@ export function getMDXComponents(components?: MDXComponents) {
     ...FilesComponents,
     Accordion,
     Accordions,
-    Mermaid,
     pre: ({ ref: _ref, ...props }) => (
       <CodeBlock icon {...props}>
         <Pre>{props.children}</Pre>
       </CodeBlock>
     ),
+    Mermaid,
     ...components,
   } satisfies MDXComponents;
 }

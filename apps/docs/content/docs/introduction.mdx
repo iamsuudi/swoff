@@ -12,43 +12,28 @@ Swoff is a zero-dependency blueprint for building offline-first, versioned web a
 
 Swoff is not a traditional library. You copy our service worker, hooks, and utilities into your project, then modify them to fit your needs. No waiting for library updates, no bundle bloat.
 
-## Key Features
+## Modular by Design
 
-import {
-  RocketIcon,
-  WifiOffIcon,
-  PuzzleIcon,
-} from "lucide-react";
+Swoff is a **toolbox**, not a framework. Every feature is a file you copy into your project and own.
 
 <Cards>
-  <Card
-    title="Versioned Service Worker"
-    icon={<RocketIcon className="text-emerald-500" />}
-  >
-    Each build generates a versioned SW (e.g., <code>sw-v1.0.0.js</code>) from
-    your package.json. No silent updates. See the [full feature map](/docs/features).
+  <Card title="Pick what you need" icon={<CheckIcon />}>
+    Don't need push notifications? Skip the file. Each feature is independent or
+    has minimal, clear dependencies.
   </Card>
-  <Card
-    title="Offline-First Architecture"
-    icon={<WifiOffIcon className="text-emerald-500" />}
-  >
-    App shell cached via Service Worker. Read queries cached for offline access.
-    Mutations queued and synced when back online.
+  <Card title="Tweak everything" icon={<SlidersIcon />}>
+    The code is yours. Change caching strategies, swap IndexedDB wrappers, or
+    rewrite the merge logic — no library fights you.
   </Card>
-  <Card
-    title="Modular by Design"
-    icon={<PuzzleIcon className="text-emerald-500" />}
-  >
-    Pick only what you need — core SW, optional PWA, or full offline with
-    mutation queuing. Browse all [features](/docs/features).
+  <Card title="Zero lock-in" icon={<UnlinkIcon />}>
+    Walk away any time. There's no npm install to undo — just delete the files
+    you don't need anymore.
   </Card>
 </Cards>
 
-## Quick Start
+## Full Guide
 
-:::info
-No install needed. Read the guides and copy the code.
-:::
+Want to understand everything? Follow these steps in order:
 
 1. Understand the [concepts](/docs/concepts/what-is-offline-and-sw) — offline capability and service workers
 2. Learn the [core architecture](/docs/core/offline-architecture) — offline-first principles and data storage
@@ -78,3 +63,5 @@ _Note: Most Swoff apps use a backend for dynamic data. Budget Manager is a speci
 ## License
 
 MIT — use freely in your projects.
+
+import { CheckIcon, SlidersIcon, UnlinkIcon } from "lucide-react";

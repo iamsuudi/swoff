@@ -14,9 +14,11 @@ Swoff's patterns are based on browser APIs, so vanilla JS is the most natural fi
 my-app/
 ├── index.html
 ├── app.js
-├── sw-registration.js
-├── sw-template.js
-├── generate-sw.js
+├── swoff
+│   ├── sw-template.js
+│   ├── sw-generator.js
+│   ├── sw-injector.js
+│   └── swoff.d.ts
 └── package.json
 ```
 
@@ -39,7 +41,7 @@ my-app/
 ## Registration (`app.js`)
 
 ```javascript
-import { initServiceWorker } from "./sw-registration.js";
+import { initServiceWorker } from "./swoff/sw-injector.js";
 
 initServiceWorker();
 
@@ -50,9 +52,9 @@ initServiceWorker();
 
 Copy from [Patterns](/docs/patterns):
 
-1. **[SW Template](/docs/patterns/sw-template)** → `sw-template.js`
-2. **[Build Script](/docs/patterns/build-scripts)** → `generate-sw.js`
-3. **[Client Registration](/docs/patterns/client-registration)** → `sw-registration.js`
+1. **[SW Template](/docs/patterns/sw-template)** → `swoff/sw-template.js`
+2. **[Build Script](/docs/patterns/build-scripts)** → `swoff/sw-generator.js`
+3. **[Client Registration](/docs/patterns/client-registration)** → `swoff/sw-injector.js`
 
 For a build tool (optional):
 
@@ -65,14 +67,14 @@ Update `package.json`:
 ```json
 {
   "scripts": {
-    "build": "vite build && node generate-sw.js"
+    "build": "vite build && node swoff/sw-generator.js"
   }
 }
 ```
 
 ## Output Directory
 
-- Plain HTML: serve from project root, `generate-sw.js` writes to project root
+- Plain HTML: serve from project root, `swoff/sw-generator.js` writes to project root
 - With Vite: outputs to `dist/`
 
 ## No Framework Needed

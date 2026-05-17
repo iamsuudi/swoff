@@ -264,6 +264,184 @@ export function useCrossTabCache() {
 }
 ```
 
+## useOfflineStatus
+
+Track network connectivity state and show appropriate UI.
+
+```typescript
+const { isOnline, wasOffline } = useOfflineStatus();
+// isOnline: boolean — current connectivity
+// wasOffline: boolean — user was offline since last render
+```
+
+**Usage:**
+
+```typescript
+function OfflineBanner() {
+  const { isOnline } = useOfflineStatus();
+  if (isOnline) return null;
+  return <div className="banner">You're offline</div>;
+}
+```
+
+**Implementation:**
+
+```typescript
+import { useState, useEffect } from "react";
+
+export function useOfflineStatus() {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [wasOffline, setWasOffline] = useState(false);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setWasOffline(!isOnline);
+      setIsOnline(true);
+    };
+    const handleOffline = () => {
+      setWasOffline(true);
+      setIsOnline(false);
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [isOnline]);
+
+  return { isOnline, wasOffline };
+}
+```
+
+## useMutationQueue
+
+React hook for offline mutation handling with queue state.
+
+```typescript
+const { pendingCount, isSyncing, lastSync, retryMutation } = useMutationQueue();
+// pendingCount: number — mutations waiting to sync
+// isSyncing: boolean — currently processing queue
+// lastSync: { succeeded: number, failed: number } | null
+// retryMutation: () => void — manually retry failed mutations
+```
+
+**Usage:**
+
+```typescript
+function SyncIndicator() {
+  const { pendingCount, isSyncing } = useMutationQueue();
+
+  if (pendingCount === 0) return null;
+
+  return (
+    <div className="sync-indicator">
+      {isSyncing ? "Syncing..." : `${pendingCount} pending`}
+    </div>
+  );
+}
+```
+
+**Implementation:**
+
+```typescript
+import { useState, useEffect, useCallback } from "react";
+import { getPendingCount, processMutationQueue } from "../../../swoff/mutation-queue.js";
+
+export function useMutationQueue() {
+  const [pendingCount, setPendingCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<{ succeeded: number; failed: number } | null>(null);
+
+  const updateCount = useCallback(async () => {
+    setPendingCount(await getPendingCount());
+  }, []);
+
+  useEffect(() => {
+    updateCount();
+
+    const onQueueChange = () => updateCount();
+    const onSyncComplete = (e: CustomEvent) => {
+      setIsSyncing(false);
+      setLastSync(e.detail);
+      updateCount();
+    };
+    const onOnline = () => {
+      setIsSyncing(true);
+      processMutationQueue();
+    };
+
+    window.addEventListener("mutation-queue-changed", onQueueChange);
+    window.addEventListener("mutation-sync-complete", onSyncComplete as EventListener);
+    window.addEventListener("online", onOnline);
+
+    return () => {
+      window.removeEventListener("mutation-queue-changed", onQueueChange);
+      window.removeEventListener("mutation-sync-complete", onSyncComplete as EventListener);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [updateCount]);
+
+  const retryMutation = useCallback(async () => {
+    setIsSyncing(true);
+    await processMutationQueue();
+  }, []);
+
+  return { pendingCount, isSyncing, lastSync, retryMutation };
+}
+```
+
+## useOfflineData
+
+Fetch data that works offline with automatic caching.
+
+```typescript
+const { data, isLoading, isOffline, refetch } = useOfflineData("/api/todos", {
+  tags: ["todos"],
+});
+// data: T | null
+// isLoading: boolean
+// isOffline: boolean — currently serving cached data
+// refetch: () => void
+```
+
+**Implementation:**
+
+```typescript
+import { useState, useEffect, useCallback } from "react";
+import { fetchWithCache } from "../../../swoff/fetch-wrapper.js";
+import { useOfflineStatus } from "./useOfflineStatus";
+
+export function useOfflineData<T>(url: string, options: { tags?: string[] } = {}) {
+  const [data, setData] = useState<T | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
+  const { isOnline } = useOfflineStatus();
+
+  const refetch = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetchWithCache(url, options);
+      const json = await response.json();
+      setData(json);
+      setIsOffline(!isOnline);
+    } catch (error) {
+      console.error("Failed to fetch:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [url, JSON.stringify(options), isOnline]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  return { data, isLoading, isOffline, refetch };
+}
+```
+
 ## Next Steps
 
 - See [React Components](/docs/guides/react-ecosystem/components) — UI components using these hooks

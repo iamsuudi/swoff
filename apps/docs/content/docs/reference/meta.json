@@ -1,7 +1,5 @@
 {
-  "title": "Reference Implementation",
+  "title": "Reference Example",
   "icon": "FolderOpen",
-  "pages": [
-    "budget-manager"
-  ]
+  "pages": ["budget-manager", "ecommerce", "notes-app"]
 }

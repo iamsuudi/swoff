@@ -1,0 +1,236 @@
+---
+title: E-commerce App
+description: Shopping cart with offline storage, queued checkout, and authenticated user.
+icon: ShoppingCart
+---
+
+## E-commerce Reference
+
+A fully offline-ready e-commerce cart showing auth integration, cart persistence, and queued checkout.
+
+## What It Demonstrates
+
+- ✅ Authenticated user with cached profile
+- ✅ Product catalog cached for offline browsing
+- ✅ Cart persists offline (IndexedDB)
+- ✅ Checkout queued when offline, synced when online
+- ✅ Order history cached
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│                 Client (Browser)                 │
+├─────────────────────────────────────────────────┤
+│  Service Worker                                │
+│  ├── Product cache (Cache API)                 │
+│  ├── Cart cache (Cache API)                    │
+│  └── Order queue (IndexedDB)                   │
+├─────────────────────────────────────────────────┤
+│  IndexedDB                                      │
+│  ├── user (auth profile)                        │
+│  ├── products (cached catalog)                 │
+│  ├── cart (local cart)                          │
+│  └── orders (synced orders)                    │
+└─────────────────────────────────────────────────┘
+              ↓ (when online)
+┌─────────────────────────────────────────────────┐
+│  Your Backend (orders API)                      │
+└─────────────────────────────────────────────────┘
+```
+
+## Key Files
+
+### Cart Storage (IndexedDB)
+
+```javascript
+// lib/storage/cart.ts
+const DB_NAME = "ecommerce";
+const CART_STORE = "cart";
+
+export async function addToCart(product, quantity = 1) {
+  const db = await openDB(DB_NAME, 1);
+  const tx = db.transaction(CART_STORE, "readwrite");
+  const store = tx.objectStore(CART_STORE);
+
+  const existing = await getCartItem(product.id);
+  if (existing) {
+    existing.quantity += quantity;
+    store.put(existing);
+  } else {
+    store.put({
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      image: product.image,
+      quantity,
+      addedAt: Date.now(),
+    });
+  }
+}
+
+export async function getCart() {
+  const db = await openDB(DB_NAME);
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(CART_STORE, "readonly");
+    const request = tx.objectStore(CART_STORE).getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function getCartTotal() {
+  const cart = await getCart();
+  return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+}
+```
+
+### Cart Page (Offline-Ready)
+
+```tsx
+// pages/Cart.tsx
+import { useState, useEffect } from "react";
+import { useOfflineStatus } from "../hooks/useOfflineStatus";
+import { useMutationQueue } from "../hooks/useMutationQueue";
+import { getCart, getCartTotal } from "../lib/storage/cart";
+
+export function CartPage() {
+  const [cart, setCart] = useState([]);
+  const [total, setTotal] = useState(0);
+  const { isOnline } = useOfflineStatus();
+  const { pendingCount } = useMutationQueue();
+
+  useEffect(() => {
+    loadCart();
+  }, []);
+
+  async function loadCart() {
+    const items = await getCart();
+    const cartTotal = await getCartTotal();
+    setCart(items);
+    setTotal(cartTotal);
+  }
+
+  async function checkout() {
+    const order = {
+      items: cart,
+      total,
+      createdAt: Date.now(),
+    };
+
+    // Queue for offline sync
+    await queueMutation({
+      method: "POST",
+      url: "/api/orders",
+      body: order,
+      tags: ["orders", "cart"],
+      storeName: "orders",
+      tempId: `temp-${Date.now()}`,
+    });
+
+    // Clear local cart
+    await clearCart();
+    loadCart();
+  }
+
+  return (
+    <div>
+      <h1>Shopping Cart</h1>
+
+      {!isOnline && (
+        <div role="alert" aria-live="polite" className="offline-banner">
+          You are offline. Your order will be placed when you reconnect.
+        </div>
+      )}
+
+      {cart.length === 0 ? (
+        <p>Your cart is empty</p>
+      ) : (
+        <ul>
+          {cart.map((item) => (
+            <li key={item.id}>
+              {item.title} - ${item.price} x {item.quantity}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <p>Total: ${total}</p>
+
+      {pendingCount > 0 && (
+        <div role="status" aria-live="polite">
+          {pendingCount} order(s) pending...
+        </div>
+      )}
+
+      <button onClick={checkout} disabled={cart.length === 0}>
+        {isOnline ? "Place Order" : "Place Order (Offline)"}
+      </button>
+    </div>
+  );
+}
+```
+
+### Product Catalog (Cached)
+
+```tsx
+// pages/Products.tsx
+import { fetchWithCache } from "../swoff/fetch-wrapper";
+
+export async function getStaticProps() {
+  // Products are cached by SW for offline
+  const response = await fetchWithCache("/api/products", {
+    tags: ["products"],
+    staleWhileRevalidate: true,
+  });
+  const products = await response.json();
+
+  return { props: { products } };
+}
+
+export function ProductsPage({ products }) {
+  return (
+    <ul>
+      {products.map((product) => (
+        <li key={product.id}>
+          <img src={product.image} alt={product.title} />
+          <h3>{product.title}</h3>
+          <p>${product.price}</p>
+          <button onClick={() => addToCart(product)}>
+            Add to Cart
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+## Offline Behavior
+
+| User Action | Online | Offline |
+|-------------|--------|---------|
+| Browse products | Fetch from API, cache | Serve from cache |
+| Add to cart | Write to IDB | Write to IDB |
+| View cart | Read from IDB | Read from IDB |
+| Checkout | POST to API | Queue to IDB |
+| Order synced | Show confirmation | Show "pending" badge |
+| Back online | - | Queue auto-processes |
+
+## What's Included
+
+| Feature | Status |
+|---------|--------|
+| Product catalog cache | ✅ |
+| Cart persistence | ✅ |
+| Checkout queue | ✅ |
+| Auth integration | ✅ |
+| Order history | ✅ |
+| Offline indicator | ✅ |
+| Sync status | ✅ |
+
+## Next Steps
+
+- [Auth Integration](/docs/advanced/authentication) — user login/logout
+- [Mutation Queuing](/docs/advanced/mutation-queuing) — offline checkout
+- [Reference: Budget Manager](/docs/reference/budget-manager) — full offline app

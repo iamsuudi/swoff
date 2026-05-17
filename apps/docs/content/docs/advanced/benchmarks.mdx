@@ -1,0 +1,323 @@
+---
+title: Benchmarks & Metrics
+description: How to measure and track offline-first app performance.
+icon: Scale
+---
+
+## Benchmarks Methodology
+
+Here's how to measure your offline-first app's performance. These metrics help you understand and optimize the user experience.
+
+## Why Benchmark?
+
+Offline-first apps add complexity:
+
+- Service Worker installation time
+- Cache read/write latency
+- IndexedDB transaction speeds
+
+Benchmarks help you:
+
+- Set performance budgets
+- Find bottlenecks
+- Verify optimization work
+
+---
+
+## Key Metrics
+
+### 1. First Load (Offline)
+
+**What**: Time from navigation start to interactive when offline (cache hit)
+
+**How to measure**:
+
+```javascript
+// In your test/benchmark script
+async function measureFirstLoadOffline() {
+  // Go offline
+  await context.setOffline(true);
+
+  const start = performance.now();
+  await page.goto("/");
+  await page.waitForSelector("[data-interactive]"); // Your app root
+  const end = performance.now();
+
+  return end - start;
+}
+```
+
+**Expected ranges**:
+| Condition | Target | Acceptable |
+|-----------|--------|------------|
+| Cold (no cache) | - | Full load (network) |
+| Warm (cached) | < 500ms | < 2s |
+| Repeat (SW ready) | < 100ms | < 500ms |
+
+---
+
+### 2. Service Worker Install Time
+
+**What**: Time to install and cache assets on first visit
+
+**How to measure**:
+
+```javascript
+async function measureSWInstall() {
+  // Clear existing SW and cache
+  await context.clearBrowserDownloads();
+  await context.clearBrowserCache();
+
+  const start = performance.now();
+
+  await page.goto("/");
+  await page.evaluate(async () => {
+    return new Promise((resolve) => {
+      navigator.serviceWorker.addEventListener("controllerchange", resolve);
+    });
+  });
+
+  const end = performance.now();
+  return end - start;
+}
+```
+
+**Target**: < 3s for typical app (depends on asset count/size)
+
+---
+
+### 3. Cache API Latency
+
+**What**: Time to read from Cache API vs network
+
+**How to measure**:
+
+```javascript
+async function measureCacheLatency() {
+  const cache = await caches.open("swoff-runtime");
+  const request = new Request("/api/data");
+
+  // Measure read
+  const readStart = performance.now();
+  await cache.match(request);
+  const readEnd = performance.now();
+
+  // Measure write
+  const writeStart = performance.now();
+  await cache.put(request, new Response("{}"));
+  const writeEnd = performance.now();
+
+  return {
+    readMs: readEnd - readStart,
+    writeMs: writeEnd - writeStart,
+  };
+}
+```
+
+**Expected**:
+| Operation | Target |
+|-----------|--------|
+| Cache read | < 5ms |
+| Cache write | < 10ms |
+
+---
+
+### 4. IndexedDB Write Speed
+
+**What**: Time to write records to IndexedDB
+
+**How to measure**:
+
+```javascript
+async function measureIDBWrite(count = 100) {
+  const db = await openDB("benchmark");
+  const records = Array.from({ length: count }, (_, i) => ({
+    id: `bench-${i}`,
+    data: "x".repeat(100),
+    timestamp: Date.now(),
+  }));
+
+  const start = performance.now();
+
+  const tx = db.transaction("bench", "readwrite");
+  const store = tx.objectStore("bench");
+  for (const record of records) {
+    store.put(record);
+  }
+
+  await new Promise((r) => {
+    tx.oncomplete = r;
+  });
+  const end = performance.now();
+
+  return {
+    totalMs: end - start,
+    perRecordMs: (end - start) / count,
+  };
+}
+```
+
+**Expected**:
+| Count | Target | Acceptable |
+|-------|--------|------------|
+| 10 | < 50ms | < 100ms |
+| 100 | < 200ms | < 500ms |
+| 1000 | < 1s | < 3s |
+
+---
+
+### 5. Memory Usage
+
+**What**: JS heap size under different states
+
+**How to measure**:
+
+```javascript
+async function measureMemory() {
+  if (!performance.memory) {
+    console.warn("performance.memory not available (Chrome only)");
+    return;
+  }
+
+  const measure = () => ({
+    used: (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(1) + "MB",
+    total: (performance.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(1) + "MB",
+  };
+
+  // Initial state
+  const baseline = measure();
+
+  // After loading data
+  await loadAllNotes();
+  const withData = measure();
+
+  // After filling cache
+  await fetchAllApiData();
+  const withCache = measure();
+
+  return { baseline, withData, withCache };
+}
+```
+
+**Target**: < 100MB heap for typical app
+
+---
+
+### 6. Mutation Queue Processing
+
+**What**: Time to sync queued mutations when back online
+
+**How to measure**:
+
+```javascript
+async function measureQueueSync(mutationCount = 10) {
+  // Queue mutations while offline
+  await context.setOffline(true);
+  for (let i = 0; i < mutationCount; i++) {
+    await queueMutation({
+      /* ... */
+    });
+  }
+
+  // Go online and measure sync
+  await context.setOffline(false);
+  const start = performance.now();
+  await processMutationQueue();
+  const end = performance.now();
+
+  return {
+    totalMs: end - start,
+    perMutationMs: (end - start) / mutationCount,
+  };
+}
+```
+
+---
+
+## Test Setup
+
+### Chrome DevTools Protocol
+
+```javascript
+// benchmark.mjs
+import { chromium } from "playwright";
+
+const browser = await chromium.launch();
+const context = await browser.newContext();
+const page = await context.newPage();
+
+// Your benchmark code here
+
+await browser.close();
+```
+
+### Continuous Monitoring
+
+Add to your app for production metrics:
+
+```javascript
+// In your app
+export function trackPerformanceMetric(name, value) {
+  if (!window.__ANALYTICS__) return;
+
+  window.__ANALYTICS__.track("performance", {
+    metric: name,
+    value,
+    timestamp: Date.now(),
+    swVersion: window.currentSWVersion,
+    online: navigator.onLine,
+  });
+}
+
+// Track key events
+trackPerformanceMetric("sw_install_time", installTime);
+trackPerformanceMetric("cache_read_latency", cacheReadMs);
+trackPerformanceMetric("idb_write_latency", idbWriteMs);
+```
+
+---
+
+## Performance Budgets
+
+Set targets for your app:
+
+| Metric                       | Budget  | Warning |
+| ---------------------------- | ------- | ------- |
+| First load (offline, cached) | < 500ms | > 1s    |
+| SW install time              | < 3s    | > 5s    |
+| Cache read                   | < 5ms   | > 20ms  |
+| IDB write (100 records)      | < 200ms | > 500ms |
+| Memory (baseline)            | < 50MB  | > 100MB |
+
+---
+
+## CI Integration
+
+Run benchmarks in CI to catch regressions:
+
+```yaml
+# .github/workflows/benchmarks.yml
+name: Performance Benchmarks
+on: [push, pull_request]
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v1
+      - run: bun install
+      - run: bun run benchmark
+      - uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: "benchmarkjs"
+          output-file: "benchmark.json"
+```
+
+---
+
+## Next Steps
+
+- [Performance](/docs/advanced/performance) — optimization strategies
+- [Testing](/docs/advanced/testing) — automated tests for offline behavior
+- [Error Handling](/docs/advanced/error-handling) — handle slow network gracefully

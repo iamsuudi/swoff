@@ -12,6 +12,7 @@ import {
   WifiOffIcon,
   SmartphoneIcon,
   GlobeIcon,
+  SearchIcon,
 } from "lucide-react";
 
 <Cards>
@@ -38,5 +39,13 @@ import {
   >
     Critical platform constraints: 7-day eviction, 50 MB storage limit, no
     beforeinstallprompt, aggressive SW lifecycle, and workarounds.
+  </Card>
+  <Card
+    title="SEO & Offline-First"
+    icon={<SearchIcon />}
+    href="/docs/concepts/seo"
+  >
+    How crawlers handle Service Workers, hybrid SSR + Swoff approaches, and
+    when to use what.
   </Card>
 </Cards>

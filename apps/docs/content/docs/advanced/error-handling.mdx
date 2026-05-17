@@ -1,0 +1,488 @@
+---
+title: Error Handling
+description: Handle service worker failures, cache corruption, IndexedDB errors, and network issues gracefully.
+icon: TriangleAlert
+---
+
+## Error Handling
+
+Offline-first apps run in a complex environment. Here's how to handle failures at every layer.
+
+## The Error Categories
+
+| Layer          | Common Errors                                      | See                                              |
+| -------------- | -------------------------------------------------- | ------------------------------------------------ |
+| Service Worker | Registration fails, update fails, scope mismatch   | [#service-worker-errors](#service-worker-errors) |
+| Cache API      | Corruption, quota exceeded, invalid responses      | [#cache-errors](#cache-errors)                   |
+| IndexedDB      | QuotaExceededError, corruption, migration failures | [#indexeddb-errors](#indexeddb-errors)           |
+| Network        | Timeout, offline, server errors                    | [#network-errors](#network-errors)               |
+| iOS Safari     | 7-day eviction, storage limits, no background sync | [#ios-specific-errors](#ios-specific-errors)     |
+
+---
+
+## Service Worker Errors
+
+### Registration Failure
+
+The service worker fails to register. Common causes:
+
+| Cause           | Fix                                           |
+| --------------- | --------------------------------------------- |
+| Not HTTPS       | Serve over HTTPS or localhost                 |
+| Wrong path      | Verify SW URL matches the generated file      |
+| Wrong MIME type | Ensure `.js` files serve as `text/javascript` |
+| Scope mismatch  | SW must be at root or explicitly set scope    |
+
+```js
+async function initServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    console.warn("Service Workers not supported");
+    return;
+  }
+
+  try {
+    const manifest = await checkForUpdate();
+    const swUrl = `/sw-v${manifest.version}.js`;
+    const registration = await navigator.serviceWorker.register(swUrl);
+    console.log("SW registered:", registration.scope);
+  } catch (error) {
+    console.error("SW registration failed:", error);
+    // Fall back to no-SW mode
+  }
+}
+```
+
+### Update Failure
+
+A new version of the SW fails to install or activate:
+
+```js
+async function handleUpdateFailure() {
+  const registration = await navigator.serviceWorker.getRegistration();
+
+  if (registration) {
+    // Force unregister old SW
+    await registration.unregister();
+
+    // Re-register with current version
+    const manifest = await checkForUpdate();
+    await navigator.serviceWorker.register(`/sw-v${manifest.version}.js`);
+  }
+}
+```
+
+### Scope Errors
+
+The SW controls fewer pages than expected:
+
+```js
+// In your SW, set explicit scope
+self.addEventListener("install", () => {
+  // Scope is determined by SW file location
+  // /sw.js controls entire domain
+  // /js/sw.js controls /js/* only
+});
+```
+
+```js
+// In client, you cannot change scope after registration
+// But you can pass scope option during registration:
+await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+```
+
+---
+
+## Cache Errors
+
+### Cache Corruption
+
+Cache returns invalid or corrupted data:
+
+```js
+async function validateCachedResponse(response) {
+  if (!response || !response.ok) return null;
+
+  try {
+    // Try to read body - will throw if corrupted
+    const clone = response.clone();
+    await clone.text(); // or .json()
+    return response;
+  } catch {
+    // Cache is corrupted - delete and refetch
+    const cache = await caches.open("swoff-runtime");
+    await cache.delete(response.url);
+    return null;
+  }
+}
+```
+
+### Cache Quota Exceeded
+
+Cache API hits storage limits:
+
+```js
+async function safeCachePut(request, response) {
+  const cache = await caches.open("swoff-runtime");
+
+  try {
+    await cache.put(request, response);
+  } catch (error) {
+    if (error.name === "QuotaExceededError") {
+      await trimCache();
+      await cache.put(request, response); // Retry after trim
+    }
+  }
+}
+
+async function trimCache() {
+  const cache = await caches.open("swoff-runtime");
+  const keys = await cache.keys();
+  const toDelete = keys.length - 100; // Keep 100 most recent
+
+  for (let i = 0; i < toDelete; i++) {
+    await cache.delete(keys[i]);
+  }
+}
+```
+
+### Invalid Cached Response
+
+Cached response returns error status:
+
+```js
+self.addEventListener("fetch", (event) => {
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      // Check if cached response is valid
+      if (response && response.ok) {
+        return response;
+      }
+
+      // If cached but error status, treat as cache miss
+      if (response && !response.ok) {
+        return fetch(event.request);
+      }
+
+      // No cache - fetch from network
+      return fetch(event.request);
+    }),
+  );
+});
+```
+
+---
+
+## IndexedDB Errors
+
+### QuotaExceededError
+
+Storage is full:
+
+```js
+async function safeStoreRecord(storeName, record) {
+  const db = await openDB();
+
+  try {
+    const tx = db.transaction(storeName, "readwrite");
+    tx.objectStore(storeName).put(record);
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (error) {
+    if (error.name === "QuotaExceededError") {
+      await handleStorageFull();
+      // Retry once after cleanup
+      return safeStoreRecord(storeName, record);
+    }
+    throw error;
+  }
+}
+
+async function handleStorageFull() {
+  // 1. Trim old cached API responses
+  await trimCache();
+
+  // 2. Archive soft-deleted records
+  await purgeSoftDeleted();
+
+  // 3. Notify user if still full
+  const estimate = await navigator.storage.estimate();
+  const usedMB = (estimate.usage / 1024 / 1024).toFixed(1);
+  console.warn(`Storage full: ${usedMB}MB used`);
+}
+```
+
+### Database Corruption
+
+IndexedDB database is corrupted:
+
+```js
+async function recoverFromCorruption(dbName) {
+  // Close any existing connections
+  const req = indexedDB.deleteDatabase(dbName);
+  await new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+
+  // Reopen - will recreate with current schema
+  return openDB();
+}
+```
+
+### Migration Failure
+
+Schema migration fails mid-upgrade:
+
+```js
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, CURRENT_VERSION);
+
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      const oldVersion = e.oldVersion;
+
+      try {
+        if (oldVersion < 1) {
+          // Migration from v0 → v1
+          db.createObjectStore("todos", { keyPath: "id" });
+        }
+        if (oldVersion < 2) {
+          // Migration from v1 → v2
+          // ...
+        }
+      } catch (migrationError) {
+        console.error("Migration failed:", migrationError);
+        // Migration failed - database stays at old version
+        // App should handle both old and new schema
+      }
+    };
+
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+```
+
+---
+
+## Network Errors
+
+### Timeout
+
+Request takes too long:
+
+```js
+const TIMEOUT_MS = 10000;
+
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("Request timed out");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+```
+
+### Offline Detection
+
+Network goes offline unexpectedly:
+
+```js
+function setupOfflineDetection(onOffline, onOnline) {
+  window.addEventListener("offline", () => {
+    console.log("Network offline");
+    onOffline?.();
+  });
+
+  window.addEventListener("online", () => {
+    console.log("Network online");
+    onOnline?.();
+  });
+}
+
+// Usage
+setupOfflineDetection(
+  () => {
+    // Show offline indicator
+    document.body.classList.add("offline");
+  },
+  () => {
+    // Hide offline indicator, trigger sync
+    document.body.classList.remove("offline");
+    processMutationQueue();
+  },
+);
+```
+
+### Server Errors
+
+Server returns 5xx errors:
+
+```js
+async function handleServerError(url, options = {}, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+
+      if (response.status >= 500) {
+        console.warn(`Server error ${response.status}, attempt ${attempt}`);
+        if (attempt < retries) {
+          await new Promise((r) => setTimeout(r, attempt * 1000));
+          continue;
+        }
+      }
+
+      return response;
+    } catch (error) {
+      if (attempt === retries) throw error;
+      await new Promise((r) => setTimeout(r, attempt * 1000));
+    }
+  }
+}
+```
+
+---
+
+## iOS Specific Errors
+
+### 7-Day Eviction
+
+iOS Safari evicts all data after 7 days of no engagement:
+
+```js
+async function detectEviction() {
+  try {
+    const db = await openDB();
+    const tx = db.transaction("meta", "readonly");
+    const store = tx.objectStore("meta");
+    const marker = await new Promise((r) => {
+      const req = store.get("app-initialized");
+      req.onsuccess = () => r(req.result);
+    });
+    return !marker;
+  } catch {
+    return true; // DB doesn't exist = evicted
+  }
+}
+
+async function initAfterEviction() {
+  const wasEvicted = await detectEviction();
+  if (wasEvicted) {
+    // Reinitialize app - recreate stores, refetch data
+    console.log("App was evicted, reinitializing...");
+    await initializeApp();
+  }
+}
+```
+
+### Storage Limit
+
+iOS Safari has ~50MB IndexedDB limit:
+
+```js
+async function monitoriOSStorage() {
+  const estimate = await navigator.storage.estimate();
+  const usageMB = estimate.usage / (1024 * 1024);
+
+  // iOS may report large quota but fail around 50MB
+  if (usageMB > 40) {
+    console.warn("Approaching iOS IndexedDB limit");
+    await aggressiveCleanup();
+  }
+}
+```
+
+### No Background Sync
+
+iOS doesn't support Background Sync API:
+
+```js
+function setupOfflineSync() {
+  // Background Sync NOT supported on iOS
+  if ("serviceWorker" in navigator && "SyncManager" in window) {
+    // Use Background Sync on supported browsers
+    navigator.serviceWorker.ready.then((registration) => {
+      return registration.sync.register("sync-mutations");
+    });
+  }
+
+  // Fallback: sync while app is open
+  window.addEventListener("online", () => {
+    processMutationQueue();
+  });
+}
+```
+
+### No beforeinstallprompt
+
+iOS doesn't fire the install prompt event:
+
+```js
+function detectPWAInstallability() {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+  if (isIOS) {
+    // Show manual install instructions
+    showIOSInstallInstructions();
+    return;
+  }
+
+  // Standard PWA install
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    window.deferredInstallPrompt = e;
+  });
+}
+
+function showIOSInstallInstructions() {
+  // Guide users to: Share → Add to Home Screen
+  console.log("iOS: Use Share menu → Add to Home Screen");
+}
+```
+
+---
+
+## Global Error Handler
+
+Set up a global handler to catch unhandled errors:
+
+```js
+window.addEventListener("error", (event) => {
+  console.error("Unhandled error:", event.error);
+
+  // Track error for debugging
+  if (window.__DEV__) {
+    console trace(event.error);
+  }
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("Unhandled promise rejection:", event.reason);
+
+  // Don't suppress - log for debugging
+  // In production, report to error tracking service
+});
+```
+
+---
+
+## Next Steps
+
+- [Debugging](/docs/advanced/debugging) — diagnose issues in DevTools
+- [Testing](/docs/advanced/testing) — write tests for error scenarios
+- [iOS Safari Limitations](/docs/concepts/ios-safari-limitations) — platform-specific constraints

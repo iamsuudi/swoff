@@ -16,9 +16,41 @@ import {
   SearchIcon,
   GitMergeIcon,
   ShieldIcon,
+  AlertTriangleIcon,
+  GaugeIcon,
+  AccessibilityIcon,
+  BarChartIcon,
 } from "lucide-react";
 
 <Cards>
+  <Card
+    title="Error Handling"
+    icon={<AlertTriangleIcon className="text-purple-500" />}
+    href="/docs/advanced/error-handling"
+  >
+    Handle SW failures, cache corruption, IndexedDB errors, and network issues.
+  </Card>
+  <Card
+    title="Performance"
+    icon={<GaugeIcon className="text-purple-500" />}
+    href="/docs/advanced/performance"
+  >
+    Cache size limits, IndexedDB optimization, and memory management.
+  </Card>
+  <Card
+    title="Benchmarks"
+    icon={<BarChartIcon className="text-purple-500" />}
+    href="/docs/advanced/benchmarks"
+  >
+    Measure SW install, cache latency, IndexedDB speed, and memory usage.
+  </Card>
+  <Card
+    title="Accessibility"
+    icon={<AccessibilityIcon className="text-purple-500" />}
+    href="/docs/advanced/accessibility"
+  >
+    Make offline apps accessible — screen readers, keyboard nav, ARIA.
+  </Card>
   <Card
     title="Mutation Queuing"
     icon={<WorkflowIcon className="text-purple-500" />}

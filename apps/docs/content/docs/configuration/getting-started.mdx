@@ -54,6 +54,25 @@ node examples/shared/sw-generator.js
 
 This creates `dist/sw-v{version}.js` with your configuration.
 
+### 4. Generate Supporting Files (Optional)
+
+Swoff can also generate supporting hooks, components, and utilities based on your configuration:
+
+```bash
+node examples/shared/swoff-files-generator.js
+```
+
+This generates files based on which features you enable:
+
+| Feature | Generated Files |
+|---------|-----------------|
+| `offlineReads: true` | `src/hooks/useOffline.ts`, `src/hooks/useApiData.ts` |
+| `mutationQueue: true` | `src/hooks/useMutationQueue.ts` |
+| `pwa: true` | `src/components/OfflineIndicator.tsx`, `src/components/PWAInstallButton.tsx` |
+| `crossTabSync: true` | `src/utils/crossTabSync.ts` |
+
+Each file is self-documenting with JSDoc comments explaining usage.
+
 ## Configuration File Types
 
 Swoff supports multiple configuration file types (in order of preference):

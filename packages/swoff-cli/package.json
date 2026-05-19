@@ -1,0 +1,20 @@
+{
+  "name": "swoff-cli",
+  "version": "1.0.0",
+  "description": "CLI for Swoff - Offline-first web apps made easy",
+  "type": "module",
+  "bin": {
+    "swoff": "./examples/shared/swoff-cli.js"
+  },
+  "scripts": {
+    "swoff": "node examples/shared/swoff-cli.js"
+  },
+  "keywords": [
+    "service-worker",
+    "offline",
+    "pwa",
+    "caching"
+  ],
+  "author": "Swoff",
+  "license": "MIT"
+}

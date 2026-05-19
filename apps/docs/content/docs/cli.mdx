@@ -1,47 +1,279 @@
 ---
-title: CLI Tool
-description: Future CLI tool for auto-downloading code.
+title: CLI Reference
+description: Swoff command-line interface reference
 icon: Terminal
 ---
 
-## CLI (Future)
+# CLI Reference
 
-> **Note**: Currently, copy code snippets manually from docs.
+Swoff provides a command-line interface for easy project setup and management. The CLI helps you initialize, generate, validate, and manage Swoff in your projects.
 
-## Vision
+## Installation
 
-A CLI tool to:
-
-1. **Download code** — Fetch components, hooks, utilities
-2. **Configure project** — Setup file structure
-3. **Zero deps** — Code lives in your project
-
-## Planned Commands
+The CLI is available in `examples/shared/swoff-cli.js`. You can run it directly:
 
 ```bash
-npx swoff init              # Initialize project
-npx swoff add update-prompt  # Download component
-npx swoff add usePWAUpdate  # Download hook
-npx swoff list              # List available
+# Using node
+node examples/shared/swoff-cli.js <command>
+
+# Or link it to your PATH
+npm link examples/shared/swoff-cli.js
+swoff <command>
 ```
 
-## Current Workflow
+## Commands
 
-1. Read [Build Scripts](/docs/patterns/build-scripts)
-2. Copy code snippets
-3. Modify as needed
+### init
 
-## Timeline
+Initialize Swoff in the current directory. Creates a basic `swoff.config.json` and generates initial files.
 
-- [x] Documentation (Patterns, Guides, Core)
-- [x] Code snippets (copy-paste from docs)
-- [ ] CLI prototype
-- [x] React + Vite support
-- [x] TanStack Router support
-- [ ] Vue ecosystem
-- [ ] Svelte ecosystem
+```bash
+swoff init
+```
 
-## Next Steps
+**Options:**
 
-- [Build Scripts](/docs/patterns/build-scripts) — Manual setup
-- [SW Template](/docs/patterns/sw-template) — Architecture
+- `--framework <name>` - Initialize with framework-specific defaults
+
+**Frameworks:**
+
+- `react-vite` - React with Vite
+- `nextjs` - Next.js
+- `vue-vite` - Vue with Vite
+
+**Examples:**
+
+```bash
+# Basic initialization
+swoff init
+
+# Initialize with React + Vite defaults
+swoff init --framework react-vite
+
+# Initialize with Next.js defaults
+swoff init --framework nextjs
+```
+
+This command:
+
+1. Creates `swoff.config.json` with default configuration
+2. Creates directory structure (`src/hooks`, `src/components`, `src/utils`)
+3. Runs initial generation to create service worker and files
+
+---
+
+### generate
+
+Generate service worker and/or supporting files based on your configuration.
+
+```bash
+swoff generate
+```
+
+**Options:**
+
+- `--sw-only` - Generate only the service worker
+- `--files-only` - Generate only supporting files (hooks, components, utilities)
+
+**Examples:**
+
+```bash
+# Generate both service worker and files
+swoff generate
+
+# Generate only service worker
+swoff generate --sw-only
+
+# Generate only supporting files
+swoff generate --files-only
+```
+
+---
+
+### validate
+
+Validate your `swoff.config.json` for syntax errors and required fields.
+
+```bash
+swoff validate
+```
+
+**What it checks:**
+
+- Required fields are present
+- JSON syntax is valid
+- Cache strategies are valid
+- Feature flags are properly set
+
+**Example output:**
+
+```
+Validating swoff.config.json...
+✅ Configuration is valid!
+
+Config summary:
+  Version: from-package
+  Default strategy: cache-first
+  Features enabled: versionedSw, offlineReads, pwa, crossTabSync, tagInvalidation
+```
+
+---
+
+### add
+
+Add a specific feature to your configuration and generate related files.
+
+```bash
+swoff add <feature>
+```
+
+**Available Features:**
+
+- `offline` - Enable offline data handling
+- `mutation-queue` - Enable mutation queue for offline writes
+- `pwa` - Enable PWA components
+- `cross-tab` - Enable cross-tab synchronization
+- `auth` - Enable auth integration
+
+**Examples:**
+
+```bash
+# Add offline feature
+swoff add offline
+
+# Add mutation queue
+swoff add mutation-queue
+
+# Add PWA components
+swoff add pwa
+
+# Add multiple features
+swoff add offline
+swoff add mutation-queue
+```
+
+---
+
+### help
+
+Show help information for commands.
+
+```bash
+# Show all commands
+swoff help
+
+# Show specific command help
+swoff help init
+swoff help generate
+```
+
+## Common Workflows
+
+### New Project Setup
+
+```bash
+# 1. Initialize Swoff
+swoff init --framework react-vite
+
+# 2. Review and customize config
+nano swoff.config.json
+
+# 3. Validate configuration
+swoff validate
+
+# 4. Generate files
+swoff generate
+
+# 5. Add to your app
+# Import hooks and components into your React app
+```
+
+### Incremental Feature Addition
+
+```bash
+# Start with basic setup
+swoff init
+
+# Add features one at a time
+swoff add offline
+swoff add mutation-queue
+swoff add pwa
+
+# Generate after each change
+swoff generate
+```
+
+### Configuration Iteration
+
+```bash
+# Edit your config
+nano swoff.config.json
+
+# Validate before generating
+swoff validate
+
+# Regenerate files
+swoff generate
+```
+
+## Configuration File
+
+The CLI expects `swoff.config.json` in the current working directory. You can customize:
+
+- Service worker settings
+- Cache strategies
+- Feature toggles
+- Build output directory
+
+See [Configuration Guide](/docs/configuration/getting-started) for details.
+
+## Troubleshooting
+
+### Command not found
+
+Make sure you're running from your project directory:
+
+```bash
+cd my-project
+node /path/to/swoff-cli.js init
+```
+
+### Validation errors
+
+Run `swoff validate` to see specific errors in your configuration:
+
+```bash
+swoff validate
+# Shows: Missing required fields: serviceWorker
+```
+
+### Generation fails
+
+Check that your config is valid and the directories exist:
+
+```bash
+swoff validate && swoff generate
+```
+
+## Script Integration
+
+Add Swoff commands to your `package.json`:
+
+```json
+{
+  "scripts": {
+    "swoff:init": "swoff init",
+    "swoff:generate": "swoff generate",
+    "swoff:validate": "swoff validate",
+    "build": "npm run swoff:generate && your-build-command"
+  }
+}
+```
+
+Now you can run:
+
+```bash
+npm run swoff:init
+npm run swoff:generate
+npm run swoff:validate
+```

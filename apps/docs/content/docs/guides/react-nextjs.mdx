@@ -1,0 +1,512 @@
+---
+title: React + Next.js Configuration
+description: Configure Swoff for React applications with Next.js
+icon: React
+---
+
+# React + Next.js Configuration
+
+This guide shows you how to configure Swoff for React applications using Next.js. The configuration-driven approach makes it easy to set up offline functionality without writing custom service worker code.
+
+## Project Structure
+
+```
+my-nextjs-app/
+├── swoff.config.json          # Swoff configuration
+├── public/
+│   ├── manifest.json          # PWA manifest (create separately)
+│   └── icons/
+│       ├── icon-192.png
+│       └── icon-512.png
+├── src/
+│   ├── app/
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── components/
+│   │   └── OfflineIndicator.tsx
+│   ├── lib/
+│   │   └── sw-registration.ts
+│   └── hooks/
+│       └── useOffline.ts
+└── package.json
+```
+
+## Step 1: Install Dependencies
+
+```bash
+npm install
+```
+
+## Step 2: Create Swoff Configuration
+
+Create `swoff.config.json` in your project root:
+
+```json
+{
+  "$schema": "https://swoff.ai/schema/v1.json",
+  "enabled": true,
+  "version": "from-package",
+  "minSupportedVersion": "1.0.0",
+  "serviceWorker": {
+    "autoUpdate": false,
+    "defaultStrategy": "cache-first",
+    "strategies": {
+      "/api/*": "network-first",
+      "/_next/static/*": "cache-first",
+      "/images/*": "stale-while-revalidate"
+    },
+    "maxCacheEntries": 200,
+    "maxCacheAge": 86400000
+  },
+  "features": {
+    "offlineReads": true,
+    "mutationQueue": true,
+    "pwa": true,
+    "crossTabSync": true,
+    "tagInvalidation": true
+  },
+  "database": {
+    "name": "nextjs-app-db",
+    "stores": ["posts", "comments", "settings"]
+  },
+  "build": {
+    "outputDir": "public",
+    "swFilename": "sw"
+  }
+}
+```
+
+### Configuration Notes for Next.js:
+
+- **`/_next/static/*`**: Cache Next.js static assets
+- **`/api/*`**: Use network-first for API calls
+- **`/images/*`**: Use stale-while-revalidate for images
+- **`build.outputDir: "public"`**: Output service worker to public directory
+- **`build.swFilename: "sw"`**: Service worker accessible at `/sw-v{version}.js`
+
+## Step 3: Create PWA Manifest
+
+Create `public/manifest.json`:
+
+```json
+{
+  "name": "My Next.js App",
+  "short_name": "NextApp",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+```
+
+## Step 4: Generate Service Worker
+
+```bash
+node examples/shared/sw-generator.js
+```
+
+This creates `public/sw-v{version}.js` with your configuration applied.
+
+## Step 5: Register Service Worker
+
+Create `src/lib/sw-registration.ts`:
+
+```typescript
+export const registerServiceWorker = () => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker
+      .register(`/sw-v${process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'}.js`)
+      .then((registration) => {
+        console.log('Service Worker registered:', registration);
+      })
+      .catch((error) => {
+        console.error('Service Worker registration failed:', error);
+      });
+  }
+};
+
+// Register on app load
+if (typeof window !== 'undefined') {
+  registerServiceWorker();
+}
+```
+
+## Step 6: Create Offline Hook
+
+Create `src/hooks/useOffline.ts`:
+
+```typescript
+import { useState, useEffect } from 'react';
+
+export const useOffline = () => {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  return { isOnline };
+};
+```
+
+## Step 7: Create Offline Indicator Component
+
+Create `src/components/OfflineIndicator.tsx`:
+
+```typescript
+'use client';
+
+import { useOffline } from '@/hooks/useOffline';
+
+export const OfflineIndicator = () => {
+  const { isOnline } = useOffline();
+
+  if (isOnline) return null;
+
+  return (
+    <div className="fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+      You are offline. Some features may be limited.
+    </div>
+  );
+};
+```
+
+## Step 8: Register Service Worker in Layout
+
+Update `src/app/layout.tsx`:
+
+```typescript
+import { OfflineIndicator } from '@/components/OfflineIndicator';
+import { registerServiceWorker } from '@/lib/sw-registration';
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  // Register service worker on mount
+  if (typeof window !== 'undefined') {
+    registerServiceWorker();
+  }
+
+  return (
+    <html lang="en">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#2563eb" />
+      </head>
+      <body>
+        {children}
+        <OfflineIndicator />
+      </body>
+    </html>
+  );
+}
+```
+
+## Step 9: Create Data Hooks with Offline Support
+
+Create `src/hooks/useData.ts` for API calls with offline support:
+
+```typescript
+import { useState, useEffect } from 'react';
+
+export const useData = (endpoint: string) => {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(endpoint);
+        
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        
+        const result = await response.json();
+        setData(result);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [endpoint]);
+
+  return { data, loading, error };
+};
+```
+
+## Step 10: Update Next.js Config for PWA
+
+Update `next.config.js` to support PWA features:
+
+```javascript
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  swcMinify: true,
+  // Enable offline support
+  output: 'standalone',
+  images: {
+    domains: ['your-image-domain.com'],
+  },
+};
+
+module.exports = nextConfig;
+```
+
+## Advanced Configuration
+
+### Environment-Specific Configs
+
+Create different configs for different environments:
+
+```json
+// swoff.config.development.json
+{
+  "enabled": true,
+  "serviceWorker": {
+    "defaultStrategy": "network-first",
+    "maxCacheAge": 3600000
+  }
+}
+
+// swoff.config.production.json
+{
+  "enabled": true,
+  "serviceWorker": {
+    "defaultStrategy": "cache-first",
+    "maxCacheAge": 86400000
+  }
+}
+```
+
+Use the appropriate config based on your environment:
+
+```javascript
+// next.config.js
+const config = process.env.NODE_ENV === 'development' 
+  ? require('./swoff.config.development.json')
+  : require('./swoff.config.production.json');
+
+module.exports = {
+  // ... other config
+  env: {
+    SWOFF_CONFIG: JSON.stringify(config)
+  }
+};
+```
+
+### Custom Error Boundaries
+
+Create error boundaries for offline scenarios:
+
+```typescript
+// src/components/ErrorBoundary.tsx
+'use client';
+
+import { Component, ReactNode } from 'react';
+
+interface Props {
+  children: ReactNode;
+}
+
+interface State {
+  hasError: boolean;
+}
+
+export class OfflineErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-4">Something went wrong</h2>
+            <p>You appear to be offline. Please check your connection.</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+```
+
+### Performance Monitoring
+
+Add performance monitoring for offline functionality:
+
+```typescript
+// src/lib/performance.ts
+export const monitorPerformance = () => {
+  if ('performance' in window) {
+    const observer = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (entry.entryType === 'measure') {
+          console.log(`${entry.name}: ${entry.duration}ms`);
+        }
+      }
+    });
+
+    observer.observe({ entryTypes: ['measure'] });
+  }
+};
+
+// Usage in your components
+useEffect(() => {
+  performance.mark('component-start');
+  return () => {
+    performance.mark('component-end');
+    performance.measure('component-render', 'component-start', 'component-end');
+  };
+}, []);
+```
+
+## Testing
+
+### Unit Tests
+
+```typescript
+// src/hooks/useOffline.test.ts
+import { renderHook, act } from '@testing-library/react';
+import { useOffline } from './useOffline';
+
+describe('useOffline', () => {
+  it('should correctly detect online status', () => {
+    const { result } = renderHook(() => useOffline());
+    
+    expect(result.current.isOnline).toBe(true);
+  });
+
+  it('should handle offline events', () => {
+    const { result } = renderHook(() => useOffline());
+    
+    act(() => {
+      window.dispatchEvent(new Event('offline'));
+    });
+    
+    expect(result.current.isOnline).toBe(false);
+  });
+});
+```
+
+### Integration Tests
+
+```typescript
+// tests/service-worker.test.ts
+describe('Service Worker', () => {
+  it('should register successfully', async () => {
+    if (!('serviceWorker' in navigator)) {
+      pending('Service Worker not supported');
+    }
+
+    const registration = await navigator.serviceWorker.register('/sw-v1.0.0.js');
+    expect(registration).toBeInstanceOf(ServiceWorkerRegistration);
+    
+    await registration.unregister();
+  });
+});
+```
+
+## Deployment
+
+### Build and Deploy
+
+```bash
+# Build the application
+npm run build
+
+# Generate service worker with production config
+NODE_ENV=production node examples/shared/sw-generator.js
+
+# Deploy
+npm run deploy
+```
+
+### Cache Management
+
+For production deployments, consider adding cache invalidation:
+
+```json
+{
+  "serviceWorker": {
+    "strategies": {
+      "/api/*": "network-first",
+      "/_next/static/*": "cache-first",
+      "/*": "stale-while-revalidate"
+    },
+    "maxCacheAge": 86400000,
+    "maxCacheEntries": 500
+  }
+}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Service Worker not registering**
+   - Check file path and permissions
+   - Verify HTTPS in production
+   - Check browser console for errors
+
+2. **Cache not working**
+   - Verify cache strategies match your URLs
+   - Check that assets are being requested correctly
+   - Use DevTools to inspect cache contents
+
+3. **PWA not installing**
+   - Verify manifest.json is properly formatted
+   - Check that all required icons are present
+   - Test on different browsers
+
+### Debugging Tools
+
+- **Chrome DevTools**: Service Workers tab for registration and events
+- **Lighthouse**: Run PWA audits
+- **WebPageTest**: Test performance across different conditions
+
+This configuration provides a solid foundation for offline-first React applications with Next.js. Adjust the strategies and settings based on your specific application needs.

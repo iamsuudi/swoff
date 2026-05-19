@@ -6,12 +6,13 @@ icon: Cable
 
 ## Guides
 
-Step-by-step instructions for integrating Swoff into your framework of choice.
+Step-by-step instructions for integrating Swoff into your framework of choice using the new JSON configuration system.
 
 ## Available Guides
 
 | Guide                                                      | Description                                             |
 | ---------------------------------------------------------- | ------------------------------------------------------- |
+| [React + Vite](/docs/guides/react-vite)                   | Complete configuration for React with Vite (recommended) |
 | [React Ecosystem](/docs/guides/react-ecosystem)            | Hooks, components, and adapter for React applications   |
 | [Vue Ecosystem](/docs/guides/vue-ecosystem)                | Composables, components, and adapter for Vue apps       |
 | [Svelte Ecosystem](/docs/guides/svelte-ecosystem)          | Stores, components, and adapter for Svelte projects     |
@@ -20,11 +21,36 @@ Step-by-step instructions for integrating Swoff into your framework of choice.
 | [Vanilla JS](/docs/guides/vanilla-js)                      | Direct window event listeners for framework-free apps   |
 | [Contributing Adapters](/docs/guides/contributing-adapters) | How to build and submit adapters for new frameworks     |
 
+## Configuration
+
+All framework guides now use the new JSON configuration system:
+
+```json
+{
+  "$schema": "https://swoff.ai/schema/v1.json",
+  "enabled": true,
+  "version": "from-package",
+  "serviceWorker": {
+    "defaultStrategy": "cache-first",
+    "strategies": {
+      "/api/*": "network-first",
+      "/static/*": "cache-first"
+    }
+  },
+  "features": {
+    "offlineReads": true,
+    "mutationQueue": true,
+    "pwa": true
+  }
+}
+```
+
 ## Migration
 
 | Guide                                                      | Description                                             |
 | ---------------------------------------------------------- | ------------------------------------------------------- |
-| [Migration Guide](/docs/guides/migration)                 | Migrate from Workbox, other PWA libs, or adopt in existing apps |
+| [Migration Guide](/docs/configuration/migration)           | Migrate from manual service worker coding to JSON config |
+| [Migration from Workbox](/docs/guides/migration)          | Migrate from Workbox or other PWA libraries             |
 
 ## Learning Path
 

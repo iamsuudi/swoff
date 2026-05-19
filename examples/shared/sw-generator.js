@@ -1,14 +1,34 @@
+/**
+ * Swoff Service Worker Generator
+ * 
+ * Generates a service worker based on swoff.config.json configuration.
+ * 
+ * @example
+ * import { generate } from './sw-generator.js';
+ * generate();
+ */
+
 import { readFileSync, writeFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { join, dirname } from "path";
 import { existsSync } from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const pkg = JSON.parse(readFileSync(join(__dirname, "..", "..", "package.json"), "utf8"));
-const template = readFileSync(join(__dirname, "sw-template.js"), "utf8");
 
-// Default configuration
-const defaultConfig = {
+/**
+ * Generate the service worker
+ * @param {Object} options - Generator options
+ * @param {string} options.rootDir - Root directory of the project (defaults to project root)
+ * @param {boolean} options.verbose - Enable verbose logging
+ */
+export function generate(options = {}) {
+  const { rootDir = join(__dirname, "..", ".."), verbose = false } = options;
+  
+  const pkg = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf8"));
+  const template = readFileSync(join(__dirname, "sw-template.js"), "utf8");
+
+  // Default configuration
+  const defaultConfig = {
   enabled: true,
   version: "from-package",
   minSupportedVersion: "0.0.0",

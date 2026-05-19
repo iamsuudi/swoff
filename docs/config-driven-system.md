@@ -18,7 +18,7 @@ Edit `swoff.config.json` to match your app's needs:
 
 ```json
 {
-  "$schema": "https://swoff.ai/schema/v1.json",
+  "$schema": "https://swoff.netlify.app/schema/v1.json",
   "enabled": true,
   "version": "from-package",
   "minSupportedVersion": "1.0.0",
@@ -282,7 +282,7 @@ Create different configs for different environments:
 
 ### Schema Reference
 
-For a complete schema reference, see the [JSON schema](https://swoff.ai/schema/v1.json) or the [schema documentation](configuration/schema-reference.md).
+For a complete schema reference, see the [JSON schema](https://swoff.netlify.app/schema/v1.json) or the [schema documentation](configuration/schema-reference.md).
 
 ### Integration with Build Tools
 

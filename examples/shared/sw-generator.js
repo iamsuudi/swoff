@@ -350,7 +350,7 @@ const generateConfigHeader = (config) => {
  * • PWA Support: ${config.features.pwa ? "Enabled" : "Disabled"}
  * 
  * Features can be configured in swoff.config.json
- * See documentation for more details: https://swoff.ai/docs
+ * See documentation for more details: https://swoff.netlify.app/docs
  */
 `;
 };

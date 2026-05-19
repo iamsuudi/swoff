@@ -128,7 +128,7 @@ async function initCommand(framework = null) {
   
   // Create config based on framework or default
   const defaultConfig = {
-    "$schema": "https://swoff.ai/schema/v1.json",
+    "$schema": "https://swoff.netlify.app/schema/v1.json",
     "enabled": true,
     "version": "from-package",
     "minSupportedVersion": "1.0.0",
@@ -196,7 +196,7 @@ async function initCommand(framework = null) {
   log.info(`\nNext steps:`);
   log.help('1. Review swoff.config.json and customize as needed');
   log.help('2. Add Swoff hooks and components to your app');
-  log.help('3. Read the docs: https://swoff.ai/docs');
+  log.help('3. Read the docs: https://swoff.netlify.app/docs');
 }
 
 // Generate command - Generate SW and/or files
@@ -393,7 +393,7 @@ async function addCommand(feature) {
   if (!config) {
     log.warn('No config found. Creating new config with feature...');
     config = {
-      "$schema": "https://swoff.ai/schema/v1.json",
+      "$schema": "https://swoff.netlify.app/schema/v1.json",
       "enabled": true,
       "version": "from-package",
       "minSupportedVersion": "1.0.0",

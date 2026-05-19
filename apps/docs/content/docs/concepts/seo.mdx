@@ -1,0 +1,284 @@
+---
+title: SEO & Offline-First
+description: How offline-first apps interact with search engines and crawlers.
+icon: Search
+---
+
+## SEO & Offline-First
+
+Offline-first apps prioritize user experience over traditional SEO. Here's how they interact with crawlers and when to use hybrid approaches.
+
+## How Crawlers Handle Service Workers
+
+### Googlebot
+
+Googlebot fully supports JavaScript and Service Workers:
+
+```
+Googlebot → requests page → SW intercepts
+                              ↓
+                    serves cached OR fetches fresh
+                              ↓
+                    Googlebot indexes the rendered HTML
+```
+
+**What works**:
+- Googlebot waits for SW to settle before indexing
+- JS-rendered content is indexed
+- Dynamic content via API is indexed if rendered client-side
+
+**What doesn't work**:
+- Content that requires authentication
+- Client-only rendered content not visible in initial HTML
+
+### Other Crawlers
+
+| Crawler | SW Support | Notes |
+|---------|------------|-------|
+| Bingbot | Good | Full JS support |
+| Yandex | Good | Supports SW |
+| DuckDuckBot | Limited | May not execute SW |
+| Applebot | Limited | Basic JS support |
+| Social crawlers | Poor | Usually see initial HTML only |
+
+### Social Media Crawlers
+
+When sharing on Twitter, Facebook, LinkedIn:
+
+```
+og:image, twitter:card → must be in initial HTML
+                          ↓
+SW serves cache OR fetches
+                          ↓
+Crawlers see what's rendered
+```
+
+**Solution**: Use server-side meta tags for shared pages.
+
+---
+
+## The SEO Tradeoff
+
+### Offline-First Is Great For
+
+- Web apps (dashboards, editors, dashboards)
+- Authenticated experiences
+- Internal tools
+- Progressive web apps
+
+### SEO Challenges
+
+- No server-rendered initial HTML
+- Content requires JS to render
+- Dynamic data not in initial response
+- Meta tags may not be present
+
+---
+
+## Hybrid Approach: SSR + Swoff
+
+For apps that need both SEO and offline capability, use a hybrid:
+
+### Architecture
+
+```
+┌─────────────────────────────────────────┐
+│              Your Server                 │
+├─────────────────────────────────────────┤
+│  Public pages: SSR (fast initial load) │
+│  /, /about, /pricing, /blog/*          │
+├─────────────────────────────────────────┤
+│  App pages: Client-side (Swoff)        │
+│  /dashboard, /settings, /app/*          │
+└─────────────────────────────────────────┘
+```
+
+### Implementation
+
+```javascript
+// Server returns SSR for public pages
+// Client handles app pages with Swoff
+
+// Separate routes by pattern
+const publicPaths = ['/', '/about', '/pricing', '/blog'];
+const appPaths = ['/dashboard', '/settings', '/app'];
+
+function shouldUseSSR(pathname) {
+  return publicPaths.some(p => pathname.startsWith(p));
+}
+
+// SSR page: pre-render meta tags
+export async function handleRequest(req) {
+  const pathname = new URL(req.url).pathname;
+
+  if (shouldUseSSR(pathname)) {
+    // Return fully rendered HTML with meta tags
+    return renderSSRPage(pathname);
+  }
+
+  // Return minimal HTML for SPA + Swoff
+  return renderSPAWithSwoff();
+}
+```
+
+### Swoff Works Differently Based on Rendering Mode
+
+| Mode | How Swoff Caches | SEO Impact |
+|------|-----------------|------------|
+| **SPA** | Cache index.html + assets | Good for single-page apps |
+| **SSG** | Cache each prerendered HTML | Excellent SEO |
+| **SSR** | Cache after first visit | Requires hybrid setup |
+| **Hybrid** | Public pages SSR, app pages SW | Best of both |
+
+---
+
+## Meta Tags in Client-Side Apps
+
+### Dynamic Meta Tags
+
+For client-rendered pages, update meta tags dynamically:
+
+```javascript
+// Update document meta tags when route changes
+function updateMetaTags(route) {
+  const metaConfig = {
+    '/dashboard': {
+      title: 'Dashboard - My App',
+      description: 'View your personalized dashboard',
+      ogImage: 'https://myapp.com/dashboard-og.png'
+    },
+    '/settings': {
+      title: 'Settings - My App',
+      description: 'Manage your account settings'
+    }
+  };
+
+  const config = metaConfig[route];
+  if (!config) return;
+
+  document.title = config.title;
+
+  // Update description
+  let desc = document.querySelector('meta[name="description"]');
+  if (!desc) {
+    desc = document.createElement('meta');
+    desc.name = 'description';
+    document.head.appendChild(desc);
+  }
+  desc.content = config.description;
+
+  // Update Open Graph
+  let ogImage = document.querySelector('meta[property="og:image"]');
+  if (!ogImage) {
+    ogImage = document.createElement('meta');
+    ogImage.property = 'og:image';
+    document.head.appendChild(ogImage);
+  }
+  ogImage.content = config.ogImage;
+}
+```
+
+### Canonical URLs
+
+```javascript
+function setCanonicalUrl(pathname) {
+  const canonical = document.querySelector('link[rel="canonical"]');
+  if (!canonical) {
+    const link = document.createElement('link');
+    link.rel = 'canonical';
+    document.head.appendChild(link);
+  }
+  canonical.href = `https://myapp.com${pathname}`;
+}
+```
+
+---
+
+## Static Export for SEO
+
+If SEO is critical, generate static pages:
+
+### Using SSG
+
+```javascript
+// Next.js static export
+// next.config.js
+module.exports = {
+  output: 'export',
+  images: { unoptimized: true }
+};
+
+// Pages are pre-rendered at build time
+// Swoff caches the static HTML files
+```
+
+### Swoff with Static Export
+
+```javascript
+// In swoff/sw-template.js
+ASSETS_TO_CACHE = [
+  '/',
+  '/index.html',
+  '/about/index.html',
+  '/pricing/index.html',
+  '/blog/index.html',
+  // ... all static pages
+];
+```
+
+---
+
+## Sitemap for Crawlers
+
+Generate a sitemap even for client-side apps:
+
+```javascript
+// Generate sitemap.xml
+const routes = [
+  { path: '/', priority: '1.0', changefreq: 'daily' },
+  { path: '/about', priority: '0.8', changefreq: 'monthly' },
+  { path: '/pricing', priority: '0.8', changefreq: 'monthly' },
+  { path: '/blog', priority: '0.7', changefreq: 'weekly' },
+];
+
+const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  ${routes.map(r => `
+    <url>
+      <loc>https://myapp.com${r.path}</loc>
+      <changefreq>${r.changefreq}</changefreq>
+      <priority>${r.priority}</priority>
+    </url>
+  `).join('')}
+</urlset>`;
+```
+
+---
+
+## When to Use What
+
+| Use Case | Approach |
+|----------|----------|
+| Internal app, no SEO needed | Pure Swoff, client-side |
+| Blog, marketing site | SSR or SSG + Swoff for app |
+| E-commerce (product pages) | SSR for products, Swoff for checkout |
+| Social app | Swoff + auth walls |
+| Documentation | SSG (static is best) |
+
+---
+
+## Quick Decision
+
+```
+Need SEO for public pages?
+  ├─ Yes → Use SSR/SSG for public, Swoff for private
+  └─ No → Pure offline-first with Swoff is perfect
+```
+
+---
+
+## Next Steps
+
+- [Offline-First Architecture](/docs/core/offline-architecture) — build with the right mode
+- [SSR with Next.js](/docs/guides/react-ecosystem/nextjs) — hybrid example
+- [Reference Implementation](/docs/reference/budget-manager) — Swoff-only example (no SEO needed)

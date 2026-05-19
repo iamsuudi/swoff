@@ -35,7 +35,7 @@ export default defineConfig({
 ```typescript
 import { createRouter, RouterProvider } from '@tanstack/react-router'
 import ReactDOM from 'react-dom/client'
-import { initServiceWorker } from './sw-registration'
+import { initServiceWorker } from '../swoff/sw-injector'
 
 const router = createRouter({ /* routeTree */ })
 
@@ -46,7 +46,7 @@ ReactDOM.createRoot(document.getElementById('app')!).render(<RouterProvider rout
 
 ## Output Directory
 
-TanStack Router with Vite outputs to `dist/` (same as standard Vite). See [React + Vite](/docs/guides/react-ecosystem/react-vite) for build script setup.
+TanStack Router with Vite outputs to `dist/` (same as standard Vite). See [React + Vite](/docs/guides/react-ecosystem/react-vite) for build script setup. The build script lives at `swoff/sw-generator.js`.
 
 ## Notes
 

@@ -1,0 +1,245 @@
+---
+title: Data Fetching
+description: Integrate Swoff with React Query / TanStack Query for powerful data management.
+icon: Database
+---
+
+## Data Fetching with TanStack Query
+
+TanStack Query (React Query) pairs well with Swoff's caching system. Here's how to integrate them.
+
+## The Integration Strategy
+
+Swoff handles:
+- Service Worker registration and versioning
+- HTTP cache at the network layer (Cache API)
+- Tag-based cache invalidation
+
+TanStack Query handles:
+- Client-side caching and state
+- Request deduplication and retries
+- Background refetching
+
+Together: TanStack Query manages React state, Swoff/Service Worker handles network-level caching for offline support.
+
+## Basic Setup
+
+```tsx title="@/lib/query-client.ts"
+import { QueryClient } from "@tanstack/react-query";
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
+    },
+  },
+});
+```
+
+## Swoff-Aware Fetch
+
+Create a fetch function that uses Swoff's cache headers:
+
+```tsx title="@/lib/api.ts"
+import { fetchWithCache } from "../../swoff/fetch-wrapper";
+
+export async function swoffFetch<T>(url: string, options: {} = {}): Promise<T> {
+  const response = await fetchWithCache(url, {
+    ...options,
+    tags: options.tags ?? [],
+    staleWhileRevalidate: true,
+  });
+
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.status}`);
+  }
+
+  return response.json();
+}
+```
+
+## TanStack Query with Swoff Tags
+
+Use TanStack Query for state, invalidate Swoff cache on mutations:
+
+```tsx title="@/hooks/useTodos.ts"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { swoffFetch } from "@/lib/api";
+import { invalidateByTag } from "../../swoff/cache";
+
+export function useTodos() {
+  return useQuery({
+    queryKey: ["todos"],
+    queryFn: () => swoffFetch<Todo[]>("/api/todos", { tags: ["todos"] }),
+  });
+}
+
+export function useCreateTodo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (newTodo: Partial<Todo>) =>
+      swoffFetch<Todo>("/api/todos", {
+        method: "POST",
+        body: JSON.stringify(newTodo),
+        tags: ["todos"],
+      }),
+    onSuccess: () => {
+      // Invalidate Swoff cache so other tabs refetch
+      invalidateByTag("todos");
+      // Invalidate TanStack Query cache
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
+    },
+  });
+}
+```
+
+## Offline-Ready Queries
+
+TanStack Query's `networkMode` handles offline scenarios, but with Swoff you get actual cached responses:
+
+```tsx
+import { useQuery } from "@tanstack/react-query";
+import { fetchWithCache } from "../../swoff/fetch-wrapper";
+
+function useOfflineQuery<T>(url: string, key: string[]) {
+  return useQuery({
+    queryKey: key,
+    queryFn: async () => {
+      // Try network first (Swoff will cache the response)
+      try {
+        const response = await fetchWithCache(url, {
+          tags: key,
+          staleWhileRevalidate: true,
+        });
+        return response.json();
+      } catch (error) {
+        // If offline, TanStack Query will use cached data
+        throw error;
+      }
+    },
+    networkMode: "offlineFirst", // Try cache before network
+    gcTime: 1000 * 60 * 60, // Keep cached for 1 hour
+  });
+}
+
+// Usage
+function Todos() {
+  const { data: todos, isLoading } = useOfflineQuery("/api/todos", ["todos"]);
+
+  if (isLoading) return <Spinner />;
+  return <TodoList items={todos} />;
+}
+```
+
+## Cache Invalidation with Swoff + TanStack Query
+
+When a mutation completes, invalidate both systems:
+
+```tsx
+function useUpdateTodo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (updated: Todo) =>
+      swoffFetch<Todo>(`/api/todos/${updated.id}`, {
+        method: "PUT",
+        body: JSON.stringify(updated),
+        tags: ["todos", `todo:${updated.id}`],
+      }),
+    onSuccess: (data) => {
+      // 1. Invalidate Swoff cache (for cross-tab sync)
+      invalidateByTag("todos");
+      invalidateByTag(`todo:${data.id}`);
+
+      // 2. Update TanStack Query cache
+      queryClient.setQueryData(["todos"], (old: Todo[]) =>
+        old.map((t) => (t.id === data.id ? data : t))
+      );
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
+    },
+  });
+}
+```
+
+## Offline Indicator with Query State
+
+Show network status combined with query state:
+
+```tsx
+function Todos() {
+  const { data: todos, fetchStatus, status } = useTodos();
+  const { isOnline } = useOfflineStatus();
+
+  if (status === "loading") return <Spinner />;
+  if (status === "error") return <ErrorMessage />;
+
+  return (
+    <div>
+      {!isOnline && <OfflineBanner />}
+      {fetchStatus === "fetching" && <RefetchingIndicator />}
+      <TodoList items={todos} />
+    </div>
+  );
+}
+```
+
+## Prefetching with Swoff
+
+Prefetch data and cache it via Swoff:
+
+```tsx
+import { queryClient } from "@/lib/query-client";
+import { fetchWithCache } from "../../swoff/fetch-wrapper";
+
+async function prefetchTodos() {
+  await queryClient.prefetchQuery({
+    queryKey: ["todos"],
+    queryFn: async () => {
+      const response = await fetchWithCache("/api/todos", { tags: ["todos"] });
+      return response.json();
+    },
+  });
+}
+
+// Call on app initialization
+prefetchTodos();
+```
+
+## Error Handling
+
+Combine Swoff errors with TanStack Query error states:
+
+```tsx
+function useTodos() {
+  return useQuery({
+    queryKey: ["todos"],
+    queryFn: () => swoffFetch<Todo[]>("/api/todos", { tags: ["todos"] }),
+    retry: (failureCount, error: any) => {
+      // Don't retry if offline
+      if (!navigator.onLine) return false;
+      return failureCount < 3;
+    },
+    meta: {
+      offlineErrorMessage: "Todos are available offline",
+    },
+  });
+}
+
+function TodosView() {
+  const { data, error, isLoading, isOfflineError } = useTodos();
+
+  if (isLoading) return <Spinner />;
+  if (error && !isOfflineError) return <ErrorDisplay error={error} />;
+  if (isOfflineError) return <OfflineDataView data={data} />;
+
+  return <TodoList items={data} />;
+}
+```
+
+## Next Steps
+
+- [TanStack Query Docs](https://tanstack.com/query/latest) — full API reference
+- [Offline-First Architecture](/docs/core/offline-architecture) — how Swoff handles offline
+- [Mutation Queuing](/docs/advanced/mutation-queuing) — queue writes for offline

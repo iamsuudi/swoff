@@ -4,27 +4,6 @@ description: Swoff's modular feature set — use what you need, customize the re
 icon: Puzzle
 ---
 
-## Modular by Design
-
-Swoff is a **toolbox**, not a framework. Every feature is a file you copy into your project and own.
-
-<Cards>
-  <Card title="Pick what you need" icon={<CheckIcon />}>
-    Don't need push notifications? Skip the file. Each feature is independent or
-    has minimal, clear dependencies.
-  </Card>
-  <Card title="Tweak everything" icon={<SlidersIcon />}>
-    The code is yours. Change caching strategies, swap IndexedDB wrappers, or
-    rewrite the merge logic — no library fights you.
-  </Card>
-  <Card title="Zero lock-in" icon={<UnlinkIcon />}>
-    Walk away any time. There's no npm install to undo — just delete the files
-    you don't need anymore.
-  </Card>
-</Cards>
-
-## Feature Categories
-
 Features are grouped into three tiers matching the dependency diagram below.
 
 ### Required Core
@@ -99,8 +78,8 @@ Features are grouped into three tiers matching the dependency diagram below.
     icon={<WorkflowIcon className="text-purple-500" />}
     href="/docs/advanced/mutation-queuing"
   >
-    Queues offline writes in IndexedDB, auto-syncs on reconnect, reconciles
-    temp IDs.
+    Queues offline writes in IndexedDB, auto-syncs on reconnect, reconciles temp
+    IDs.
   </Card>
   <Card
     title="Background Sync"
@@ -131,8 +110,8 @@ Features are grouped into three tiers matching the dependency diagram below.
     icon={<ShieldIcon className="text-purple-500" />}
     href="/docs/advanced/authentication"
   >
-    Token storage, auth-aware fetch, current user cache, SW integration,
-    offline state, lock screen.
+    Token storage, auth-aware fetch, current user cache, SW integration, offline
+    state, lock screen.
   </Card>
   <Card
     title="Testing"
@@ -147,8 +126,8 @@ Features are grouped into three tiers matching the dependency diagram below.
     icon={<SearchIcon className="text-purple-500" />}
     href="/docs/advanced/debugging"
   >
-    DevTools walkthrough, postMessage monitoring, and troubleshooting tables
-    for common failure modes.
+    DevTools walkthrough, postMessage monitoring, and troubleshooting tables for
+    common failure modes.
   </Card>
 </Cards>
 
@@ -241,11 +220,11 @@ These four files form the backbone of every Swoff app. Copy them in order.
 
 Add these when you need them — no feature requires all of them.
 
-| Feature                                                 | Adds                                                                                       | Customize                                                                                             |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| [PWA Installability](/docs/patterns/pwa-installability) | Manifest JSON, install prompt handler, PWA mode detection, app icons                       | Icon sizes, install prompt behavior, display mode                                                     |
-| [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) | DB setup, CRUD, indexed queries, soft deletes, schema migrations, storage quota management | DB name, store schema, migration steps, storage thresholds (80%/95%), use native API or `idb` wrapper |
-| [TypeScript Utilities](/docs/patterns/client-registration#typescript-declarations)        | Type declarations for SW window properties, `checkForUpdate()` helper                      | Type definitions, helper function behavior                                                            |
+| Feature                                                                            | Adds                                                                                       | Customize                                                                                             |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| [PWA Installability](/docs/patterns/pwa-installability)                            | Manifest JSON, install prompt handler, PWA mode detection, app icons                       | Icon sizes, install prompt behavior, display mode                                                     |
+| [IndexedDB Patterns](/docs/patterns/indexeddb-patterns)                            | DB setup, CRUD, indexed queries, soft deletes, schema migrations, storage quota management | DB name, store schema, migration steps, storage thresholds (80%/95%), use native API or `idb` wrapper |
+| [TypeScript Utilities](/docs/patterns/client-registration#typescript-declarations) | Type declarations for SW window properties, `checkForUpdate()` helper                      | Type definitions, helper function behavior                                                            |
 
 ### Advanced Patterns
 
@@ -399,8 +378,8 @@ Every Swoff feature is designed to be modified.
     modal, banner, or auto-update.
   </Card>
   <Card title="Add more retries" icon={<RotateCwIcon />}>
-    In <code>mutation-queue.js</code>, bump <code>MAX_RETRIES</code> from 5 to 10,
-    or implement exponential backoff.
+    In <code>mutation-queue.js</code>, bump <code>MAX_RETRIES</code> from 5 to
+    10, or implement exponential backoff.
   </Card>
   <Card title="Scope auth to cookie-based" icon={<ShieldIcon />}>
     Edit <code>withAuthHeaders()</code> in <code>auth-fetch.js</code> to be a
@@ -415,4 +394,21 @@ Every Swoff feature is designed to be modified.
 - Follow the [Core Architecture](/docs/core/offline-architecture) design
 - Copy the [required patterns](/docs/patterns/) in order
 
-import { CheckIcon, SlidersIcon, UnlinkIcon, FileCodeIcon, HammerIcon, UserPlusIcon, PlugIcon, DownloadIcon, DatabaseIcon, WrenchIcon, WorkflowIcon, RefreshCwIcon, BellIcon, GitMergeIcon, ShieldIcon, BugIcon, SearchIcon, ShuffleIcon, RotateCwIcon } from "lucide-react";
+import {
+  FileCodeIcon,
+  HammerIcon,
+  UserPlusIcon,
+  PlugIcon,
+  DownloadIcon,
+  DatabaseIcon,
+  WrenchIcon,
+  WorkflowIcon,
+  RefreshCwIcon,
+  BellIcon,
+  GitMergeIcon,
+  ShieldIcon,
+  BugIcon,
+  SearchIcon,
+  ShuffleIcon,
+  RotateCwIcon,
+} from "lucide-react";

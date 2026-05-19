@@ -116,6 +116,87 @@ function shouldRegisterSW() {
 }
 ```
 
+## Error Handling
+
+Registration can fail for several reasons. Handle failures gracefully:
+
+```javascript
+async function initServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    console.warn("Service Workers not supported");
+    return;
+  }
+
+  try {
+    const manifest = await checkForUpdate();
+    const currentVersion = localStorage.getItem("swRegisteredVersion");
+
+    if (currentVersion === manifest.version) {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration?.active) {
+        window.currentSWVersion = currentVersion;
+        window.swReady = true;
+        window.dispatchEvent(new CustomEvent("sw-ready"));
+      }
+      return;
+    }
+
+    if (currentVersion && currentVersion !== manifest.version) {
+      window.swAvailableVersion = manifest.version;
+      window.swUpdateRequired = currentVersion < (manifest.minSupportedVersion || "0.0.0");
+      window.dispatchEvent(new CustomEvent("sw-update-available", {
+        detail: { version: manifest.version },
+      }));
+      return;
+    }
+
+    await registerServiceWorker(manifest.version);
+  } catch (error) {
+    console.error("Service Worker initialization failed:", error);
+    window.swError = true;
+    window.dispatchEvent(new CustomEvent("sw-error"));
+    // App continues without SW - data won't be cached offline
+  }
+}
+
+async function registerServiceWorker(version) {
+  const swUrl = `/sw-v${version}.js`;
+  const registration = await navigator.serviceWorker.register(swUrl);
+
+  localStorage.setItem("swRegisteredVersion", version);
+  window.currentSWVersion = version;
+  window.swRegisteredVersion = version;
+  window.swReady = true;
+
+  window.dispatchEvent(new CustomEvent("sw-version-detected"));
+  window.dispatchEvent(new CustomEvent("sw-ready"));
+
+  return registration;
+}
+```
+
+### Registration Failure Recovery
+
+If registration fails, the app should continue working (without offline capability):
+
+```javascript
+// In your app initialization
+async function initializeApp() {
+  // App works even without SW - just without offline caching
+  renderApp();
+
+  // Try to initialize SW in background
+  await initServiceWorker();
+
+  // If SW failed, show a banner (optional)
+  if (window.swError) {
+    showOfflineUnavailableBanner();
+  }
+}
+```
+
+See [Error Handling](/docs/advanced/error-handling) for more patterns.
+
 ## TypeScript Declarations
 
 Create `swoff/swoff.d.ts`:

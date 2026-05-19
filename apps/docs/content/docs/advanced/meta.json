@@ -6,8 +6,12 @@
     "mutation-queuing",
     "background-sync",
     "push-notifications",
+    "error-handling",
+    "performance",
     "testing",
     "debugging",
-    "conflict-resolution"
+    "conflict-resolution",
+    "benchmarks",
+    "accessibility"
   ]
 }

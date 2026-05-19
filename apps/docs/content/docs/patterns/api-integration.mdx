@@ -70,6 +70,80 @@ export async function fetchWithCache(input, options = {}) {
 
 Defaults to `read` for GET/HEAD and `mutation` for everything else. Override by passing the header explicitly.
 
+## Error Handling
+
+Network requests can fail. Handle failures gracefully:
+
+```javascript
+const TIMEOUT_MS = 10000;
+
+export async function fetchWithCache(input, options = {}) {
+  const headers = new Headers(options.headers);
+  const method = options.method || "GET";
+
+  if (!headers.has("X-SW-Cache-Strategy")) {
+    headers.set(
+      "X-SW-Cache-Strategy",
+      method === "GET" || method === "HEAD" ? "read" : "mutation",
+    );
+  }
+
+  if (options.staleWhileRevalidate) {
+    headers.set("X-SW-Stale", "true");
+  }
+
+  if (options.tags && options.tags.length > 0) {
+    headers.set("X-SW-Cache-Tags", options.tags.join(","));
+  }
+
+  // Query deduplication
+  if (method === "GET" || method === "HEAD") {
+    const url = typeof input === "string" ? input : input.url;
+    if (inFlightRequests.has(url)) {
+      return inFlightRequests.get(url).then((r) => r.clone());
+    }
+    const promise = fetch(input, { ...options, headers }).finally(() => {
+      inFlightRequests.delete(url);
+    });
+    inFlightRequests.set(url, promise);
+    return promise;
+  }
+
+  return fetch(input, { ...options, headers });
+}
+```
+
+### Offline Handling
+
+Requests fail when offline. The SW serves cached responses for reads; mutations should be queued:
+
+```javascript
+async function fetchWithCacheOrQueue(input, options = {}) {
+  if (!navigator.onLine) {
+    // Offline: read from cache, queue mutations
+    if (options.method === "GET" || options.method === "HEAD") {
+      // Try cache first
+      const cached = await caches.match(input);
+      if (cached) return cached;
+      throw new Error("Offline: no cached data");
+    } else {
+      // Queue mutation for later
+      await queueMutation({
+        method: options.method,
+        url: typeof input === "string" ? input : input.url,
+        body: options.body,
+        tags: options.tags,
+      });
+      throw new Error("Offline: mutation queued");
+    }
+  }
+
+  return fetchWithCache(input, options);
+}
+```
+
+See [Error Handling](/docs/advanced/error-handling) for more patterns including timeout and retry strategies.
+
 ## Cache Invalidation
 
 After a mutation syncs to the server, cached GET responses become stale. Call `invalidateByTag` to flush them:

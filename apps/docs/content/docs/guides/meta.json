@@ -8,6 +8,7 @@
     "solid-vite",
     "angular",
     "vanilla-js",
+    "migration",
     "contributing-adapters"
   ]
 }

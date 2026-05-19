@@ -658,8 +658,30 @@ export function useMutationQueue() {
 - [ ] Call `reconcileRecord()` + `invalidateByTag()` after online mutations too
 - [ ] Add `mutation-queue-changed` listener to show pending count in UI
 - [ ] Add `mutation-rollback` listener to handle sync failures in the UI
+- [ ] If using cookie auth, include CSRF tokens in queued mutation `headers` (see [CSRF Considerations](#csrf-considerations))
 - [ ] _(Optional)_ Implement `useMutationQueue` for your framework
 - [ ] Your backend receives the synced requests — you build that part
+
+## CSRF Considerations
+
+When the mutation queue replays requests on reconnect, it uses raw `fetch()`. If your backend uses cookie/session auth:
+
+1. **Cookies are not available in the SW context** — background sync (the SW `sync` event) cannot send cookies. Only use client-side sync (`window.addEventListener("online", processMutationQueue)`) with cookie auth.
+2. **CSRF tokens must be stored in the queue payload** — if your backend requires CSRF tokens for unsafe methods (POST/PUT/DELETE), include the token in the queued mutation's `headers` field when calling `queueMutation()`:
+
+```javascript
+await queueMutation({
+  method: "POST",
+  url: "/api/todos",
+  body: { title: "Grocery" },
+  headers: { "X-CSRF-Token": csrfToken }, // Include CSRF token in queued mutation
+  tags: ["todos"],
+  storeName: "todos",
+  tempId,
+});
+```
+
+3. **Idempotency keys** — to prevent duplicate processing when a mutation syncs but the response is lost, include an idempotency key in the mutation body. Your backend should reject duplicate keys.
 
 ## Status
 

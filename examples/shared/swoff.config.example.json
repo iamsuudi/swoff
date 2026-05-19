@@ -1,0 +1,37 @@
+{
+  "$schema": "https://swoff.ai/schema/v1.json",
+  "enabled": true,
+  "version": "from-package",
+  "minSupportedVersion": "1.0.0",
+  "serviceWorker": {
+    "autoUpdate": false,
+    "defaultStrategy": "cache-first",
+    "strategies": {
+      "/api/*": "network-first",
+      "/static/*": "cache-first",
+      "/images/*": "stale-while-revalidate",
+      "/*": "cache-first"
+    },
+    "maxCacheEntries": 200,
+    "maxCacheAge": 86400000,
+    "runtimeCacheName": "my-app-runtime-cache"
+  },
+  "features": {
+    "versionedSw": true,
+    "offlineReads": true,
+    "mutationQueue": true,
+    "backgroundSync": false,
+    "pwa": true,
+    "auth": false,
+    "crossTabSync": true,
+    "tagInvalidation": true
+  },
+  "database": {
+    "name": "my-app-db",
+    "stores": ["users", "posts", "comments", "settings"]
+  },
+  "build": {
+    "outputDir": "dist",
+    "swFilename": "sw"
+  }
+}

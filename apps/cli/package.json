@@ -4,7 +4,7 @@
   "type": "module",
   "description": "CLI for Swoff - Offline-first web apps made easy",
   "bin": {
-    "swoff": "./bin/swoff"
+    "swoff": "bin/swoff"
   },
   "scripts": {
     "dev": "tsx src/index.ts"
@@ -30,5 +30,4 @@
   "devDependencies": {
     "@types/node": "^20.0.0"
   }
-}
 }

@@ -1,0 +1,173 @@
+---
+title: Getting Started with Configuration
+description: Learn how to configure Swoff using JSON configuration files
+icon: Settings
+---
+
+# Getting Started with Configuration
+
+Swoff uses a JSON-based configuration system that makes it easy to customize service worker behavior without writing custom code. This approach provides both simplicity and flexibility for offline-first applications.
+
+## Quick Setup
+
+### 1. Create Configuration File
+
+Copy the example configuration to your project root:
+
+```bash
+cp examples/shared/swoff.config.example.json swoff.config.json
+```
+
+### 2. Basic Configuration
+
+Edit `swoff.config.json` to match your needs:
+
+```json
+{
+  "$schema": "https://swoff.ai/schema/v1.json",
+  "enabled": true,
+  "version": "from-package",
+  "minSupportedVersion": "1.0.0",
+  "serviceWorker": {
+    "autoUpdate": false,
+    "defaultStrategy": "cache-first",
+    "strategies": {
+      "/api/*": "network-first",
+      "/static/*": "cache-first"
+    }
+  },
+  "features": {
+    "offlineReads": true,
+    "mutationQueue": true,
+    "pwa": true
+  }
+}
+```
+
+### 3. Generate Service Worker
+
+Run the generator to create your service worker:
+
+```bash
+node examples/shared/sw-generator.js
+```
+
+This creates `dist/sw-v{version}.js` with your configuration.
+
+### 4. Generate Supporting Files (Optional)
+
+Swoff can also generate supporting hooks, components, and utilities based on your configuration:
+
+```bash
+node examples/shared/swoff-files-generator.js
+```
+
+This generates files based on which features you enable:
+
+| Feature | Generated Files |
+|---------|-----------------|
+| `offlineReads: true` | `src/hooks/useOffline.ts`, `src/hooks/useApiData.ts` |
+| `mutationQueue: true` | `src/hooks/useMutationQueue.ts` |
+| `pwa: true` | `src/components/OfflineIndicator.tsx`, `src/components/PWAInstallButton.tsx` |
+| `crossTabSync: true` | `src/utils/crossTabSync.ts` |
+
+Each file is self-documenting with JSDoc comments explaining usage.
+
+## Configuration File Types
+
+Swoff supports multiple configuration file types (in order of preference):
+
+1. **`swoff.config.json`** - Recommended (JSON, type-agnostic)
+2. **`swoff.config.js`** - JavaScript/TypeScript fallback
+3. **`swoff.config.mjs`** - ES Module fallback
+4. **`swoff.config.cjs`** - CommonJS fallback
+
+The system will automatically detect and load the appropriate file type.
+
+## Configuration Structure
+
+### Core Settings
+
+```json
+{
+  "enabled": true,
+  "version": "from-package",
+  "minSupportedVersion": "1.0.0"
+}
+```
+
+- **`enabled`**: Toggle config-driven generation
+- **`version`**: SW version source (`"from-package"` or specific version)
+- **`minSupportedVersion`**: Force updates for older versions
+
+### Service Worker Configuration
+
+```json
+{
+  "serviceWorker": {
+    "autoUpdate": false,
+    "defaultStrategy": "cache-first",
+    "strategies": {
+      "/api/*": "network-first",
+      "/static/*": "cache-first"
+    },
+    "maxCacheEntries": 200,
+    "maxCacheAge": 86400000,
+    "runtimeCacheName": "my-app-cache"
+  }
+}
+```
+
+### Feature Toggles
+
+```json
+{
+  "features": {
+    "versionedSw": true,
+    "offlineReads": true,
+    "mutationQueue": true,
+    "backgroundSync": false,
+    "pwa": true,
+    "auth": false,
+    "crossTabSync": true,
+    "tagInvalidation": true
+  }
+}
+```
+
+### Database Configuration
+
+```json
+{
+  "database": {
+    "name": "my-app-db",
+    "stores": ["users", "posts", "comments"]
+  }
+}
+```
+
+### Build Configuration
+
+```json
+{
+  "build": {
+    "outputDir": "dist",
+    "swFilename": "sw"
+  }
+}
+```
+
+## Next Steps
+
+- **Framework Guides**: Learn how to integrate Swoff with your framework
+- **PWA Integration**: Set up manifest.json and PWA features
+- **Advanced Configuration**: Explore caching strategies and optimization
+- **Migration Guide**: Move from manual to configuration-based approach
+
+## Troubleshooting
+
+- **Configuration not loading**: Check file path and JSON syntax
+- **Validation errors**: Use the JSON schema for reference
+- **Build errors**: Ensure all required fields are present
+
+For more detailed information, see the [Configuration Reference](/docs/configuration/schema-reference).

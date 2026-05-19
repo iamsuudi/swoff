@@ -35,11 +35,76 @@ Swoff is a **toolbox**, not a framework. Every feature is a file you copy into y
 
 Want to understand everything? Follow these steps in order:
 
-1. Understand the [concepts](/docs/concepts/what-is-offline-and-sw) — offline capability and service workers
-2. Learn the [core architecture](/docs/core/offline-architecture) — offline-first principles and data storage
-3. Follow the [patterns](/docs/patterns/) sequentially — SW Template → Build Scripts → Client Registration → PWA Installability → IndexedDB Patterns
-4. Follow a [framework guide](/docs/guides) — React, TanStack Router, or TanStack Start
-5. See the [reference implementation](/docs/reference/budget-manager) — Budget Manager app
+1. **Configure Swoff** - Set up the JSON configuration system
+   - [Getting Started with Configuration](/docs/configuration/getting-started)
+   - [Configuration Schema Reference](/docs/configuration/schema-reference)
+   
+2. Understand the [concepts](/docs/concepts/what-is-offline-and-sw) — offline capability and service workers
+3. Learn the [core architecture](/docs/core/offline-architecture) — offline-first principles and data storage
+4. Follow the [patterns](/docs/patterns/) sequentially — SW Template → Build Scripts → Client Registration → PWA Installability → IndexedDB Patterns
+5. Follow a [framework guide](/docs/guides) — React, TanStack Router, or TanStack Start
+6. See the [reference implementation](/docs/reference/budget-manager) — Budget Manager app
+
+## Configuration-First Development
+
+Swoff now offers two approaches to service worker development:
+
+### 1. Configuration-Driven (Recommended)
+
+Configure Swoff behavior through a simple JSON file:
+
+```json
+// swoff.config.json
+{
+  "$schema": "https://swoff.ai/schema/v1.json",
+  "enabled": true,
+  "version": "from-package",
+  "serviceWorker": {
+    "defaultStrategy": "cache-first",
+    "strategies": {
+      "/api/*": "network-first",
+      "/static/*": "cache-first"
+    }
+  },
+  "features": {
+    "offlineReads": true,
+    "mutationQueue": true
+  }
+}
+```
+
+**Benefits**: Easy setup, automatic optimization, no custom code required.
+
+### 2. Custom Code Mode
+
+For complete control, write your own service worker:
+
+```json
+// swoff.config.json
+{
+  "enabled": false
+}
+```
+
+**Benefits**: Full control over every aspect of service worker behavior.
+
+## Quick Start with Configuration
+
+1. **Copy configuration**:
+   ```bash
+   cp examples/shared/swoff.config.example.json swoff.config.json
+   ```
+
+2. **Customize your JSON config** for your app's needs
+
+3. **Generate service worker**:
+   ```bash
+   node examples/shared/sw-generator.js
+   ```
+
+4. **Register the generated service worker** in your application
+
+For detailed configuration options, see the [Configuration Guide](/docs/configuration/getting-started).
 
 ## Reference Implementation
 

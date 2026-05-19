@@ -1,14 +1,16 @@
 {
   "title": "Framework Guides",
-  "icon": "Cable",
+  "description": "Framework-specific configuration guides for Swoff",
+  "icon": "Code",
   "pages": [
+    "react-vite",
     "react-ecosystem",
     "vue-ecosystem",
     "svelte-ecosystem",
     "solid-vite",
     "angular",
     "vanilla-js",
-    "migration",
-    "contributing-adapters"
+    "contributing-adapters",
+    "migration"
   ]
 }

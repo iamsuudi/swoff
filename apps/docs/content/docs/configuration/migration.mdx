@@ -1,0 +1,366 @@
+---
+title: Migration Guide
+description: Migrate from manual service worker coding to configuration-driven approach
+icon: ArrowRight
+---
+
+# Migration Guide
+
+This guide helps you migrate from manually writing service worker code to using Swoff's configuration-driven approach. The migration process is gradual and maintains backward compatibility.
+
+## Before Migration
+
+### Manual Service Worker Approach
+
+If you're currently using manual service worker code, it might look like this:
+
+```javascript
+// sw.js
+const CACHE_NAME = 'my-app-v1.0.0';
+const ASSETS = ['/', '/index.html', '/styles.css'];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+  
+  event.respondWith(
+    caches.match(event.request).then(response => {
+      return response || fetch(event.request);
+    })
+  );
+});
+```
+
+## Migration Steps
+
+### Step 1: Create Configuration File
+
+Start by creating a basic configuration file:
+
+```bash
+cp examples/shared/swoff.config.example.json swoff.config.json
+```
+
+Configure the basic settings:
+
+```json
+{
+  "$schema": "https://swoff.ai/schema/v1.json",
+  "enabled": true,
+  "version": "from-package",
+  "minSupportedVersion": "1.0.0",
+  "serviceWorker": {
+    "autoUpdate": false,
+    "defaultStrategy": "cache-first"
+  },
+  "features": {
+    "offlineReads": true,
+    "versionedSw": true
+  }
+}
+```
+
+### Step 2: Generate Service Worker
+
+Run the generator to create a service worker based on your configuration:
+
+```bash
+node examples/shared/sw-generator.js
+```
+
+This creates `dist/sw-v{version}.js` with your configuration applied.
+
+### Step 3: Test Generated Service Worker
+
+Replace your manual service worker with the generated one:
+
+```javascript
+// Register the generated service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/dist/sw-v1.0.0.js')
+    .then(registration => {
+      console.log('Service Worker registered:', registration);
+    })
+    .catch(error => {
+      console.error('Service Worker registration failed:', error);
+    });
+}
+```
+
+Test that the basic functionality works as expected.
+
+### Step 4: Gradually Add Features
+
+Enable additional features in your configuration:
+
+```json
+{
+  "features": {
+    "offlineReads": true,
+    "mutationQueue": true,
+    "crossTabSync": true
+  }
+}
+```
+
+Regenerate and test each feature incrementally.
+
+### Step 5: Customize Cache Strategies
+
+Replace manual caching logic with configuration-based strategies:
+
+```json
+{
+  "serviceWorker": {
+    "strategies": {
+      "/api/*": "network-first",
+      "/static/*": "cache-first",
+      "/images/*": "stale-while-revalidate"
+    }
+  }
+}
+```
+
+### Step 6: Remove Manual Code
+
+Once you're satisfied with the generated service worker, you can:
+
+1. Remove your manual `sw.js` file
+2. Update your registration code to use the generated file
+3. Set `"enabled": true` in your config
+
+## Migration Strategies
+
+### Strategy 1: Big Bang Migration
+
+**Best for**: New projects or complete rewrites
+
+```json
+{
+  "enabled": true,
+  "version": "from-package",
+  "features": {
+    "offlineReads": true,
+    "mutationQueue": true,
+    "pwa": true
+  }
+}
+```
+
+**Pros**: Complete configuration-based approach
+**Cons**: Requires thorough testing
+
+### Strategy 2: Gradual Migration
+
+**Best for**: Existing projects with complex service workers
+
+```json
+{
+  "enabled": true,
+  "version": "from-package",
+  "features": {
+    "offlineReads": true,
+    "mutationQueue": false  // Start with basic features
+  }
+}
+```
+
+**Pros**: Lower risk, incremental testing
+**Cons**: Takes longer to complete
+
+### Strategy 3: Hybrid Approach
+
+**Best for**: Projects with unique requirements
+
+```json
+{
+  "enabled": true,
+  "version": "from-package",
+  "features": {
+    "offlineReads": true
+  }
+}
+```
+
+Keep custom code for specific features while using configuration for basic caching.
+
+## Configuration Reference
+
+### Mapping Manual Code to Configuration
+
+| Manual Code | Configuration Equivalent |
+|-------------|--------------------------|
+| `CACHE_NAME = 'my-app-v1.0.0'` | `version: "1.0.0"` |
+| `caches.open(CACHE_NAME)` | Handled by generator |
+| `caches.match(event.request)` | Handled by cache strategies |
+| `fetch(event.request)` | Handled by cache strategies |
+| `event.waitUntil(caches.delete(...))` | Handled by `versionedSw: true` |
+
+### Cache Strategy Migration
+
+**Manual:**
+```javascript
+// Custom cache-first strategy
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  
+  const response = await fetch(request);
+  await caches.put(request, response.clone());
+  return response;
+}
+```
+
+**Configuration:**
+```json
+{
+  "serviceWorker": {
+    "defaultStrategy": "cache-first"
+  }
+}
+```
+
+## Testing the Migration
+
+### Test Checklist
+
+1. **Service Worker Registration**
+   - Verify the service worker registers correctly
+   - Check that it activates and controls pages
+
+2. **Cache Functionality**
+   - Test that assets are cached properly
+   - Verify offline access works
+
+3. **Update Mechanism**
+   - Test version updates work correctly
+   - Verify update prompts appear when expected
+
+4. **Cross-Tab Sync**
+   - Test that multiple tabs share cache state
+   - Verify invalidation works across tabs
+
+5. **Performance**
+   - Measure load times with and without caching
+   - Test memory usage with cache limits
+
+### Debugging Tips
+
+1. **Use DevTools** to inspect service worker events
+2. **Check console** for error messages
+3. **Test in different browsers** to ensure compatibility
+4. **Clear cache** between tests to ensure clean state
+
+## Troubleshooting Common Issues
+
+### Issue: Service Worker Not Updating
+
+**Solution**: Check version numbers and ensure `versionedSw: true`
+
+```json
+{
+  "version": "1.0.0",
+  "features": {
+    "versionedSw": true
+  }
+}
+```
+
+### Issue: Caching Not Working
+
+**Solution**: Verify cache strategies match your URL patterns
+
+```json
+{
+  "serviceWorker": {
+    "strategies": {
+      "/api/*": "network-first",
+      "/static/*": "cache-first"
+    }
+  }
+}
+```
+
+### Issue: Performance Degradation
+
+**Solution**: Adjust cache limits and strategies
+
+```json
+{
+  "serviceWorker": {
+    "maxCacheEntries": 100,
+    "maxCacheAge": 3600000,
+    "defaultStrategy": "stale-while-revalidate"
+  }
+}
+```
+
+## After Migration
+
+### Benefits of Configuration-Driven Approach
+
+1. **Easier Maintenance**: No need to modify service worker code
+2. **Better Testing**: Consistent behavior across environments
+3. **Team Collaboration**: Configuration files are easier to share and review
+4. **Version Control**: Changes are tracked in your Git history
+5. **Performance**: Optimized caching strategies out of the box
+
+### Next Steps
+
+1. **Explore Advanced Features**: Try mutation queue and background sync
+2. **Customize Further**: Add custom strategies for specific use cases
+3. **Optimize Performance**: Fine-tune cache settings for your app
+4. **Share with Team**: Document your configuration for team members
+
+## Rollback Plan
+
+If you need to roll back to manual code:
+
+1. Set `"enabled": false` in your configuration
+2. Restore your original service worker file
+3. Update registration to use the manual file
+4. Test that everything works as before
+
+The rollback process is straightforward and doesn't require complex changes to your application.
+
+## Advanced Migration Scenarios
+
+### Migrating Existing Caches
+
+If you have existing caches you need to preserve:
+
+```json
+{
+  "serviceWorker": {
+    "strategies": {
+      "/existing/*": "cache-first",
+      "/new/*": "network-first"
+    }
+  }
+}
+```
+
+### Migrating Complex Logic
+
+For complex service worker logic:
+
+1. Keep custom code in a separate file
+2. Use the generated service worker as a base
+3. Extend it with your custom logic
+4. Maintain both configuration and custom code during transition
+
+### Migrating Multiple Projects
+
+For multiple projects sharing similar configurations:
+
+1. Create a base configuration file
+2. Extend it for each project's specific needs
+3. Use build scripts to generate project-specific service workers
+4. Maintain consistency across projects
+
+The migration process is designed to be gradual and risk-free. You can take as much time as needed and always fall back to manual code if needed.

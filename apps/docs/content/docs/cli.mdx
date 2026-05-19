@@ -10,15 +10,35 @@ Swoff provides a command-line interface for easy project setup and management. T
 
 ## Installation
 
-The CLI is available in `examples/shared/swoff-cli.js`. You can run it directly:
+### Quick Start (Recommended)
+
+Use `npx` to run the CLI without installation:
 
 ```bash
-# Using node
-node examples/shared/swoff-cli.js <command>
+npx @swoff/cli init
+```
 
-# Or link it to your PATH
-npm link examples/shared/swoff-cli.js
-swoff <command>
+### Manual Installation
+
+Install as a dev dependency in your project:
+
+```bash
+# npm
+npm install -D @swoff/cli
+
+# yarn
+yarn add -D @swoff/cli
+
+# pnpm
+pnpm add -D @swoff/cli
+```
+
+After installation, you can run the CLI directly:
+
+```bash
+swoff init
+swoff generate
+swoff validate
 ```
 
 ## Commands

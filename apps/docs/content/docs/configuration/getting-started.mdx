@@ -10,13 +10,22 @@ Swoff uses a JSON-based configuration system that makes it easy to customize ser
 
 ## Quick Setup
 
-### 1. Create Configuration File
+### 1. Initialize with CLI
 
-Copy the example configuration to your project root:
+Use the Swoff CLI to initialize your project:
 
 ```bash
-cp examples/shared/swoff.config.example.json swoff.config.json
+# Using npx (no installation required)
+npx @swoff/cli init
+
+# Or after installing as a dependency
+npm install -D @swoff/cli
+swoff init
 ```
+
+The CLI will create:
+- `swoff.config.json` with default configuration
+- Directory structure (`src/hooks`, `src/components`, `src/utils`)
 
 ### 2. Basic Configuration
 
@@ -49,7 +58,7 @@ Edit `swoff.config.json` to match your needs:
 Run the generator to create your service worker:
 
 ```bash
-node examples/shared/sw-generator.js
+npx @swoff/cli generate
 ```
 
 This creates `dist/sw-v{version}.js` with your configuration.
@@ -57,6 +66,21 @@ This creates `dist/sw-v{version}.js` with your configuration.
 ### 4. Generate Supporting Files (Optional)
 
 Swoff can also generate supporting hooks, components, and utilities based on your configuration:
+
+```bash
+npx @swoff/cli generate --files-only
+```
+
+This generates files based on which features you enable:
+
+| Feature | Generated Files |
+|---------|-----------------|
+| `offlineReads: true` | `src/hooks/useOffline.ts`, `src/hooks/useApiData.ts` |
+| `mutationQueue: true` | `src/hooks/useMutationQueue.ts` |
+| `pwa: true` | `src/components/OfflineIndicator.tsx`, `src/components/PWAInstallButton.tsx` |
+| `crossTabSync: true` | `src/utils/crossTabSync.ts` |
+
+Each file is self-documenting with JSDoc comments explaining usage.
 
 ```bash
 node examples/shared/swoff-files-generator.js

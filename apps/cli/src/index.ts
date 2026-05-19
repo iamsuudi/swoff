@@ -1,23 +1,23 @@
-#!/usr/bin/env node
-
 /**
- * Swoff CLI
+ * Swoff CLI - Main Entry Point
  * 
  * Command-line interface for managing Swoff in your project.
  * 
  * Usage:
- *   npx swoff init          Initialize Swoff in current directory
- *   npx swoff generate      Generate service worker and files
- *   npx swoff validate      Validate swoff.config.json
- *   npx swoff add <feature> Add specific feature files
- *   npx swoff --help        Show help
+ *   swoff init          Initialize Swoff in current directory
+ *   swoff generate      Generate service worker and files
+ *   swoff validate      Validate swoff.config.json
+ *   swoff add <feature> Add specific feature files
+ *   swoff --help        Show help
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { spawn } from "child_process";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const packageDir = join(__dirname, '..');
 const projectRoot = process.cwd();
 
 // Colors for console output
@@ -180,22 +180,10 @@ async function initCommand(framework = null) {
     }
   });
   
-  // Copy example files
-  const sharedDir = join(__dirname);
-  const exampleConfig = join(sharedDir, 'swoff.config.example.json');
-  
-  if (existsSync(exampleConfig)) {
-    log.info(`Configuration file created at ${configPath}`);
-  }
-  
-  // Run initial generation
-  log.info('Running initial generation...');
-  await generateCommand({ swOnly: false, filesOnly: false });
-  
   log.success('Swoff initialized successfully!');
   log.info(`\nNext steps:`);
   log.help('1. Review swoff.config.json and customize as needed');
-  log.help('2. Add Swoff hooks and components to your app');
+  log.help('2. Run: swoff generate');
   log.help('3. Read the docs: https://swoff.netlify.app/docs');
 }
 
@@ -232,20 +220,7 @@ async function generateCommand(options = {}) {
   if (!filesOnly) {
     log.info('Generating service worker...');
     try {
-      const { spawn } = await import('child_process');
-      const generatorPath = join(__dirname, 'sw-generator.js');
-      
-      await new Promise((resolve, reject) => {
-        const proc = spawn('node', [generatorPath], { 
-          cwd: projectRoot,
-          stdio: 'inherit'
-        });
-        proc.on('close', (code) => {
-          if (code === 0) resolve();
-          else reject(new Error(`Generator exited with code ${code}`));
-        });
-        proc.on('error', reject);
-      });
+      await runGenerator('sw-generator.js');
     } catch (err) {
       log.error(`Service worker generation failed: ${err.message}`);
     }
@@ -255,26 +230,40 @@ async function generateCommand(options = {}) {
   if (!swOnly) {
     log.info('Generating supporting files...');
     try {
-      const { spawn } = await import('child_process');
-      const filesGeneratorPath = join(__dirname, 'swoff-files-generator.js');
-      
-      await new Promise((resolve, reject) => {
-        const proc = spawn('node', [filesGeneratorPath], { 
-          cwd: projectRoot,
-          stdio: 'inherit'
-        });
-        proc.on('close', (code) => {
-          if (code === 0) resolve();
-          else reject(new Error(`Generator exited with code ${code}`));
-        });
-        proc.on('error', reject);
-      });
+      await runGenerator('swoff-files-generator.js', [
+        '--project-root', projectRoot,
+        '--package-dir', packageDir
+      ]);
     } catch (err) {
       log.error(`File generation failed: ${err.message}`);
     }
   }
   
   log.success('Generation complete!');
+}
+
+// Helper to run generators
+function runGenerator(generatorName, extraArgs = []) {
+  return new Promise((resolve, reject) => {
+    const generatorPath = join(packageDir, 'src/lib/generators', generatorName);
+    
+    // Check if generator exists
+    if (!existsSync(generatorPath)) {
+      reject(new Error(`Generator not found: ${generatorPath}`));
+      return;
+    }
+    
+    const proc = spawn('node', [generatorPath, ...extraArgs], { 
+      cwd: projectRoot,
+      stdio: 'inherit'
+    });
+    
+    proc.on('close', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`Generator exited with code ${code}`));
+    });
+    proc.on('error', reject);
+  });
 }
 
 // Validate command - Validate config file
@@ -337,12 +326,12 @@ async function validateCommand() {
   // Validate cache strategies
   const validStrategies = ['cache-first', 'network-first', 'stale-while-revalidate', 'cache-only', 'network-only'];
   if (config.serviceWorker.strategies) {
-    Object.entries(config.serviceWorker.strategies).forEach(([pattern, strategy]) => {
+    for (const [pattern, strategy] of Object.entries(config.serviceWorker.strategies)) {
       if (!validStrategies.includes(strategy)) {
         log.error(`Invalid strategy "${strategy}" for pattern "${pattern}". Valid: ${validStrategies.join(', ')}`);
         return;
       }
-    });
+    }
   }
   
   log.success('Configuration is valid!');

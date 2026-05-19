@@ -1,0 +1,33 @@
+{
+  "name": "@swoff/cli",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "CLI for Swoff - Offline-first web apps made easy",
+  "bin": {
+    "swoff": "bin/swoff"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin/",
+    "src/"
+  ],
+  "keywords": [
+    "service-worker",
+    "offline",
+    "pwa",
+    "caching"
+  ],
+  "author": "Swoff",
+  "license": "MIT",
+  "dependencies": {
+    "tsx": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  }
+}

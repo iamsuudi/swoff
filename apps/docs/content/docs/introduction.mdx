@@ -47,11 +47,26 @@ Want to understand everything? Follow these steps in order:
 
 ## Configuration-First Development
 
-Swoff now offers two approaches to service worker development:
+Swoff now offers a CLI-first approach to service worker development:
 
-### 1. Configuration-Driven (Recommended)
+### 1. Quick Setup with CLI (Recommended)
 
-Configure Swoff behavior through a simple JSON file:
+Use the Swoff CLI to initialize your project in seconds:
+
+```bash
+# Initialize with defaults
+npx @swoff/cli init
+
+# Or with framework-specific defaults
+npx @swoff/cli init --framework react-vite
+```
+
+The CLI creates everything you need:
+- `swoff.config.json` with intelligent defaults
+- Generated service worker in `dist/`
+- Supporting hooks and components in `src/`
+
+Then customize via JSON config:
 
 ```json
 // swoff.config.json
@@ -73,11 +88,11 @@ Configure Swoff behavior through a simple JSON file:
 }
 ```
 
-**Benefits**: Easy setup, automatic optimization, no custom code required.
+**Benefits**: CLI handles everything, just customize JSON, regenerate when needed.
 
 ### 2. Custom Code Mode
 
-For complete control, write your own service worker:
+For complete control, disable config and write your own service worker:
 
 ```json
 // swoff.config.json

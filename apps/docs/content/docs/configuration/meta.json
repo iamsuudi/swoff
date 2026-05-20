@@ -2,9 +2,5 @@
   "title": "Configuration",
   "description": "Swoff configuration guides and reference",
   "icon": "Settings",
-  "pages": [
-    "getting-started",
-    "schema-reference",
-    "migration"
-  ]
+  "pages": ["schema-reference", "migration"]
 }

@@ -4,14 +4,6 @@ description: Getting started with Swoff.
 icon: Rocket
 ---
 
-## What is Swoff?
-
-Swoff is a zero-dependency blueprint for building offline-first, versioned web apps that feel native.
-
-> We provide code and architecture, not dependencies.
-
-Swoff is not a traditional library. You copy our service worker, hooks, and utilities into your project, then modify them to fit your needs. No waiting for library updates, no bundle bloat.
-
 ## Modular by Design
 
 Swoff is a **toolbox**, not a framework. Every feature is a file you copy into your project and own.
@@ -36,14 +28,13 @@ Swoff is a **toolbox**, not a framework. Every feature is a file you copy into y
 Want to understand everything? Follow these steps in order:
 
 1. **Configure Swoff** - Set up the JSON configuration system
-   - [Getting Started with Configuration](/docs/configuration/getting-started)
+   - [Getting Started with Configuration](/docs/configuration)
    - [Configuration Schema Reference](/docs/configuration/schema-reference)
-   
 2. Understand the [concepts](/docs/concepts/what-is-offline-and-sw) — offline capability and service workers
 3. Learn the [core architecture](/docs/core/offline-architecture) — offline-first principles and data storage
 4. Follow the [patterns](/docs/patterns/) sequentially — SW Template → Build Scripts → Client Registration → PWA Installability → IndexedDB Patterns
 5. Follow a [framework guide](/docs/guides) — React, TanStack Router, or TanStack Start
-6. See the [reference implementation](/docs/reference/budget-manager) — Budget Manager app
+6. See the [reference implementation](/docs/reference/budget-manager)
 
 ## Configuration-First Development
 
@@ -62,6 +53,7 @@ npx @swoff/cli init --framework react-vite
 ```
 
 The CLI creates everything you need:
+
 - `swoff.config.json` with intelligent defaults
 - Generated service worker in `dist/`
 - Supporting hooks and components in `src/`
@@ -106,6 +98,7 @@ For complete control, disable config and write your own service worker:
 ## Quick Start with Configuration
 
 1. **Copy configuration**:
+
    ```bash
    cp examples/shared/swoff.config.example.json swoff.config.json
    ```
@@ -113,13 +106,14 @@ For complete control, disable config and write your own service worker:
 2. **Customize your JSON config** for your app's needs
 
 3. **Generate service worker**:
+
    ```bash
    node examples/shared/sw-generator.js
    ```
 
 4. **Register the generated service worker** in your application
 
-For detailed configuration options, see the [Configuration Guide](/docs/configuration/getting-started).
+For detailed configuration options, see the [Configuration Guide](/docs/configuration).
 
 ## Reference Implementation
 

@@ -17,7 +17,7 @@ Two separate browser APIs that work together:
 1. **Push API** (SW) — Receive push messages from your backend
 2. **Notifications API** (Client + SW) — Display notifications to the user
 
-**Your backend sends the push message** — Swoff covers the client-side subscription management and SW handlers. You build the backend part with your stack (Go, Node.js, Python, etc.).
+**Your backend sends the push message** — Swoff covers the client-side subscription management and SW handlers.
 
 ## Flow
 
@@ -343,7 +343,7 @@ const VAPID_PUBLIC_KEY = "BEr38w...";
 
 ## Local Notifications
 
-Push notifications require a backend. If you just want to show notifications from client code (no server needed), use the Notifications API directly:
+Push notifications require a backend. If you just want to show notifications from client code, use the Notifications API directly:
 
 ```javascript
 export function showLocalNotification(title, options = {}) {
@@ -537,7 +537,7 @@ export function usePushSubscription(vapidPublicKey) {
 - [x] SW `notificationclick` event handler with focus/open
 - [x] VAPID key setup guide (client-side usage)
 - [x] Data layer integration (sync complete notifications)
-- [x] Local notification helper (no backend needed)
+- [x] Local notification helper
 - [x] Framework adapters (React hook, Vue composable)
 - [x] Window events for subscription state changes
 

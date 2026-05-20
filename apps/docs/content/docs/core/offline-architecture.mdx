@@ -10,42 +10,11 @@ Build web apps where the **app shell works offline** and **data is handled intel
 
 1. **Offline App Shell** — All routes and static assets cached via Service Worker
 2. **Smart Data** — Read requests cached, mutations queued when offline
-3. **Backend Optional** — Works with your existing server, or go full offline
+3. **Client Runtime** — Data lives on the client (IndexedDB), syncs with your backend when online
 
-## Two Tiers
+## Client Runtime
 
-Swoff supports two tiers depending on your app's needs.
-
-### Tier 1: App Shell + Smart Data (General Pattern)
-
-Works with your existing backend. The app shell is cached, read responses are cached for offline access, and mutations are queued when offline.
-
-```
-┌─────────────────────────────────────────────────┐
-│                 Browser (Client)                  │
-│                                                   │
-│  ┌──────────────┐  ┌──────────────────────────┐ │
-│  │ Service      │  │  App Logic               │ │
-│  │ Worker       │  │  (React/Vue)             │ │
-│  │              │  │                          │ │
-│  │ - App shell  │  │  - Read from Cache API   │ │
-│  │   cache      │  │  - Queue mutations       │ │
-│  │ - Read cache │  │  - Sync when online       │ │
-│  └──────────────┘  └──────────────────────────┘ │
-└─────────────────────────────────────────────────┘
-         │                              ▲
-         │ Fetch read                    │
-         │ Cache write                   │ Sync queued
-         ▼                              │
-┌─────────────────────┐                │
-│  Your Backend API   │────────────────┘
-│  (dynamic data)     │  Return data
-└─────────────────────┘
-```
-
-### Tier 2: Full Offline (Special Case)
-
-No backend needed. IndexedDB serves as the full database. This is the pattern used by Budget Manager.
+Swoff makes the browser a capable client runtime. The app shell is fully cached, read responses are cached for offline access, and mutations are queued when offline — ready to sync when connection returns.
 
 ## App Shell & Rendering Modes
 
@@ -80,18 +49,18 @@ With SSR, consider **stale-while-revalidate** for HTML routes: serve cached HTML
 
 ## Storage Strategy
 
-| API                | Capacity                         | Tier 1 (General)     | Tier 2 (Full Offline) |
-| ------------------ | -------------------------------- | -------------------- | --------------------- |
-| **Cache API**      | Unlimited (depends on free disk) | Cache read responses | App shell assets only |
-| **IndexedDB**      | Unlimited (depends on free disk) | Queue mutations      | Full app database     |
-| **localStorage**   | ~5-10 MB                         | Settings, SW version | Settings, metadata    |
-| **sessionStorage** | ~5-10 MB                         | Session state        | Session state         |
+| API                | Capacity                         | Read Caching | Mutation Queue |
+| ------------------ | -------------------------------- | ------------ | -------------- |
+| **Cache API**      | Unlimited (depends on free disk) | Read responses cached | —             |
+| **IndexedDB**      | Unlimited (depends on free disk) | —            | Queue mutations, store local data |
+| **localStorage**   | ~5-10 MB                         | Settings, SW version | Settings, metadata |
+| **sessionStorage** | ~5-10 MB                         | Session state | Session state |
 
 :::warn
 Limited by disk space and browser quota. See [Storage Quota Management](/docs/patterns/indexeddb-patterns#persistent-storage) for quota handling and [iOS Safari Limitations](/docs/concepts/ios-safari-limitations) for platform-specific storage limits.
 :::
 
-### Tier 1: Cache API (Read Response Caching)
+### Cache API (Read Response Caching)
 
 When online, fetch and cache read responses; when offline, serve from cache. The Service Worker handles this transparently — see the [SW Template](/docs/patterns/sw-template) for the implementation.
 
@@ -109,17 +78,7 @@ When offline, queue mutations locally. When back online, drain the queue. See [I
 await db.add("mutation-queue", { ...mutation, timestamp: Date.now() });
 ```
 
-### Tier 2: IndexedDB (Full Database)
-
-Use IndexedDB as your primary database — all CRUD operations go through it. See [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) for the implementation.
-
-```javascript
-// Core concept: store data locally
-const db = await openDB("my-app", 1);
-db.createObjectStore("todos", { keyPath: "id" });
-```
-
-## Data Flow (Tier 1)
+## Data Flow
 
 **Online (First Visit):**
 

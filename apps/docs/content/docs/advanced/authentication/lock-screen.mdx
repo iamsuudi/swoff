@@ -1,6 +1,6 @@
 ---
 title: Local Security
-description: PIN protection, biometric authentication, and auto-lock for fully offline apps.
+description: PIN protection, biometric authentication, and auto-lock for apps with client-side data.
 # icon: Lock
 ---
 
@@ -8,7 +8,7 @@ description: PIN protection, biometric authentication, and auto-lock for fully o
 
 **Prerequisites:** [Auth Store](/docs/advanced/authentication/auth-store).
 
-For fully offline apps like [Budget Manager](/docs/reference/budget-manager) where all data lives on the device, local security protects data from physical access.
+For apps where all data lives on the client (IndexedDB), local security protects data from physical access.
 
 This pattern is **not needed** if your app always requires a backend connection — auth is handled server-side.
 
@@ -228,6 +228,5 @@ async function showLockScreen() {
 
 ## Next Steps
 
-- **See the reference implementation**: [Budget Manager](/docs/reference/budget-manager) — full PIN/biometric example
 - **Handle offline auth states**: [Offline Auth State](/docs/advanced/authentication/offline-state)
 - **Review the auth overview**: [Authentication Index](/docs/advanced/authentication)

@@ -37,7 +37,7 @@ No install needed! Just read the docs and copy the code:
 1. Start with [Concepts](https://swoff.dev/docs/concepts/what-is-offline) — understand offline capability
 2. Follow the [Core Architecture](https://swoff.dev/docs/core/offline-first) guides
 3. Copy [Framework-Agnostic Patterns](https://swoff.dev/docs/patterns/sw-template)
-4. Choose your framework: [React](https://swoff.dev/docs/guides/react-vite), [TanStack Router](https://swoff.dev/docs/guides/tanstack-router), or [TanStack Start](https://swoff.dev/docs/guides/tanstack-start)
+4. Choose your framework: [Framework Guides](https://swoff.dev/docs/guides)
 
 ## Key Features
 
@@ -49,6 +49,7 @@ No install needed! Just read the docs and copy the code:
 ## Reference Implementation
 
 Check out **Budget Manager** — a fully offline budget tracking app built with Swoff patterns:
+
 - 24+ routes working offline
 - IndexedDB for data storage
 - Versioned SW updates

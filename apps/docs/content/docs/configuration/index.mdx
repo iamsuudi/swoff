@@ -1,0 +1,71 @@
+---
+title: Getting Started with Configuration
+description: Configure Swoff via JSON — CLI generates everything.
+icon: Settings
+---
+
+# Getting Started with Configuration
+
+Swoff uses a JSON config. Run the CLI to generate the SW and supporting files.
+
+## Quick Setup
+
+```bash
+# Initialize (creates swoff.config.json + directory structure)
+npx @swoff/cli init
+
+# Review and customize the config
+nano swoff.config.json
+
+# Generate service worker + supporting files
+npx @swoff/cli generate
+```
+
+The CLI creates:
+
+| Config | Creates |
+|--------|---------|
+| `swoff.config.json` | Service worker + version.json |
+| `src/hooks/` | `useOffline.ts`, `useApiData.ts` |
+| `src/components/` | `OfflineIndicator.tsx`, `PWAInstallButton.tsx` |
+| `src/utils/` | `crossTabSync.ts` |
+
+Generated based on `features` toggles in your config.
+
+## Configuration
+
+```json
+{
+  "$schema": "https://swoff.netlify.app/schema/v1.json",
+  "enabled": true,
+  "version": "from-package",
+  "minSupportedVersion": "1.0.0",
+  "serviceWorker": {
+    "autoUpdate": false,
+    "defaultStrategy": "cache-first",
+    "strategies": {
+      "/api/*": "network-first",
+      "/static/*": "cache-first"
+    }
+  },
+  "features": {
+    "versionedSw": true,
+    "offlineReads": true,
+    "mutationQueue": false,
+    "backgroundSync": false,
+    "pwa": true,
+    "auth": false,
+    "crossTabSync": true,
+    "tagInvalidation": true
+  },
+  "build": {
+    "outputDir": "dist",
+    "swFilename": "sw"
+  }
+}
+```
+
+## Next Steps
+
+- [Schema Reference](/docs/configuration/schema-reference) — full field list
+- [Framework Guides](/docs/guides/) — integrate with your stack

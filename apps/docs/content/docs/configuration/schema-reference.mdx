@@ -1,263 +1,71 @@
 ---
 title: Schema Reference
-description: Complete reference for Swoff configuration schema
+description: Complete swoff.config.json field reference.
 icon: Code
 ---
 
-# Configuration Schema Reference
+# Configuration Schema
 
-This document provides a complete reference for the Swoff configuration schema. All configuration options are validated against this schema to ensure proper setup.
+Full schema at `https://swoff.netlify.app/schema/v1.json`.
 
-## JSON Schema
+## Fields
 
-The full JSON schema is available at: `https://swoff.netlify.app/schema/v1.json`
+### Root
 
-## Configuration Properties
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `true` | Enable config-driven generation |
+| `version` | string | `"from-package"` | SW version (or specific `"1.0.0"`) |
+| `minSupportedVersion` | string | `"0.0.0"` | Force update for older clients |
 
-### Root Level
+### serviceWorker
 
-#### `enabled`
-- **Type**: `boolean`
-- **Default**: `true`
-- **Description**: Enable or disable config-driven generation
-- **Example**: `"enabled": true`
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `autoUpdate` | boolean | `false` | `true` = silent, `false` = show update prompt |
+| `defaultStrategy` | string | `"cache-first"` | Default caching strategy |
+| `strategies` | object | `{}` | Per-URL pattern strategies |
+| `maxCacheEntries` | integer | `100` | Max cached entries |
+| `maxCacheAge` | integer | `604800000` | Max cache age in ms (7 days) |
+| `runtimeCacheName` | string | `"swoff-runtime"` | Runtime cache name |
 
-#### `version`
-- **Type**: `string`
-- **Default**: `"from-package"`
-- **Description**: Service Worker version source
-- **Enum**: `["from-package"]` or specific version like `"1.0.0"`
-- **Example**: `"version": "from-package"`
+### strategies values
 
-#### `minSupportedVersion`
-- **Type**: `string`
-- **Default**: `"0.0.0"`
-- **Description**: Minimum supported version for forced updates
-- **Pattern**: `^\d+\.\d+\.\d+$`
-- **Example**: `"minSupportedVersion": "1.0.0"`
+- `cache-first` — Serve cache, fall back to network
+- `network-first` — Try network, fall back to cache
+- `stale-while-revalidate` — Serve cached, refresh in background
+- `cache-only` — Cache only
+- `network-only` — Network only
 
-### Service Worker Configuration
+### features
 
-#### `serviceWorker.autoUpdate`
-- **Type**: `boolean`
-- **Default**: `false`
-- **Description**: Auto-update behavior - true = silent update, false = show update prompt
-- **Example**: `"autoUpdate": false`
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `versionedSw` | boolean | `true` | Versioned SW (prevents silent updates) |
+| `offlineReads` | boolean | `true` | Cache API responses for offline reads |
+| `mutationQueue` | boolean | `false` | Queue offline writes, sync on reconnect |
+| `backgroundSync` | boolean | `false` | Background Sync API (Chrome/Edge only) |
+| `pwa` | boolean | `true` | PWA installability |
+| `auth` | boolean | `false` | Auth integration |
+| `crossTabSync` | boolean | `true` | Cross-tab cache invalidation |
+| `tagInvalidation` | boolean | `true` | Tag-based cache invalidation |
 
-#### `serviceWorker.defaultStrategy`
-- **Type**: `string`
-- **Default**: `"cache-first"`
-- **Description**: Default caching strategy for all requests
-- **Enum**: `["cache-first", "network-first", "stale-while-revalidate", "cache-only", "network-only"]`
-- **Example**: `"defaultStrategy": "cache-first"`
+### build
 
-#### `serviceWorker.strategies`
-- **Type**: `object`
-- **Description**: Custom cache strategies for specific URL patterns
-- **Properties**: Pattern-based keys with strategy values
-- **Example**:
-  ```json
-  "strategies": {
-    "/api/*": "network-first",
-    "/static/*": "cache-first",
-    "/images/*": "stale-while-revalidate",
-    "/*": "cache-first"
-  }
-  ```
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `outputDir` | string | `"dist"` | Output directory |
+| `swFilename` | string | `"sw"` | SW filename (without version) |
 
-#### `serviceWorker.maxCacheEntries`
-- **Type**: `integer`
-- **Default**: `100`
-- **Description**: Maximum number of cached entries
-- **Minimum**: `1`
-- **Example**: `"maxCacheEntries": 200`
+### database
 
-#### `serviceWorker.maxCacheAge`
-- **Type**: `integer`
-- **Default**: `604800000` (7 days)
-- **Description**: Maximum age of cached entries in milliseconds
-- **Minimum**: `1000`
-- **Example**: `"maxCacheAge": 86400000` (24 hours)
-
-#### `serviceWorker.runtimeCacheName`
-- **Type**: `string`
-- **Default**: `"swoff-runtime"`
-- **Description**: Custom runtime cache name
-- **Pattern**: `^[a-zA-Z0-9-_]+$`
-- **Example**: `"runtimeCacheName": "my-app-cache"`
-
-### Features Configuration
-
-#### `features.versionedSw`
-- **Type**: `boolean`
-- **Default**: `true`
-- **Description**: Enable versioned service worker (prevents silent updates)
-- **Example**: `"versionedSw": true`
-
-#### `features.offlineReads`
-- **Type**: `boolean`
-- **Default**: `true`
-- **Description**: Cache API responses for offline read access
-- **Example**: `"offlineReads": true`
-
-#### `features.mutationQueue`
-- **Type**: `boolean`
-- **Default**: `false`
-- **Description**: Queue offline writes and sync when back online
-- **Example**: `"mutationQueue": true`
-
-#### `features.backgroundSync`
-- **Type**: `boolean`
-- **Default**: `false`
-- **Description**: Enable Background Sync API (Chrome/Edge only)
-- **Example**: `"backgroundSync": false`
-
-#### `features.pwa`
-- **Type**: `boolean`
-- **Default**: `true`
-- **Description**: Enable PWA installability (manifest handling separate)
-- **Example**: `"pwa": true`
-
-#### `features.auth`
-- **Type**: `boolean`
-- **Default**: `false`
-- **Description**: Enable auth integration
-- **Example**: `"auth": false`
-
-#### `features.crossTabSync`
-- **Type**: `boolean`
-- **Default**: `true`
-- **Description**: Cross-tab cache invalidation sync
-- **Example**: `"crossTabSync": true`
-
-#### `features.tagInvalidation`
-- **Type**: `boolean`
-- **Default**: `true`
-- **Description**: Tag-based cache invalidation
-- **Example**: `"tagInvalidation": true`
-
-### Database Configuration
-
-#### `database.name`
-- **Type**: `string`
-- **Default**: `"app-db"`
-- **Description**: Database name
-- **Pattern**: `^[a-zA-Z0-9-_]+$`
-- **Example**: `"name": "my-app-db"`
-
-#### `database.stores`
-- **Type**: `array`
-- **Default**: `[]`
-- **Description**: Object store names (user defines their own schema)
-- **Items**: Strings with pattern `^[a-zA-Z0-9-_]+$`
-- **Example**: `"stores": ["users", "posts", "comments", "settings"]`
-
-### Build Configuration
-
-#### `build.outputDir`
-- **Type**: `string`
-- **Default**: `"dist"`
-- **Description**: Output directory for generated files
-- **Pattern**: `^[^/\\\\]+$`
-- **Example**: `"outputDir": "dist"`
-
-#### `build.swFilename`
-- **Type**: `string`
-- **Default**: `"sw"`
-- **Description**: Service worker output filename (without version)
-- **Pattern**: `^[a-zA-Z0-9-_]+$`
-- **Example**: `"swFilename": "sw"`
-
-## Cache Strategies
-
-### `cache-first`
-- **Behavior**: Return cached version, then fetch from network
-- **Use case**: Static assets, HTML pages, CSS files
-- **Example**: `"/static/*": "cache-first"`
-
-### `network-first`
-- **Behavior**: Try network first, then cache on success
-- **Use case**: API calls, frequently changing data
-- **Example**: `"/api/*": "network-first"`
-
-### `stale-while-revalidate`
-- **Behavior**: Return cached version, fetch update in background
-- **Use case**: Images, content that can be slightly stale
-- **Example**: `"/images/*": "stale-while-revalidate"`
-
-### `cache-only`
-- **Behavior**: Only return cached versions
-- **Use case**: Completely offline functionality
-- **Example**: `"critical/*": "cache-only"`
-
-### `network-only`
-- **Behavior**: Always fetch from network
-- **Use case**: Real-time data that must be fresh
-- **Example**: `"realtime/*": "network-only"`
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `name` | string | `"app-db"` | IndexedDB name |
+| `stores` | array | `[]` | Object store names |
 
 ## Validation
 
-### Common Validation Errors
-
-1. **Invalid JSON syntax**
-   - **Error**: `Unexpected token` or `Unexpected end of JSON input`
-   - **Fix**: Check for missing commas, quotes, or brackets
-
-2. **Unknown properties**
-   - **Error**: `Additional properties not allowed`
-   - **Fix**: Remove fields not defined in the schema
-
-3. **Wrong data types**
-   - **Error**: `Expected boolean, got string`
-   - **Fix**: Use proper JSON types (`true`/`false` for booleans, numbers for integers)
-
-4. **Invalid patterns**
-   - **Error**: `Does not match pattern`
-   - **Fix**: Follow the specified pattern (e.g., version format `1.0.0`)
-
-### Schema Validation Tools
-
-#### Command Line Validation
-
 ```bash
-# Install JSON schema validator
-npm install -g ajv-cli
-
-# Validate your config
-ajv validate -s schema/swoff-config.schema.json -d swoff.config.json
+npx ajv validate -s https://swoff.netlify.app/schema/v1.json -d swoff.config.json
 ```
-
-#### Online Validation
-
-Use online JSON validators with the schema URL:
-- `https://swoff.netlify.app/schema/v1.json`
-
-## Best Practices
-
-1. **Use descriptive cache names** to avoid conflicts
-2. **Set appropriate maxCacheAge** based on your content update frequency
-3. **Test cache strategies** with your specific URL patterns
-4. **Set minSupportedVersion** to force updates for breaking changes
-5. **Keep config files in version control** for team consistency
-
-## Troubleshooting
-
-### Configuration Not Loading
-
-1. **Check file path**: Ensure config file is in project root
-2. **Verify file type**: Check extension matches content (JSON vs JS)
-3. **Validate JSON**: Use JSON linter to check syntax
-
-### Strategies Not Working
-
-1. **Test patterns**: Verify URL patterns match your actual URLs
-2. **Check order**: More specific patterns should come first
-3. **Debug in browser**: Use DevTools to see which strategy is applied
-
-### Performance Issues
-
-1. **Reduce maxCacheEntries** if memory is constrained
-2. **Adjust maxCacheAge** based on content freshness needs
-3. **Monitor cache size** in browser DevTools
-
-For more information about caching strategies, see the [Offline Architecture](/docs/core/offline-architecture) guide.

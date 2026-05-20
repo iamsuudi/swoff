@@ -14,7 +14,7 @@ Swoff provides a command-line interface for easy project setup and management. T
 
 Use `npx` to run the CLI without installation:
 
-```bash
+```npm
 npx @swoff/cli init
 ```
 
@@ -22,23 +22,16 @@ npx @swoff/cli init
 
 Install as a dev dependency in your project:
 
-```bash
-# npm
+```npm
 npm install -D @swoff/cli
-
-# yarn
-yarn add -D @swoff/cli
-
-# pnpm
-pnpm add -D @swoff/cli
 ```
 
 After installation, you can run the CLI directly:
 
-```bash
-swoff init
-swoff generate
-swoff validate
+```npm
+npx @swoff/cli init
+npx @swoff/cli generate
+npx @swoff/cli validate
 ```
 
 ## Commands
@@ -47,8 +40,8 @@ swoff validate
 
 Initialize Swoff in the current directory. Creates a basic `swoff.config.json` and generates initial files.
 
-```bash
-swoff init
+```npm
+npx @swoff/cli init
 ```
 
 **Options:**
@@ -65,13 +58,13 @@ swoff init
 
 ```bash
 # Basic initialization
-swoff init
+npx @swoff/cli init
 
 # Initialize with React + Vite defaults
-swoff init --framework react-vite
+npx @swoff/cli init --framework react-vite
 
 # Initialize with Next.js defaults
-swoff init --framework nextjs
+npx @swoff/cli init --framework nextjs
 ```
 
 This command:
@@ -87,7 +80,7 @@ This command:
 Generate service worker and/or supporting files based on your configuration.
 
 ```bash
-swoff generate
+npx @swoff/cli generate
 ```
 
 **Options:**
@@ -99,13 +92,13 @@ swoff generate
 
 ```bash
 # Generate both service worker and files
-swoff generate
+npx @swoff/cli generate
 
 # Generate only service worker
-swoff generate --sw-only
+npx @swoff/cli generate --sw-only
 
 # Generate only supporting files
-swoff generate --files-only
+npx @swoff/cli generate --files-only
 ```
 
 ---
@@ -115,7 +108,7 @@ swoff generate --files-only
 Validate your `swoff.config.json` for syntax errors and required fields.
 
 ```bash
-swoff validate
+npx @swoff/cli validate
 ```
 
 **What it checks:**
@@ -144,7 +137,7 @@ Config summary:
 Add a specific feature to your configuration and generate related files.
 
 ```bash
-swoff add <feature>
+npx @swoff/cli add <feature>
 ```
 
 **Available Features:**
@@ -159,17 +152,17 @@ swoff add <feature>
 
 ```bash
 # Add offline feature
-swoff add offline
+npx @swoff/cli add offline
 
 # Add mutation queue
-swoff add mutation-queue
+npx @swoff/cli add mutation-queue
 
 # Add PWA components
-swoff add pwa
+npx @swoff/cli add pwa
 
 # Add multiple features
-swoff add offline
-swoff add mutation-queue
+npx @swoff/cli add offline
+npx @swoff/cli add mutation-queue
 ```
 
 ---
@@ -180,11 +173,11 @@ Show help information for commands.
 
 ```bash
 # Show all commands
-swoff help
+npx @swoff/cli help
 
 # Show specific command help
-swoff help init
-swoff help generate
+npx @swoff/cli help init
+npx @swoff/cli help generate
 ```
 
 ## Common Workflows
@@ -193,16 +186,16 @@ swoff help generate
 
 ```bash
 # 1. Initialize Swoff
-swoff init --framework react-vite
+npx @swoff/cli init --framework react-vite
 
 # 2. Review and customize config
 nano swoff.config.json
 
 # 3. Validate configuration
-swoff validate
+npx @swoff/cli validate
 
 # 4. Generate files
-swoff generate
+npx @swoff/cli generate
 
 # 5. Add to your app
 # Import hooks and components into your React app
@@ -212,15 +205,15 @@ swoff generate
 
 ```bash
 # Start with basic setup
-swoff init
+npx @swoff/cli init
 
 # Add features one at a time
-swoff add offline
-swoff add mutation-queue
-swoff add pwa
+npx @swoff/cli add offline
+npx @swoff/cli add mutation-queue
+npx @swoff/cli add pwa
 
 # Generate after each change
-swoff generate
+npx @swoff/cli generate
 ```
 
 ### Configuration Iteration
@@ -230,10 +223,10 @@ swoff generate
 nano swoff.config.json
 
 # Validate before generating
-swoff validate
+npx @swoff/cli validate
 
 # Regenerate files
-swoff generate
+npx @swoff/cli generate
 ```
 
 ## Configuration File
@@ -251,7 +244,14 @@ See [Configuration Guide](/docs/configuration) for details.
 
 ### Command not found
 
-Make sure you're running from your project directory:
+Always use `npx` to run the CLI:
+
+```bash
+npx @swoff/cli init
+npx @swoff/cli generate
+```
+
+If you installed the package locally, make sure you're running from your project directory:
 
 ```bash
 cd my-project
@@ -260,10 +260,10 @@ npx @swoff/cli init
 
 ### Validation errors
 
-Run `swoff validate` to see specific errors in your configuration:
+Run `npx @swoff/cli validate` to see specific errors in your configuration:
 
 ```bash
-swoff validate
+npx @swoff/cli validate
 # Shows: Missing required fields: serviceWorker
 ```
 
@@ -272,7 +272,7 @@ swoff validate
 Check that your config is valid and the directories exist:
 
 ```bash
-swoff validate && swoff generate
+npx @swoff/cli validate && npx @swoff/cli generate
 ```
 
 ## Script Integration
@@ -282,9 +282,9 @@ Add Swoff commands to your `package.json`:
 ```json
 {
   "scripts": {
-    "swoff:init": "swoff init",
-    "swoff:generate": "swoff generate",
-    "swoff:validate": "swoff validate",
+    "swoff:init": "npx @swoff/cli init",
+    "swoff:generate": "npx @swoff/cli generate",
+    "swoff:validate": "npx @swoff/cli validate",
     "build": "npm run swoff:generate && your-build-command"
   }
 }

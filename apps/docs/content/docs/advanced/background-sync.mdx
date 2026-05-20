@@ -18,7 +18,7 @@ A browser API that:
 - Works even if the user closed the tab
 - Sync events are **one-time** — must re-register after each sync
 
-**Note:** Swoff covers the client-side registration and SW handler. Your backend (Go, Node.js, etc.) receives the synced requests — you build that part.
+**Note:** Swoff covers the client-side registration and SW handler. Your backend receives the synced requests.
 
 ## When to Use This
 
@@ -351,7 +351,7 @@ No additional code needed — the client implementation above covers all cases:
 - [ ] Update `openAppDB(storeName)` in SW to match your app's IndexedDB database name
 - [ ] Test in Chrome/Edge (background sync works after tab close)
 - [ ] Test in Firefox/Safari (falls back to `online` event while tab is open)
-- [ ] Your backend receives the synced requests — you build that part
+- [ ] Your backend receives the synced requests
 
 ## Status
 

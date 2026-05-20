@@ -4,138 +4,71 @@ description: Getting started with Swoff.
 icon: Rocket
 ---
 
-## Modular by Design
+# Introduction
 
-Swoff is a **toolbox**, not a framework. Every feature is a file you copy into your project and own.
+Swoff is a **toolbox**, not a framework. Every feature is a file you copy and own.
 
-<Cards>
-  <Card title="Pick what you need" icon={<CheckIcon />}>
-    Don't need push notifications? Skip the file. Each feature is independent or
-    has minimal, clear dependencies.
-  </Card>
-  <Card title="Tweak everything" icon={<SlidersIcon />}>
-    The code is yours. Change caching strategies, swap IndexedDB wrappers, or
-    rewrite the merge logic — no library fights you.
-  </Card>
-  <Card title="Zero lock-in" icon={<UnlinkIcon />}>
-    Walk away any time. There's no npm install to undo — just delete the files
-    you don't need anymore.
-  </Card>
-</Cards>
+- **Pick what you need** — skip what you don't
+- **Tweak everything** — the code is yours, no library fights you
+- **Zero lock-in** — delete the files you don't need
+
+## Quick Start
+
+```bash
+npx @swoff/cli init
+npx swoff generate
+```
+
+This creates:
+- `swoff.config.json` — your configuration
+- `dist/sw-v{version}.js` — the service worker
+- `src/hooks/`, `src/components/` — supporting files
 
 ## Full Guide
 
-Want to understand everything? Follow these steps in order:
+1. [Configuration](/docs/configuration) — set up swoff.config.json
+2. [Concepts](/docs/concepts/what-is-offline-and-sw) — offline capability and service workers
+3. [Core Architecture](/docs/core/offline-architecture) — offline-first principles
+4. [Patterns](/docs/patterns/) — copy the core files in order
+5. [Framework Guides](/docs/guides/) — integrate with your stack
+6. [Reference](/docs/reference/budget-manager) — Budget Manager (fully offline)
 
-1. **Configure Swoff** - Set up the JSON configuration system
-   - [Getting Started with Configuration](/docs/configuration)
-   - [Configuration Schema Reference](/docs/configuration/schema-reference)
-2. Understand the [concepts](/docs/concepts/what-is-offline-and-sw) — offline capability and service workers
-3. Learn the [core architecture](/docs/core/offline-architecture) — offline-first principles and data storage
-4. Follow the [patterns](/docs/patterns/) sequentially — SW Template → Build Scripts → Client Registration → PWA Installability → IndexedDB Patterns
-5. Follow a [framework guide](/docs/guides) — React, TanStack Router, or TanStack Start
-6. See the [reference implementation](/docs/reference/budget-manager)
+## Two Approaches
 
-## Configuration-First Development
+### Config-Driven (Recommended)
 
-Swoff now offers a CLI-first approach to service worker development:
-
-### 1. Quick Setup with CLI (Recommended)
-
-Use the Swoff CLI to initialize your project in seconds:
-
-```bash
-# Initialize with defaults
-npx @swoff/cli init
-
-# Or with framework-specific defaults
-npx @swoff/cli init --framework react-vite
-```
-
-The CLI creates everything you need:
-
-- `swoff.config.json` with intelligent defaults
-- Generated service worker in `dist/`
-- Supporting hooks and components in `src/`
-
-Then customize via JSON config:
+Edit `swoff.config.json`, run `npx swoff generate`. CLI handles the SW.
 
 ```json
-// swoff.config.json
 {
-  "$schema": "https://swoff.netlify.app/schema/v1.json",
   "enabled": true,
   "version": "from-package",
   "serviceWorker": {
     "defaultStrategy": "cache-first",
     "strategies": {
-      "/api/*": "network-first",
-      "/static/*": "cache-first"
+      "/api/*": "network-first"
     }
-  },
-  "features": {
-    "offlineReads": true,
-    "mutationQueue": true
   }
 }
 ```
 
-**Benefits**: CLI handles everything, just customize JSON, regenerate when needed.
+### Custom Code Mode
 
-### 2. Custom Code Mode
+Set `"enabled": false` and write your own service worker.
 
-For complete control, disable config and write your own service worker:
+## Reference
 
-```json
-// swoff.config.json
-{
-  "enabled": false
-}
-```
+**Budget Manager** — a 100% offline app demonstrating Swoff patterns:
 
-**Benefits**: Full control over every aspect of service worker behavior.
-
-## Quick Start with Configuration
-
-1. **Copy configuration**:
-
-   ```bash
-   cp examples/shared/swoff.config.example.json swoff.config.json
-   ```
-
-2. **Customize your JSON config** for your app's needs
-
-3. **Generate service worker**:
-
-   ```bash
-   node examples/shared/sw-generator.js
-   ```
-
-4. **Register the generated service worker** in your application
-
-For detailed configuration options, see the [Configuration Guide](/docs/configuration).
-
-## Reference Implementation
-
-**Budget Manager** — a 100% offline budget tracking app built with Swoff patterns:
-
-- 24+ routes working offline
-- IndexedDB as full database (no backend)
-- Versioned SW updates with user consent
+- 24+ routes offline
+- IndexedDB as database
+- Versioned SW updates
 - PWA installable
 
-_Note: Most Swoff apps use a backend for dynamic data. Budget Manager is a special case where all data is stored locally._
-
-[See the reference implementation →](/docs/reference/budget-manager)
+[See Budget Manager →](/docs/reference/budget-manager)
 
 ## Community
 
-- **GitHub**: [github.com/iamsuudi/swoff](https://github.com/iamsuudi/swoff)
-- **Issues**: Report bugs or request features
-- **Discussions**: Share your implementations and patterns
-
-## License
-
-MIT — use freely in your projects.
-
-import { CheckIcon, SlidersIcon, UnlinkIcon } from "lucide-react";
+- [GitHub](https://github.com/iamsuudi/swoff)
+- [Issues](https://github.com/iamsuudi/swoff/issues)
+- MIT License

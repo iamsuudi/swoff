@@ -1,22 +1,24 @@
 #!/usr/bin/env node
 
-/**
- * Swoff CLI Entry Point
- * Uses tsx to run TypeScript directly
- */
-
 import { spawn } from 'child_process';
-import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
 import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const cliPath = join(__dirname, '../src/index.ts');
+const binDir = dirname(fileURLToPath(import.meta.url));
+const distDir = join(binDir, '..', 'dist');
+const entryPoint = join(distDir, 'index.js');
 
-const child = spawn('npx', ['tsx', cliPath, ...process.argv.slice(2)], {
+if (!existsSync(entryPoint)) {
+  console.error('Error: CLI not built. Run: npm run build');
+  process.exit(1);
+}
+
+const proc = spawn('node', [entryPoint, ...process.argv.slice(2)], {
   stdio: 'inherit',
-  cwd: process.cwd()
+  cwd: process.cwd(),
 });
 
-child.on('exit', (code) => {
-  process.exit(code ?? 0);
+proc.on('exit', (code) => {
+  process.exit(code || 0);
 });

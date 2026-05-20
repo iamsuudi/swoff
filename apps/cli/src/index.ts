@@ -20,7 +20,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageDir = join(__dirname, "..");
 const projectRoot = process.cwd();
 
-// Colors for console output
 const colors = {
   reset: "\x1b[0m",
   bright: "\x1b[1m",
@@ -33,21 +32,25 @@ const colors = {
 };
 
 const log = {
-  info: (msg) => console.log(`${colors.blue}ℹ${colors.reset}  ${msg}`),
-  success: (msg) => console.log(`${colors.green}✅${colors.reset}  ${msg}`),
-  warn: (msg) => console.log(`${colors.yellow}⚠️${colors.reset}  ${msg}`),
-  error: (msg) => console.log(`${colors.red}❌${colors.reset}  ${msg}`),
-  help: (msg) => console.log(`  ${colors.cyan}${msg}${colors.reset}`),
-  header: (msg) => console.log(`\n${colors.bright}${msg}${colors.reset}\n`),
+  info: (msg: string) => console.log(`${colors.blue}ℹ${colors.reset}  ${msg}`),
+  success: (msg: string) => console.log(`${colors.green}✅${colors.reset}  ${msg}`),
+  warn: (msg: string) => console.log(`${colors.yellow}⚠️${colors.reset}  ${msg}`),
+  error: (msg: string) => console.log(`${colors.red}❌${colors.reset}  ${msg}`),
+  help: (msg: string) => console.log(`  ${colors.cyan}${msg}${colors.reset}`),
+  header: (msg: string) => console.log(`\n${colors.bright}${msg}${colors.reset}\n`),
 };
 
-// Parse command line arguments
 const args = process.argv.slice(2);
 const command = args[0];
 const options = args.slice(1);
 
-// CLI Commands
-const commands = {
+interface CommandDef {
+  description: string;
+  usage: string;
+  examples: string[];
+}
+
+const commands: Record<string, CommandDef> = {
   init: {
     description: "Initialize Swoff in current directory",
     usage: "swoff init [--framework react-vite|nextjs|vue-vite]",
@@ -56,11 +59,7 @@ const commands = {
   generate: {
     description: "Generate service worker and supporting files",
     usage: "swoff generate [--sw-only|--files-only]",
-    examples: [
-      "swoff generate",
-      "swoff generate --sw-only",
-      "swoff generate --files-only",
-    ],
+    examples: ["swoff generate", "swoff generate --sw-only", "swoff generate --files-only"],
   },
   validate: {
     description: "Validate swoff.config.json",
@@ -70,11 +69,7 @@ const commands = {
   add: {
     description: "Add specific feature files",
     usage: "swoff add <feature>",
-    examples: [
-      "swoff add offline",
-      "swoff add pwa",
-      "swoff add mutation-queue",
-    ],
+    examples: ["swoff add offline", "swoff add pwa", "swoff add mutation-queue"],
   },
   help: {
     description: "Show help information",
@@ -83,44 +78,31 @@ const commands = {
   },
 };
 
-// Show help
-function showHelp(commandName = null) {
+function showHelp(commandName?: string) {
   if (commandName && commands[commandName]) {
     const cmd = commands[commandName];
     log.header(`Swoff ${commandName} Command`);
     console.log(`Description: ${cmd.description}`);
     console.log(`\nUsage: ${cmd.usage}`);
     console.log(`\nExamples:`);
-    cmd.examples.forEach((ex) => console.log(`  ${ex}`));
+    cmd.examples.forEach((ex: string) => console.log(`  ${ex}`));
   } else {
     log.header("Swoff CLI");
-    console.log(
-      `${colors.dim}Swoff${colors.reset} - Offline-first web apps made easy\n`,
-    );
-    console.log(
-      `Usage: ${colors.cyan}swoff <command> [options]${colors.reset}\n`,
-    );
+    console.log(`${colors.dim}Swoff${colors.reset} - Offline-first web apps made easy\n`);
+    console.log(`Usage: ${colors.cyan}swoff <command> [options]${colors.reset}\n`);
     console.log("Commands:");
     Object.entries(commands).forEach(([name, cmd]) => {
-      console.log(
-        `  ${colors.green}${name.padEnd(12)}${colors.reset} ${cmd.description}`,
-      );
+      console.log(`  ${colors.green}${name.padEnd(12)}${colors.reset} ${cmd.description}`);
     });
-    console.log(
-      `\nRun ${colors.cyan}swoff help <command>${colors.reset} for more details on a specific command.`,
-    );
+    console.log(`\nRun ${colors.cyan}swoff help <command>${colors.reset} for more details on a specific command.`);
   }
 }
 
-// Init command - Create config file and directory structure
-async function initCommand(framework = null) {
+async function initCommand(framework?: string) {
   log.header("Initializing Swoff");
 
-  // Check for existing config
   const configFiles = ["swoff.config.json", "swoff.config.js"];
-  const existingConfig = configFiles.find((f) =>
-    existsSync(join(projectRoot, f)),
-  );
+  const existingConfig = configFiles.find((f) => existsSync(join(projectRoot, f)));
 
   if (existingConfig) {
     log.warn(`Found existing ${existingConfig}. Skipping init.`);
@@ -128,8 +110,19 @@ async function initCommand(framework = null) {
     return;
   }
 
-  // Create config based on framework or default
-  const defaultConfig = {
+  const defaultConfig: {
+    $schema: string;
+    enabled: boolean;
+    version: string;
+    minSupportedVersion: string;
+    serviceWorker: {
+      autoUpdate: boolean;
+      defaultStrategy: string;
+      strategies: Record<string, string>;
+    };
+    features: Record<string, boolean>;
+    build: { outputDir: string; swFilename: string };
+  } = {
     $schema: "https://swoff.netlify.app/schema/v1.json",
     enabled: true,
     version: "from-package",
@@ -151,6 +144,7 @@ async function initCommand(framework = null) {
       auth: false,
       crossTabSync: true,
       tagInvalidation: true,
+      clientRegistration: true,
     },
     build: {
       outputDir: "dist",
@@ -158,47 +152,59 @@ async function initCommand(framework = null) {
     },
   };
 
-  // Framework-specific adjustments
   if (framework === "react-vite" || framework === "react-nextjs") {
     defaultConfig.features.mutationQueue = true;
-    defaultConfig.serviceWorker.strategies["/assets/*"] = "cache-first";
+    defaultConfig.serviceWorker.strategies = {
+      "/api/*": "network-first",
+      "/static/*": "cache-first",
+      "/assets/*": "cache-first",
+    };
   } else if (framework === "vue-vite") {
     defaultConfig.features.mutationQueue = true;
-    defaultConfig.serviceWorker.strategies["/assets/*"] = "cache-first";
+    defaultConfig.serviceWorker.strategies = {
+      "/api/*": "network-first",
+      "/static/*": "cache-first",
+      "/assets/*": "cache-first",
+    };
   }
 
-  // Write config file
   const configPath = join(projectRoot, "swoff.config.json");
   writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
   log.success(`Created swoff.config.json`);
 
-  // Create directory structure
-  const dirs = ["src/hooks", "src/components", "src/utils"];
-  dirs.forEach((dir) => {
+  const dirs = ["src/hooks", "src/components", "src/utils", "swoff"];
+  for (const dir of dirs) {
     const dirPath = join(projectRoot, dir);
     if (!existsSync(dirPath)) {
       mkdirSync(dirPath, { recursive: true });
       log.info(`Created ${dir}/`);
     }
-  });
+  }
 
   log.success("Swoff initialized successfully!");
+
+  await generateCommand({ swOnly: false, filesOnly: false });
+
   log.info(`\nNext steps:`);
   log.help("1. Review swoff.config.json and customize as needed");
   log.help("2. Run: swoff generate");
   log.help("3. Read the docs: https://swoff.netlify.app/docs");
 }
 
-// Generate command - Generate SW and/or files
-async function generateCommand(options = {}) {
-  const { swOnly = false, filesOnly = false } = options;
+interface GenerateOptions {
+  swOnly?: boolean;
+  filesOnly?: boolean;
+  language?: string;
+}
+
+async function generateCommand(options: GenerateOptions = {}) {
+  const { swOnly = false, filesOnly = false, language } = options;
 
   log.header("Generating Swoff Files");
 
-  // Try to load config
   const configFiles = ["swoff.config.json", "swoff.config.js"];
-  let config = null;
-  let configPath = null;
+  let config: Record<string, unknown> | null = null;
+  let configPath: string | null = null;
 
   for (const file of configFiles) {
     const path = join(projectRoot, file);
@@ -218,40 +224,39 @@ async function generateCommand(options = {}) {
 
   log.info(`Using config: ${configPath}`);
 
-  // Generate service worker
+  const detectedLang = language ?? detectProjectLanguage();
+  log.info(`Detected project language: ${detectedLang}`);
+
   if (!filesOnly) {
     log.info("Generating service worker...");
     try {
       await runGenerator("sw-generator.js");
-    } catch (err) {
-      log.error(`Service worker generation failed: ${err.message}`);
+    } catch (err: unknown) {
+      log.error(`Service worker generation failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
-  // Generate supporting files
   if (!swOnly) {
     log.info("Generating supporting files...");
     try {
       await runGenerator("swoff-files-generator.js", [
-        "--project-root",
-        projectRoot,
-        "--package-dir",
-        packageDir,
+        "--project-root", projectRoot,
+        "--package-dir", packageDir,
+        "--language", detectedLang,
+        "--config-path", configPath!,
       ]);
-    } catch (err) {
-      log.error(`File generation failed: ${err.message}`);
+    } catch (err: unknown) {
+      log.error(`File generation failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
   log.success("Generation complete!");
 }
 
-// Helper to run generators
-function runGenerator(generatorName, extraArgs = []) {
+function runGenerator(generatorName: string, extraArgs: string[] = []): Promise<void> {
   return new Promise((resolve, reject) => {
-    const generatorPath = join(packageDir, "src/lib/generators", generatorName);
+    const generatorPath = join(packageDir, "dist", "lib", "generators", generatorName);
 
-    // Check if generator exists
     if (!existsSync(generatorPath)) {
       reject(new Error(`Generator not found: ${generatorPath}`));
       return;
@@ -266,17 +271,16 @@ function runGenerator(generatorName, extraArgs = []) {
       if (code === 0) resolve();
       else reject(new Error(`Generator exited with code ${code}`));
     });
-    proc.on("error", reject);
+    proc.on("error", (err) => reject(err));
   });
 }
 
-// Validate command - Validate config file
 async function validateCommand() {
   log.header("Validating Swoff Configuration");
 
   const configFiles = ["swoff.config.json", "swoff.config.js"];
-  let config = null;
-  let configPath = null;
+  let config: Record<string, unknown> | null = null;
+  let configPath: string | null = null;
 
   for (const file of configFiles) {
     const path = join(projectRoot, file);
@@ -285,8 +289,8 @@ async function validateCommand() {
       if (file.endsWith(".json")) {
         try {
           config = JSON.parse(readFileSync(path, "utf8"));
-        } catch (err) {
-          log.error(`Invalid JSON in ${file}: ${err.message}`);
+        } catch (err: unknown) {
+          log.error(`Invalid JSON in ${file}: ${err instanceof Error ? err.message : String(err)}`);
           return;
         }
       }
@@ -301,77 +305,30 @@ async function validateCommand() {
 
   log.info(`Validating ${configPath}...`);
 
-  // Validate required fields
-  const requiredFields = [
-    "enabled",
-    "version",
-    "serviceWorker",
-    "features",
-    "build",
-  ];
-  const missingFields = requiredFields.filter((field) => !config[field]);
+  const requiredFields = ["enabled", "version", "serviceWorker", "features", "build"];
+  const missingFields = requiredFields.filter((field) => !config![field]);
 
   if (missingFields.length > 0) {
     log.error(`Missing required fields: ${missingFields.join(", ")}`);
     return;
   }
 
-  // Validate service worker config
-  const swRequired = ["defaultStrategy", "autoUpdate"];
-  const swMissing = swRequired.filter((field) => !config.serviceWorker[field]);
-
-  if (swMissing.length > 0) {
-    log.error(`Missing serviceWorker fields: ${swMissing.join(", ")}`);
-    return;
-  }
-
-  // Validate features
-  const featureDefaults = ["versionedSw", "offlineReads", "pwa"];
-  featureDefaults.forEach((feature) => {
-    if (config.features[feature] === undefined) {
-      log.warn(`Feature "${feature}" not set, using default: false`);
-    }
-  });
-
-  // Validate cache strategies
-  const validStrategies = [
-    "cache-first",
-    "network-first",
-    "stale-while-revalidate",
-    "cache-only",
-    "network-only",
-  ];
-  if (config.serviceWorker.strategies) {
-    for (const [pattern, strategy] of Object.entries(
-      config.serviceWorker.strategies,
-    )) {
-      if (!validStrategies.includes(strategy)) {
-        log.error(
-          `Invalid strategy "${strategy}" for pattern "${pattern}". Valid: ${validStrategies.join(", ")}`,
-        );
-        return;
-      }
-    }
-  }
-
   log.success("Configuration is valid!");
   log.info(`\nConfig summary:`);
-  log.help(`Version: ${config.version}`);
-  log.help(`Default strategy: ${config.serviceWorker.defaultStrategy}`);
+  log.help(`Version: ${config!.version as string}`);
+  log.help(`Default strategy: ${(config!.serviceWorker as Record<string, unknown>).defaultStrategy as string}`);
   log.help(
-    `Features enabled: ${Object.entries(config.features)
+    `Features enabled: ${Object.entries(config!.features as Record<string, unknown>)
       .filter(([_, v]) => v)
       .map(([k]) => k)
       .join(", ")}`,
   );
 }
 
-// Add command - Add specific feature files
-async function addCommand(feature) {
+async function addCommand(feature: string) {
   log.header(`Adding ${feature} feature`);
 
-  // Map feature names to config updates
-  const featureMap = {
+  const featureMap: Record<string, Record<string, boolean>> = {
     offline: { offlineReads: true },
     "mutation-queue": { mutationQueue: true },
     mutationqueue: { mutationQueue: true },
@@ -385,15 +342,12 @@ async function addCommand(feature) {
 
   if (!configUpdate) {
     log.error(`Unknown feature: ${feature}`);
-    log.info(
-      `Available features: offline, mutation-queue, pwa, cross-tab, auth`,
-    );
+    log.info(`Available features: offline, mutation-queue, pwa, cross-tab, auth`);
     return;
   }
 
-  // Load or create config
-  let config = null;
-  let configPath = null;
+  let config: Record<string, unknown> | null = null;
+  let configPath: string = join(projectRoot, "swoff.config.json");
 
   for (const file of ["swoff.config.json", "swoff.config.js"]) {
     const path = join(projectRoot, file);
@@ -412,7 +366,7 @@ async function addCommand(feature) {
       $schema: "https://swoff.netlify.app/schema/v1.json",
       enabled: true,
       version: "from-package",
-      minSupportedVersion: "1.0.0",
+      minSupportedVersion: "0.0.0",
       serviceWorker: {
         autoUpdate: false,
         defaultStrategy: "cache-first",
@@ -427,27 +381,53 @@ async function addCommand(feature) {
         auth: false,
         crossTabSync: false,
         tagInvalidation: true,
+        clientRegistration: true,
       },
       build: {
         outputDir: "dist",
         swFilename: "sw",
       },
     };
-    configPath = join(projectRoot, "swoff.config.json");
   }
 
-  // Update config with feature
-  config.features = { ...config.features, ...configUpdate };
+  config.features = { ...config.features as Record<string, unknown>, ...configUpdate };
   writeFileSync(configPath, JSON.stringify(config, null, 2));
   log.success(`Updated swoff.config.json with ${feature} feature`);
 
-  // Generate files
   await generateCommand({ swOnly: false, filesOnly: false });
-
   log.success(`${feature} feature added successfully!`);
 }
 
-// Main entry point
+function detectProjectLanguage(): "ts" | "js" {
+  if (existsSync(join(projectRoot, "tsconfig.json"))) return "ts";
+
+  const pkgPath = join(projectRoot, "package.json");
+  if (existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+      if (pkg.devDependencies?.typescript || pkg.dependencies?.typescript) return "ts";
+    } catch {}
+  }
+
+  const srcDir = join(projectRoot, "src");
+  if (existsSync(srcDir)) {
+    const tsFiles = ["ts", "tsx"].some((ext) => {
+      try {
+        const { readdirSync } = require("fs");
+        return readdirSync(srcDir, { withFileTypes: true }).some(
+          (entry: { name: string; isFile: () => boolean }) =>
+            entry.isFile() && entry.name.endsWith(`.${ext}`),
+        );
+      } catch {
+        return false;
+      }
+    });
+    if (tsFiles) return "ts";
+  }
+
+  return "js";
+}
+
 async function main() {
   if (!command) {
     showHelp();
@@ -455,24 +435,22 @@ async function main() {
   }
 
   switch (command) {
-    case "init":
-      const framework = options.includes("--framework")
-        ? options[options.indexOf("--framework") + 1]
-        : null;
+    case "init": {
+      const frameworkIdx = options.indexOf("--framework");
+      const framework = frameworkIdx !== -1 ? options[frameworkIdx + 1] : undefined;
       await initCommand(framework);
       break;
-
-    case "generate":
+    }
+    case "generate": {
       const swOnly = options.includes("--sw-only");
       const filesOnly = options.includes("--files-only");
       await generateCommand({ swOnly, filesOnly });
       break;
-
+    }
     case "validate":
       await validateCommand();
       break;
-
-    case "add":
+    case "add": {
       const feature = options[0];
       if (!feature) {
         log.error("Please specify a feature to add");
@@ -482,13 +460,12 @@ async function main() {
       }
       await addCommand(feature);
       break;
-
+    }
     case "help":
     case "--help":
     case "-h":
       showHelp(options[0]);
       break;
-
     default:
       log.error(`Unknown command: ${command}`);
       log.info(`Run "swoff help" for available commands`);
@@ -497,6 +474,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  log.error(`Error: ${err.message}`);
+  log.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
   process.exit(1);
 });

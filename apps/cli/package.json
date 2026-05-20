@@ -1,20 +1,23 @@
 {
   "name": "@swoff/cli",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "description": "CLI for Swoff - Offline-first web apps made easy",
   "bin": {
     "swoff": "bin/swoff"
   },
   "scripts": {
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
   },
   "engines": {
     "node": ">=18"
   },
   "files": [
     "bin/",
-    "src/"
+    "dist/",
+    "src/lib/templates/"
   ],
   "keywords": [
     "service-worker",
@@ -24,10 +27,8 @@
   ],
   "author": "Swoff",
   "license": "MIT",
-  "dependencies": {
-    "tsx": "^4.0.0"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@types/node": "^20.0.0"
+    "typescript": "^5.0.0"
   }
 }

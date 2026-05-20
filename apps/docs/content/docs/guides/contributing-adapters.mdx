@@ -16,22 +16,22 @@ An adapter is a short guide showing **where to plug Swoff patterns** into a spec
 
 ## Frameworks Needed
 
-| Framework | Status |
-|-----------|--------|
-| React + Vite | Done |
-| Next.js | Done |
-| Remix | Done |
-| TanStack Router | Done |
-| TanStack Start | Done |
-| Vue + Vite | Done |
-| Nuxt | Done |
-| Svelte + Vite | Done |
-| SvelteKit | Needed |
-| Solid + Vite | Done |
-| Angular | Done |
-| Vanilla JS | Done |
-| Astro | Needed |
-| Qwik | Needed |
+| Framework       | Status |
+| --------------- | ------ |
+| React + Vite    | Done   |
+| Next.js         | Done   |
+| Remix           | Done   |
+| TanStack Router | Done   |
+| TanStack Start  | Done   |
+| Vue + Vite      | Done   |
+| Nuxt            | Done   |
+| Svelte + Vite   | Done   |
+| SvelteKit       | Needed |
+| Solid + Vite    | Done   |
+| Angular         | Done   |
+| Vanilla JS      | Done   |
+| Astro           | Needed |
+| Qwik            | Needed |
 
 ## How to Contribute
 
@@ -47,7 +47,7 @@ touch apps/docs/content/docs/guides/astro.mdx
 
 ### 2. Follow the Template
 
-```mdx
+````mdx
 ---
 title: Astro
 description: Set up Swoff with Astro.
@@ -64,6 +64,7 @@ Concise adapter for **Astro** projects.
 npm create astro@latest my-app
 cd my-app && npm install
 ```
+````
 
 ## Project Structure
 
@@ -84,11 +85,11 @@ Add SW registration to your layout or client-side script (see [Client Registrati
 ```typescript
 // src/sw-injector.client.ts
 export function initSW() {
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', async () => {
-      const { version } = await fetch('/version.json').then(r => r.json())
-      await navigator.serviceWorker.register(`/sw-v${version}.js`)
-    })
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", async () => {
+      const { version } = await fetch("/version.json").then((r) => r.json());
+      await navigator.serviceWorker.register(`/sw-v${version}.js`);
+    });
   }
 }
 ```
@@ -126,7 +127,8 @@ npm run build
 
 - [Integration Concepts](/docs/integration/) — how adapters work
 - [Patterns](/docs/patterns/) — all available patterns
-```
+
+````
 
 ### 3. Update meta.json
 
@@ -139,7 +141,7 @@ Add to `apps/docs/content/docs/guides/meta.json`:
     "astro"
   ]
 }
-```
+````
 
 ### 4. Test Locally
 
@@ -188,6 +190,5 @@ git push origin feat/astro-adapter
 
 ## Next Steps
 
-- Browse existing: [React + Vite](/docs/guides/react-ecosystem/react-vite), [Vue + Vite](/docs/guides/vue-ecosystem/vue-vite)
 - Read [Concepts](/docs/concepts/what-is-offline-and-sw) to understand Swoff
 - Check [GitHub Issues](https://github.com/iamsuudi/swoff/issues) for open adapter requests

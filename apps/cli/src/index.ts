@@ -11,7 +11,7 @@
  *   swoff --help        Show help
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { spawn } from "child_process";
@@ -116,6 +116,7 @@ async function initCommand(framework?: string) {
     version: string;
     minSupportedVersion: string;
     serviceWorker: {
+      autoRegister: boolean;
       autoUpdate: boolean;
       defaultStrategy: string;
       strategies: Record<string, string>;
@@ -128,6 +129,7 @@ async function initCommand(framework?: string) {
     version: "from-package",
     minSupportedVersion: "1.0.0",
     serviceWorker: {
+      autoRegister: true,
       autoUpdate: false,
       defaultStrategy: "cache-first",
       strategies: {
@@ -145,6 +147,7 @@ async function initCommand(framework?: string) {
       crossTabSync: true,
       tagInvalidation: true,
       clientRegistration: true,
+      indexeddb: false,
     },
     build: {
       outputDir: "dist",
@@ -152,7 +155,7 @@ async function initCommand(framework?: string) {
     },
   };
 
-  if (framework === "react-vite" || framework === "react-nextjs") {
+  if (framework === "react-vite" || framework === "nextjs") {
     defaultConfig.features.mutationQueue = true;
     defaultConfig.serviceWorker.strategies = {
       "/api/*": "network-first",
@@ -183,9 +186,7 @@ async function initCommand(framework?: string) {
 
   log.success("Swoff initialized successfully!");
 
-  await generateCommand({ swOnly: false, filesOnly: false });
-
-  log.info(`\nNext steps:`);
+  log.info(`Next steps:`);
   log.help("1. Review swoff.config.json and customize as needed");
   log.help("2. Run: swoff generate");
   log.help("3. Read the docs: https://swoff.netlify.app/docs");
@@ -230,7 +231,11 @@ async function generateCommand(options: GenerateOptions = {}) {
   if (!filesOnly) {
     log.info("Generating service worker...");
     try {
-      await runGenerator("sw-generator.js");
+      await runGenerator("sw-generator.js", [
+        "--project-root", projectRoot,
+        "--package-dir", packageDir,
+        "--config-path", configPath!,
+      ]);
     } catch (err: unknown) {
       log.error(`Service worker generation failed: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -305,11 +310,79 @@ async function validateCommand() {
 
   log.info(`Validating ${configPath}...`);
 
-  const requiredFields = ["enabled", "version", "serviceWorker", "features", "build"];
-  const missingFields = requiredFields.filter((field) => !config![field]);
+  const errors: string[] = [];
 
+  const requiredFields = ["enabled", "version", "serviceWorker", "features", "build"];
+  const missingFields = requiredFields.filter((field) => config![field] === undefined || config![field] === null);
   if (missingFields.length > 0) {
-    log.error(`Missing required fields: ${missingFields.join(", ")}`);
+    errors.push(`Missing required fields: ${missingFields.join(", ")}`);
+  }
+
+  if (config!.serviceWorker) {
+    const sw = config!.serviceWorker as Record<string, unknown>;
+    const validStrategies = ["cache-first", "network-first", "stale-while-revalidate", "cache-only", "network-only"];
+
+    if (sw.autoRegister !== undefined && typeof sw.autoRegister !== "boolean") {
+      errors.push(`serviceWorker.autoRegister must be a boolean`);
+    }
+    if (sw.autoUpdate !== undefined && typeof sw.autoUpdate !== "boolean") {
+      errors.push(`serviceWorker.autoUpdate must be a boolean`);
+    }
+
+    if (sw.defaultStrategy && !validStrategies.includes(sw.defaultStrategy as string)) {
+      errors.push(`Invalid defaultStrategy "${sw.defaultStrategy}". Must be one of: ${validStrategies.join(", ")}`);
+    }
+
+    if (sw.strategies && typeof sw.strategies === "object") {
+      const strategies = sw.strategies as Record<string, string>;
+      for (const [pattern, strategy] of Object.entries(strategies)) {
+        if (!validStrategies.includes(strategy)) {
+          errors.push(`Invalid strategy "${strategy}" for pattern "${pattern}". Must be one of: ${validStrategies.join(", ")}`);
+        }
+      }
+    }
+  }
+
+  if (config!.features) {
+    const features = config!.features as Record<string, unknown>;
+    const knownFeatures = ["versionedSw", "offlineReads", "mutationQueue", "backgroundSync", "pwa", "auth", "crossTabSync", "tagInvalidation", "clientRegistration", "indexeddb"];
+    for (const [key, value] of Object.entries(features)) {
+      if (!knownFeatures.includes(key)) {
+        errors.push(`Unknown feature "${key}"`);
+      }
+      if (typeof value !== "boolean") {
+        errors.push(`Feature "${key}" must be a boolean, got ${typeof value}`);
+      }
+    }
+  }
+
+  if (config!.version && typeof config!.version === "string" && config!.version !== "from-package") {
+    const semverRegex = /^\d+\.\d+\.\d+$/;
+    if (!semverRegex.test(config!.version as string)) {
+      errors.push(`Invalid version "${config!.version}". Must be "from-package" or semver (e.g., "1.0.0")`);
+    }
+  }
+
+  if (config!.minSupportedVersion && typeof config!.minSupportedVersion === "string") {
+    const semverRegex = /^\d+\.\d+\.\d+$/;
+    if (!semverRegex.test(config!.minSupportedVersion as string)) {
+      errors.push(`Invalid minSupportedVersion "${config!.minSupportedVersion}". Must be semver (e.g., "1.0.0")`);
+    }
+  }
+
+  if (config!.build) {
+    const build = config!.build as Record<string, unknown>;
+    if (build.outputDir && typeof build.outputDir !== "string") {
+      errors.push(`build.outputDir must be a string`);
+    }
+    if (build.swFilename && typeof build.swFilename !== "string") {
+      errors.push(`build.swFilename must be a string`);
+    }
+  }
+
+  if (errors.length > 0) {
+    log.error(`Validation failed with ${errors.length} error(s):`);
+    errors.forEach((e) => log.help(`  - ${e}`));
     return;
   }
 
@@ -336,13 +409,18 @@ async function addCommand(feature: string) {
     "cross-tab": { crossTabSync: true },
     crosstab: { crossTabSync: true },
     auth: { auth: true },
+    "tag-invalidation": { tagInvalidation: true },
+    taginvalidation: { tagInvalidation: true },
+    "background-sync": { backgroundSync: true },
+    backgroundsync: { backgroundSync: true },
+    indexeddb: { indexeddb: true },
   };
 
   const configUpdate = featureMap[feature.toLowerCase()];
 
   if (!configUpdate) {
     log.error(`Unknown feature: ${feature}`);
-    log.info(`Available features: offline, mutation-queue, pwa, cross-tab, auth`);
+    log.info(`Available features: offline, mutation-queue, pwa, cross-tab, auth, tag-invalidation, background-sync, indexeddb`);
     return;
   }
 
@@ -368,6 +446,7 @@ async function addCommand(feature: string) {
       version: "from-package",
       minSupportedVersion: "0.0.0",
       serviceWorker: {
+        autoRegister: true,
         autoUpdate: false,
         defaultStrategy: "cache-first",
         strategies: {},
@@ -382,6 +461,7 @@ async function addCommand(feature: string) {
         crossTabSync: false,
         tagInvalidation: true,
         clientRegistration: true,
+        indexeddb: false,
       },
       build: {
         outputDir: "dist",
@@ -413,9 +493,8 @@ function detectProjectLanguage(): "ts" | "js" {
   if (existsSync(srcDir)) {
     const tsFiles = ["ts", "tsx"].some((ext) => {
       try {
-        const { readdirSync } = require("fs");
         return readdirSync(srcDir, { withFileTypes: true }).some(
-          (entry: { name: string; isFile: () => boolean }) =>
+          (entry) =>
             entry.isFile() && entry.name.endsWith(`.${ext}`),
         );
       } catch {
@@ -455,7 +534,7 @@ async function main() {
       if (!feature) {
         log.error("Please specify a feature to add");
         log.info("Usage: swoff add <feature>");
-        log.info("Features: offline, mutation-queue, pwa, cross-tab, auth");
+        log.info("Features: offline, mutation-queue, pwa, cross-tab, auth, tag-invalidation, background-sync, indexeddb");
         process.exit(1);
       }
       await addCommand(feature);

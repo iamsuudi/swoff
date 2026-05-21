@@ -1,14 +1,14 @@
 /**
  * Swoff Files Generator
  *
- * Generates all pattern files (sw-injector, hooks, components, utils, build scripts, manifest)
- * based on swoff.config.json features and project language.
+ * Generates framework-agnostic pattern files based on swoff.config.json features.
+ * All files go into swoff/ directory (or public/ for manifest).
  *
  * CLI Usage:
  *   node swoff-files-generator.js --project-root <path> --package-dir <path> --language <ts|js> --config-path <path>
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { fileURLToPath } from "url";
 import { join, dirname } from "path";
 
@@ -17,6 +17,7 @@ interface SwoffConfig {
   version: string;
   minSupportedVersion: string;
   serviceWorker: {
+    autoRegister: boolean;
     autoUpdate: boolean;
     defaultStrategy: string;
     strategies: Record<string, string>;
@@ -31,6 +32,7 @@ interface SwoffConfig {
     crossTabSync: boolean;
     tagInvalidation: boolean;
     clientRegistration: boolean;
+    indexeddb: boolean;
   };
   build: {
     outputDir: string;
@@ -55,6 +57,7 @@ const defaultConfig: SwoffConfig = {
   version: "from-package",
   minSupportedVersion: "0.0.0",
   serviceWorker: {
+    autoRegister: true,
     autoUpdate: false,
     defaultStrategy: "cache-first",
     strategies: {},
@@ -69,6 +72,7 @@ const defaultConfig: SwoffConfig = {
     crossTabSync: true,
     tagInvalidation: true,
     clientRegistration: true,
+    indexeddb: false,
   },
   build: {
     outputDir: "dist",
@@ -89,952 +93,671 @@ if (existsSync(configPath)) {
 }
 
 const ext = language === "ts" ? "ts" : "js";
+const swoffDir = join(projectRoot, "swoff");
 const generatedFiles: string[] = [];
 
+function ensureSwoffDir(): void {
+  if (!existsSync(swoffDir)) mkdirSync(swoffDir, { recursive: true });
+}
+
 function generateSwInjector(): void {
-  const outputDir = join(projectRoot, "src");
-  if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
+  ensureSwoffDir();
 
-  if (language === "ts") {
-    const code = `import { useEffect, useState } from 'react';
+  const autoRegister = config.serviceWorker.autoRegister;
+  const autoUpdate = config.serviceWorker.autoUpdate;
 
-export function shouldRegister(): boolean {
-  return typeof window !== 'undefined' && 'serviceWorker' in navigator;
-}
+  const code = `/**
+ * Swoff Service Worker Injector
+ * Framework-agnostic client registration with version checking.
+ *
+ * Usage:
+ *   import { initServiceWorker } from './swoff/sw-injector.js';
+ *
+ *   // Auto-register (default):
+ *   initServiceWorker();
+ *
+ *   // Deferred registration:
+ *   import { shouldRegisterSW, registerServiceWorker } from './swoff/sw-injector.js';
+ *   // Override shouldRegisterSW to control when SW registers
+ *   if (shouldRegisterSW()) {
+ *     registerServiceWorker(window.latestSWVersion);
+ *   }
+ *
+ * Window events:
+ *   sw-version-detected  - Version info available
+ *   sw-update-available  - New version ready (detail: { version })
+ *   sw-progress          - Download progress (detail: { percent, downloaded, total })
+ *   sw-ready             - SW active and controlling page
+ *   sw-error             - SW registration failed
+ *
+ * Window properties:
+ *   window.latestSWVersion       - Latest version from version.json
+ *   window.currentSWVersion      - Active SW version
+ *   window.swAvailableVersion    - Pending update version
+ *   window.swUpdateRequired      - Forced update needed
+ *   window.swMinSupportedVersion - Minimum supported version
+ *   window.swReady               - SW is active
+ *   window.swError               - Registration failed
+ */
 
-export function useServiceWorkerRegistration(options: {
-  onSuccess?: (registration: ServiceWorkerRegistration) => void;
-  onUpdate?: (registration: ServiceWorkerRegistration) => void;
-  onError?: (error: Error) => void;
-  swPath?: string;
-} = {}) {
-  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
-  const [isReady, setIsReady] = useState(false);
+const AUTO_REGISTER = ${autoRegister};
+const AUTO_UPDATE = ${autoUpdate};
 
-  useEffect(() => {
-    if (!shouldRegister()) return;
-
-    const register = async () => {
-      try {
-        const swPath = options.swPath || '/sw.js';
-        const reg = await navigator.serviceWorker.register(swPath);
-
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                options.onUpdate?.(reg);
-              }
-            });
-          }
-        });
-
-        if (reg.active) {
-          options.onSuccess?.(reg);
-        } else {
-          reg.addEventListener('statechange', (e) => {
-            if ((e.target as ServiceWorker).state === 'activated') {
-              options.onSuccess?.(reg);
-            }
-          });
-        }
-
-        setRegistration(reg);
-        setIsReady(true);
-      } catch (err) {
-        options.onError?.(err instanceof Error ? err : new Error(String(err)));
-      }
-    };
-
-    register();
-  }, []);
-
-  return { registration, isReady };
-}
-
-export function registerServiceWorker(swPath?: string): Promise<ServiceWorkerRegistration> {
-  if (!shouldRegister()) {
-    return Promise.reject(new Error('Service workers not supported'));
+async function checkForUpdate() {
+  const response = await fetch("/version.json");
+  if (!response.ok) {
+    throw new Error("Failed to fetch version.json");
   }
-  return navigator.serviceWorker.register(swPath || '/sw.js');
+  return response.json();
 }
 
-export function unregisterServiceWorker(): Promise<void> {
-  return navigator.serviceWorker.ready.then((reg) => {
-    return reg.unregister();
+export async function registerServiceWorker(version) {
+  const swUrl = \`/sw-v\${version}.js\`;
+  const registration = await navigator.serviceWorker.register(swUrl);
+  localStorage.setItem("swRegisteredVersion", version);
+  window.currentSWVersion = version;
+  window.swRegisteredVersion = version;
+  window.dispatchEvent(new CustomEvent("sw-version-detected"));
+  window.dispatchEvent(new CustomEvent("sw-ready"));
+  return registration;
+}
+
+export function shouldRegisterSW() {
+  return AUTO_REGISTER;
+}
+
+export async function initServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    console.warn("Service Workers not supported");
+    return;
+  }
+
+  try {
+    const manifest = await checkForUpdate();
+    const currentVersion = localStorage.getItem("swRegisteredVersion");
+    window.latestSWVersion = manifest.version;
+    window.swMinSupportedVersion = manifest.minSupportedVersion || "0.0.0";
+
+    if (currentVersion === manifest.version) {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration && registration.active) {
+        window.currentSWVersion = currentVersion;
+        window.dispatchEvent(new CustomEvent("sw-version-detected"));
+        window.dispatchEvent(new CustomEvent("sw-ready"));
+      }
+    } else if (currentVersion && currentVersion !== manifest.version) {
+      window.swAvailableVersion = manifest.version;
+      window.swUpdateRequired =
+        currentVersion < (manifest.minSupportedVersion || "0.0.0");
+
+      if (AUTO_UPDATE) {
+        await registerServiceWorker(manifest.version);
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration?.waiting) {
+          registration.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("sw-update-available", {
+            detail: { version: manifest.version },
+          })
+        );
+      }
+    } else {
+      await registerServiceWorker(manifest.version);
+    }
+  } catch (error) {
+    console.error("Service Worker initialization failed:", error);
+    window.swError = true;
+    window.dispatchEvent(new CustomEvent("sw-error"));
+  }
+}
+
+export function handleUpdateApproved(newVersion) {
+  return registerServiceWorker(newVersion).then(() => {
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      window.location.reload();
+    });
+  });
+}
+
+export function skipWaiting() {
+  return navigator.serviceWorker.ready.then((registration) => {
+    if (registration.waiting) {
+      registration.waiting.postMessage({ type: "SKIP_WAITING" });
+    }
+  });
+}
+
+if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data.type === "SW_PROGRESS") {
+      const { percent, downloaded, total } = event.data;
+      window.dispatchEvent(
+        new CustomEvent("sw-progress", {
+          detail: { percent, downloaded, total },
+        })
+      );
+    }
+    if (event.data.type === "BACKGROUND_SYNC_COMPLETE") {
+      const { succeeded, failed, tags } = event.data.detail;
+      window.dispatchEvent(
+        new CustomEvent("mutation-sync-complete", {
+          detail: { succeeded, failed },
+        })
+      );
+      if (tags && tags.length > 0) {
+        window.dispatchEvent(
+          new CustomEvent("cache-invalidated", { detail: { tags } })
+        );
+      }
+      window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
+    }
+  });
+
+  if (AUTO_REGISTER) {
+    window.addEventListener("load", () => {
+      initServiceWorker();
+    });
+  }
+}
+`;
+
+  writeFileSync(join(swoffDir, `sw-injector.${ext}`), code);
+  generatedFiles.push(`swoff/sw-injector.${ext}`);
+}
+
+function generateFetchWrapper(): void {
+  ensureSwoffDir();
+
+  const code = `/**
+ * Swoff Fetch Wrapper
+ * Framework-agnostic fetch with cache strategy, tags, and query deduplication.
+ *
+ * Usage:
+ *   import { fetchWithCache } from './swoff/fetch-wrapper.js';
+ *
+ *   // GET - cached with tag
+ *   const todos = await fetchWithCache("/api/todos", { tags: ["todos"] }).then(r => r.json());
+ *
+ *   // POST - mutation (passes through to server)
+ *   await fetchWithCache("/api/todos", {
+ *     method: "POST",
+ *     body: JSON.stringify({ title: "New task" }),
+ *   });
+ *
+ *   // Stale-while-revalidate
+ *   const data = await fetchWithCache("/api/data", {
+ *     tags: ["data"],
+ *     staleWhileRevalidate: true,
+ *   }).then(r => r.json());
+ */
+
+const inFlightRequests = new Map();
+
+export async function fetchWithCache(input, options = {}) {
+  const headers = new Headers(options.headers);
+  const method = options.method || "GET";
+
+  if (!headers.has("X-SW-Cache-Strategy")) {
+    headers.set(
+      "X-SW-Cache-Strategy",
+      method === "GET" || method === "HEAD" ? "read" : "mutation"
+    );
+  }
+
+  if (options.staleWhileRevalidate) {
+    headers.set("X-SW-Stale", "true");
+  }
+
+  if (options.tags && options.tags.length > 0) {
+    headers.set("X-SW-Cache-Tags", options.tags.join(","));
+  }
+
+  if (method === "GET" || method === "HEAD") {
+    const url = typeof input === "string" ? input : input.url;
+    if (inFlightRequests.has(url)) {
+      return inFlightRequests.get(url).then((r) => r.clone());
+    }
+    const promise = fetch(input, { ...options, headers }).finally(() => {
+      inFlightRequests.delete(url);
+    });
+    inFlightRequests.set(url, promise);
+    return promise;
+  }
+
+  return fetch(input, { ...options, headers });
+}
+
+export async function fetchWithCacheOrQueue(input, options = {}) {
+  if (!navigator.onLine) {
+    if (options.method === "GET" || options.method === "HEAD") {
+      const cached = await caches.match(input);
+      if (cached) return cached;
+      throw new Error("Offline: no cached data");
+    } else {
+      throw new Error("Offline: mutation queued");
+    }
+  }
+  return fetchWithCache(input, options);
+}
+`;
+
+  writeFileSync(join(swoffDir, "fetch-wrapper.js"), code);
+  generatedFiles.push("swoff/fetch-wrapper.js");
+}
+
+function generateCache(): void {
+  ensureSwoffDir();
+
+  const code = `/**
+ * Swoff Cache Invalidation & Cross-Tab Sync
+ * Framework-agnostic cache tag invalidation and cross-tab synchronization.
+ *
+ * Usage:
+ *   import { invalidateByTag, initCrossTabSync } from './swoff/cache.js';
+ *
+ *   // Call once during app init
+ *   initCrossTabSync();
+ *
+ *   // After a mutation, invalidate related cache
+ *   await invalidateByTag("todos");
+ */
+
+export async function invalidateByTag(tag) {
+  if (!navigator.serviceWorker?.controller) return;
+
+  navigator.serviceWorker.controller.postMessage({
+    type: "INVALIDATE_TAG",
+    tag,
+  });
+
+  window.dispatchEvent(
+    new CustomEvent("cache-invalidated", { detail: { tags: [tag] } })
+  );
+}
+
+export async function invalidateByTags(tags) {
+  for (const tag of tags) {
+    await invalidateByTag(tag);
+  }
+}
+
+export function initCrossTabSync() {
+  if (!navigator.serviceWorker) return;
+
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
+      window.dispatchEvent(
+        new CustomEvent("cache-invalidated", {
+          detail: { tags: [event.data.tag] },
+        })
+      );
+    }
   });
 }
 `;
-    writeFileSync(join(outputDir, `sw-injector.${ext}`), code);
-    generatedFiles.push(`src/sw-injector.${ext}`);
-  } else {
-    const code = `export function shouldRegister() {
-  return typeof window !== 'undefined' && 'serviceWorker' in navigator;
+
+  writeFileSync(join(swoffDir, "cache.js"), code);
+  generatedFiles.push("swoff/cache.js");
 }
 
-export async function registerServiceWorker(swPath) {
-  if (!shouldRegister()) {
-    throw new Error('Service workers not supported');
-  }
-  return navigator.serviceWorker.register(swPath || '/sw.js');
+function generateMutationQueue(): void {
+  ensureSwoffDir();
+
+  const code = `/**
+ * Swoff Mutation Queue
+ * Queue offline writes and sync when connection returns.
+ *
+ * Usage:
+ *   import { queueMutation, processMutationQueue, getPendingCount } from './swoff/mutation-queue.js';
+ *
+ *   // Queue a mutation
+ *   await queueMutation({
+ *     method: "POST",
+ *     url: "/api/todos",
+ *     body: { title: "Grocery" },
+ *     tags: ["todos"],
+ *     storeName: "todos",
+ *     tempId: "temp_abc123",
+ *   });
+ *
+ *   // Auto-processes on online event
+ */
+
+const DB_NAME = "swoff-queue";
+const STORE_NAME = "mutations";
+const MAX_RETRIES = 5;
+
+function openQueueDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        const store = db.createObjectStore(STORE_NAME, { keyPath: "id" });
+        store.createIndex("by-timestamp", "timestamp");
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
 }
 
-export async function unregisterServiceWorker() {
-  const reg = await navigator.serviceWorker.ready;
-  return reg.unregister();
+let isSyncing = false;
+
+export async function queueMutation(mutation) {
+  const db = await openQueueDB();
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  const store = tx.objectStore(STORE_NAME);
+
+  store.add({
+    id: crypto.randomUUID(),
+    method: mutation.method,
+    url: mutation.url,
+    body: mutation.body,
+    headers: mutation.headers || {},
+    previousData: mutation.previousData || null,
+    timestamp: Date.now(),
+    retryCount: 0,
+    tags: mutation.tags || [],
+    storeName: mutation.storeName || null,
+    tempId: mutation.tempId || null,
+  });
+
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+
+  window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
 }
 
-export function useServiceWorkerRegistration(options = {}) {
-  const [registration, setRegistration] = useState(null);
-  const [isReady, setIsReady] = useState(false);
+export async function processMutationQueue() {
+  if (!navigator.onLine || isSyncing) return;
+  isSyncing = true;
 
-  useEffect(() => {
-    if (!shouldRegister()) return;
+  try {
+    const db = await openQueueDB();
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const store = tx.objectStore(STORE_NAME);
+    const index = store.index("by-timestamp");
+    const queue = await new Promise((resolve, reject) => {
+      const request = index.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
 
-    registerServiceWorker(options.swPath)
-      .then((reg) => {
-        setRegistration(reg);
-        setIsReady(true);
-        options.onSuccess?.(reg);
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const item of queue) {
+      if (item.retryCount >= MAX_RETRIES) {
+        await rollbackMutation(item);
+        await removeFromQueue(item.id);
+        failed++;
+        continue;
+      }
+
+      try {
+        const response = await fetch(item.url, {
+          method: item.method,
+          headers: {
+            "Content-Type": "application/json",
+            ...item.headers,
+          },
+          body: JSON.stringify(item.body),
+        });
+
+        if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
+
+        const serverData = await response.json();
+
+        if (item.tempId && item.storeName) {
+          await reconcileRecord(item.storeName, item.tempId, serverData);
+        }
+
+        if (item.tags && item.tags.length > 0) {
+          const { invalidateByTags } = await import("./cache.js");
+          await invalidateByTags(item.tags);
+        }
+
+        await removeFromQueue(item.id);
+        succeeded++;
+      } catch {
+        item.retryCount++;
+        await updateInQueue(item);
+        failed++;
+      }
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("mutation-sync-complete", {
+        detail: { succeeded, failed },
       })
-      .catch((err) => {
-        options.onError?.(err);
-      });
-  }, []);
-
-  return { registration, isReady };
-}
-`;
-    writeFileSync(join(outputDir, `sw-injector.${ext}`), code);
-    generatedFiles.push(`src/sw-injector.${ext}`);
+    );
+  } finally {
+    isSyncing = false;
+    window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
   }
+}
+
+async function removeFromQueue(id) {
+  const db = await openQueueDB();
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  tx.objectStore(STORE_NAME).delete(id);
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function updateInQueue(item) {
+  const db = await openQueueDB();
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  tx.objectStore(STORE_NAME).put(item);
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function rollbackMutation(item) {
+  if (!item.storeName) return;
+
+  if (item.method === "POST" && item.tempId) {
+    const { deleteRecord } = await import("./store.js");
+    await deleteRecord(item.storeName, item.tempId);
+  } else if (
+    (item.method === "PUT" || item.method === "PATCH") &&
+    item.previousData
+  ) {
+    const { putRecord } = await import("./store.js");
+    await putRecord(item.storeName, { ...item.previousData, $synced: true });
+  } else if (item.method === "DELETE" && item.tempId && item.previousData) {
+    const { putRecord } = await import("./store.js");
+    await putRecord(item.storeName, { ...item.previousData, $synced: true });
+  }
+
+  window.dispatchEvent(
+    new CustomEvent("mutation-rollback", {
+      detail: {
+        method: item.method,
+        url: item.url,
+        tempId: item.tempId,
+        previousData: item.previousData,
+      },
+    })
+  );
+}
+
+async function reconcileRecord(storeName, tempId, serverData) {
+  const { getRecord, putRecord, deleteRecord } = await import("./store.js");
+  const existing = await getRecord(storeName, tempId);
+  if (!existing) return;
+
+  const reconciled = {
+    ...existing,
+    ...serverData,
+    id: serverData.id,
+    $synced: true,
+    $syncedAt: Date.now(),
+  };
+
+  await putRecord(storeName, reconciled);
+
+  if (String(tempId) !== String(serverData.id)) {
+    await deleteRecord(storeName, tempId);
+  }
+}
+
+export async function getPendingCount() {
+  const db = await openQueueDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const request = tx.objectStore(STORE_NAME).count();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+window.addEventListener("online", processMutationQueue);
+`;
+
+  writeFileSync(join(swoffDir, "mutation-queue.js"), code);
+  generatedFiles.push("swoff/mutation-queue.js");
+}
+
+function generateBackgroundSync(): void {
+  ensureSwoffDir();
+
+  const code = `/**
+ * Swoff Background Sync
+ * Register sync events for processing mutation queue after tab close.
+ * Falls back to online event listener in unsupported browsers.
+ *
+ * Usage:
+ *   import { syncWhenPossible } from './swoff/background-sync.js';
+ *
+ *   await syncWhenPossible({
+ *     method: "POST",
+ *     url: "/api/todos",
+ *     body: { title: "Grocery" },
+ *     tags: ["todos"],
+ *     storeName: "todos",
+ *     tempId: "temp_abc123",
+ *   });
+ */
+
+import { queueMutation, processMutationQueue, getPendingCount } from "./mutation-queue.js";
+
+const SYNC_TAG = "sync-mutations";
+
+async function registerSync() {
+  if (!("serviceWorker" in navigator) || !("SyncManager" in window)) {
+    window.addEventListener("online", processMutationQueue, { once: true });
+    return;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    await registration.sync.register(SYNC_TAG);
+  } catch {
+    window.addEventListener("online", processMutationQueue, { once: true });
+  }
+}
+
+export async function syncWhenPossible(mutation) {
+  await queueMutation(mutation);
+  await registerSync();
+}
+
+export async function retrySync() {
+  if (!("serviceWorker" in navigator) || !("SyncManager" in window)) return;
+  const count = await getPendingCount();
+  if (count > 0) {
+    await registerSync();
+  }
+}
+
+window.addEventListener("mutation-sync-complete", retrySync);
+`;
+
+  writeFileSync(join(swoffDir, "background-sync.js"), code);
+  generatedFiles.push("swoff/background-sync.js");
 }
 
 function generateSwGeneratorBuildScript(): void {
-  const outputDir = join(projectRoot, "swoff");
-  if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
+  ensureSwoffDir();
 
-  if (language === "ts") {
-    const code = `#!/usr/bin/env node
+  const code = `#!/usr/bin/env node
 
 import { spawn } from 'child_process';
 import { existsSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const projectRoot = join(__dirname, '..');
 
 const SWOFF_CONFIG = 'swoff.config.json';
-const DIST_DIR = 'dist';
 
-if (!existsSync(SWOFF_CONFIG)) {
+if (!existsSync(join(projectRoot, SWOFF_CONFIG))) {
   console.error('Error: swoff.config.json not found');
   console.log('Run "npx @swoff/cli init" to create one');
   process.exit(1);
 }
 
-console.log('🔧 Building service worker...');
+console.log('Building service worker...');
 
 const proc = spawn(
   'npx',
   ['@swoff/cli', 'generate', '--sw-only'],
-  { stdio: 'inherit', shell: true }
+  { stdio: 'inherit', shell: true, cwd: projectRoot }
 );
 
 proc.on('close', (code) => {
   if (code === 0) {
-    console.log('✅ Service worker build complete');
+    console.log('Service worker build complete');
   } else {
-    console.error('❌ Build failed');
+    console.error('Build failed');
     process.exit(code || 1);
   }
 });
 `;
-    writeFileSync(join(outputDir, `sw-generator.${ext}`), code);
-    generatedFiles.push(`swoff/sw-generator.${ext}`);
-  } else {
-    const code = `#!/usr/bin/env node
 
-const { spawn } = require('child_process');
-const { existsSync } = require('fs');
-const path = require('path');
-
-const SWOFF_CONFIG = 'swoff.config.json';
-
-if (!existsSync(SWOFF_CONFIG)) {
-  console.error('Error: swoff.config.json not found');
-  console.log('Run "npx @swoff/cli init" to create one');
-  process.exit(1);
-}
-
-console.log('🔧 Building service worker...');
-
-const proc = spawn(
-  'npx',
-  ['@swoff/cli', 'generate', '--sw-only'],
-  { stdio: 'inherit', shell: true }
-);
-
-proc.on('close', (code) => {
-  if (code === 0) {
-    console.log('✅ Service worker build complete');
-  } else {
-    console.error('❌ Build failed');
-    process.exit(code || 1);
-  }
-});
-`;
-    writeFileSync(join(outputDir, `sw-generator.${ext}`), code);
-    generatedFiles.push(`swoff/sw-generator.${ext}`);
-  }
-}
-
-function generateSwTemplate(): void {
-  const outputDir = join(projectRoot, "swoff");
-  if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
-
-  const template = `let CACHE_NAME = "";
-let ASSETS_TO_CACHE = [];
-
-// [[INSTALL_HANDLER]]
-// [[ACTIVATE_HANDLER]]
-// [[FETCH_HANDLER]]
-
-const SWOFF = {
-  cache: {
-    async get(key) {
-      const cache = await caches.open(CACHE_NAME);
-      return cache.match(key);
-    },
-    async put(request, response) {
-      const cache = await caches.open(CACHE_NAME);
-      await cache.put(request, response.clone());
-      return response;
-    },
-    async delete(key) {
-      const cache = await caches.open(CACHE_NAME);
-      return cache.delete(key);
-    },
-    async keys() {
-      const cache = await caches.open(CACHE_NAME);
-      return cache.keys();
-    }
-  }
-};
-
-if (typeof self !== 'undefined') {
-  self.SWOFF = SWOFF;
-}
-`;
-  writeFileSync(join(outputDir, "sw-template.js"), template);
-  generatedFiles.push("swoff/sw-template.js");
+  writeFileSync(join(swoffDir, "sw-generator.js"), code);
+  generatedFiles.push("swoff/sw-generator.js");
 }
 
 function generateTypeDefinitions(): void {
   if (language !== "ts") return;
+  ensureSwoffDir();
 
-  const outputDir = join(projectRoot, "src");
-  if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
-
-  const code = `declare module '*.service-worker' {
-  const serviceWorker: ServiceWorkerGlobalScope;
-  export default serviceWorker;
+  const code = `interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-interface SWOFFCache {
-  get(key: Request | string): Promise<Response | undefined>;
-  put(request: Request | string, response: Response): Promise<Response>;
-  delete(key: Request | string): Promise<boolean>;
-  keys(): Promise<Request[]>;
+declare global {
+  interface Window {
+    deferredInstallPrompt: BeforeInstallPromptEvent | null;
+    latestSWVersion?: string;
+    currentSWVersion?: string;
+    swRegisteredVersion?: string;
+    swAvailableVersion?: string;
+    swUpdateRequired?: boolean;
+    swMinSupportedVersion?: string;
+    swReady?: boolean;
+    swError?: boolean;
+  }
 }
 
-interface SWOFF {
-  cache: SWOFFCache;
-}
-
-declare const SWOFF: SWOFF | undefined;
-
-declare let CACHE_NAME: string;
-declare let ASSETS_TO_CACHE: string[];
-`;
-  writeFileSync(join(outputDir, "swoff.d.ts"), code);
-  generatedFiles.push("src/swoff.d.ts");
-}
-
-function generateOfflineHooks(): void {
-  const outputDir = join(projectRoot, "src", "hooks");
-  if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
-
-  const useOffline = language === "ts"
-    ? `import { useState, useEffect } from 'react';
-
-export interface UseOfflineResult {
-  isOnline: boolean;
-  isOffline: boolean;
-}
-
-export function useOffline(): UseOfflineResult {
-  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  return { isOnline, isOffline: !isOnline };
-}
-`
-    : `import { useState, useEffect } from 'react';
-
-export function useOffline() {
-  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  return { isOnline, isOffline: !isOnline };
-}
+export {};
 `;
 
-  writeFileSync(join(outputDir, `useOffline.${ext}`), useOffline);
-  generatedFiles.push(`src/hooks/useOffline.${ext}`);
-
-  const useApiData = language === "ts"
-    ? `import { useState, useEffect, useCallback } from 'react';
-
-export interface UseApiDataOptions extends RequestInit {
-  skip?: boolean;
-}
-
-export interface UseApiDataResult<T> {
-  data: T | null;
-  loading: boolean;
-  error: Error | null;
-  refetch: () => Promise<T | null>;
-}
-
-export function useApiData<T = unknown>(
-  endpoint: string,
-  options: UseApiDataOptions = {}
-): UseApiDataResult<T> {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  const fetchData = useCallback(async (fetchOptions: RequestInit = {}) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch(endpoint, { ...options, ...fetchOptions });
-
-      if (!response.ok) {
-        throw new Error(\`HTTP error! status: \${response.status}\`);
-      }
-
-      const result: T = await response.json();
-      setData(result);
-      return result;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-      setError(new Error(errorMessage));
-
-      if (!navigator.onLine && data) {
-        return data;
-      }
-
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [endpoint, JSON.stringify(options), data]);
-
-  useEffect(() => {
-    if (!options.skip) {
-      fetchData();
-    }
-  }, [endpoint]);
-
-  return { data, loading, error, refetch: fetchData };
-}
-`
-    : `import { useState, useEffect, useCallback } from 'react';
-
-export function useApiData(endpoint, options = {}) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const fetchData = useCallback(async (fetchOptions = {}) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch(endpoint, { ...options, ...fetchOptions });
-
-      if (!response.ok) {
-        throw new Error(\`HTTP error! status: \${response.status}\`);
-      }
-
-      const result = await response.json();
-      setData(result);
-      return result;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-      setError(new Error(errorMessage));
-
-      if (!navigator.onLine && data) {
-        return data;
-      }
-
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [endpoint, JSON.stringify(options), data]);
-
-  useEffect(() => {
-    if (!options.skip) {
-      fetchData();
-    }
-  }, [endpoint]);
-
-  return { data, loading, error, refetch: fetchData };
-}
-`;
-
-  writeFileSync(join(outputDir, `useApiData.${ext}`), useApiData);
-  generatedFiles.push(`src/hooks/useApiData.${ext}`);
-}
-
-function generateMutationQueueHooks(): void {
-  const outputDir = join(projectRoot, "src", "hooks");
-  if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
-
-  const useMutationQueue = language === "ts"
-    ? `import { useState, useEffect, useCallback } from 'react';
-
-export interface Mutation {
-  id: string;
-  timestamp: number;
-  status: 'pending' | 'synced' | 'failed';
-  retries: number;
-  data: unknown;
-  endpoint: string;
-  method?: string;
-}
-
-export interface UseMutationQueueOptions {
-  onSync?: (mutation: Mutation) => Promise<void>;
-  maxRetries?: number;
-  storageKey?: string;
-  autoSync?: boolean;
-}
-
-export interface UseMutationQueueResult {
-  queueMutation: (mutation: Omit<Mutation, 'id' | 'timestamp' | 'status' | 'retries'>) => string;
-  pendingMutations: Mutation[];
-  isSyncing: boolean;
-  syncMutations: () => Promise<void>;
-  clearQueue: () => void;
-  retryMutation: (id: string) => Promise<void>;
-}
-
-export function useMutationQueue(options: UseMutationQueueOptions = {}): UseMutationQueueResult {
-  const {
-    onSync,
-    maxRetries = 3,
-    storageKey = 'swoff-mutation-queue',
-    autoSync = true
-  } = options;
-
-  const [pendingMutations, setPendingMutations] = useState<Mutation[]>([]);
-  const [isSyncing, setIsSyncing] = useState(false);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setPendingMutations(parsed);
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }, [storageKey]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(pendingMutations));
-    } catch {
-      // ignore
-    }
-  }, [pendingMutations, storageKey]);
-
-  const queueMutation = useCallback((
-    mutation: Omit<Mutation, 'id' | 'timestamp' | 'status' | 'retries'>
-  ): string => {
-    const newMutation: Mutation = {
-      id: \`\${Date.now()}-\${Math.random().toString(36).substr(2, 9)}\`,
-      timestamp: Date.now(),
-      status: 'pending',
-      retries: 0,
-      ...mutation
-    };
-
-    setPendingMutations((prev) => [...prev, newMutation]);
-
-    if (autoSync && navigator.onLine) {
-      syncMutations();
-    }
-
-    return newMutation.id;
-  }, [autoSync]);
-
-  const syncMutations = useCallback(async () => {
-    if (isSyncing || !navigator.onLine) return;
-
-    const pending = pendingMutations.filter((m) => m.status === 'pending');
-    if (pending.length === 0) return;
-
-    setIsSyncing(true);
-
-    for (const mutation of pending) {
-      try {
-        if (onSync) {
-          await onSync(mutation);
-        } else {
-          await fetch(mutation.endpoint, {
-            method: mutation.method || 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(mutation.data),
-          });
-        }
-        setPendingMutations((prev) =>
-          prev.map((m) => (m.id === mutation.id ? { ...m, status: 'synced' } : m))
-        );
-      } catch {
-        setPendingMutations((prev) =>
-          prev.map((m) =>
-            m.id === mutation.id
-              ? { ...m, retries: m.retries + 1, status: m.retries >= maxRetries ? 'failed' : 'pending' }
-              : m
-          )
-        );
-      }
-    }
-
-    setIsSyncing(false);
-  }, [isSyncing, onSync, maxRetries, pendingMutations]);
-
-  useEffect(() => {
-    if (!autoSync) return;
-
-    const handleOnline = () => syncMutations();
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [syncMutations, autoSync]);
-
-  const clearQueue = useCallback(() => {
-    setPendingMutations([]);
-    localStorage.removeItem(storageKey);
-  }, [storageKey]);
-
-  const retryMutation = useCallback(async (id: string) => {
-    setPendingMutations((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, status: 'pending', retries: 0 } : m))
-    );
-    await syncMutations();
-  }, [syncMutations]);
-
-  return { queueMutation, pendingMutations, isSyncing, syncMutations, clearQueue, retryMutation };
-}
-`
-    : `import { useState, useEffect, useCallback } from 'react';
-
-export function useMutationQueue(options = {}) {
-  const {
-    onSync,
-    maxRetries = 3,
-    storageKey = 'swoff-mutation-queue',
-    autoSync = true
-  } = options;
-
-  const [pendingMutations, setPendingMutations] = useState([]);
-  const [isSyncing, setIsSyncing] = useState(false);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setPendingMutations(parsed);
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }, [storageKey]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(pendingMutations));
-    } catch {
-      // ignore
-    }
-  }, [pendingMutations, storageKey]);
-
-  const queueMutation = useCallback((mutation) => {
-    const newMutation = {
-      id: \`\${Date.now()}-\${Math.random().toString(36).substr(2, 9)}\`,
-      timestamp: Date.now(),
-      status: 'pending',
-      retries: 0,
-      ...mutation
-    };
-
-    setPendingMutations((prev) => [...prev, newMutation]);
-
-    if (autoSync && navigator.onLine) {
-      syncMutations();
-    }
-
-    return newMutation.id;
-  }, [autoSync]);
-
-  const syncMutations = useCallback(async () => {
-    if (isSyncing || !navigator.onLine) return;
-
-    const pending = pendingMutations.filter((m) => m.status === 'pending');
-    if (pending.length === 0) return;
-
-    setIsSyncing(true);
-
-    for (const mutation of pending) {
-      try {
-        if (onSync) {
-          await onSync(mutation);
-        } else {
-          await fetch(mutation.endpoint, {
-            method: mutation.method || 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(mutation.data),
-          });
-        }
-        setPendingMutations((prev) =>
-          prev.map((m) => (m.id === mutation.id ? { ...m, status: 'synced' } : m))
-        );
-      } catch {
-        setPendingMutations((prev) =>
-          prev.map((m) =>
-            m.id === mutation.id
-              ? { ...m, retries: m.retries + 1, status: m.retries >= maxRetries ? 'failed' : 'pending' }
-              : m
-          )
-        );
-      }
-    }
-
-    setIsSyncing(false);
-  }, [isSyncing, onSync, maxRetries, pendingMutations]);
-
-  useEffect(() => {
-    if (!autoSync) return;
-
-    const handleOnline = () => syncMutations();
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [syncMutations, autoSync]);
-
-  const clearQueue = useCallback(() => {
-    setPendingMutations([]);
-    localStorage.removeItem(storageKey);
-  }, [storageKey]);
-
-  const retryMutation = useCallback(async (id) => {
-    setPendingMutations((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, status: 'pending', retries: 0 } : m))
-    );
-    await syncMutations();
-  }, [syncMutations]);
-
-  return { queueMutation, pendingMutations, isSyncing, syncMutations, clearQueue, retryMutation };
-}
-`;
-
-  writeFileSync(join(outputDir, `useMutationQueue.${ext}`), useMutationQueue);
-  generatedFiles.push(`src/hooks/useMutationQueue.${ext}`);
-}
-
-function generatePWAComponents(): void {
-  const outputDir = join(projectRoot, "src", "components");
-  if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
-
-  const offlineIndicator = `import { useOffline } from '../hooks/useOffline';
-
-export interface OfflineIndicatorProps {
-  position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
-  message?: string;
-  className?: string;
-}
-
-const positionClasses = {
-  'top-left': 'top-4 left-4',
-  'top-right': 'top-4 right-4',
-  'bottom-left': 'bottom-4 left-4',
-  'bottom-right': 'bottom-4 right-4'
-};
-
-export function OfflineIndicator({
-  position = 'bottom-right',
-  message = 'You are offline. Some features may be limited.',
-  className = ''
-}: OfflineIndicatorProps) {
-  const { isOffline } = useOffline();
-
-  if (!isOffline) return null;
-
-  return (
-    <div
-      className={\`fixed \${positionClasses[position]} bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2 \${className}\`}
-      role="alert"
-      aria-live="polite"
-    >
-      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
-      </svg>
-      <span className="text-sm font-medium">{message}</span>
-    </div>
-  );
-}
-`;
-
-  writeFileSync(join(outputDir, "OfflineIndicator.tsx"), offlineIndicator);
-  generatedFiles.push("src/components/OfflineIndicator.tsx");
-
-  const pwaInstallButton = `import { useState, useEffect } from 'react';
-
-export interface PWAInstallButtonProps {
-  installLabel?: string;
-  installedLabel?: string;
-  className?: string;
-}
-
-export function PWAInstallButton({
-  installLabel = 'Install App',
-  installedLabel = 'Installed',
-  className = ''
-}: PWAInstallButtonProps) {
-  const [isInstallable, setIsInstallable] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setIsInstallable(true);
-    };
-
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
-      setIsInstallable(false);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, []);
-
-  const handleInstall = async () => {
-    if (!deferredPrompt) return;
-
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-
-    if (outcome === 'accepted') {
-      setIsInstalled(true);
-    }
-    setIsInstallable(false);
-    setDeferredPrompt(null);
-  };
-
-  if (!isInstallable && !isInstalled) return null;
-
-  return (
-    <button
-      onClick={handleInstall}
-      disabled={isInstalled}
-      className={\`fixed bottom-4 right-4 bg-blue-500 hover:bg-blue-600 disabled:bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg font-medium z-50 \${className}\`}
-    >
-      {isInstalled ? installedLabel : installLabel}
-    </button>
-  );
-}
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<{ outcome: 'accepted' | 'dismissed' }>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
-`;
-
-  writeFileSync(join(outputDir, "PWAInstallButton.tsx"), pwaInstallButton);
-  generatedFiles.push("src/components/PWAInstallButton.tsx");
-}
-
-function generateCrossTabSync(): void {
-  const outputDir = join(projectRoot, "src", "utils");
-  if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
-
-  const crossTabSync = language === "ts"
-    ? `export class CrossTabSync {
-  private channel: BroadcastChannel;
-  private listeners: Map<string, Set<(value: unknown, type: string) => void>>;
-
-  constructor(channelName = 'swoff-sync') {
-    this.channel = new BroadcastChannel(channelName);
-    this.listeners = new Map();
-
-    this.channel.onmessage = (event: MessageEvent) => {
-      const { key, value, type } = event.data;
-      const callbacks = this.listeners.get(key);
-      if (callbacks) {
-        callbacks.forEach((callback) => callback(value, type));
-      }
-    };
-  }
-
-  subscribe(
-    key: string,
-    callback: (value: unknown, type: string) => void
-  ): () => void {
-    if (!this.listeners.has(key)) {
-      this.listeners.set(key, new Set());
-    }
-    this.listeners.get(key)!.add(callback);
-
-    return () => {
-      this.listeners.get(key)?.delete(callback);
-    };
-  }
-
-  set(key: string, value: unknown): void {
-    try {
-      localStorage.setItem(\`swoff-sync-\${key}\`, JSON.stringify(value));
-    } catch {
-      // ignore
-    }
-    this.channel.postMessage({ type: 'set', key, value });
-  }
-
-  get(key: string): unknown {
-    try {
-      const stored = localStorage.getItem(\`swoff-sync-\${key}\`);
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  }
-
-  delete(key: string): void {
-    localStorage.removeItem(\`swoff-sync-\${key}\`);
-    this.channel.postMessage({ type: 'delete', key, value: null });
-  }
-
-  close(): void {
-    this.channel.close();
-    this.listeners.clear();
-  }
-}
-
-export function createCrossTabSync(channelName = 'swoff-sync'): CrossTabSync {
-  return new CrossTabSync(channelName);
-}
-`
-    : `export class CrossTabSync {
-  constructor(channelName = 'swoff-sync') {
-    this.channel = new BroadcastChannel(channelName);
-    this.listeners = new Map();
-
-    this.channel.onmessage = (event) => {
-      const { key, value, type } = event.data;
-      const callbacks = this.listeners.get(key);
-      if (callbacks) {
-        callbacks.forEach((callback) => callback(value, type));
-      }
-    };
-  }
-
-  subscribe(key, callback) {
-    if (!this.listeners.has(key)) {
-      this.listeners.set(key, new Set());
-    }
-    this.listeners.get(key).add(callback);
-
-    return () => {
-      this.listeners.get(key)?.delete(callback);
-    };
-  }
-
-  set(key, value) {
-    try {
-      localStorage.setItem(\`swoff-sync-\${key}\`, JSON.stringify(value));
-    } catch {
-      // ignore
-    }
-    this.channel.postMessage({ type: 'set', key, value });
-  }
-
-  get(key) {
-    try {
-      const stored = localStorage.getItem(\`swoff-sync-\${key}\`);
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  }
-
-  delete(key) {
-    localStorage.removeItem(\`swoff-sync-\${key}\`);
-    this.channel.postMessage({ type: 'delete', key, value: null });
-  }
-
-  close() {
-    this.channel.close();
-    this.listeners.clear();
-  }
-}
-
-export function createCrossTabSync(channelName = 'swoff-sync') {
-  return new CrossTabSync(channelName);
-}
-`;
-
-  writeFileSync(join(outputDir, `crossTabSync.${ext}`), crossTabSync);
-  generatedFiles.push(`src/utils/crossTabSync.${ext}`);
+  writeFileSync(join(swoffDir, "swoff.d.ts"), code);
+  generatedFiles.push("swoff/swoff.d.ts");
 }
 
 function generateManifest(): void {
@@ -1042,23 +765,23 @@ function generateManifest(): void {
   if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
 
   const manifest = {
-    name: 'Swoff App',
-    short_name: 'Swoff',
-    description: 'Offline-first web application',
-    start_url: '/',
-    display: 'standalone',
-    background_color: '#ffffff',
-    theme_color: '#000000',
+    name: "Swoff App",
+    short_name: "Swoff",
+    description: "Offline-first web application",
+    start_url: "/",
+    display: "standalone",
+    background_color: "#ffffff",
+    theme_color: "#000000",
     icons: [
       {
-        src: '/icon-192.png',
-        sizes: '192x192',
-        type: 'image/png',
+        src: "/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
       },
       {
-        src: '/icon-512.png',
-        sizes: '512x512',
-        type: 'image/png',
+        src: "/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
       },
     ],
   };
@@ -1067,54 +790,52 @@ function generateManifest(): void {
   generatedFiles.push("public/manifest.json");
 }
 
-console.log('🔧 Swoff Files Generator');
-console.log('========================\n');
-
+console.log("Generating Swoff files...");
 console.log(`Language: ${language}`);
 console.log(`Project: ${projectRoot}`);
-console.log('');
+console.log("");
 
 if (!config.enabled) {
-  console.log('⚠️  Config generation disabled');
+  console.log("Config generation disabled");
   process.exit(0);
 }
 
-console.log('📦 Generating pattern files...');
+console.log("Generating pattern files...");
 
-generateSwInjector();
-console.log('  • sw-injector');
+if (config.features.clientRegistration) {
+  generateSwInjector();
+  console.log("  sw-injector");
+}
 
-generateSwGeneratorBuildScript();
-console.log('  • sw-generator build script');
+generateFetchWrapper();
+console.log("  fetch-wrapper");
 
-generateSwTemplate();
-console.log('  • sw-template.js');
-
-generateTypeDefinitions();
-console.log('  • swoff.d.ts');
-
-if (config.features.offlineReads) {
-  generateOfflineHooks();
-  console.log('  • offline hooks (useOffline, useApiData)');
+if (config.features.tagInvalidation || config.features.crossTabSync) {
+  generateCache();
+  console.log("  cache");
 }
 
 if (config.features.mutationQueue) {
-  generateMutationQueueHooks();
-  console.log('  • mutation queue hook (useMutationQueue)');
+  generateMutationQueue();
+  console.log("  mutation-queue");
 }
+
+if (config.features.backgroundSync) {
+  generateBackgroundSync();
+  console.log("  background-sync");
+}
+
+generateSwGeneratorBuildScript();
+console.log("  sw-generator");
+
+generateTypeDefinitions();
+console.log("  swoff.d.ts");
 
 if (config.features.pwa) {
-  generatePWAComponents();
-  console.log('  • PWA components (OfflineIndicator, PWAInstallButton)');
   generateManifest();
-  console.log('  • manifest.json');
+  console.log("  manifest.json");
 }
 
-if (config.features.crossTabSync) {
-  generateCrossTabSync();
-  console.log('  • cross-tab sync (crossTabSync)');
-}
-
-console.log('\n✅ Generated files:');
-generatedFiles.forEach((file) => console.log(`   • ${file}`));
-console.log("\n✨ Total: " + generatedFiles.length + " files generated");
+console.log("\nGenerated files:");
+generatedFiles.forEach((file) => console.log(`  ${file}`));
+console.log(`\nTotal: ${generatedFiles.length} files`);

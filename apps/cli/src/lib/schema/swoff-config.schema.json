@@ -17,14 +17,13 @@
     },
     "version": {
       "type": "string",
-      "description": "Service Worker version source",
+      "description": "Service Worker version source. Use 'from-package' to read from package.json, or specify a semver string like '1.0.0'",
       "default": "from-package",
-      "enum": ["from-package"],
       "pattern": "^\\d+\\.\\d+\\.\\d+$"
     },
     "minSupportedVersion": {
       "type": "string",
-      "description": "Minimum supported version for forced updates",
+      "description": "Minimum supported version for forced updates. Clients running older versions will be forced to update.",
       "default": "0.0.0",
       "pattern": "^\\d+\\.\\d+\\.\\d+$"
     },
@@ -32,9 +31,14 @@
       "type": "object",
       "description": "Service Worker configuration",
       "properties": {
+        "autoRegister": {
+          "type": "boolean",
+          "description": "Automatically register the service worker on page load. Set to false for deferred registration (e.g., after onboarding).",
+          "default": true
+        },
         "autoUpdate": {
           "type": "boolean",
-          "description": "Auto-update behavior - true = silent update, false = show update prompt",
+          "description": "Automatically activate new service worker versions without user consent. true = silent update (skipWaiting), false = dispatch sw-update-available event for user consent.",
           "default": false
         },
         "defaultStrategy": {
@@ -75,7 +79,7 @@
           "pattern": "^[a-zA-Z0-9-_]+$"
         }
       },
-      "required": ["autoUpdate", "defaultStrategy", "maxCacheEntries", "maxCacheAge", "runtimeCacheName"]
+      "required": ["autoRegister", "autoUpdate", "defaultStrategy"]
     },
     "features": {
       "type": "object",
@@ -120,9 +124,19 @@
           "type": "boolean",
           "description": "Tag-based cache invalidation",
           "default": true
+        },
+        "clientRegistration": {
+          "type": "boolean",
+          "description": "Generate client-side SW registration code (sw-injector)",
+          "default": true
+        },
+        "indexeddb": {
+          "type": "boolean",
+          "description": "Generate IndexedDB storage patterns",
+          "default": false
         }
       },
-      "required": ["versionedSw", "offlineReads", "mutationQueue", "backgroundSync", "pwa", "auth", "crossTabSync", "tagInvalidation"]
+      "required": ["versionedSw", "offlineReads", "mutationQueue", "backgroundSync", "pwa", "auth", "crossTabSync", "tagInvalidation", "clientRegistration", "indexeddb"]
     },
     "database": {
       "type": "object",

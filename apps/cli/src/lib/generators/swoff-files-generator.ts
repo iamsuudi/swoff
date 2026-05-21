@@ -1357,24 +1357,33 @@ export function generateTags(url) {
 
   if (segments.length === 0) return ["root"];
 
+  // Skip common API prefixes
+  const skipPrefixes = ["api", "v1", "v2", "v3", "rest", "graphql", "gql"];
+  let startIdx = 0;
+  while (startIdx < segments.length && skipPrefixes.includes(segments[startIdx])) {
+    startIdx++;
+  }
+
+  const resourceSegments = segments.slice(startIdx);
+  if (resourceSegments.length === 0) return ["root"];
+
   const tags = [];
 
   // Collection tag: /api/todos -> "todos"
-  tags.push(segments[0]);
+  tags.push(resourceSegments[0]);
 
   // Resource tag: /api/todos/42 -> "todo:42"
-  if (segments.length >= 2 && isNaN(Number(segments[1]))) {
-    // /api/todos/42 -> singularize + id
-    const collection = segments[0];
-    const id = segments[1];
+  if (resourceSegments.length >= 2 && !isNaN(Number(resourceSegments[1]))) {
+    const collection = resourceSegments[0];
+    const id = resourceSegments[1];
     const singular = collection.replace(/s$/, "");
     tags.push(\`\${singular}:\${id}\`);
   }
 
   // Sub-resource tags: /api/todos/42/comments -> "comments"
-  for (let i = 2; i < segments.length; i++) {
-    if (isNaN(Number(segments[i]))) {
-      tags.push(segments[i]);
+  for (let i = 2; i < resourceSegments.length; i++) {
+    if (isNaN(Number(resourceSegments[i]))) {
+      tags.push(resourceSegments[i]);
     }
   }
 

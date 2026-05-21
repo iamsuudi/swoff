@@ -6,7 +6,8 @@
  *
  * Placeholders (replaced by sw-generator.js):
  *   // [[CACHE_NAME]]       - Sets CACHE_NAME variable
- *   // [[ASSETS_LIST]]      - Sets ASSETS_TO_CACHE array
+ *   // [[ASSETS_LIST]]      - Sets ASSETS_TO_CACHE array (Request objects)
+ *   // [[AUTO_SKIP_WAITING]] - Sets AUTO_SKIP_WAITING constant
  *   // [[INSTALL_HANDLER]]  - Install event listener with progress
  *   // [[ACTIVATE_HANDLER]] - Activate event listener (cache cleanup)
  *   // [[MESSAGE_HANDLER]]  - Message handler (SKIP_WAITING, INVALIDATE_TAG)
@@ -20,6 +21,7 @@ let ASSETS_TO_CACHE = [];
 // [[CACHE_NAME]]
 // [[ASSETS_LIST]]
 // [[AUTO_SKIP_WAITING]]
+
 const CACHE_NAME_RUNTIME = "swoff-runtime";
 
 // [[INSTALL_HANDLER]]

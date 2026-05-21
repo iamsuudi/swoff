@@ -231,20 +231,20 @@ function generateFetchHandler(
   const { defaultStrategy, strategies } = swConfig;
 
   const tagInvalidationCode = features.tagInvalidation ? `
-      const tagsHeader = event.request.headers.get("X-SW-Cache-Tags");
-      if (tagsHeader) {
-        const url = new URL(event.request.url).href;
-        const tags = tagsHeader.split(",").map((t) => t.trim());
-        await cacheTagUrl(url, tags);
-      }` : "";
+        const tagsHeader = event.request.headers.get("X-SW-Cache-Tags");
+        if (tagsHeader) {
+          const url = new URL(event.request.url).href;
+          const tags = tagsHeader.split(",").map((t) => t.trim());
+          await cacheTagUrl(url, tags);
+        }` : "";
 
   const staleTagCode = features.tagInvalidation ? `
-      const tagsHeader = request.headers.get("X-SW-Cache-Tags");
-      if (tagsHeader) {
-        const url = new URL(request.url).href;
-        const tags = tagsHeader.split(",").map((t) => t.trim());
-        await cacheTagUrl(url, tags);
-      }` : "";
+        const tagsHeader = request.headers.get("X-SW-Cache-Tags");
+        if (tagsHeader) {
+          const url = new URL(request.url).href;
+          const tags = tagsHeader.split(",").map((t) => t.trim());
+          await cacheTagUrl(url, tags);
+        }` : "";
 
   return `
 function isReadRequest(request) {
@@ -257,7 +257,7 @@ function isReadRequest(request) {
 function determineCacheStrategy(request, customStrategies, defaultStrategy) {
   const url = request.url;
   for (const [pattern, strategy] of Object.entries(customStrategies)) {
-    if (url.includes(pattern)) return strategy;
+    if (url.includes(pattern.replace("*", ""))) return strategy;
   }
   return defaultStrategy;
 }
@@ -265,45 +265,81 @@ function determineCacheStrategy(request, customStrategies, defaultStrategy) {
 self.addEventListener("fetch", (event) => {
   if (!isReadRequest(event.request)) return;
 
-  if (event.request.headers.get("X-SW-Stale") === "true") {
+  const strategy = determineCacheStrategy(event.request, ${JSON.stringify(strategies)}, "${defaultStrategy}");
+
+  if (strategy === "stale-while-revalidate" || event.request.headers.get("X-SW-Stale") === "true") {
     event.respondWith(staleWhileRevalidate(event, event.request));
     return;
   }
 
-  event.respondWith(
-    (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
-      const url = new URL(event.request.url);
+  if (strategy === "network-first") {
+    event.respondWith(networkFirst(event, event.request));
+    return;
+  }
 
-      const byPath = await cache.match(url.pathname);
-      if (byPath) return byPath;
-
-      const byRequest = await runtimeCache.match(event.request);
-      if (byRequest) return byRequest;
-
-      if (event.request.mode === "navigate") {
-        const spa = await cache.match("/index.html");
-        if (spa) return spa;
-      }
-
-      try {
-        const response = await fetch(event.request);
-        if (response.ok) {
-          const cloned = response.clone();
-          event.waitUntil(
-            (async () => {
-              await runtimeCache.put(event.request, cloned);${tagInvalidationCode}
-            })(),
-          );
-        }
-        return response;
-      } catch {
-        return new Response("Offline: content not available", { status: 503 });
-      }
-    })(),
-  );
+  // cache-first (default)
+  event.respondWith(cacheFirst(event, event.request));
 });
+
+async function cacheFirst(event, request) {
+  const cache = await caches.open(CACHE_NAME);
+  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
+  const url = new URL(request.url);
+
+  const byPath = await cache.match(url.pathname);
+  if (byPath) return byPath;
+
+  const byRequest = await runtimeCache.match(request);
+  if (byRequest) return byRequest;
+
+  if (request.mode === "navigate") {
+    const spa = await cache.match("/index.html");
+    if (spa) return spa;
+  }
+
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cloned = response.clone();
+      event.waitUntil(
+        (async () => {
+          await runtimeCache.put(request, cloned);${tagInvalidationCode}
+        })(),
+      );
+    }
+    return response;
+  } catch {
+    return new Response("Offline: content not available", { status: 503 });
+  }
+}
+
+async function networkFirst(event, request) {
+  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
+
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cloned = response.clone();
+      event.waitUntil(
+        (async () => {
+          await runtimeCache.put(request, cloned);${tagInvalidationCode}
+        })(),
+      );
+    }
+    return response;
+  } catch {
+    const cached = await runtimeCache.match(request);
+    if (cached) return cached;
+
+    if (request.mode === "navigate") {
+      const cache = await caches.open(CACHE_NAME);
+      const spa = await cache.match("/index.html");
+      if (spa) return spa;
+    }
+
+    return new Response("Offline: content not available", { status: 503 });
+  }
+}
 
 async function staleWhileRevalidate(event, request) {
   const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
@@ -490,7 +526,7 @@ async function processMutationQueueInSW() {
       request.onupgradeneeded = (e) => {
         const db = e.target.result;
         if (!db.objectStoreNames.contains(SW_STORE_NAME)) {
-          db.createObjectStore(SW_STORE_NAME, { keyPath: "id" });
+          const store = db.createObjectStore(SW_STORE_NAME, { keyPath: "id" });
           store.createIndex("by-timestamp", "timestamp");
         }
       };

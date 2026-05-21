@@ -116,6 +116,7 @@ async function initCommand(framework?: string) {
     version: string;
     minSupportedVersion: string;
     serviceWorker: {
+      autoRegister: boolean;
       autoUpdate: boolean;
       defaultStrategy: string;
       strategies: Record<string, string>;
@@ -128,6 +129,7 @@ async function initCommand(framework?: string) {
     version: "from-package",
     minSupportedVersion: "1.0.0",
     serviceWorker: {
+      autoRegister: true,
       autoUpdate: false,
       defaultStrategy: "cache-first",
       strategies: {
@@ -320,6 +322,13 @@ async function validateCommand() {
     const sw = config!.serviceWorker as Record<string, unknown>;
     const validStrategies = ["cache-first", "network-first", "stale-while-revalidate", "cache-only", "network-only"];
 
+    if (sw.autoRegister !== undefined && typeof sw.autoRegister !== "boolean") {
+      errors.push(`serviceWorker.autoRegister must be a boolean`);
+    }
+    if (sw.autoUpdate !== undefined && typeof sw.autoUpdate !== "boolean") {
+      errors.push(`serviceWorker.autoUpdate must be a boolean`);
+    }
+
     if (sw.defaultStrategy && !validStrategies.includes(sw.defaultStrategy as string)) {
       errors.push(`Invalid defaultStrategy "${sw.defaultStrategy}". Must be one of: ${validStrategies.join(", ")}`);
     }
@@ -437,6 +446,7 @@ async function addCommand(feature: string) {
       version: "from-package",
       minSupportedVersion: "0.0.0",
       serviceWorker: {
+        autoRegister: true,
         autoUpdate: false,
         defaultStrategy: "cache-first",
         strategies: {},

@@ -19,8 +19,7 @@ let ASSETS_TO_CACHE = [];
 
 // [[CACHE_NAME]]
 // [[ASSETS_LIST]]
-
-const AUTO_SKIP_WAITING = false;
+// [[AUTO_SKIP_WAITING]]
 const CACHE_NAME_RUNTIME = "swoff-runtime";
 
 // [[INSTALL_HANDLER]]

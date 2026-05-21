@@ -17,6 +17,7 @@ interface SwoffConfig {
   version: string;
   minSupportedVersion: string;
   serviceWorker: {
+    autoRegister: boolean;
     autoUpdate: boolean;
     defaultStrategy: string;
     strategies: Record<string, string>;
@@ -56,6 +57,7 @@ const defaultConfig: SwoffConfig = {
   version: "from-package",
   minSupportedVersion: "0.0.0",
   serviceWorker: {
+    autoRegister: true,
     autoUpdate: false,
     defaultStrategy: "cache-first",
     strategies: {},
@@ -101,16 +103,45 @@ function ensureSwoffDir(): void {
 function generateSwInjector(): void {
   ensureSwoffDir();
 
+  const autoRegister = config.serviceWorker.autoRegister;
+  const autoUpdate = config.serviceWorker.autoUpdate;
+
   const code = `/**
  * Swoff Service Worker Injector
  * Framework-agnostic client registration with version checking.
  *
  * Usage:
  *   import { initServiceWorker } from './swoff/sw-injector.js';
+ *
+ *   // Auto-register (default):
  *   initServiceWorker();
  *
- * Or call initServiceWorker() directly in your app entry point.
+ *   // Deferred registration:
+ *   import { shouldRegisterSW, registerServiceWorker } from './swoff/sw-injector.js';
+ *   // Override shouldRegisterSW to control when SW registers
+ *   if (shouldRegisterSW()) {
+ *     registerServiceWorker(window.latestSWVersion);
+ *   }
+ *
+ * Window events:
+ *   sw-version-detected  - Version info available
+ *   sw-update-available  - New version ready (detail: { version })
+ *   sw-progress          - Download progress (detail: { percent, downloaded, total })
+ *   sw-ready             - SW active and controlling page
+ *   sw-error             - SW registration failed
+ *
+ * Window properties:
+ *   window.latestSWVersion       - Latest version from version.json
+ *   window.currentSWVersion      - Active SW version
+ *   window.swAvailableVersion    - Pending update version
+ *   window.swUpdateRequired      - Forced update needed
+ *   window.swMinSupportedVersion - Minimum supported version
+ *   window.swReady               - SW is active
+ *   window.swError               - Registration failed
  */
+
+const AUTO_REGISTER = ${autoRegister};
+const AUTO_UPDATE = ${autoUpdate};
 
 async function checkForUpdate() {
   const response = await fetch("/version.json");
@@ -120,7 +151,7 @@ async function checkForUpdate() {
   return response.json();
 }
 
-async function registerServiceWorker(version) {
+export async function registerServiceWorker(version) {
   const swUrl = \`/sw-v\${version}.js\`;
   const registration = await navigator.serviceWorker.register(swUrl);
   localStorage.setItem("swRegisteredVersion", version);
@@ -132,7 +163,7 @@ async function registerServiceWorker(version) {
 }
 
 export function shouldRegisterSW() {
-  return true;
+  return AUTO_REGISTER;
 }
 
 export async function initServiceWorker() {
@@ -158,11 +189,20 @@ export async function initServiceWorker() {
       window.swAvailableVersion = manifest.version;
       window.swUpdateRequired =
         currentVersion < (manifest.minSupportedVersion || "0.0.0");
-      window.dispatchEvent(
-        new CustomEvent("sw-update-available", {
-          detail: { version: manifest.version },
-        })
-      );
+
+      if (AUTO_UPDATE) {
+        await registerServiceWorker(manifest.version);
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration?.waiting) {
+          registration.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("sw-update-available", {
+            detail: { version: manifest.version },
+          })
+        );
+      }
     } else {
       await registerServiceWorker(manifest.version);
     }
@@ -214,6 +254,12 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
     }
   });
+
+  if (AUTO_REGISTER) {
+    window.addEventListener("load", () => {
+      initServiceWorker();
+    });
+  }
 }
 `;
 

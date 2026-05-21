@@ -27,6 +27,7 @@ interface SwoffConfig {
   version: string;
   minSupportedVersion: string;
   serviceWorker: {
+    autoRegister: boolean;
     autoUpdate: boolean;
     defaultStrategy: string;
     strategies: Record<string, string>;
@@ -67,6 +68,7 @@ const defaultConfig: SwoffConfig = {
   version: "from-package",
   minSupportedVersion: "0.0.0",
   serviceWorker: {
+    autoRegister: true,
     autoUpdate: false,
     defaultStrategy: "cache-first",
     strategies: {},
@@ -195,7 +197,8 @@ function generateServiceWorker(config: SwoffConfig, version: string): string {
   let sw = getDefaultTemplate();
 
   sw = sw.replace("// [[CACHE_NAME]]", `CACHE_NAME = 'sw-v${version}'`);
-  sw = sw.replace("// [[ASSETS_LIST]]", `ASSETS_TO_CACHE = ${JSON.stringify(assetsToCache, null, 2)}`);
+  sw = sw.replace("// [[ASSETS_LIST]]", `ASSETS_TO_CACHE = ${JSON.stringify(assetsToCache.map((url) => ({ url, options: {} })), null, 2)}`);
+  sw = sw.replace("// [[AUTO_SKIP_WAITING]]", `const AUTO_SKIP_WAITING = ${config.serviceWorker.autoUpdate};`);
 
   sw = sw.replace("// [[FETCH_HANDLER]]", generateFetchHandler(serviceWorker, features));
   sw = sw.replace("// [[ACTIVATE_HANDLER]]", generateActivateHandler(features.versionedSw));
@@ -249,6 +252,14 @@ function isReadRequest(request) {
   if (strategy === "read") return true;
   if (strategy === "mutation") return false;
   return request.method === "GET" || request.method === "HEAD";
+}
+
+function determineCacheStrategy(request, customStrategies, defaultStrategy) {
+  const url = request.url;
+  for (const [pattern, strategy] of Object.entries(customStrategies)) {
+    if (url.includes(pattern)) return strategy;
+  }
+  return defaultStrategy;
 }
 
 self.addEventListener("fetch", (event) => {
@@ -346,9 +357,10 @@ self.addEventListener("install", (event) => {
     (async () => {
       const cache = await caches.open(CACHE_NAME);
       let downloaded = 0;
-      for (const url of ASSETS_TO_CACHE) {
+      for (const asset of ASSETS_TO_CACHE) {
         try {
-          await cache.add(url);
+          const request = new Request(asset.url, asset.options);
+          await cache.add(request);
           downloaded++;
           const percent = Math.round((downloaded / ASSETS_TO_CACHE.length) * 100);
           const clients = await self.clients.matchAll({ includeUncontrolled: true });
@@ -361,7 +373,7 @@ self.addEventListener("install", (event) => {
             });
           });
         } catch (err) {
-          console.error(\`Failed to cache \${url}:\`, err);
+          console.error(\`Failed to cache \${asset.url}:\`, err);
         }
       }
       if (AUTO_SKIP_WAITING) self.skipWaiting();
@@ -575,8 +587,8 @@ let ASSETS_TO_CACHE = [];
 
 // [[CACHE_NAME]]
 // [[ASSETS_LIST]]
+// [[AUTO_SKIP_WAITING]]
 
-const AUTO_SKIP_WAITING = false;
 const CACHE_NAME_RUNTIME = "swoff-runtime";
 
 // [[INSTALL_HANDLER]]

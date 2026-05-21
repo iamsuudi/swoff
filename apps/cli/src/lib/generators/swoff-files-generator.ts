@@ -111,21 +111,24 @@ function generateSwInjector(): void {
  * Framework-agnostic client registration with version checking.
  *
  * Usage:
- *   import { initServiceWorker } from './swoff/sw-injector.js';
+ *   import { initServiceWorker, shouldRegisterSW } from './swoff/sw-injector.js';
  *
- *   // Auto-register (default):
- *   initServiceWorker();
- *
- *   // Deferred registration:
- *   import { shouldRegisterSW, registerServiceWorker } from './swoff/sw-injector.js';
- *   // Override shouldRegisterSW to control when SW registers
+ *   // Call in your app entry point (e.g., main.tsx, app.js):
  *   if (shouldRegisterSW()) {
- *     registerServiceWorker(window.latestSWVersion);
+ *     initServiceWorker();
+ *   }
+ *
+ *   // Or defer until after onboarding:
+ *   function myShouldRegister() {
+ *     return localStorage.getItem('onboarding-complete') === 'true';
+ *   }
+ *   if (myShouldRegister()) {
+ *     initServiceWorker();
  *   }
  *
  * Window events:
- *   sw-version-detected  - Version info available
- *   sw-update-available  - New version ready (detail: { version })
+ *   sw-version-detected  - Version info available on window
+ *   sw-update-available  - New version ready for user consent (detail: { version })
  *   sw-progress          - Download progress (detail: { percent, downloaded, total })
  *   sw-ready             - SW active and controlling page
  *   sw-error             - SW registration failed
@@ -134,8 +137,8 @@ function generateSwInjector(): void {
  *   window.latestSWVersion       - Latest version from version.json
  *   window.currentSWVersion      - Active SW version
  *   window.swAvailableVersion    - Pending update version
- *   window.swUpdateRequired      - Forced update needed
- *   window.swMinSupportedVersion - Minimum supported version
+ *   window.swUpdateRequired      - Forced update needed (version < minSupportedVersion)
+ *   window.swMinSupportedVersion - Minimum supported version from version.json
  *   window.swReady               - SW is active
  *   window.swError               - Registration failed
  */
@@ -151,7 +154,7 @@ async function checkForUpdate() {
   return response.json();
 }
 
-export async function registerServiceWorker(version) {
+async function doRegisterServiceWorker(version) {
   const swUrl = \`/sw-v\${version}.js\`;
   const registration = await navigator.serviceWorker.register(swUrl);
   localStorage.setItem("swRegisteredVersion", version);
@@ -163,7 +166,18 @@ export async function registerServiceWorker(version) {
 }
 
 export function shouldRegisterSW() {
-  return AUTO_REGISTER;
+  if (!AUTO_REGISTER) return false;
+
+  // Add custom conditions here. Return false to prevent registration.
+  // Examples:
+  //   - Check if user completed onboarding
+  //   - Check if user accepted terms
+  //   - Check if user is on a slow connection
+  //
+  // if (!localStorage.getItem("onboarding-complete")) return false;
+  // if (navigator.connection?.effectiveType === "slow-2g") return false;
+
+  return true;
 }
 
 export async function initServiceWorker() {
@@ -191,10 +205,11 @@ export async function initServiceWorker() {
         currentVersion < (manifest.minSupportedVersion || "0.0.0");
 
       if (AUTO_UPDATE) {
-        await registerServiceWorker(manifest.version);
         const registration = await navigator.serviceWorker.getRegistration();
-        if (registration?.waiting) {
+        if (registration && registration.waiting) {
           registration.waiting.postMessage({ type: "SKIP_WAITING" });
+        } else {
+          await doRegisterServiceWorker(manifest.version);
         }
       } else {
         window.dispatchEvent(
@@ -204,7 +219,7 @@ export async function initServiceWorker() {
         );
       }
     } else {
-      await registerServiceWorker(manifest.version);
+      await doRegisterServiceWorker(manifest.version);
     }
   } catch (error) {
     console.error("Service Worker initialization failed:", error);
@@ -214,10 +229,19 @@ export async function initServiceWorker() {
 }
 
 export function handleUpdateApproved(newVersion) {
-  return registerServiceWorker(newVersion).then(() => {
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      window.location.reload();
-    });
+  return navigator.serviceWorker.getRegistration().then((registration) => {
+    if (registration && registration.waiting) {
+      registration.waiting.postMessage({ type: "SKIP_WAITING" });
+      registration.addEventListener("controllerchange", () => {
+        window.location.reload();
+      });
+    } else {
+      return doRegisterServiceWorker(newVersion).then(() => {
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          window.location.reload();
+        });
+      });
+    }
   });
 }
 
@@ -254,12 +278,6 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
     }
   });
-
-  if (AUTO_REGISTER) {
-    window.addEventListener("load", () => {
-      initServiceWorker();
-    });
-  }
 }
 `;
 

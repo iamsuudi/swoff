@@ -1,0 +1,231 @@
+---
+title: Invalidation Tags
+description: URL-based tag generation from REST endpoints for automatic cache invalidation.
+icon: Tags
+---
+
+**Prerequisites:** You have the [API Integration](/docs/patterns/api-integration) pattern set up with cache tagging. This helper automatically generates cache tags from URL paths.
+
+## How It Works
+
+The `invalidation-tags.js` helper parses REST API URLs and generates cache tags for invalidation:
+
+| URL | Generated Tags |
+|-----|---------------|
+| `/api/todos` | `["todos"]` |
+| `/api/todos/42` | `["todos", "todo:42"]` |
+| `/api/todos/42/comments` | `["todos", "todo:42", "comments"]` |
+| `/api/v1/users/123/posts` | `["users", "user:123", "posts"]` |
+| `/graphql` | `["root"]` |
+
+It automatically skips common API prefixes (`api`, `v1`, `v2`, `v3`, `rest`, `graphql`, `gql`).
+
+## Generate with CLI
+
+```bash
+npx @swoff/cli generate
+# Generates: swoff/invalidation-tags.js (when features.tagInvalidation is true)
+```
+
+## Usage
+
+```javascript
+import { generateTags, invalidateUrl } from './swoff/invalidation-tags.js';
+
+// Generate tags from URL
+const tags = generateTags("/api/todos");
+// → ["todos"]
+
+const resourceTags = generateTags("/api/todos/42");
+// → ["todos", "todo:42"]
+
+// Use with fetch wrapper
+const data = await fetchWithCache("/api/todos", {
+  tags: generateTags("/api/todos"),
+}).then(r => r.json());
+
+// Invalidate after mutation
+await invalidateUrl("/api/todos/42");
+// Invalidates: ["todos", "todo:42"]
+```
+
+## Manual Implementation
+
+If you're not using the CLI, here's the pattern:
+
+```javascript title="swoff/invalidation-tags.js"
+import { invalidateByTag, invalidateByTags } from "./cache.js";
+
+// Common API prefixes to skip
+const API_PREFIXES = ["api", "v1", "v2", "v3", "rest", "graphql", "gql"];
+
+/**
+ * Generate cache tags from a URL path.
+ * @param {string|URL} url - The URL to parse
+ * @returns {string[]} Array of cache tags
+ */
+export function generateTags(url) {
+  const parsed = typeof url === "string" ? new URL(url, window.location.origin) : url;
+  const segments = parsed.pathname.split("/").filter(Boolean);
+
+  if (segments.length === 0) return ["root"];
+
+  // Skip common API prefixes
+  let startIdx = 0;
+  while (startIdx < segments.length && API_PREFIXES.includes(segments[startIdx])) {
+    startIdx++;
+  }
+
+  const resourceSegments = segments.slice(startIdx);
+  if (resourceSegments.length === 0) return ["root"];
+
+  const tags = [];
+
+  // Collection tag: /api/todos → "todos"
+  tags.push(resourceSegments[0]);
+
+  // Resource tag: /api/todos/42 → "todo:42"
+  if (resourceSegments.length >= 2 && !isNaN(Number(resourceSegments[1]))) {
+    const collection = resourceSegments[0];
+    const id = resourceSegments[1];
+    const singular = collection.replace(/s$/, "");
+    tags.push(`${singular}:${id}`);
+  }
+
+  // Sub-resource tags: /api/todos/42/comments → "comments"
+  for (let i = 2; i < resourceSegments.length; i++) {
+    if (isNaN(Number(resourceSegments[i]))) {
+      tags.push(resourceSegments[i]);
+    }
+  }
+
+  return tags;
+}
+
+/**
+ * Generate tags with HTTP method prefix for mutations.
+ */
+export function generateTagsFromMethod(method, url) {
+  const tags = generateTags(url);
+
+  if (method === "GET" || method === "HEAD") {
+    return tags;
+  }
+
+  // For mutations, add method prefix
+  return tags.map((tag) => `${method.toLowerCase()}-${tag}`);
+}
+
+/**
+ * Invalidate cache for a URL by generating and invalidating its tags.
+ */
+export async function invalidateUrl(url) {
+  const tags = generateTags(url);
+  await invalidateByTags(tags);
+}
+
+/**
+ * Invalidate cache by HTTP method and URL.
+ */
+export async function invalidateByMethod(method, url) {
+  const tags = generateTagsFromMethod(method, url);
+  await invalidateByTags(tags);
+}
+```
+
+## REST API Patterns
+
+### Collection Operations
+
+```javascript
+import { generateTags, invalidateUrl } from './swoff/invalidation-tags.js';
+
+// GET collection
+const todos = await fetchWithCache("/api/todos", {
+  tags: generateTags("/api/todos"),
+}).then(r => r.json());
+
+// GET single item
+const todo = await fetchWithCache("/api/todos/42", {
+  tags: generateTags("/api/todos/42"),
+}).then(r => r.json());
+
+// POST create → invalidate collection
+await fetchWithCache("/api/todos", {
+  method: "POST",
+  body: JSON.stringify({ title: "New task" }),
+});
+await invalidateUrl("/api/todos");
+
+// PUT update → invalidate collection + resource
+await fetchWithCache("/api/todos/42", {
+  method: "PUT",
+  body: JSON.stringify({ title: "Updated" }),
+});
+await invalidateUrl("/api/todos/42");
+
+// DELETE → invalidate collection + resource
+await fetchWithCache("/api/todos/42", {
+  method: "DELETE",
+});
+await invalidateUrl("/api/todos/42");
+```
+
+### Nested Resources
+
+```javascript
+// GET sub-resource
+const comments = await fetchWithCache("/api/todos/42/comments", {
+  tags: generateTags("/api/todos/42/comments"),
+}).then(r => r.json());
+// → tags: ["todos", "todo:42", "comments"]
+
+// POST to sub-resource → invalidate parent + sub-resource
+await fetchWithCache("/api/todos/42/comments", {
+  method: "POST",
+  body: JSON.stringify({ text: "Great!" }),
+});
+await invalidateUrl("/api/todos/42/comments");
+// → invalidates: ["todos", "todo:42", "comments"]
+```
+
+## Versioned API Paths
+
+The helper automatically skips version prefixes:
+
+```javascript
+generateTags("/api/v1/users/123");
+// → ["users", "user:123"]
+
+generateTags("/v2/products/456/reviews");
+// → ["products", "product:456", "reviews"]
+
+generateTags("/api/v1/v2/items/789");
+// → ["items", "item:789"] (skips all prefixes)
+```
+
+## GraphQL
+
+For GraphQL, tags are typically based on operation names rather than URLs:
+
+```javascript
+function graphqlTags(query) {
+  const match = query.trim().match(/^(query|mutation)\s+(\w+)/);
+  return match ? [match[2]] : ["graphql"];
+}
+
+// Query → cached with tag
+const data = await fetchWithCache("/graphql", {
+  method: "POST",
+  headers: { "X-SW-Cache-Strategy": "read" },
+  tags: graphqlTags(`query todos { todos { id title } }`),
+  body: JSON.stringify({ query: `query todos { todos { id title } }` }),
+}).then(r => r.json());
+// → tags: ["todos"]
+```
+
+## Next Steps
+
+- See [API Integration](/docs/patterns/api-integration) — how cache tagging works with the SW
+- Learn about [Cache Invalidation](/docs/patterns/api-integration#cache-invalidation) — manual tag invalidation
+- Set up [Cross-Tab Sync](/docs/patterns/api-integration#cross-tab-sync) — keep all tabs in sync

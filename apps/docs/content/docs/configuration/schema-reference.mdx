@@ -15,14 +15,15 @@ Full schema at `https://swoff.netlify.app/schema/v1.json`.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | boolean | `true` | Enable config-driven generation |
-| `version` | string | `"from-package"` | SW version (or specific `"1.0.0"`) |
-| `minSupportedVersion` | string | `"0.0.0"` | Force update for older clients |
+| `version` | string | `"from-package"` | SW version. Use `"from-package"` to read from package.json, or specify semver like `"1.0.0"` |
+| `minSupportedVersion` | string | `"0.0.0"` | Force update for clients running older versions |
 
 ### serviceWorker
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `autoUpdate` | boolean | `false` | `true` = silent, `false` = show update prompt |
+| `autoRegister` | boolean | `true` | Automatically register SW on page load. Set `false` for deferred registration (e.g., after onboarding) |
+| `autoUpdate` | boolean | `false` | `true` = silent update (skipWaiting), `false` = dispatch `sw-update-available` event for user consent |
 | `defaultStrategy` | string | `"cache-first"` | Default caching strategy |
 | `strategies` | object | `{}` | Per-URL pattern strategies |
 | `maxCacheEntries` | integer | `100` | Max cached entries |
@@ -49,6 +50,14 @@ Full schema at `https://swoff.netlify.app/schema/v1.json`.
 | `auth` | boolean | `false` | Auth integration |
 | `crossTabSync` | boolean | `true` | Cross-tab cache invalidation |
 | `tagInvalidation` | boolean | `true` | Tag-based cache invalidation |
+| `clientRegistration` | boolean | `true` | Generate client-side SW registration code (`sw-injector`) |
+| `indexeddb` | boolean | `false` | Generate IndexedDB storage patterns |
+
+### pwa
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `preventDefaultInstall` | boolean | `false` | When `false`, browser shows native install prompt naturally while event is captured. When `true`, prompt is suppressed and dev must call `promptInstall()` manually |
 
 ### build
 
@@ -64,8 +73,53 @@ Full schema at `https://swoff.netlify.app/schema/v1.json`.
 | `name` | string | `"app-db"` | IndexedDB name |
 | `stores` | array | `[]` | Object store names |
 
+## Example Config
+
+```json
+{
+  "$schema": "https://swoff.netlify.app/schema/v1.json",
+  "enabled": true,
+  "version": "from-package",
+  "minSupportedVersion": "1.0.0",
+  "serviceWorker": {
+    "autoRegister": true,
+    "autoUpdate": false,
+    "defaultStrategy": "cache-first",
+    "strategies": {
+      "/api/*": "network-first",
+      "/static/*": "cache-first"
+    }
+  },
+  "features": {
+    "versionedSw": true,
+    "offlineReads": true,
+    "mutationQueue": false,
+    "backgroundSync": false,
+    "pwa": true,
+    "auth": false,
+    "crossTabSync": true,
+    "tagInvalidation": true,
+    "clientRegistration": true,
+    "indexeddb": false
+  },
+  "pwa": {
+    "preventDefaultInstall": false
+  },
+  "build": {
+    "outputDir": "dist",
+    "swFilename": "sw"
+  }
+}
+```
+
 ## Validation
 
 ```bash
 npx ajv validate -s https://swoff.netlify.app/schema/v1.json -d swoff.config.json
+```
+
+Or use the CLI:
+
+```bash
+npx @swoff/cli validate
 ```

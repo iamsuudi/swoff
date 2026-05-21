@@ -6,6 +6,7 @@
     "build-scripts",
     "client-registration",
     "api-integration",
+    "invalidation-tags",
     "pwa-installability",
     "indexeddb-patterns"
   ]

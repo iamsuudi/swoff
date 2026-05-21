@@ -10,7 +10,36 @@ icon: Download
 2. **Service Worker active** — Already set up via [SW Template](/docs/patterns/sw-template) → [Build Scripts](/docs/patterns/build-scripts) → [Client Registration](/docs/patterns/client-registration)
 3. **Web App Manifest** — Describes your app
 
-## Setup
+## Setup with CLI
+
+If you're using the CLI, the PWA install handler is generated automatically when `features.pwa` is `true`:
+
+```bash
+npx @swoff/cli generate
+# Generates: swoff/pwa-install.js, public/manifest.json
+```
+
+### Configuring Install Behavior
+
+Control whether the browser's native install prompt shows naturally or is suppressed:
+
+```json title="swoff.config.json"
+{
+  "features": {
+    "pwa": true
+  },
+  "pwa": {
+    "preventDefaultInstall": false
+  }
+}
+```
+
+| `preventDefaultInstall` | Behavior |
+|------------------------|----------|
+| `false` (default) | Browser shows native prompt naturally. Event is captured for manual triggering. |
+| `true` | Browser prompt is suppressed. Dev must call `promptInstall()` manually. |
+
+## Manual Setup
 
 ### 1. Create Manifest
 
@@ -51,7 +80,27 @@ async function promptInstall() {
 }
 ```
 
-### 4. Detect PWA Mode
+### 4. Using the Generated Handler
+
+If you generated `swoff/pwa-install.js` via the CLI:
+
+```javascript
+import { isInstallable, promptInstall } from './swoff/pwa-install.js';
+
+// Listen for installable event
+window.addEventListener('pwa-installable', (e) => {
+  console.log('PWA can be installed:', e.detail.isInstallable);
+  // Show your custom install button
+});
+
+// When user clicks install button
+async function onInstallClick() {
+  const result = await promptInstall();
+  console.log('User choice:', result);
+}
+```
+
+### 5. Detect PWA Mode
 
 ```typescript
 function isRunningAsPWA(): boolean {
@@ -62,7 +111,7 @@ function isRunningAsPWA(): boolean {
 }
 ```
 
-### 5. Generate Icons
+### 6. Generate Icons
 
 Create icons at 192x192 and 512x512 minimum.
 

@@ -285,6 +285,26 @@ const updated = await graphql(
 | `DELETE /api/todos/:id` | `["todos", "todo:{id}"]` |
 | `POST /api/todos/:id/comments` | `["todos", "todo:{id}", "comments"]` |
 
+### Using the Generated Helper
+
+If you generated `swoff/invalidation-tags.js` via the CLI (`features.tagInvalidation: true`):
+
+```javascript
+import { generateTags, invalidateUrl } from './swoff/invalidation-tags.js';
+
+// Generate tags automatically from URL
+const tags = generateTags("/api/todos/42");
+// → ["todos", "todo:42"]
+
+// Invalidate after mutation
+await invalidateUrl("/api/todos/42");
+// Invalidates: ["todos", "todo:42"]
+```
+
+See [Invalidation Tags](/docs/patterns/invalidation-tags) for the full reference.
+
+### Manual Helper
+
 A helper for tagging mutation-related cache invalidation:
 
 ```javascript
@@ -494,5 +514,6 @@ window.addEventListener("cache-invalidated", async (e) => {
 ## Next Steps
 
 - Set up [Client Registration](/docs/patterns/client-registration) — register the SW from your app
+- Generate tags automatically: [Invalidation Tags](/docs/patterns/invalidation-tags) — URL-based tag generation
 - Add [Mutation Queuing](/docs/advanced/mutation-queuing) — queue offline writes, then invalidate on sync
 - See [Data Layer](/docs/core/data-layer) — how reads, writes, and invalidation connect

@@ -1,6 +1,6 @@
 {
   "name": "@swoff/cli",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "type": "module",
   "description": "CLI for Swoff - Offline-first web apps made easy",
   "bin": {
@@ -9,6 +9,8 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prepublishOnly": "npm run build"
   },
   "engines": {
@@ -29,6 +31,7 @@
   "license": "MIT",
   "dependencies": {},
   "devDependencies": {
+    "@types/node": "^25.9.1",
     "typescript": "^5.0.0"
   }
 }

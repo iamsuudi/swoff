@@ -30,15 +30,15 @@ After installation, you can run the CLI directly:
 
 ```npm
 npx @swoff/cli init
-npx @swoff/cli generate
 npx @swoff/cli validate
+npx @swoff/cli generate
 ```
 
 ## Commands
 
 ### init
 
-Initialize Swoff in the current directory. Creates a basic `swoff.config.json` and generates initial files.
+Initialize Swoff in the current directory. Creates a `swoff.config.json` with sensible defaults and a `swoff/` directory.
 
 ```npm
 npx @swoff/cli init
@@ -70,8 +70,20 @@ npx @swoff/cli init --framework nextjs
 This command:
 
 1. Creates `swoff.config.json` with default configuration
-2. Creates directory structure (`src/hooks`, `src/components`, `src/utils`)
-3. Runs initial generation to create service worker and files
+2. Creates `swoff/` directory for generated files
+
+**Next steps after init:**
+
+```bash
+# 1. Review and customize config
+nano swoff.config.json
+
+# 2. Validate configuration
+npx @swoff/cli validate
+
+# 3. Generate all files
+npx @swoff/cli generate
+```
 
 ---
 
@@ -86,7 +98,7 @@ npx @swoff/cli generate
 **Options:**
 
 - `--sw-only` - Generate only the service worker
-- `--files-only` - Generate only supporting files (hooks, components, utilities)
+- `--files-only` - Generate only supporting files
 
 **Examples:**
 
@@ -101,11 +113,41 @@ npx @swoff/cli generate --sw-only
 npx @swoff/cli generate --files-only
 ```
 
+**Generated files:**
+
+| File                         | Feature Flag                        | Description                       |
+| ---------------------------- | ----------------------------------- | --------------------------------- |
+| `swoff/sw-template.js`       | always                              | SW template with placeholders     |
+| `swoff/sw-injector.js`       | `clientRegistration`                | Client-side SW registration       |
+| `swoff/fetch-wrapper.js`     | always                              | Fetch with cache strategy headers |
+| `swoff/cache.js`             | `tagInvalidation` or `crossTabSync` | Cache tag invalidation            |
+| `swoff/invalidation-tags.js` | `tagInvalidation`                   | URL-to-tag generation helper      |
+| `swoff/store.js`             | `mutationQueue`                     | IndexedDB CRUD operations         |
+| `swoff/reconcile.js`         | `mutationQueue`                     | ID reconciliation after sync      |
+| `swoff/mutation-queue.js`    | `mutationQueue`                     | Offline mutation queue            |
+| `swoff/background-sync.js`   | `backgroundSync`                    | Background Sync API wrapper       |
+| `swoff/indexeddb.js`         | `indexeddb`                         | DB setup with migrations          |
+| `swoff/pwa-install.js`       | `pwa`                               | PWA install prompt handler        |
+| `swoff/sw-generator.js`      | always                              | Build script for versioned SW     |
+| `swoff/swoff.d.ts`           | always (TS projects)                | TypeScript declarations           |
+| `public/manifest.json`       | `pwa`                               | Web app manifest                  |
+
+**After generation, integrate into your app:**
+
+```javascript
+// In your app entry point (e.g., main.tsx, app.js)
+import { initServiceWorker, shouldRegisterSW } from "./swoff/sw-injector.js";
+
+if (shouldRegisterSW()) {
+  initServiceWorker();
+}
+```
+
 ---
 
 ### validate
 
-Validate your `swoff.config.json` for syntax errors and required fields.
+Validate your `swoff.config.json` against the schema.
 
 ```bash
 npx @swoff/cli validate
@@ -113,10 +155,16 @@ npx @swoff/cli validate
 
 **What it checks:**
 
-- Required fields are present
-- JSON syntax is valid
-- Cache strategies are valid
-- Feature flags are properly set
+- Required fields are present (`enabled`, `version`, `serviceWorker`, `features`, `build`)
+- `serviceWorker.autoRegister` and `autoUpdate` are booleans
+- `defaultStrategy` is one of the 5 valid strategies
+- All feature flags are known and boolean
+- `version` is `"from-package"` or valid semver
+- `minSupportedVersion` is valid semver
+- `build.outputDir` and `swFilename` are strings
+- `pwa.preventDefaultInstall` is boolean
+- `database.name` matches pattern `^[a-zA-Z0-9-_]+$`
+- `database.stores` is an array of valid names
 
 **Example output:**
 
@@ -127,14 +175,14 @@ Validating swoff.config.json...
 Config summary:
   Version: from-package
   Default strategy: cache-first
-  Features enabled: versionedSw, offlineReads, pwa, crossTabSync, tagInvalidation
+  Features enabled: versionedSw, offlineReads, pwa, crossTabSync, tagInvalidation, clientRegistration
 ```
 
 ---
 
 ### add
 
-Add a specific feature to your configuration and generate related files.
+Add a specific feature to your configuration and regenerate files.
 
 ```bash
 npx @swoff/cli add <feature>
@@ -142,11 +190,16 @@ npx @swoff/cli add <feature>
 
 **Available Features:**
 
-- `offline` - Enable offline data handling
-- `mutation-queue` - Enable mutation queue for offline writes
-- `pwa` - Enable PWA components
-- `cross-tab` - Enable cross-tab synchronization
-- `auth` - Enable auth integration
+| Feature            | Flag Enabled      |
+| ------------------ | ----------------- |
+| `offline`          | `offlineReads`    |
+| `mutation-queue`   | `mutationQueue`   |
+| `pwa`              | `pwa`             |
+| `cross-tab`        | `crossTabSync`    |
+| `auth`             | `auth`            |
+| `tag-invalidation` | `tagInvalidation` |
+| `background-sync`  | `backgroundSync`  |
+| `indexeddb`        | `indexeddb`       |
 
 **Examples:**
 
@@ -160,9 +213,78 @@ npx @swoff/cli add mutation-queue
 # Add PWA components
 npx @swoff/cli add pwa
 
-# Add multiple features
-npx @swoff/cli add offline
-npx @swoff/cli add mutation-queue
+# Add tag-based cache invalidation
+npx @swoff/cli add tag-invalidation
+```
+
+---
+
+### info
+
+Display a summary of your current Swoff configuration and generated files.
+
+```bash
+npx @swoff/cli info
+```
+
+**Example output:**
+
+```
+Swoff Configuration Summary
+===========================
+Version: from-package
+SW Version: (from package.json)
+Default Strategy: cache-first
+Auto Register: true
+Auto Update: false
+
+Features Enabled:
+  versionedSw
+  offlineReads
+  pwa
+  crossTabSync
+  tagInvalidation
+  clientRegistration
+
+Generated Files:
+  swoff/sw-template.js
+  swoff/sw-injector.js
+  swoff/fetch-wrapper.js
+  swoff/cache.js
+  swoff/pwa-install.js
+  swoff/invalidation-tags.js
+  swoff/sw-generator.js
+  public/manifest.json
+
+Service Worker: dist/sw-v1.0.0.js
+Version Info: dist/version.json
+```
+
+---
+
+### clean
+
+Remove old versioned service worker files from the output directory, keeping only the current version.
+
+```bash
+npx @swoff/cli clean
+```
+
+**Behavior:**
+
+- Reads the current version from `dist/version.json`
+- Finds all files matching `sw-v*.js` pattern
+- Deletes files that don't match the current version
+- Reports what was deleted
+
+**Example output:**
+
+```
+Cleaning Old Service Worker Files
+=================================
+Deleted: dist/sw-v0.9.0.js
+Deleted: dist/sw-v0.8.0.js
+✅ Cleaned 2 old service worker file(s).
 ```
 
 ---
@@ -178,6 +300,7 @@ npx @swoff/cli help
 # Show specific command help
 npx @swoff/cli help init
 npx @swoff/cli help generate
+npx @swoff/cli help info
 ```
 
 ## Common Workflows
@@ -197,8 +320,8 @@ npx @swoff/cli validate
 # 4. Generate files
 npx @swoff/cli generate
 
-# 5. Add to your app
-# Import hooks and components into your React app
+# 5. Check what was generated
+npx @swoff/cli info
 ```
 
 ### Incremental Feature Addition
@@ -211,8 +334,9 @@ npx @swoff/cli init
 npx @swoff/cli add offline
 npx @swoff/cli add mutation-queue
 npx @swoff/cli add pwa
+npx @swoff/cli add tag-invalidation
 
-# Generate after each change
+# Generate after each change (or once at the end)
 npx @swoff/cli generate
 ```
 
@@ -227,16 +351,27 @@ npx @swoff/cli validate
 
 # Regenerate files
 npx @swoff/cli generate
+
+# Review what changed
+npx @swoff/cli info
+```
+
+### Cleanup Old SW Files
+
+```bash
+# After deploying a new version, clean up old SW files
+npx @swoff/cli clean
 ```
 
 ## Configuration File
 
 The CLI expects `swoff.config.json` in the current working directory. You can customize:
 
-- Service worker settings
-- Cache strategies
-- Feature toggles
-- Build output directory
+- Service worker settings (autoRegister, autoUpdate, strategies)
+- Feature toggles (offline, PWA, mutation queue, etc.)
+- Build output directory and filename
+- PWA install behavior
+- IndexedDB database name and stores
 
 See [Configuration Guide](/docs/configuration) for details.
 
@@ -275,6 +410,16 @@ Check that your config is valid and the directories exist:
 npx @swoff/cli validate && npx @swoff/cli generate
 ```
 
+### No files generated
+
+Check that `enabled` is `true` in your config:
+
+```json
+{
+  "enabled": true
+}
+```
+
 ## Script Integration
 
 Add Swoff commands to your `package.json`:
@@ -285,6 +430,8 @@ Add Swoff commands to your `package.json`:
     "swoff:init": "npx @swoff/cli init",
     "swoff:generate": "npx @swoff/cli generate",
     "swoff:validate": "npx @swoff/cli validate",
+    "swoff:info": "npx @swoff/cli info",
+    "swoff:clean": "npx @swoff/cli clean",
     "build": "npm run swoff:generate && your-build-command"
   }
 }
@@ -296,4 +443,6 @@ Now you can run:
 npm run swoff:init
 npm run swoff:generate
 npm run swoff:validate
+npm run swoff:info
+npm run swoff:clean
 ```

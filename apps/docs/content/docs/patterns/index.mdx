@@ -16,6 +16,7 @@ import {
   DownloadIcon,
   DatabaseIcon,
   WrenchIcon,
+  TagsIcon,
 } from "lucide-react";
 
 <Cards>
@@ -47,6 +48,13 @@ import {
     href="/docs/patterns/api-integration"
   >
     Coordinate client fetches with SW cache strategies, tags, and invalidation.
+  </Card>
+  <Card
+    title="Invalidation Tags"
+    icon={<TagsIcon className="text-emerald-500" />}
+    href="/docs/patterns/invalidation-tags"
+  >
+    URL-based tag generation from REST endpoints for automatic cache invalidation.
   </Card>
   <Card
     title="PWA Installability"
@@ -88,7 +96,7 @@ Framework Guides (/docs/guides/) ← Framework-specific setup & adapters
 
 ## Next Steps
 
-- Follow the patterns sequentially: [SW Template](/docs/patterns/sw-template) → [Build Scripts](/docs/patterns/build-scripts) → [Client Registration](/docs/patterns/client-registration) → [API Integration](/docs/patterns/api-integration) → [PWA Installability](/docs/patterns/pwa-installability)
+- Follow the patterns sequentially: [SW Template](/docs/patterns/sw-template) → [Build Scripts](/docs/patterns/build-scripts) → [Client Registration](/docs/patterns/client-registration) → [API Integration](/docs/patterns/api-integration) → [Invalidation Tags](/docs/patterns/invalidation-tags) → [PWA Installability](/docs/patterns/pwa-installability)
 - Add data storage with [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) (independent — use at any time)
 - Level up with [Advanced Patterns](/docs/advanced/) — testing, debugging, conflict resolution, auth, and more
 - Understand the bridge: [Integration](/docs/integration/)

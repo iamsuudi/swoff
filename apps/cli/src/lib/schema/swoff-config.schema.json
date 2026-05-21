@@ -17,9 +17,12 @@
     },
     "version": {
       "type": "string",
-      "description": "Service Worker version source. Use 'from-package' to read from package.json, or specify a semver string like '1.0.0'",
+      "description": "Service Worker version. Use 'from-package' to read from package.json, or specify semver like '1.0.0'",
       "default": "from-package",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+      "oneOf": [
+        { "const": "from-package" },
+        { "pattern": "^\\d+\\.\\d+\\.\\d+$" }
+      ]
     },
     "minSupportedVersion": {
       "type": "string",
@@ -137,6 +140,18 @@
         }
       },
       "required": ["versionedSw", "offlineReads", "mutationQueue", "backgroundSync", "pwa", "auth", "crossTabSync", "tagInvalidation", "clientRegistration", "indexeddb"]
+    },
+    "pwa": {
+      "type": "object",
+      "description": "PWA installability configuration",
+      "properties": {
+        "preventDefaultInstall": {
+          "type": "boolean",
+          "description": "Prevent browser's native install prompt. When false, browser prompt shows naturally while event is captured. When true, prompt is suppressed and dev must call promptInstall() manually.",
+          "default": false
+        }
+      },
+      "required": ["preventDefaultInstall"]
     },
     "database": {
       "type": "object",

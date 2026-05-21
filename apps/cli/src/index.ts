@@ -80,6 +80,16 @@ const commands: Record<string, CommandDef> = {
     usage: "swoff add <feature>",
     examples: ["swoff add offline", "swoff add pwa", "swoff add mutation-queue"],
   },
+  info: {
+    description: "Show Swoff configuration summary",
+    usage: "swoff info",
+    examples: ["swoff info"],
+  },
+  clean: {
+    description: "Remove old versioned service worker files",
+    usage: "swoff clean",
+    examples: ["swoff clean"],
+  },
   help: {
     description: "Show help information",
     usage: "swoff help [command]",
@@ -131,6 +141,7 @@ async function initCommand(framework?: string) {
       strategies: Record<string, string>;
     };
     features: Record<string, boolean>;
+    pwa: { preventDefaultInstall: boolean };
     build: { outputDir: string; swFilename: string };
   } = {
     $schema: "https://swoff.netlify.app/schema/v1.json",
@@ -157,6 +168,9 @@ async function initCommand(framework?: string) {
       tagInvalidation: true,
       clientRegistration: true,
       indexeddb: false,
+    },
+    pwa: {
+      preventDefaultInstall: false,
     },
     build: {
       outputDir: "dist",
@@ -403,6 +417,13 @@ async function validateCommand() {
     }
   }
 
+  if (config!.pwa) {
+    const pwa = config!.pwa as Record<string, unknown>;
+    if (pwa.preventDefaultInstall !== undefined && typeof pwa.preventDefaultInstall !== "boolean") {
+      errors.push(`pwa.preventDefaultInstall must be a boolean`);
+    }
+  }
+
   if (config!.database) {
     const db = config!.database as Record<string, unknown>;
     if (db.name && typeof db.name !== "string") {
@@ -510,6 +531,9 @@ async function addCommand(feature: string) {
         clientRegistration: true,
         indexeddb: false,
       },
+      pwa: {
+        preventDefaultInstall: false,
+      },
       build: {
         outputDir: "dist",
         swFilename: "sw",
@@ -554,6 +578,130 @@ function detectProjectLanguage(): "ts" | "js" {
   return "js";
 }
 
+async function infoCommand() {
+  log.header("Swoff Configuration Summary");
+
+  const configFiles = ["swoff.config.json", "swoff.config.js"];
+  let config: Record<string, unknown> | null = null;
+
+  for (const file of configFiles) {
+    const path = join(projectRoot, file);
+    if (existsSync(path)) {
+      if (file.endsWith(".json")) {
+        config = JSON.parse(readFileSync(path, "utf8"));
+      }
+      break;
+    }
+  }
+
+  if (!config) {
+    log.warn('No swoff.config.json found. Run "swoff init" first.');
+    return;
+  }
+
+  const sw = config.serviceWorker as Record<string, unknown>;
+  const features = config.features as Record<string, unknown>;
+  const build = config.build as Record<string, unknown>;
+
+  log.info(`Version: ${config.version as string}`);
+  log.info(`SW Version: ${config.version === "from-package" ? "(from package.json)" : config.version}`);
+  log.info(`Default Strategy: ${sw.defaultStrategy as string}`);
+  log.info(`Auto Register: ${sw.autoRegister}`);
+  log.info(`Auto Update: ${sw.autoUpdate}`);
+
+  const enabledFeatures = Object.entries(features)
+    .filter(([_, v]) => v)
+    .map(([k]) => k);
+  log.info(`\nFeatures Enabled:`);
+  enabledFeatures.forEach((f) => log.help(`  ${f}`));
+
+  log.info(`\nGenerated Files:`);
+  const swoffDir = join(projectRoot, "swoff");
+  if (existsSync(swoffDir)) {
+    const files = readdirSync(swoffDir);
+    files.forEach((f) => log.help(`  swoff/${f}`));
+  }
+
+  const manifestPath = join(projectRoot, "public", "manifest.json");
+  if (existsSync(manifestPath)) {
+    log.help("  public/manifest.json");
+  }
+
+  const outputDir = (build.outputDir as string) || "dist";
+  const swFilename = (build.swFilename as string) || "sw";
+  const versionPath = join(projectRoot, outputDir, "version.json");
+  if (existsSync(versionPath)) {
+    const versionInfo = JSON.parse(readFileSync(versionPath, "utf8"));
+    log.info(`\nService Worker: ${outputDir}/${swFilename}-v${versionInfo.version}.js`);
+    log.info(`Version Info: ${outputDir}/version.json`);
+  }
+}
+
+async function cleanCommand() {
+  log.header("Cleaning Old Service Worker Files");
+
+  const configFiles = ["swoff.config.json", "swoff.config.js"];
+  let config: Record<string, unknown> | null = null;
+
+  for (const file of configFiles) {
+    const path = join(projectRoot, file);
+    if (existsSync(path)) {
+      if (file.endsWith(".json")) {
+        config = JSON.parse(readFileSync(path, "utf8"));
+      }
+      break;
+    }
+  }
+
+  if (!config) {
+    log.warn('No swoff.config.json found. Run "swoff init" first.');
+    return;
+  }
+
+  const build = config.build as Record<string, unknown>;
+  const outputDir = (build.outputDir as string) || "dist";
+  const swFilename = (build.swFilename as string) || "sw";
+
+  const distPath = join(projectRoot, outputDir);
+  if (!existsSync(distPath)) {
+    log.info(`No ${outputDir}/ directory found. Nothing to clean.`);
+    return;
+  }
+
+  const currentVersionPath = join(distPath, "version.json");
+  let currentVersion: string | null = null;
+  if (existsSync(currentVersionPath)) {
+    const versionInfo = JSON.parse(readFileSync(currentVersionPath, "utf8"));
+    currentVersion = versionInfo.version;
+  }
+
+  const files = readdirSync(distPath);
+  const swPattern = new RegExp(`^${swFilename}-v\\d+\\.\\d+\\.\\d+\\.js$`);
+  const swFiles = files.filter((f) => swPattern.test(f));
+
+  if (swFiles.length === 0) {
+    log.info("No versioned service worker files found.");
+    return;
+  }
+
+  let deleted = 0;
+  for (const file of swFiles) {
+    const versionMatch = file.match(/v(\d+\.\d+\.\d+)\.js$/);
+    if (versionMatch && versionMatch[1] !== currentVersion) {
+      const filePath = join(distPath, file);
+      import("fs").then((fs) => fs.unlinkSync(filePath));
+      log.info(`Deleted: ${outputDir}/${file}`);
+      deleted++;
+    }
+  }
+
+  if (deleted === 0) {
+    log.info("No old service worker files to clean.");
+  } else {
+    log.success(`Cleaned ${deleted} old service worker file(s).`);
+  }
+}
+
 async function main() {
   if (command === "--version" || command === "-v") {
     console.log(cliVersion);
@@ -596,6 +744,12 @@ async function main() {
     case "--help":
     case "-h":
       showHelp(options[0]);
+      break;
+    case "info":
+      await infoCommand();
+      break;
+    case "clean":
+      await cleanCommand();
       break;
     default:
       log.error(`Unknown command: ${command}`);

@@ -34,6 +34,9 @@ interface SwoffConfig {
     clientRegistration: boolean;
     indexeddb: boolean;
   };
+  pwa: {
+    preventDefaultInstall: boolean;
+  };
   database: {
     name: string;
     stores: string[];
@@ -77,6 +80,9 @@ const defaultConfig: SwoffConfig = {
     tagInvalidation: true,
     clientRegistration: true,
     indexeddb: false,
+  },
+  pwa: {
+    preventDefaultInstall: false,
   },
   build: {
     outputDir: "dist",
@@ -1216,6 +1222,191 @@ function generateManifest(): void {
   generatedFiles.push("public/manifest.json");
 }
 
+function generatePwaInstall(): void {
+  ensureSwoffDir();
+
+  const preventDefault = config.pwa?.preventDefaultInstall ?? false;
+
+  const code = `/**
+ * Swoff PWA Install Prompt Handler
+ * Captures beforeinstallprompt event and provides manual install trigger.
+ *
+ * Usage:
+ *   import { isInstallable, promptInstall } from './swoff/pwa-install.js';
+ *
+ *   // Listen for installable event
+ *   window.addEventListener('pwa-installable', (e) => {
+ *     console.log('PWA can be installed:', e.detail.isInstallable);
+ *     // Show your custom install button
+ *   });
+ *
+ *   // When user clicks install button
+ *   async function onInstallClick() {
+ *     const result = await promptInstall();
+ *     console.log('User choice:', result);
+ *   }
+ *
+ * Window events:
+ *   pwa-installable  - PWA can be installed (detail: { isInstallable: true })
+ *   pwa-installed    - User accepted install (detail: { outcome: 'accepted' })
+ *   pwa-dismissed    - User dismissed install (detail: { outcome: 'dismissed' })
+ *
+ * Window properties:
+ *   window.deferredInstallPrompt - The captured BeforeInstallPromptEvent
+ *   window.pwaInstallable        - Whether PWA can be installed
+ */
+
+const PREVENT_DEFAULT_INSTALL = ${preventDefault};
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  // Always capture the event so we never lose it
+  window.deferredInstallPrompt = e;
+  window.pwaInstallable = true;
+
+  if (PREVENT_DEFAULT_INSTALL) {
+    // Suppress browser's native prompt
+    e.preventDefault();
+  }
+  // When false, browser shows native prompt naturally
+  // but we still capture the event for manual triggering
+
+  window.dispatchEvent(
+    new CustomEvent("pwa-installable", {
+      detail: { isInstallable: true },
+    })
+  );
+});
+
+window.addEventListener("appinstalled", () => {
+  window.deferredInstallPrompt = null;
+  window.pwaInstallable = false;
+
+  window.dispatchEvent(
+    new CustomEvent("pwa-installed", {
+      detail: { outcome: "accepted" },
+    })
+  );
+});
+
+export function isInstallable() {
+  return !!window.deferredInstallPrompt;
+}
+
+export async function promptInstall() {
+  if (!window.deferredInstallPrompt) {
+    throw new Error("Install prompt not available");
+  }
+
+  const promptEvent = window.deferredInstallPrompt;
+  await promptEvent.prompt();
+
+  const choice = await promptEvent.userChoice;
+
+  if (choice.outcome === "accepted") {
+    window.dispatchEvent(
+      new CustomEvent("pwa-installed", {
+        detail: { outcome: "accepted" },
+      })
+    );
+  } else {
+    window.dispatchEvent(
+      new CustomEvent("pwa-dismissed", {
+        detail: { outcome: "dismissed" },
+      })
+    );
+  }
+
+  window.deferredInstallPrompt = null;
+  return choice;
+}
+`;
+
+  writeFileSync(join(swoffDir, "pwa-install.js"), code);
+  generatedFiles.push("swoff/pwa-install.js");
+}
+
+function generateInvalidationTags(): void {
+  ensureSwoffDir();
+
+  const code = `/**
+ * Swoff Invalidation Tags Helper
+ * URL-based tag generation from REST endpoints for automatic cache invalidation.
+ *
+ * Usage:
+ *   import { generateTags, invalidateUrl } from './swoff/invalidation-tags.js';
+ *
+ *   // Generate tags from URL
+ *   generateTags("/api/todos");          // ["todos"]
+ *   generateTags("/api/todos/42");       // ["todos", "todo:42"]
+ *   generateTags("/api/todos/42/comments"); // ["todos", "todo:42", "comments"]
+ *
+ *   // Use with fetch wrapper
+ *   const data = await fetchWithCache("/api/todos", {
+ *     tags: generateTags("/api/todos"),
+ *   });
+ *
+ *   // Invalidate after mutation
+ *   await invalidateUrl("/api/todos/42");
+ */
+
+import { invalidateByTag, invalidateByTags } from "./cache.js";
+
+export function generateTags(url) {
+  const parsed = typeof url === "string" ? new URL(url, window.location.origin) : url;
+  const segments = parsed.pathname.split("/").filter(Boolean);
+
+  if (segments.length === 0) return ["root"];
+
+  const tags = [];
+
+  // Collection tag: /api/todos -> "todos"
+  tags.push(segments[0]);
+
+  // Resource tag: /api/todos/42 -> "todo:42"
+  if (segments.length >= 2 && isNaN(Number(segments[1]))) {
+    // /api/todos/42 -> singularize + id
+    const collection = segments[0];
+    const id = segments[1];
+    const singular = collection.replace(/s$/, "");
+    tags.push(\`\${singular}:\${id}\`);
+  }
+
+  // Sub-resource tags: /api/todos/42/comments -> "comments"
+  for (let i = 2; i < segments.length; i++) {
+    if (isNaN(Number(segments[i]))) {
+      tags.push(segments[i]);
+    }
+  }
+
+  return tags;
+}
+
+export function generateTagsFromMethod(method, url) {
+  const tags = generateTags(url);
+
+  if (method === "GET" || method === "HEAD") {
+    return tags;
+  }
+
+  // For mutations, add method prefix
+  return tags.map((tag) => \`\${method.toLowerCase()}-\${tag}\`);
+}
+
+export async function invalidateUrl(url) {
+  const tags = generateTags(url);
+  await invalidateByTags(tags);
+}
+
+export async function invalidateByMethod(method, url) {
+  const tags = generateTagsFromMethod(method, url);
+  await invalidateByTags(tags);
+}
+`;
+
+  writeFileSync(join(swoffDir, "invalidation-tags.js"), code);
+  generatedFiles.push("swoff/invalidation-tags.js");
+}
+
 console.log("Generating Swoff files...");
 console.log(`Language: ${language}`);
 console.log(`Project: ${projectRoot}`);
@@ -1270,8 +1461,15 @@ generateTypeDefinitions();
 console.log("  swoff.d.ts");
 
 if (config.features.pwa) {
+  generatePwaInstall();
+  console.log("  pwa-install");
   generateManifest();
   console.log("  manifest.json");
+}
+
+if (config.features.tagInvalidation) {
+  generateInvalidationTags();
+  console.log("  invalidation-tags");
 }
 
 console.log("\nGenerated files:");

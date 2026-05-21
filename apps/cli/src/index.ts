@@ -20,6 +20,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageDir = join(__dirname, "..");
 const projectRoot = process.cwd();
 
+const cliVersion = (() => {
+  try {
+    const pkg = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8"));
+    return pkg.version || "unknown";
+  } catch {
+    return "unknown";
+  }
+})();
+
 const colors = {
   reset: "\x1b[0m",
   bright: "\x1b[1m",
@@ -175,7 +184,7 @@ async function initCommand(framework?: string) {
   writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
   log.success(`Created swoff.config.json`);
 
-  const dirs = ["src/hooks", "src/components", "src/utils", "swoff"];
+  const dirs = ["swoff"];
   for (const dir of dirs) {
     const dirPath = join(projectRoot, dir);
     if (!existsSync(dirPath)) {
@@ -394,6 +403,30 @@ async function validateCommand() {
     }
   }
 
+  if (config!.database) {
+    const db = config!.database as Record<string, unknown>;
+    if (db.name && typeof db.name !== "string") {
+      errors.push(`database.name must be a string`);
+    }
+    if (db.name && typeof db.name === "string" && !/^[a-zA-Z0-9-_]+$/.test(db.name as string)) {
+      errors.push(`database.name "${db.name}" must match pattern ^[a-zA-Z0-9-_]+$`);
+    }
+    if (db.stores && !Array.isArray(db.stores)) {
+      errors.push(`database.stores must be an array`);
+    }
+    if (db.stores && Array.isArray(db.stores)) {
+      for (const store of db.stores as string[]) {
+        if (typeof store !== "string") {
+          errors.push(`database.stores must contain only strings`);
+          break;
+        }
+        if (!/^[a-zA-Z0-9-_]+$/.test(store)) {
+          errors.push(`database.store "${store}" must match pattern ^[a-zA-Z0-9-_]+$`);
+        }
+      }
+    }
+  }
+
   if (errors.length > 0) {
     log.error(`Validation failed with ${errors.length} error(s):`);
     errors.forEach((e) => log.help(`  - ${e}`));
@@ -522,6 +555,11 @@ function detectProjectLanguage(): "ts" | "js" {
 }
 
 async function main() {
+  if (command === "--version" || command === "-v") {
+    console.log(cliVersion);
+    process.exit(0);
+  }
+
   if (!command) {
     showHelp();
     process.exit(0);

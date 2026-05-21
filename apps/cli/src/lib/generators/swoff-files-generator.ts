@@ -34,6 +34,10 @@ interface SwoffConfig {
     clientRegistration: boolean;
     indexeddb: boolean;
   };
+  database: {
+    name: string;
+    stores: string[];
+  };
   build: {
     outputDir: string;
     swFilename: string;
@@ -77,6 +81,10 @@ const defaultConfig: SwoffConfig = {
   build: {
     outputDir: "dist",
     swFilename: "sw",
+  },
+  database: {
+    name: "app-db",
+    stores: [],
   },
 };
 
@@ -709,43 +717,405 @@ function generateSwGeneratorBuildScript(): void {
   ensureSwoffDir();
 
   const code = `#!/usr/bin/env node
+/**
+ * Swoff SW Generator Build Script
+ * Reads swoff/sw-template.js and generates versioned SW output.
+ *
+ * Add to package.json:
+ *   "build": "your-build && node swoff/sw-generator.js"
+ */
 
-import { spawn } from 'child_process';
-import { existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
 
-const SWOFF_CONFIG = 'swoff.config.json';
+const pkgPath = join(projectRoot, 'package.json');
+const templatePath = join(__dirname, 'sw-template.js');
+const configPath = join(projectRoot, 'swoff.config.json');
 
-if (!existsSync(join(projectRoot, SWOFF_CONFIG))) {
+if (!existsSync(configPath)) {
   console.error('Error: swoff.config.json not found');
   console.log('Run "npx @swoff/cli init" to create one');
   process.exit(1);
 }
 
-console.log('Building service worker...');
+if (!existsSync(templatePath)) {
+  console.error('Error: swoff/sw-template.js not found');
+  process.exit(1);
+}
 
-const proc = spawn(
-  'npx',
-  ['@swoff/cli', 'generate', '--sw-only'],
-  { stdio: 'inherit', shell: true, cwd: projectRoot }
-);
+const pkg = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) : { version: '1.0.0' };
+const config = JSON.parse(readFileSync(configPath, 'utf8'));
+const template = readFileSync(templatePath, 'utf8');
 
-proc.on('close', (code) => {
-  if (code === 0) {
-    console.log('Service worker build complete');
-  } else {
-    console.error('Build failed');
-    process.exit(code || 1);
-  }
-});
+const version = config.version === 'from-package' ? pkg.version || '1.0.0' : config.version;
+const outputDir = config.build?.outputDir || 'dist';
+const swFilename = config.build?.swFilename || 'sw';
+
+let sw = template;
+sw = sw.replace('// [[CACHE_NAME]]', \`CACHE_NAME = 'sw-v\${version}'\`);
+
+const baseAssets = ['/', '/index.html'];
+const pwaAssets = config.features?.pwa ? ['/manifest.json'] : [];
+const assetsToCache = [...baseAssets, ...pwaAssets];
+sw = sw.replace('// [[ASSETS_LIST]]', \`ASSETS_TO_CACHE = \${JSON.stringify(assetsToCache.map(url => ({ url, options: {} })), null, 2)}\`);
+sw = sw.replace('// [[AUTO_SKIP_WAITING]]', \`const AUTO_SKIP_WAITING = \${config.serviceWorker?.autoUpdate || false};\`);
+
+const outDir = join(projectRoot, outputDir);
+if (!existsSync(outDir)) {
+  import('fs').then(fs => fs.mkdirSync(outDir, { recursive: true }));
+}
+
+writeFileSync(join(projectRoot, outputDir, \`\${swFilename}-v\${version}.js\`), sw);
+writeFileSync(join(projectRoot, outputDir, 'version.json'), JSON.stringify({
+  version,
+  minSupportedVersion: config.minSupportedVersion || '0.0.0',
+  generatedAt: new Date().toISOString(),
+}, null, 2));
+
+console.log(\`Service worker built: \${outputDir}/\${swFilename}-v\${version}.js\`);
 `;
 
   writeFileSync(join(swoffDir, "sw-generator.js"), code);
   generatedFiles.push("swoff/sw-generator.js");
+}
+
+function generateSwTemplate(): void {
+  ensureSwoffDir();
+
+  const code = `/**
+ * Swoff Service Worker Template
+ *
+ * This file is processed by swoff/sw-generator.js to create
+ * a versioned service worker. Placeholders are replaced during build.
+ *
+ * Placeholders:
+ *   // [[CACHE_NAME]]       - Replaced with versioned cache name
+ *   // [[ASSETS_LIST]]      - Replaced with assets to cache
+ *   // [[AUTO_SKIP_WAITING]] - Replaced with autoUpdate config
+ *
+ * You can customize this template before running the build script.
+ */
+
+let CACHE_NAME = "";
+let ASSETS_TO_CACHE = [];
+
+// [[CACHE_NAME]]
+// [[ASSETS_LIST]]
+// [[AUTO_SKIP_WAITING]]
+
+const CACHE_NAME_RUNTIME = "swoff-runtime";
+
+// Install - download assets with progress tracking
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      let downloaded = 0;
+      for (const asset of ASSETS_TO_CACHE) {
+        try {
+          const request = new Request(asset.url, asset.options);
+          await cache.add(request);
+          downloaded++;
+          const percent = Math.round((downloaded / ASSETS_TO_CACHE.length) * 100);
+          const clients = await self.clients.matchAll({ includeUncontrolled: true });
+          clients.forEach((client) => {
+            client.postMessage({
+              type: "SW_PROGRESS",
+              percent,
+              downloaded,
+              total: ASSETS_TO_CACHE.length,
+            });
+          });
+        } catch (err) {
+          console.error(\`Failed to cache \${asset.url}:\`, err);
+        }
+      }
+      if (AUTO_SKIP_WAITING) self.skipWaiting();
+    })(),
+  );
+});
+
+// Activate - clean old caches
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.filter((key) => key !== CACHE_NAME && key !== CACHE_NAME_RUNTIME).map((key) => caches.delete(key))
+      )
+    )
+  );
+});
+
+// Message - skip waiting and cache invalidation
+self.addEventListener("message", (event) => {
+  if (event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
+// Fetch - cache strategies
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET" && event.request.method !== "HEAD") return;
+
+  event.respondWith(
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
+      const url = new URL(event.request.url);
+
+      const byPath = await cache.match(url.pathname);
+      if (byPath) return byPath;
+
+      const byRequest = await runtimeCache.match(event.request);
+      if (byRequest) return byRequest;
+
+      if (event.request.mode === "navigate") {
+        const spa = await cache.match("/index.html");
+        if (spa) return spa;
+      }
+
+      try {
+        const response = await fetch(event.request);
+        if (response.ok) {
+          await runtimeCache.put(event.request, response.clone());
+        }
+        return response;
+      } catch {
+        return new Response("Offline: content not available", { status: 503 });
+      }
+    })(),
+  );
+});
+
+const SWOFF = {
+  cache: {
+    async get(key) {
+      const cache = await caches.open(CACHE_NAME);
+      return cache.match(key);
+    },
+    async put(request, response) {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, response);
+    },
+    async delete(request) {
+      const cache = await caches.open(CACHE_NAME);
+      return cache.delete(request);
+    }
+  }
+};
+
+if (typeof self !== 'undefined') {
+  self.SWOFF = SWOFF;
+}
+`;
+
+  writeFileSync(join(swoffDir, "sw-template.js"), code);
+  generatedFiles.push("swoff/sw-template.js");
+}
+
+function generateStore(): void {
+  ensureSwoffDir();
+
+  const dbName = config.database?.name || "app-db";
+
+  const code = `/**
+ * Swoff IndexedDB Store
+ * Generic CRUD operations for app's IndexedDB database.
+ *
+ * Usage:
+ *   import { getRecord, putRecord, deleteRecord, openAppDB } from './swoff/store.js';
+ *
+ *   const record = await getRecord('todos', 'todo-123');
+ *   await putRecord('todos', { id: 'todo-123', title: 'New task', $synced: false });
+ *   await deleteRecord('todos', 'todo-123');
+ */
+
+const DB_NAME = "${dbName}";
+
+export function openAppDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME);
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+export async function getRecord(storeName, id) {
+  const db = await openAppDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, "readonly");
+    const store = tx.objectStore(storeName);
+    const request = store.get(id);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function putRecord(storeName, record) {
+  const db = await openAppDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, "readwrite");
+    const store = tx.objectStore(storeName);
+    const request = store.put(record);
+    tx.oncomplete = () => resolve(request.result);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function deleteRecord(storeName, id) {
+  const db = await openAppDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, "readwrite");
+    const store = tx.objectStore(storeName);
+    const request = store.delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function getAllRecords(storeName) {
+  const db = await openAppDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, "readonly");
+    const store = tx.objectStore(storeName);
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+`;
+
+  writeFileSync(join(swoffDir, "store.js"), code);
+  generatedFiles.push("swoff/store.js");
+}
+
+function generateReconcile(): void {
+  ensureSwoffDir();
+
+  const code = `/**
+ * Swoff ID Reconciliation
+ * Update local records with server data after mutation sync.
+ *
+ * Usage:
+ *   import { reconcileRecord } from './swoff/reconcile.js';
+ *
+ *   await reconcileRecord('todos', 'temp_abc123', serverData);
+ */
+
+import { getRecord, putRecord, deleteRecord } from './store.js';
+
+export async function reconcileRecord(storeName, tempId, serverData) {
+  const existing = await getRecord(storeName, tempId);
+  if (!existing) return;
+
+  const reconciled = {
+    ...existing,
+    ...serverData,
+    id: serverData.id,
+    $synced: true,
+    $syncedAt: Date.now(),
+  };
+
+  await putRecord(storeName, reconciled);
+
+  if (String(tempId) !== String(serverData.id)) {
+    await deleteRecord(storeName, tempId);
+  }
+
+  await reconcileReferences(storeName, tempId, serverData.id);
+}
+
+export async function reconcileReferences(storeName, oldId, newId) {
+  // Override this for your app's schema.
+  // Example: update foreign-key references in related stores.
+  //
+  // const txns = await getAllRecords('transactions');
+  // for (const txn of txns) {
+  //   if (txn.todoId === oldId) {
+  //     txn.todoId = newId;
+  //     await putRecord('transactions', txn);
+  //   }
+  // }
+}
+`;
+
+  writeFileSync(join(swoffDir, "reconcile.js"), code);
+  generatedFiles.push("swoff/reconcile.js");
+}
+
+function generateIndexedDB(): void {
+  ensureSwoffDir();
+
+  const dbName = config.database?.name || "app-db";
+  const stores = config.database?.stores || [];
+
+  const code = `/**
+ * Swoff IndexedDB Setup
+ * Database initialization with schema migrations.
+ *
+ * Usage:
+ *   import { openDB } from './swoff/indexeddb.js';
+ *
+ *   const db = await openDB();
+ */
+
+const DB_NAME = "${dbName}";
+const DB_VERSION = 1;
+
+export function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      const oldVersion = e.oldVersion;
+
+${stores.length > 0 ? stores.map((store: string, i: number) => `      if (oldVersion < ${i + 1}) {
+        db.createObjectStore("${store}", { keyPath: "id" });
+      }`).join("\n\n") : `      // Create your object stores here:
+      // if (oldVersion < 1) {
+      //   const todos = db.createObjectStore("todos", { keyPath: "id" });
+      //   todos.createIndex("by-date", "date");
+      // }`}
+    };
+
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+export async function requestPersistentStorage() {
+  if (!navigator.storage?.persist) return false;
+
+  const isPersisted = await navigator.storage.persisted();
+  if (isPersisted) return true;
+
+  try {
+    return await navigator.storage.persist();
+  } catch {
+    return false;
+  }
+}
+
+export async function monitorStorage() {
+  const estimate = await navigator.storage.estimate();
+  const ratio = estimate.usage / estimate.quota;
+
+  return {
+    usage: estimate.usage,
+    quota: estimate.quota,
+    ratio,
+    status: ratio >= 0.95 ? "critical" : ratio >= 0.8 ? "warning" : "ok",
+  };
+}
+`;
+
+  writeFileSync(join(swoffDir, "indexeddb.js"), code);
+  generatedFiles.push("swoff/indexeddb.js");
 }
 
 function generateTypeDefinitions(): void {
@@ -769,6 +1139,44 @@ declare global {
     swReady?: boolean;
     swError?: boolean;
   }
+}
+
+export interface SWOFFCache {
+  get(key: Request | string): Promise<Response | undefined>;
+  put(request: Request | string, response: Response): Promise<void>;
+  delete(request: Request | string): Promise<boolean>;
+}
+
+export interface SWOFF {
+  cache: SWOFFCache;
+  network: {
+    fetch(request: Request | string, options?: RequestInit): Promise<Response>;
+  };
+}
+
+export interface FetchWithCacheOptions extends RequestInit {
+  strategy?: "read" | "mutation";
+  tags?: string[];
+  staleWhileRevalidate?: boolean;
+}
+
+export interface MutationQueueItem {
+  id: string;
+  method: string;
+  url: string;
+  body: unknown;
+  headers: Record<string, string>;
+  previousData: unknown | null;
+  timestamp: number;
+  retryCount: number;
+  tags: string[];
+  storeName: string | null;
+  tempId: string | null;
+}
+
+export interface MutationQueueResult {
+  succeeded: number;
+  failed: number;
 }
 
 export {};
@@ -820,6 +1228,9 @@ if (!config.enabled) {
 
 console.log("Generating pattern files...");
 
+generateSwTemplate();
+console.log("  sw-template");
+
 if (config.features.clientRegistration) {
   generateSwInjector();
   console.log("  sw-injector");
@@ -834,6 +1245,10 @@ if (config.features.tagInvalidation || config.features.crossTabSync) {
 }
 
 if (config.features.mutationQueue) {
+  generateStore();
+  console.log("  store");
+  generateReconcile();
+  console.log("  reconcile");
   generateMutationQueue();
   console.log("  mutation-queue");
 }
@@ -841,6 +1256,11 @@ if (config.features.mutationQueue) {
 if (config.features.backgroundSync) {
   generateBackgroundSync();
   console.log("  background-sync");
+}
+
+if (config.features.indexeddb) {
+  generateIndexedDB();
+  console.log("  indexeddb");
 }
 
 generateSwGeneratorBuildScript();

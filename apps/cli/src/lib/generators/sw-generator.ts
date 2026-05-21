@@ -277,6 +277,16 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (strategy === "cache-only") {
+    event.respondWith(cacheOnly(event, event.request));
+    return;
+  }
+
+  if (strategy === "network-only") {
+    event.respondWith(networkOnly(event, event.request));
+    return;
+  }
+
   // cache-first (default)
   event.respondWith(cacheFirst(event, event.request));
 });
@@ -369,6 +379,27 @@ async function refreshCache(cache, request) {
     }
   } catch {
     // Background refresh failed - stale cache remains usable
+  }
+}
+
+async function cacheOnly(event, request) {
+  const cache = await caches.open(CACHE_NAME);
+  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
+
+  const byPath = await cache.match(new URL(request.url).pathname);
+  if (byPath) return byPath;
+
+  const byRequest = await runtimeCache.match(request);
+  if (byRequest) return byRequest;
+
+  return new Response("Not in cache", { status: 404 });
+}
+
+async function networkOnly(event, request) {
+  try {
+    return await fetch(request);
+  } catch {
+    return new Response("Network error", { status: 503 });
   }
 }`;
 }

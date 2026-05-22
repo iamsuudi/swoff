@@ -62,6 +62,14 @@ describe("generateSwTemplate", () => {
     expect(content).toContain("self.addEventListener");
     expect(content).toContain("SWOFF");
   });
+
+  it("includes SWOFF.network matching default-template.ts", () => {
+    const ctx = makeContext();
+    generateSwTemplate(ctx);
+    const content = readFileSync(join(ctx.swoffDir, "sw-template.js"), "utf8");
+    expect(content).toContain("network: {");
+    expect(content).toContain("Network request failed");
+  });
 });
 
 describe("generateSwInjector", () => {

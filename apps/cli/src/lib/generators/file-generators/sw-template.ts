@@ -124,6 +124,15 @@ const SWOFF = {
       const cache = await caches.open(CACHE_NAME);
       return cache.delete(request);
     }
+  },
+  network: {
+    async fetch(request, options = {}) {
+      try {
+        return await fetch(request, options);
+      } catch (error) {
+        throw new Error(\`Network request failed: \${error.message}\`);
+      }
+    }
   }
 };
 

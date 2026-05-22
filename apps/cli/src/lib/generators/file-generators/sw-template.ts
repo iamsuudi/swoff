@@ -12,9 +12,9 @@ export function generateSwTemplate(ctx: GeneratorContext): void {
  * a versioned service worker. Placeholders are replaced during build.
  *
  * Placeholders:
- *   // [[CACHE_NAME]]       - Replaced with versioned cache name
- *   // [[ASSETS_LIST]]      - Replaced with assets to cache
- *   // [[AUTO_SKIP_WAITING]] - Replaced with autoActivate config
+ *   [[CACHE_NAME]]       - Replaced with versioned cache name
+ *   [[ASSETS_LIST]]      - Replaced with assets to cache
+ *   [[AUTO_SKIP_WAITING]] - Replaced with autoActivate config
  *
  * You can customize this template before running the build script.
  */

@@ -57,7 +57,7 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ vers
   }
 
   const version = config.version === "from-package" ? pkg.version || "1.0.0" : config.version;
-  const sw = assembleSW(config, version);
+  const sw = assembleSW(config, version, optProjectRoot);
 
   const outputDir = join(optProjectRoot, config.build.outputDir);
   const swFilename = config.build.swFilename;

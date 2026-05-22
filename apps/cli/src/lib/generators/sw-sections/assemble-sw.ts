@@ -3,6 +3,8 @@
  * Calls individual section generators and performs placeholder replacement.
  */
 
+import { readdirSync, existsSync } from "fs";
+import { join, relative } from "path";
 import type { SwoffConfig } from "../../shared/config-types.js";
 import { getDefaultTemplate } from "./default-template.js";
 import { generateConfigHeader } from "./config-header.js";
@@ -13,12 +15,41 @@ import { generateFetchHandler } from "./fetch-handler.js";
 import { generateTagManagement } from "./tag-management.js";
 import { generateBackgroundSyncHandler } from "./background-sync-handler.js";
 
-export function assembleSW(config: SwoffConfig, version: string): string {
-  const { serviceWorker, features } = config;
+function collectAssets(dir: string, baseDir: string): string[] {
+  if (!existsSync(dir)) return [];
 
-  const baseAssets = ["/", "/index.html"];
-  const pwaAssets = features.pwa ? ["/manifest.json"] : [];
-  const assetsToCache = [...baseAssets, ...pwaAssets];
+  const entries = readdirSync(dir, { withFileTypes: true });
+  const assets: string[] = [];
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      assets.push(...collectAssets(fullPath, baseDir));
+    } else {
+      assets.push("/" + relative(baseDir, fullPath));
+    }
+  }
+  return assets;
+}
+
+export function assembleSW(config: SwoffConfig, version: string, projectRoot?: string): string {
+  const { serviceWorker, features } = config;
+  const outputDir = config.build?.outputDir || "dist";
+  const swFilename = config.build?.swFilename || "sw";
+
+  const fallback: string[] = ["/index.html"];
+  if (features.pwa) fallback.push("/manifest.json");
+
+  const scanned: string[] = [];
+  if (projectRoot) {
+    const distPath = join(projectRoot, outputDir);
+    const allAssets = collectAssets(distPath, distPath);
+    const swFile = `${swFilename}-v${version}.js`;
+    for (const a of allAssets) {
+      if (a !== `/${swFile}` && a !== "/version.json") scanned.push(a);
+    }
+  }
+
+  const assetsToCache = scanned.length > 0 ? [...new Set([...fallback, ...scanned])] : fallback;
 
   let sw = getDefaultTemplate();
 

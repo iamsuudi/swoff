@@ -97,8 +97,6 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (strategy === "network-only") {
-
-  if (strategy === "network-only") {
     event.respondWith(networkOnly(event, event.request));
     return;
   }
@@ -118,20 +116,16 @@ async function cacheFirst(event, request) {
     if (spa) return spa;
   }
 
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      const cloned = response.clone();
-      event.waitUntil(
-        (async () => {
-          await runtimeCache.put(request, cloned);${tagInvalidationCode}
-${trimCode}        })(),
-      );
-    }
-    return response;
-  } catch {
-    return new Response("Offline: content not available", { status: 503 });
+  const response = await fetch(request);
+  if (response.ok) {
+    const cloned = response.clone();
+    event.waitUntil(
+      (async () => {
+        await runtimeCache.put(request, cloned);${tagInvalidationCode}
+${trimCode}      })(),
+    );
   }
+  return response;
 }
 
 async function networkFirst(event, request) {
@@ -158,7 +152,7 @@ ${trimCode}        })(),
       if (spa) return spa;
     }
 
-    return new Response("Offline: content not available", { status: 503 });
+    throw new Error("Request failed and no cached response available");
   }
 }
 
@@ -171,15 +165,11 @@ async function staleWhileRevalidate(event, request) {
     return cached;
   }
 
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      await runtimeCache.put(request, response.clone());${staleTagCode}
-${hasTrim ? "      await trimRuntimeCache(CACHE_NAME_RUNTIME);\n" : ""}    }
-    return response;
-  } catch {
-    return new Response("Offline: content not available", { status: 503 });
-  }
+  const response = await fetch(request);
+  if (response.ok) {
+    await runtimeCache.put(request, response.clone());${staleTagCode}
+${hasTrim ? "      await trimRuntimeCache(CACHE_NAME_RUNTIME);\n" : ""}  }
+  return response;
 }
 
 async function refreshCache(cache, request) {
@@ -203,10 +193,6 @@ async function cacheOnly(event, request) {
 }
 
 async function networkOnly(event, request) {
-  try {
-    return await fetch(request);
-  } catch {
-    return new Response("Network error", { status: 503 });
-  }
+  return fetch(request);
 }`;
 }

@@ -45,7 +45,8 @@ self.addEventListener("install", (event) => {
       let downloaded = 0;
       for (const url of ASSETS_TO_CACHE) {
         try {
-          await cache.add(url);
+          const request = new Request(url);
+          await cache.add(request);
           downloaded++;
           const percent = Math.round(
             (downloaded / ASSETS_TO_CACHE.length) * 100,
@@ -139,21 +140,17 @@ async function staleWhileRevalidate(event, request) {
     return cached;
   }
 
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      await runtimeCache.put(request, response.clone());
-      const tagsHeader = request.headers.get("X-SW-Cache-Tags");
-      if (tagsHeader) {
-        const url = new URL(request.url).href;
-        const tags = tagsHeader.split(",").map((t) => t.trim());
-        await cacheTagUrl(url, tags);
-      }
+  const response = await fetch(request);
+  if (response.ok) {
+    await runtimeCache.put(request, response.clone());
+    const tagsHeader = request.headers.get("X-SW-Cache-Tags");
+    if (tagsHeader) {
+      const url = new URL(request.url).href;
+      const tags = tagsHeader.split(",").map((t) => t.trim());
+      await cacheTagUrl(url, tags);
     }
-    return response;
-  } catch {
-    return new Response("Offline: content not available", { status: 503 });
   }
+  return response;
 }
 
 async function refreshCache(cache, request) {
@@ -197,32 +194,30 @@ self.addEventListener("fetch", (event) => {
         if (spa) return spa;
       }
 
-      try {
-        const response = await fetch(event.request);
-        if (response.ok) {
-          const cloned = response.clone();
-          event.waitUntil(
-            (async () => {
-              await runtimeCache.put(event.request, cloned);
-              const tagsHeader = event.request.headers.get("X-SW-Cache-Tags");
-              if (tagsHeader) {
-                const url = new URL(event.request.url).href;
-                const tags = tagsHeader.split(",").map((t) => t.trim());
-                await cacheTagUrl(url, tags);
-              }
-            })(),
-          );
-        }
-        return response;
-      } catch {
-        return new Response("Offline: content not available", { status: 503 });
+      const response = await fetch(event.request);
+      if (response.ok) {
+        const cloned = response.clone();
+        event.waitUntil(
+          (async () => {
+            await runtimeCache.put(event.request, cloned);
+            const tagsHeader = event.request.headers.get("X-SW-Cache-Tags");
+            if (tagsHeader) {
+              const url = new URL(event.request.url).href;
+              const tags = tagsHeader.split(",").map((t) => t.trim());
+              await cacheTagUrl(url, tags);
+            }
+          })(),
+        );
       }
+      return response;
     })(),
   );
 });
 ```
 
 `isReadRequest` checks the `X-SW-Cache-Strategy` header (set by the client, see [API Integration](/docs/patterns/api-integration)), then falls back to method. Mutations bypass the SW entirely. When `X-SW-Stale: true` is set, the SW serves cached data immediately and refreshes in the background. Without it, the default cache-first strategy is used: runtime cache by full request, SPA `/index.html` for navigations, network with cache-on-success. In both modes, the `X-SW-Cache-Tags` header is stored (see [tag management](#6-tag-management)) so selective invalidation works after mutations sync.
+
+The SW does **not** replace network errors with custom messages. If `fetch()` rejects (network failure, DNS error, CORS, etc.) and there is no cached fallback for that strategy, the error propagates to the client as a standard `TypeError` — the same as if no SW were present. This lets client code distinguish real failures from offline states.
 
 ### 6. Tag Management
 
@@ -310,13 +305,13 @@ To mitigate this, call `invalidateByTag()` aggressively after mutations, and con
 
 ## Events
 
-| Event                 | Source             | Detail                | Purpose                          |
-| --------------------- | ------------------ | --------------------- | -------------------------------- |
-| `sw-version-detected` | main.tsx           | none                  | Version info available on window |
-| `sw-update-available` | main.tsx           | `{ version: string }` | New version on server            |
-| `sw-progress`         | main.tsx (from SW) | `{ percent: number }` | Download progress                |
-| `sw-ready`            | main.tsx           | none                  | SW active and controlling page   |
-| `sw-error`            | main.tsx           | none                  | SW registration failed           |
+| Event                 | Source             | Detail                | Purpose                                                                   |
+| --------------------- | ------------------ | --------------------- | ------------------------------------------------------------------------- |
+| `sw-version-detected` | main.tsx           | none                  | Version info available on window                                          |
+| `sw-update-available` | main.tsx           | `{ version: string }` | New version on server                                                     |
+| `sw-progress`         | main.tsx (from SW) | `{ percent: number }` | Download progress                                                         |
+| `sw-ready`            | main.tsx           | none                  | SW active and controlling page                                            |
+| `sw-error`            | main.tsx           | none                  | SW registration failed                                                    |
 | `TAG_INVALIDATED`     | SW (postMessage)   | `{ tag: string }`     | Cache entries with tag cleared — broadcast to all tabs for cross-tab sync |
 
 ## Storage

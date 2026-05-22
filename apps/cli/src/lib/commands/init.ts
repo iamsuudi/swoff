@@ -11,7 +11,9 @@ export async function initCommand(projectRoot: string, framework?: string) {
   log.header("Initializing Swoff");
 
   const configFiles = ["swoff.config.json", "swoff.config.js"];
-  const existingConfig = configFiles.find((f) => existsSync(join(projectRoot, f)));
+  const existingConfig = configFiles.find((f) =>
+    existsSync(join(projectRoot, f)),
+  );
 
   if (existingConfig) {
     log.warn(`Found existing ${existingConfig}. Skipping init.`);
@@ -21,7 +23,11 @@ export async function initCommand(projectRoot: string, framework?: string) {
 
   const config: SwoffConfig = { ...defaultInitConfig };
 
-  if (framework === "react-vite" || framework === "nextjs" || framework === "vue-vite") {
+  if (
+    framework === "react-vite" ||
+    framework === "nextjs" ||
+    framework === "vue-vite"
+  ) {
     config.features.mutationQueue = true;
     config.serviceWorker.strategies = {
       "/api/*": "network-first",
@@ -44,11 +50,8 @@ export async function initCommand(projectRoot: string, framework?: string) {
   }
 
   log.success("Swoff initialized successfully!");
-  log.info("Next steps:");
+  log.normal("\nNext steps:");
   log.help("1. Review swoff.config.json and customize as needed");
-  log.help("2. Run: swoff generate");
-  log.help("3. Import initServiceWorker in your app entry point:");
-  log.help("   import { initServiceWorker } from './swoff/sw-injector.js';");
-  log.help("   initServiceWorker();");
-  log.help("4. Read the docs: https://swoff.netlify.app/docs");
+  log.help("2. Run: npx @swoff/cli generate");
+  log.help("3. Read the docs: https://swoff.netlify.app/docs");
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { existsSync, rmSync, readFileSync, mkdirSync } from "fs";
+import { existsSync, rmSync, readFileSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { defaultConfig, type SwoffConfig } from "../lib/shared/config-types.js";
 import type { GeneratorContext } from "../lib/generators/file-generators/context.js";
@@ -235,8 +235,9 @@ describe("generatePwaInstall", () => {
 });
 
 describe("generateManifest", () => {
-  it("creates manifest.json in public/", () => {
+  it("creates manifest.json when public/ exists and no existing manifest", () => {
     const ctx = makeContext();
+    mkdirSync(join(ctx.projectRoot, "public"), { recursive: true });
     generateManifest(ctx);
     const manifestPath = join(ctx.projectRoot, "public", "manifest.json");
     expect(existsSync(manifestPath)).toBe(true);
@@ -244,7 +245,30 @@ describe("generateManifest", () => {
     expect(manifest.name).toBeDefined();
     expect(manifest.icons).toHaveLength(2);
     expect(manifest.display).toBe("standalone");
+    expect(manifest.orientation).toBe("portrait-primary");
+    expect(manifest.scope).toBe("/");
+    expect(manifest.lang).toBe("en-US");
+    expect(manifest.categories).toEqual(["utilities", "web"]);
+    expect(manifest.prefer_related_applications).toBe(false);
+    expect(manifest.display_override).toContain("window-controls-overlay");
     expect(ctx.generatedFiles).toContain("public/manifest.json");
+  });
+
+  it("skips when public/ directory is missing", () => {
+    const ctx = makeContext();
+    generateManifest(ctx);
+    expect(ctx.generatedFiles).not.toContain("public/manifest.json");
+  });
+
+  it("skips when manifest.json already exists", () => {
+    const ctx = makeContext();
+    mkdirSync(join(ctx.projectRoot, "public"), { recursive: true });
+    const manifestPath = join(ctx.projectRoot, "public", "manifest.json");
+    writeFileSync(manifestPath, JSON.stringify({ name: "Custom" }));
+    generateManifest(ctx);
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+    expect(manifest.name).toBe("Custom");
+    expect(ctx.generatedFiles).not.toContain("public/manifest.json");
   });
 });
 

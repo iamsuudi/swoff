@@ -33,7 +33,10 @@ function clearStatusLine() {
   }
 }
 
-export async function generateCommand(projectRoot: string, options: GenerateOptions = {}) {
+export async function generateCommand(
+  projectRoot: string,
+  options: GenerateOptions = {},
+) {
   const { swOnly = false, filesOnly = false, language } = options;
 
   log.header("Generating Swoff Files");
@@ -60,7 +63,9 @@ export async function generateCommand(projectRoot: string, options: GenerateOpti
       });
     } catch (err: unknown) {
       clearStatusLine();
-      log.error(`Service worker failed: ${err instanceof Error ? err.message : String(err)}`);
+      log.error(
+        `Service worker failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
@@ -84,18 +89,24 @@ export async function generateCommand(projectRoot: string, options: GenerateOpti
       log.success(`Generated ${files.length} supporting files`);
     } catch (err: unknown) {
       clearStatusLine();
-      log.error(`File generation failed: ${err instanceof Error ? err.message : String(err)}`);
+      log.error(
+        `File generation failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
   log.success("Generation complete!");
-  log.info("Next steps:");
+  log.normal("\nNext steps:");
   log.help("1. Import initServiceWorker in your app entry point:");
-  log.help("   import { initServiceWorker } from './swoff/sw-injector.js';");
+  log.help("   import { initServiceWorker } from 'swoff/sw-injector.js';");
   log.help("   initServiceWorker();");
   log.help("2. Use the fetch wrapper for API calls:");
-  log.help("   import { fetchWithCache } from './swoff/fetch-wrapper.js';");
-  log.help("   const data = await fetchWithCache('/api/data').then(r => r.json());");
-  log.help('3. Add to your build script: "build": "your-build && node swoff/sw-generator.js"');
+  log.help("   import { fetchWithCache } from 'swoff/fetch-wrapper.js';");
+  log.help(
+    "   const data = await fetchWithCache('/api/data').then(r => r.json());",
+  );
+  log.help(
+    '3. Add to your build script: "build": "your-build && node swoff/sw-generator.js"',
+  );
   log.help("4. Read the docs: https://swoff.netlify.app/docs");
 }

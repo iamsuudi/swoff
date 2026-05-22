@@ -11,6 +11,7 @@ export const log = {
   warn: (msg: string) =>
     console.log(`${colors.yellow}⚠️ ${msg}${colors.reset}`),
   error: (msg: string) => console.log(`${colors.red}❌ ${msg}${colors.reset}`),
-  help: (msg: string) => console.log(`  ${colors.cyan}${msg}${colors.reset}`),
+  help: (msg: string) => console.log(`${colors.cyan}${msg}${colors.reset}`),
   header: (msg: string) => console.log(`${colors.bright}${msg}${colors.reset}`),
+  normal: (msg: string) => console.log(`${colors.reset}${msg}${colors.reset}`),
 };

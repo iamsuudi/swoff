@@ -50,7 +50,7 @@ export async function initCommand(projectRoot: string, framework?: string) {
   }
 
   log.success("Swoff initialized successfully!");
-  log.info("Next steps:");
+  log.normal("\nNext steps:");
   log.help("1. Review swoff.config.json and customize as needed");
   log.help("2. Run: npx @swoff/cli generate");
   log.help("3. Read the docs: https://swoff.netlify.app/docs");

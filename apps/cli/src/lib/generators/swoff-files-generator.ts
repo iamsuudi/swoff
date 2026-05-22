@@ -5,10 +5,15 @@
  * Thin orchestrator - delegates to file-generators for each template.
  *
  * CLI Usage:
- *   node swoff-files-generator.js --project-root <path> --package-dir <path> --language <ts|js> --config-path <path>
+ *   node swoff-files-generator.js --project-root <path> --language <ts|js> --config-path <path>
+ *
+ * Module Usage:
+ *   import { generateFiles } from './swoff-files-generator.js';
+ *   const files = generateFiles(ctx, (name) => { ... });
  */
 
 import { join } from "path";
+import { fileURLToPath } from "url";
 import { loadConfig } from "../config/loader.js";
 import type { GeneratorContext } from "./file-generators/context.js";
 import { generateSwTemplate } from "./file-generators/sw-template.js";
@@ -26,6 +31,40 @@ import { generateInvalidationTags } from "./file-generators/invalidation-tags.js
 import { generateSwGeneratorBuild } from "./file-generators/sw-generator-build.js";
 import { generateTypeDefinitions } from "./file-generators/type-definitions.js";
 
+interface Step {
+  name: string;
+  gen: () => void;
+  enabled: boolean;
+}
+
+export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => void): string[] {
+  const steps: Step[] = [
+    { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
+    { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: ctx.config.features.clientRegistration },
+    { name: "fetch-wrapper", gen: () => generateFetchWrapper(ctx), enabled: true },
+    { name: "cache", gen: () => generateCache(ctx), enabled: ctx.config.features.tagInvalidation || ctx.config.features.crossTabSync },
+    { name: "store", gen: () => generateStore(ctx), enabled: ctx.config.features.mutationQueue },
+    { name: "reconcile", gen: () => generateReconcile(ctx), enabled: ctx.config.features.mutationQueue },
+    { name: "mutation-queue", gen: () => generateMutationQueue(ctx), enabled: ctx.config.features.mutationQueue },
+    { name: "background-sync", gen: () => generateBackgroundSync(ctx), enabled: ctx.config.features.backgroundSync },
+    { name: "indexeddb", gen: () => generateIndexedDB(ctx), enabled: ctx.config.features.indexeddb },
+    { name: "sw-generator", gen: () => generateSwGeneratorBuild(ctx), enabled: true },
+    { name: "swoff.d.ts", gen: () => generateTypeDefinitions(ctx), enabled: ctx.ext === "ts" },
+    { name: "pwa-install", gen: () => generatePwaInstall(ctx), enabled: ctx.config.features.pwa },
+    { name: "manifest.json", gen: () => generateManifest(ctx), enabled: ctx.config.features.pwa },
+    { name: "invalidation-tags", gen: () => generateInvalidationTags(ctx), enabled: ctx.config.features.tagInvalidation },
+  ];
+
+  for (const step of steps) {
+    if (!step.enabled) continue;
+    onFile?.(step.name);
+    step.gen();
+  }
+
+  return ctx.generatedFiles;
+}
+
+// --- CLI entry point ---
 const args = process.argv.slice(2);
 
 function getArg(name: string): string | null {
@@ -33,91 +72,47 @@ function getArg(name: string): string | null {
   return idx !== -1 ? args[idx + 1] : null;
 }
 
-const projectRoot = getArg("project-root") || process.cwd();
-const language = getArg("language") || "ts";
-const configPath = getArg("config-path") || join(projectRoot, "swoff.config.json");
+if (fileURLToPath(import.meta.url) === fileURLToPath(new URL(process.argv[1], "file:"))) {
+  const projectRoot = getArg("project-root") || process.cwd();
+  const language = getArg("language") || "ts";
+  const configPath = getArg("config-path") || join(projectRoot, "swoff.config.json");
 
-const { config } = loadConfig(projectRoot, configPath);
+  const { config } = loadConfig(projectRoot, configPath);
 
-const ext = language === "ts" ? "ts" : "js";
-const swoffDir = join(projectRoot, "swoff");
-const generatedFiles: string[] = [];
+  if (!config.enabled) {
+    console.log("Config generation disabled");
+    process.exit(0);
+  }
 
-const ctx: GeneratorContext = {
-  config,
-  projectRoot,
-  swoffDir,
-  ext,
-  generatedFiles,
-};
+  const ext = language === "ts" ? "ts" : "js";
+  const swoffDir = join(projectRoot, "swoff");
+  const generatedFiles: string[] = [];
 
-console.log("Generating Swoff files...");
-console.log(`Language: ${language}`);
-console.log(`Project: ${projectRoot}`);
-console.log("");
+  const ctx: GeneratorContext = {
+    config,
+    projectRoot,
+    swoffDir,
+    ext,
+    generatedFiles,
+  };
 
-if (!config.enabled) {
-  console.log("Config generation disabled");
-  process.exit(0);
+  const ttyStatus = process.stdout.isTTY
+    ? (msg: string) => {
+        const cols = process.stdout.columns || 80;
+        process.stdout.write(`\r${" ".repeat(cols - 1)}\r  ${msg}`);
+      }
+    : (msg: string) => console.log(`  ${msg}`);
+
+  console.log(`Generating Swoff files (${language})...`);
+
+  generateFiles(ctx, (name) => ttyStatus(`→ ${name}...`));
+
+  if (process.stdout.isTTY) {
+    const cols = process.stdout.columns || 80;
+    process.stdout.write(`\r${" ".repeat(cols - 1)}\r`);
+  }
+
+  console.log("Generated files:");
+  generatedFiles.forEach((file) => console.log(`  ${file}`));
+  console.log(`\nTotal: ${generatedFiles.length} files`);
 }
-
-console.log("Generating pattern files...");
-
-generateSwTemplate(ctx);
-console.log("  sw-template");
-
-if (config.features.clientRegistration) {
-  generateSwInjector(ctx);
-  console.log("  sw-injector");
-}
-
-generateFetchWrapper(ctx);
-console.log("  fetch-wrapper");
-
-if (config.features.tagInvalidation || config.features.crossTabSync) {
-  generateCache(ctx);
-  console.log("  cache");
-}
-
-if (config.features.mutationQueue) {
-  generateStore(ctx);
-  console.log("  store");
-  generateReconcile(ctx);
-  console.log("  reconcile");
-  generateMutationQueue(ctx);
-  console.log("  mutation-queue");
-}
-
-if (config.features.backgroundSync) {
-  generateBackgroundSync(ctx);
-  console.log("  background-sync");
-}
-
-if (config.features.indexeddb) {
-  generateIndexedDB(ctx);
-  console.log("  indexeddb");
-}
-
-generateSwGeneratorBuild(ctx);
-console.log("  sw-generator");
-
-if (language === "ts") {
-  generateTypeDefinitions(ctx);
-  console.log("  swoff.d.ts");
-}
-
-if (config.features.pwa) {
-  generatePwaInstall(ctx);
-  console.log("  pwa-install");
-  generateManifest(ctx);
-  console.log("  manifest.json");
-}
-
-if (config.features.tagInvalidation) {
-  generateInvalidationTags(ctx);
-  console.log("  invalidation-tags");
-}
-
-console.log("\nGenerated files:");
-generatedFiles.forEach((file) => console.log(`  ${file}`));
-console.log(`\nTotal: ${generatedFiles.length} files`);

@@ -24,7 +24,7 @@ export function assembleSW(config: SwoffConfig, version: string): string {
 
   sw = sw.replace("// [[CACHE_NAME]]", `CACHE_NAME = 'sw-v${version}'`);
   sw = sw.replace("// [[ASSETS_LIST]]", `ASSETS_TO_CACHE = ${JSON.stringify(assetsToCache.map((url) => ({ url, options: {} })), null, 2)}`);
-  sw = sw.replace("// [[AUTO_SKIP_WAITING]]", `const AUTO_SKIP_WAITING = ${config.serviceWorker.autoUpdate};`);
+  sw = sw.replace("// [[AUTO_SKIP_WAITING]]", `const AUTO_SKIP_WAITING = ${config.serviceWorker.autoActivate};`);
 
   sw = sw.replace("// [[FETCH_HANDLER]]", generateFetchHandler(serviceWorker, features.tagInvalidation));
   sw = sw.replace("// [[ACTIVATE_HANDLER]]", generateActivateHandler());

@@ -97,6 +97,8 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (strategy === "network-only") {
+
+  if (strategy === "network-only") {
     event.respondWith(networkOnly(event, event.request));
     return;
   }
@@ -106,12 +108,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 async function cacheFirst(event, request) {
-  const cache = await caches.open(CACHE_NAME);
   const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
-  const url = new URL(request.url);
-
-  const byPath = await cache.match(url.pathname);
-  if (byPath) return byPath;
 
   const byRequest = await runtimeCache.match(request);
   if (byRequest) return byRequest;
@@ -197,11 +194,7 @@ async function refreshCache(cache, request) {
 }
 
 async function cacheOnly(event, request) {
-  const cache = await caches.open(CACHE_NAME);
   const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
-
-  const byPath = await cache.match(new URL(request.url).pathname);
-  if (byPath) return byPath;
 
   const byRequest = await runtimeCache.match(request);
   if (byRequest) return byRequest;

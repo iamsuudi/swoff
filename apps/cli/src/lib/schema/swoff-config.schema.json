@@ -36,12 +36,12 @@
       "properties": {
         "autoRegister": {
           "type": "boolean",
-          "description": "Automatically register the service worker on page load. Set to false for deferred registration (e.g., after onboarding).",
+          "description": "Automatically register new service worker versions when detected. When false, dispatches sw-update-available event for manual registration via handleUpdateApproved().",
           "default": true
         },
-        "autoUpdate": {
+        "autoActivate": {
           "type": "boolean",
-          "description": "Automatically activate new service worker versions without user consent. true = silent update (skipWaiting), false = dispatch sw-update-available event for user consent.",
+          "description": "Automatically activate newly registered service workers (skipWaiting). Only applies when a new version is registered — use with autoRegister for fully silent updates, or wait for user consent then call handleUpdateApproved().",
           "default": false
         },
         "defaultStrategy": {
@@ -82,7 +82,7 @@
           "pattern": "^[a-zA-Z0-9-_]+$"
         }
       },
-      "required": ["autoRegister", "autoUpdate", "defaultStrategy"]
+      "required": ["autoRegister", "autoActivate", "defaultStrategy"]
     },
     "features": {
       "type": "object",

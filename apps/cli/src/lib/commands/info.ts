@@ -21,7 +21,7 @@ export async function infoCommand(projectRoot: string) {
   log.info(`SW Version: ${config.version === "from-package" ? "(from package.json)" : config.version}`);
   log.info(`Default Strategy: ${config.serviceWorker.defaultStrategy}`);
   log.info(`Auto Register: ${config.serviceWorker.autoRegister}`);
-  log.info(`Auto Update: ${config.serviceWorker.autoUpdate}`);
+  log.info(`Auto Activate: ${config.serviceWorker.autoActivate}`);
 
   const enabledFeatures = Object.entries(config.features)
     .filter(([_, v]) => v)

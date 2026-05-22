@@ -75,14 +75,15 @@ describe("generateSwTemplate", () => {
 describe("generateSwInjector", () => {
   it("generates JS registration with correct config values", () => {
     const ctx = makeContext({
-      serviceWorker: { ...defaultConfig.serviceWorker, autoRegister: true, autoUpdate: true },
+      serviceWorker: { ...defaultConfig.serviceWorker, autoRegister: true, autoActivate: true },
     });
     generateSwInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "sw-injector.js"), "utf8");
     expect(content).toContain("AUTO_REGISTER = true");
-    expect(content).toContain("AUTO_UPDATE = true");
+    expect(content).toContain("AUTO_ACTIVATE = true");
     expect(content).toContain("initServiceWorker");
-    expect(content).toContain("shouldRegisterSW");
+    expect(content).not.toContain("shouldRegisterSW");
+    expect(content).toContain("shouldRegister");
     expect(content).toContain("handleUpdateApproved");
     expect(content).toContain("skipWaiting");
   });

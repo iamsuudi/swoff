@@ -38,9 +38,14 @@ async function registerServiceWorker(version) {
   return registration;
 }
 
+function shouldRegister() {
+  // Add custom preconditions here. Return false to prevent registration.
+  return true;
+}
+
 async function initServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
-  if (!shouldRegisterSW()) return;
+  if (!shouldRegister()) return;
 
   const manifest = await checkForUpdate();
   const currentVersion = localStorage.getItem("swRegisteredVersion");
@@ -58,11 +63,38 @@ async function initServiceWorker() {
     window.swAvailableVersion = manifest.version;
     window.swUpdateRequired =
       currentVersion < (manifest.minSupportedVersion || "0.0.0");
-    window.dispatchEvent(
-      new CustomEvent("sw-update-available", {
-        detail: { version: manifest.version },
-      }),
-    );
+
+    if (autoRegister) {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration && registration.waiting) {
+        if (autoActivate) {
+          registration.waiting.postMessage({ type: "SKIP_WAITING" });
+        } else {
+          window.dispatchEvent(
+            new CustomEvent("sw-update-available", {
+              detail: { version: manifest.version },
+            }),
+          );
+        }
+      } else {
+        const newReg = await registerServiceWorker(manifest.version);
+        if (autoActivate && newReg.waiting) {
+          newReg.waiting.postMessage({ type: "SKIP_WAITING" });
+        } else {
+          window.dispatchEvent(
+            new CustomEvent("sw-update-available", {
+              detail: { version: manifest.version },
+            }),
+          );
+        }
+      }
+    } else {
+      window.dispatchEvent(
+        new CustomEvent("sw-update-available", {
+          detail: { version: manifest.version },
+        }),
+      );
+    }
   } else {
     await registerServiceWorker(manifest.version);
   }
@@ -108,8 +140,10 @@ Learn how to set the `X-SW-Cache-Strategy` header on client requests: [API Integ
 
 ## Deferred Registration
 
+Edit the internal `shouldRegister()` function in `sw-injector.js`:
+
 ```javascript
-function shouldRegisterSW() {
+function shouldRegister() {
   const welcomeSeen = localStorage.getItem("welcome-seen") === "true";
   const securitySetup = localStorage.getItem("security-setup") === "true";
   return welcomeSeen && securitySetup;
@@ -126,6 +160,8 @@ async function initServiceWorker() {
     console.warn("Service Workers not supported");
     return;
   }
+
+  if (!shouldRegister()) return;
 
   try {
     const manifest = await checkForUpdate();
@@ -144,9 +180,33 @@ async function initServiceWorker() {
     if (currentVersion && currentVersion !== manifest.version) {
       window.swAvailableVersion = manifest.version;
       window.swUpdateRequired = currentVersion < (manifest.minSupportedVersion || "0.0.0");
-      window.dispatchEvent(new CustomEvent("sw-update-available", {
-        detail: { version: manifest.version },
-      }));
+
+      if (autoRegister) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration && registration.waiting) {
+          if (autoActivate) {
+            registration.waiting.postMessage({ type: "SKIP_WAITING" });
+          } else {
+            window.dispatchEvent(new CustomEvent("sw-update-available", {
+              detail: { version: manifest.version },
+            }));
+          }
+        } else {
+          const newReg = await registerServiceWorker(manifest.version);
+          if (autoActivate && newReg.waiting) {
+            newReg.waiting.postMessage({ type: "SKIP_WAITING" });
+          } else {
+            window.dispatchEvent(new CustomEvent("sw-update-available", {
+              detail: { version: manifest.version },
+            }));
+          }
+        }
+      } else {
+        window.dispatchEvent(new CustomEvent("sw-update-available", {
+          detail: { version: manifest.version },
+        }));
+      }
+
       return;
     }
 

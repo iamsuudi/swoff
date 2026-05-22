@@ -10,7 +10,7 @@ export interface SwoffConfig {
   minSupportedVersion: string;
   serviceWorker: {
     autoRegister: boolean;
-    autoUpdate: boolean;
+    autoActivate: boolean;
     defaultStrategy: string;
     strategies: Record<string, string>;
     maxCacheEntries?: number;
@@ -88,7 +88,7 @@ export const defaultConfig: SwoffConfig = {
   minSupportedVersion: "0.0.0",
   serviceWorker: {
     autoRegister: true,
-    autoUpdate: false,
+    autoActivate: false,
     defaultStrategy: "cache-first",
     strategies: {},
   },

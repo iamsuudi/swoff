@@ -90,9 +90,9 @@ export async function generateCommand(projectRoot: string, options: GenerateOpti
 
   log.success("Generation complete!");
   log.info("Next steps:");
-  log.help("1. Import the SW injector in your app entry point:");
-  log.help("   import { initServiceWorker, shouldRegisterSW } from './swoff/sw-injector.js';");
-  log.help("   if (shouldRegisterSW()) initServiceWorker();");
+  log.help("1. Import initServiceWorker in your app entry point:");
+  log.help("   import { initServiceWorker } from './swoff/sw-injector.js';");
+  log.help("   initServiceWorker();");
   log.help("2. Use the fetch wrapper for API calls:");
   log.help("   import { fetchWithCache } from './swoff/fetch-wrapper.js';");
   log.help("   const data = await fetchWithCache('/api/data').then(r => r.json());");

@@ -47,8 +47,8 @@ export async function initCommand(projectRoot: string, framework?: string) {
   log.info("Next steps:");
   log.help("1. Review swoff.config.json and customize as needed");
   log.help("2. Run: swoff generate");
-  log.help("3. Import the SW injector in your app entry point:");
-  log.help("   import { initServiceWorker, shouldRegisterSW } from './swoff/sw-injector.js';");
-  log.help("   if (shouldRegisterSW()) initServiceWorker();");
+  log.help("3. Import initServiceWorker in your app entry point:");
+  log.help("   import { initServiceWorker } from './swoff/sw-injector.js';");
+  log.help("   initServiceWorker();");
   log.help("4. Read the docs: https://swoff.netlify.app/docs");
 }

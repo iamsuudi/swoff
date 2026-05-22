@@ -51,7 +51,7 @@ const baseAssets = ['/', '/index.html'];
 const pwaAssets = config.features?.pwa ? ['/manifest.json'] : [];
 const assetsToCache = [...baseAssets, ...pwaAssets];
 sw = sw.replace('// [[ASSETS_LIST]]', \`ASSETS_TO_CACHE = \${JSON.stringify(assetsToCache.map(url => ({ url, options: {} })), null, 2)}\`);
-sw = sw.replace('// [[AUTO_SKIP_WAITING]]', \`const AUTO_SKIP_WAITING = \${config.serviceWorker?.autoUpdate || false};\`);
+sw = sw.replace('// [[AUTO_SKIP_WAITING]]', \`const AUTO_SKIP_WAITING = \${config.serviceWorker?.autoActivate || false};\`);
 
 const outDir = join(projectRoot, outputDir);
 if (!existsSync(outDir)) {

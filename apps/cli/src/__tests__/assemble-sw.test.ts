@@ -81,19 +81,19 @@ describe("assembleSW", () => {
     expect(sw).not.toContain('self.addEventListener("sync"');
   });
 
-  it("sets AUTO_SKIP_WAITING based on autoUpdate config", () => {
-    const configAutoUpdate: SwoffConfig = {
+  it("sets AUTO_SKIP_WAITING based on autoActivate config", () => {
+    const configAutoActivate: SwoffConfig = {
       ...config,
-      serviceWorker: { ...config.serviceWorker, autoUpdate: true },
+      serviceWorker: { ...config.serviceWorker, autoActivate: true },
     };
-    const sw = assembleSW(configAutoUpdate, "1.0.0");
+    const sw = assembleSW(configAutoActivate, "1.0.0");
     expect(sw).toContain("const AUTO_SKIP_WAITING = true");
 
-    const configNoAutoUpdate: SwoffConfig = {
+    const configNoAutoActivate: SwoffConfig = {
       ...config,
-      serviceWorker: { ...config.serviceWorker, autoUpdate: false },
+      serviceWorker: { ...config.serviceWorker, autoActivate: false },
     };
-    const sw2 = assembleSW(configNoAutoUpdate, "1.0.0");
+    const sw2 = assembleSW(configNoAutoActivate, "1.0.0");
     expect(sw2).toContain("const AUTO_SKIP_WAITING = false");
   });
 

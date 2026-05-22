@@ -23,7 +23,7 @@ describe("CLI commands integration", () => {
         minSupportedVersion: "1.0.0",
         serviceWorker: {
           autoRegister: true,
-          autoUpdate: false,
+          autoActivate: false,
           defaultStrategy: "cache-first",
           strategies: { "/api/*": "network-first", "/static/*": "cache-first" },
         },

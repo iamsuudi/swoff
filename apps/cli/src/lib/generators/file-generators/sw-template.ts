@@ -14,7 +14,7 @@ export function generateSwTemplate(ctx: GeneratorContext): void {
  * Placeholders:
  *   // [[CACHE_NAME]]       - Replaced with versioned cache name
  *   // [[ASSETS_LIST]]      - Replaced with assets to cache
- *   // [[AUTO_SKIP_WAITING]] - Replaced with autoUpdate config
+ *   // [[AUTO_SKIP_WAITING]] - Replaced with autoActivate config
  *
  * You can customize this template before running the build script.
  */

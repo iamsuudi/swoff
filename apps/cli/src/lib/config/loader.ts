@@ -5,7 +5,7 @@
 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
-import { defaultConfig, type SwoffConfig } from "../shared/config-types.js";
+import { defaultConfig, mergeConfigs, type SwoffConfig } from "../shared/config-types.js";
 
 export interface LoadConfigResult {
   config: SwoffConfig;
@@ -26,7 +26,7 @@ export function loadConfig(projectRoot: string, explicitPath?: string): LoadConf
       try {
         const raw = JSON.parse(readFileSync(explicitPath, "utf8"));
         return {
-          config: { ...defaultConfig, ...raw } as SwoffConfig,
+          config: mergeConfigs(defaultConfig, raw),
           configPath: explicitPath,
           configSource: "JSON",
         };
@@ -45,13 +45,22 @@ export function loadConfig(projectRoot: string, explicitPath?: string): LoadConf
       try {
         const raw = JSON.parse(readFileSync(path, "utf8"));
         return {
-          config: { ...defaultConfig, ...raw } as SwoffConfig,
+          config: mergeConfigs(defaultConfig, raw),
           configPath: path,
           configSource: "JSON",
         };
       } catch {
-        // Continue to try JS config
+        // Continue to try JS config below
       }
+    }
+
+    // Return the JS path so loadConfigAsync can dynamically import it
+    if (file.endsWith(".js")) {
+      return {
+        config: defaultConfig,
+        configPath: path,
+        configSource: "JavaScript",
+      };
     }
   }
 
@@ -68,7 +77,7 @@ export async function loadConfigAsync(projectRoot: string, explicitPath?: string
       const mod = await import(syncResult.configPath);
       const raw = (mod.default || mod) as Partial<SwoffConfig>;
       return {
-        config: { ...defaultConfig, ...raw } as SwoffConfig,
+        config: mergeConfigs(defaultConfig, raw),
         configPath: syncResult.configPath,
         configSource: "JavaScript",
       };

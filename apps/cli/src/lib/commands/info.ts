@@ -5,12 +5,12 @@
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
 import { log } from "../cli/logger.js";
-import { loadConfig } from "../config/loader.js";
+import { loadConfigAsync } from "../config/loader.js";
 
 export async function infoCommand(projectRoot: string) {
   log.header("Swoff Configuration Summary");
 
-  const { config, configPath } = loadConfig(projectRoot);
+  const { config, configPath } = await loadConfigAsync(projectRoot);
 
   if (!configPath) {
     log.warn('No swoff.config.json found. Run "swoff init" first.');
@@ -21,7 +21,7 @@ export async function infoCommand(projectRoot: string) {
   log.info(`SW Version: ${config.version === "from-package" ? "(from package.json)" : config.version}`);
   log.info(`Default Strategy: ${config.serviceWorker.defaultStrategy}`);
   log.info(`Auto Register: ${config.serviceWorker.autoRegister}`);
-  log.info(`Auto Update: ${config.serviceWorker.autoUpdate}`);
+  log.info(`Auto Activate: ${config.serviceWorker.autoActivate}`);
 
   const enabledFeatures = Object.entries(config.features)
     .filter(([_, v]) => v)

@@ -5,10 +5,12 @@
 import { colors } from "./colors.js";
 
 export const log = {
-  info: (msg: string) => console.log(`${colors.blue}ℹ${colors.reset}  ${msg}`),
-  success: (msg: string) => console.log(`${colors.green}✅${colors.reset}  ${msg}`),
-  warn: (msg: string) => console.log(`${colors.yellow}⚠️${colors.reset}  ${msg}`),
-  error: (msg: string) => console.log(`${colors.red}❌${colors.reset}  ${msg}`),
+  info: (msg: string) => console.log(`${colors.blue}${msg}${colors.reset}`),
+  success: (msg: string) =>
+    console.log(`${colors.green}✓ ${msg}${colors.reset}`),
+  warn: (msg: string) =>
+    console.log(`${colors.yellow}⚠️ ${msg}${colors.reset}`),
+  error: (msg: string) => console.log(`${colors.red}❌ ${msg}${colors.reset}`),
   help: (msg: string) => console.log(`  ${colors.cyan}${msg}${colors.reset}`),
-  header: (msg: string) => console.log(`\n${colors.bright}${msg}${colors.reset}\n`),
+  header: (msg: string) => console.log(`${colors.bright}${msg}${colors.reset}`),
 };

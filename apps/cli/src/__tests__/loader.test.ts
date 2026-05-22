@@ -28,7 +28,7 @@ describe("loadConfig", () => {
     const config = {
       enabled: true,
       version: "2.0.0",
-      serviceWorker: { autoRegister: false, autoUpdate: true, defaultStrategy: "network-first", strategies: {} },
+      serviceWorker: { autoRegister: false, autoActivate: true, defaultStrategy: "network-first", strategies: {} },
       features: {
         versionedSw: true, offlineReads: true, mutationQueue: true,
         backgroundSync: false, pwa: true, auth: false,

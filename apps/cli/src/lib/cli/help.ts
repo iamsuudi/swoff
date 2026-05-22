@@ -38,7 +38,7 @@ export const commands: Record<string, CommandDef> = {
     examples: ["swoff info"],
   },
   clean: {
-    description: "Remove old versioned service worker files",
+    description: "Remove Swoff from the project (swoff/, config, version.json)",
     usage: "swoff clean",
     examples: ["swoff clean"],
   },

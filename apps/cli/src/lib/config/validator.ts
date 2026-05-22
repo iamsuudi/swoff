@@ -24,8 +24,8 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     if (sw.autoRegister !== undefined && typeof sw.autoRegister !== "boolean") {
       errors.push("serviceWorker.autoRegister must be a boolean");
     }
-    if (sw.autoUpdate !== undefined && typeof sw.autoUpdate !== "boolean") {
-      errors.push("serviceWorker.autoUpdate must be a boolean");
+    if (sw.autoActivate !== undefined && typeof sw.autoActivate !== "boolean") {
+      errors.push("serviceWorker.autoActivate must be a boolean");
     }
 
     if (sw.defaultStrategy && !VALID_STRATEGIES.includes(sw.defaultStrategy as (typeof VALID_STRATEGIES)[number])) {

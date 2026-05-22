@@ -12,9 +12,9 @@ export function generateSwTemplate(ctx: GeneratorContext): void {
  * a versioned service worker. Placeholders are replaced during build.
  *
  * Placeholders:
- *   // [[CACHE_NAME]]       - Replaced with versioned cache name
- *   // [[ASSETS_LIST]]      - Replaced with assets to cache
- *   // [[AUTO_SKIP_WAITING]] - Replaced with autoUpdate config
+ *   [[CACHE_NAME]]       - Replaced with versioned cache name
+ *   [[ASSETS_LIST]]      - Replaced with assets to cache
+ *   [[AUTO_SKIP_WAITING]] - Replaced with autoActivate config
  *
  * You can customize this template before running the build script.
  */
@@ -123,6 +123,15 @@ const SWOFF = {
     async delete(request) {
       const cache = await caches.open(CACHE_NAME);
       return cache.delete(request);
+    }
+  },
+  network: {
+    async fetch(request, options = {}) {
+      try {
+        return await fetch(request, options);
+      } catch (error) {
+        throw new Error(\`Network request failed: \${error.message}\`);
+      }
     }
   }
 };

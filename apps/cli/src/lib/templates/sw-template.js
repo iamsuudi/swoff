@@ -5,14 +5,14 @@
  * a fully functional service worker based on user configuration.
  *
  * Placeholders (replaced by sw-generator.js):
- *   // [[CACHE_NAME]]       - Sets CACHE_NAME variable
- *   // [[ASSETS_LIST]]      - Sets ASSETS_TO_CACHE array (Request objects)
- *   // [[AUTO_SKIP_WAITING]] - Sets AUTO_SKIP_WAITING constant
- *   // [[INSTALL_HANDLER]]  - Install event listener with progress
- *   // [[ACTIVATE_HANDLER]] - Activate event listener (cache cleanup)
- *   // [[MESSAGE_HANDLER]]  - Message handler (SKIP_WAITING, INVALIDATE_TAG)
- *   // [[FETCH_HANDLER]]    - Fetch event with caching strategies
- *   // [[TAG_MANAGEMENT]]   - Tag-based cache invalidation (IndexedDB)
+ *   [[CACHE_NAME]]       - Sets CACHE_NAME variable
+ *   [[ASSETS_LIST]]      - Sets ASSETS_TO_CACHE array (Request objects)
+ *   [[AUTO_SKIP_WAITING]] - Sets AUTO_SKIP_WAITING constant
+ *   [[INSTALL_HANDLER]]  - Install event listener with progress
+ *   [[ACTIVATE_HANDLER]] - Activate event listener (cache cleanup)
+ *   [[MESSAGE_HANDLER]]  - Message handler (SKIP_WAITING, INVALIDATE_TAG)
+ *   [[FETCH_HANDLER]]    - Fetch event with caching strategies
+ *   [[TAG_MANAGEMENT]]   - Tag-based cache invalidation (IndexedDB)
  */
 
 let CACHE_NAME = "";
@@ -43,7 +43,7 @@ const SWOFF = {
     async delete(request) {
       const cache = await caches.open(CACHE_NAME);
       return cache.delete(request);
-    }
+    },
   },
   network: {
     async fetch(request, options = {}) {
@@ -52,10 +52,10 @@ const SWOFF = {
       } catch (error) {
         throw new Error(`Network request failed: ${error.message}`);
       }
-    }
-  }
+    },
+  },
 };
 
-if (typeof self !== 'undefined') {
+if (typeof self !== "undefined") {
   self.SWOFF = SWOFF;
 }

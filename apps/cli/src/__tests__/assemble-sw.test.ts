@@ -15,10 +15,11 @@ describe("assembleSW", () => {
     expect(sw).toContain("SWOFF");
   });
 
-  it("includes config header", () => {
-    const sw = assembleSW(config, "1.0.0");
+  it("includes config header with resolved version", () => {
+    const sw = assembleSW(config, "2.5.0");
     expect(sw).toContain("Swoff Service Worker - Auto-Generated");
-    expect(sw).toContain("Version: 1.0.0");
+    expect(sw).toContain("Version: 2.5.0");
+    expect(sw).not.toContain("Version: from-package");
   });
 
   it("includes install handler", () => {
@@ -80,19 +81,19 @@ describe("assembleSW", () => {
     expect(sw).not.toContain('self.addEventListener("sync"');
   });
 
-  it("sets AUTO_SKIP_WAITING based on autoUpdate config", () => {
-    const configAutoUpdate: SwoffConfig = {
+  it("sets AUTO_SKIP_WAITING based on autoActivate config", () => {
+    const configAutoActivate: SwoffConfig = {
       ...config,
-      serviceWorker: { ...config.serviceWorker, autoUpdate: true },
+      serviceWorker: { ...config.serviceWorker, autoActivate: true },
     };
-    const sw = assembleSW(configAutoUpdate, "1.0.0");
+    const sw = assembleSW(configAutoActivate, "1.0.0");
     expect(sw).toContain("const AUTO_SKIP_WAITING = true");
 
-    const configNoAutoUpdate: SwoffConfig = {
+    const configNoAutoActivate: SwoffConfig = {
       ...config,
-      serviceWorker: { ...config.serviceWorker, autoUpdate: false },
+      serviceWorker: { ...config.serviceWorker, autoActivate: false },
     };
-    const sw2 = assembleSW(configNoAutoUpdate, "1.0.0");
+    const sw2 = assembleSW(configNoAutoActivate, "1.0.0");
     expect(sw2).toContain("const AUTO_SKIP_WAITING = false");
   });
 
@@ -125,5 +126,38 @@ describe("assembleSW", () => {
     const sw = assembleSW(configWithStrategies, "1.0.0");
     expect(sw).toContain("/api/*");
     expect(sw).toContain("network-first");
+  });
+
+  it("includes trimRuntimeCache when maxCacheEntries is set", () => {
+    const configWithTrim: SwoffConfig = {
+      ...config,
+      serviceWorker: {
+        ...config.serviceWorker,
+        maxCacheEntries: 100,
+      },
+    };
+    const sw = assembleSW(configWithTrim, "1.0.0");
+    expect(sw).toContain("trimRuntimeCache");
+    expect(sw).toContain("MAX_CACHE_ENTRIES = 100");
+    expect(sw).toContain("MAX_CACHE_AGE = 0");
+  });
+
+  it("includes trimRuntimeCache when maxCacheAge is set", () => {
+    const configWithTrim: SwoffConfig = {
+      ...config,
+      serviceWorker: {
+        ...config.serviceWorker,
+        maxCacheAge: 86400000,
+      },
+    };
+    const sw = assembleSW(configWithTrim, "1.0.0");
+    expect(sw).toContain("trimRuntimeCache");
+    expect(sw).toContain("MAX_CACHE_AGE = 86400000");
+    expect(sw).toContain("MAX_CACHE_ENTRIES = 0");
+  });
+
+  it("excludes trimRuntimeCache when no trimming configured", () => {
+    const sw = assembleSW(config, "1.0.0");
+    expect(sw).not.toContain("trimRuntimeCache");
   });
 });

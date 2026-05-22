@@ -23,7 +23,7 @@ Full schema at `https://swoff.netlify.app/schema/v1.json`.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `autoRegister` | boolean | `true` | Automatically register SW on page load. Set `false` for deferred registration (e.g., after onboarding) |
-| `autoUpdate` | boolean | `false` | `true` = silent update (skipWaiting), `false` = dispatch `sw-update-available` event for user consent |
+| `autoActivate` | boolean | `false` | Automatically activate newly registered SW (skipWaiting). Only applies when `autoRegister` or `handleUpdateApproved()` registers a new version. |
 | `defaultStrategy` | string | `"cache-first"` | Default caching strategy |
 | `strategies` | object | `{}` | Per-URL pattern strategies |
 | `maxCacheEntries` | integer | `100` | Max cached entries |
@@ -83,7 +83,7 @@ Full schema at `https://swoff.netlify.app/schema/v1.json`.
   "minSupportedVersion": "1.0.0",
   "serviceWorker": {
     "autoRegister": true,
-    "autoUpdate": false,
+    "autoActivate": false,
     "defaultStrategy": "cache-first",
     "strategies": {
       "/api/*": "network-first",

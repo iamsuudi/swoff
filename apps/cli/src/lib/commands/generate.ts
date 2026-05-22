@@ -1,22 +1,36 @@
 /**
  * generate command - orchestrates SW and file generation.
+ * Uses direct imports (no subprocess spawning) for a single status line.
  */
 
-import { existsSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
-import { spawn } from "child_process";
 import { log } from "../cli/logger.js";
 import { loadConfig } from "../config/loader.js";
 import { detectProjectLanguage } from "../utils/detect-language.js";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const packageDir = join(__dirname, "../../..");
+import { generateSW } from "../generators/sw-generator.js";
+import { generateFiles } from "../generators/swoff-files-generator.js";
+import type { GeneratorContext } from "../generators/file-generators/context.js";
+import { join } from "path";
 
 export interface GenerateOptions {
   swOnly?: boolean;
   filesOnly?: boolean;
   language?: string;
+}
+
+function statusLine(msg: string) {
+  if (process.stdout.isTTY) {
+    const cols = process.stdout.columns || 80;
+    process.stdout.write(`\r${" ".repeat(cols - 1)}\r  ${msg}`);
+  } else {
+    console.log(`  ${msg}`);
+  }
+}
+
+function clearStatusLine() {
+  if (process.stdout.isTTY) {
+    const cols = process.stdout.columns || 80;
+    process.stdout.write(`\r${" ".repeat(cols - 1)}\r`);
+  }
 }
 
 export async function generateCommand(projectRoot: string, options: GenerateOptions = {}) {
@@ -31,69 +45,57 @@ export async function generateCommand(projectRoot: string, options: GenerateOpti
     return;
   }
 
-  log.info(`Using config: ${configPath}`);
+  log.info(`Config: ${configPath}`);
 
   const detectedLang = language ?? detectProjectLanguage(projectRoot);
-  log.info(`Detected project language: ${detectedLang}`);
+  log.info(`Language: ${detectedLang}`);
 
   if (!filesOnly) {
-    log.info("Generating service worker...");
+    statusLine("→ Service worker...");
     try {
-      await runGenerator("sw-generator.js", [
-        "--project-root", projectRoot,
-        "--package-dir", packageDir,
-        "--config-path", configPath,
-      ]);
+      await generateSW({
+        projectRoot,
+        configPath,
+        onStatus: (msg) => statusLine(msg),
+      });
     } catch (err: unknown) {
-      log.error(`Service worker generation failed: ${err instanceof Error ? err.message : String(err)}`);
+      clearStatusLine();
+      log.error(`Service worker failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
   if (!swOnly) {
-    log.info("Generating supporting files...");
+    const ext = detectedLang === "ts" ? "ts" : "js";
+    const swoffDir = join(projectRoot, "swoff");
+    const generatedFiles: string[] = [];
+
+    const ctx: GeneratorContext = {
+      config,
+      projectRoot,
+      swoffDir,
+      ext,
+      generatedFiles,
+    };
+
+    statusLine("→ Files...");
     try {
-      await runGenerator("swoff-files-generator.js", [
-        "--project-root", projectRoot,
-        "--package-dir", packageDir,
-        "--language", detectedLang,
-        "--config-path", configPath,
-      ]);
+      const files = generateFiles(ctx, (name) => statusLine(`→ ${name}...`));
+      clearStatusLine();
+      log.success(`Generated ${files.length} supporting files`);
     } catch (err: unknown) {
+      clearStatusLine();
       log.error(`File generation failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
   log.success("Generation complete!");
   log.info("Next steps:");
-  log.help("1. Import the SW injector in your app entry point:");
-  log.help("   import { initServiceWorker, shouldRegisterSW } from './swoff/sw-injector.js';");
-  log.help("   if (shouldRegisterSW()) initServiceWorker();");
+  log.help("1. Import initServiceWorker in your app entry point:");
+  log.help("   import { initServiceWorker } from './swoff/sw-injector.js';");
+  log.help("   initServiceWorker();");
   log.help("2. Use the fetch wrapper for API calls:");
   log.help("   import { fetchWithCache } from './swoff/fetch-wrapper.js';");
-  log.help("   const data = await fetchWithCache('/api/data', { tags: ['data'] }).then(r => r.json());");
-  log.help("3. Add to your build script:");
-  log.help('   "build": "your-build && node swoff/sw-generator.js"');
+  log.help("   const data = await fetchWithCache('/api/data').then(r => r.json());");
+  log.help('3. Add to your build script: "build": "your-build && node swoff/sw-generator.js"');
   log.help("4. Read the docs: https://swoff.netlify.app/docs");
-}
-
-function runGenerator(generatorName: string, extraArgs: string[] = []): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const generatorPath = join(packageDir, "dist", "lib", "generators", generatorName);
-
-    if (!existsSync(generatorPath)) {
-      reject(new Error(`Generator not found: ${generatorPath}`));
-      return;
-    }
-
-    const proc = spawn("node", [generatorPath, ...extraArgs], {
-      cwd: process.cwd(),
-      stdio: "inherit",
-    });
-
-    proc.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`Generator exited with code ${code}`));
-    });
-    proc.on("error", (err) => reject(err));
-  });
 }

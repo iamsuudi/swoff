@@ -19,7 +19,7 @@ describe("config-types", () => {
       expect(defaultConfig.version).toBe("from-package");
       expect(defaultConfig.minSupportedVersion).toBe("0.0.0");
       expect(defaultConfig.serviceWorker.autoRegister).toBe(true);
-      expect(defaultConfig.serviceWorker.autoUpdate).toBe(false);
+      expect(defaultConfig.serviceWorker.autoActivate).toBe(false);
       expect(defaultConfig.serviceWorker.defaultStrategy).toBe("cache-first");
       expect(defaultConfig.build.outputDir).toBe("dist");
       expect(defaultConfig.build.swFilename).toBe("sw");

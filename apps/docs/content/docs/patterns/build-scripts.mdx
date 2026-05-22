@@ -17,23 +17,46 @@ You created `swoff/sw-template.js` in the previous step. If not, see [SW Templat
 Create `swoff/sw-generator.js`:
 
 ```js title="swoff/sw-generator.js"
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync } from "fs";
 import { fileURLToPath } from "url";
-import { join, dirname } from "path";
+import { join, dirname, relative } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "package.json"), "utf8"));
 const template = readFileSync(join(__dirname, "swoff/sw-template.js"), "utf8");
 
+const outputDir = join(__dirname, "dist");
+if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
+
+function collectAssets(dir) {
+  const entries = readdirSync(dir, { withFileTypes: true });
+  const assets = [];
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      assets.push(...collectAssets(fullPath));
+    } else {
+      assets.push("/" + relative(outputDir, fullPath));
+    }
+  }
+  return assets;
+}
+
+const allAssets = collectAssets(outputDir);
+const swFile = `sw-v${pkg.version}.js`;
+const assetsToCache = allAssets
+  .filter((a) => a !== "/" + swFile && a !== "/version.json")
+  .map((url) => ({ url, options: {} }));
+
 let sw = template.replace(
   "// [[CACHE_NAME]]",
   `CACHE_NAME = 'sw-v${pkg.version}'`,
 );
-sw = sw.replace("// [[ASSETS_LIST]]", `ASSETS_TO_CACHE = ['/', '/index.html']`);
+sw = sw.replace("// [[ASSETS_LIST]]", `ASSETS_TO_CACHE = ${JSON.stringify(assetsToCache, null, 2)}`);
 
-writeFileSync(join(__dirname, "dist", `sw-v${pkg.version}.js`), sw);
+writeFileSync(join(outputDir, swFile), sw);
 writeFileSync(
-  join(__dirname, "dist", "version.json"),
+  join(outputDir, "version.json"),
   JSON.stringify({
     version: pkg.version,
     minSupportedVersion: pkg.minSupportedVersion || "0.0.0",

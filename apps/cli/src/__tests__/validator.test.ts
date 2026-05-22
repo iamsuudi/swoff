@@ -8,7 +8,7 @@ describe("validateConfig", () => {
     minSupportedVersion: "1.0.0",
     serviceWorker: {
       autoRegister: true,
-      autoUpdate: false,
+      autoActivate: false,
       defaultStrategy: "cache-first",
       strategies: {},
     },
@@ -76,13 +76,12 @@ describe("validateConfig", () => {
       expect(errors).toContain("serviceWorker.autoRegister must be a boolean");
     });
 
-    it("rejects invalid autoUpdate type", () => {
-      const config = {
-        ...validConfig,
-        serviceWorker: { ...validConfig.serviceWorker, autoUpdate: 1 },
+    it("rejects invalid autoActivate type", () => {
+      const cfg = { ...validConfig,
+        serviceWorker: { ...validConfig.serviceWorker, autoActivate: 1 },
       };
-      const errors = validateConfig(config);
-      expect(errors).toContain("serviceWorker.autoUpdate must be a boolean");
+      const errors = validateConfig(cfg as unknown as Record<string, unknown>);
+      expect(errors).toContain("serviceWorker.autoActivate must be a boolean");
     });
 
     it("rejects invalid defaultStrategy", () => {

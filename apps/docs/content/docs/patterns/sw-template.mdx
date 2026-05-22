@@ -187,12 +187,7 @@ self.addEventListener("fetch", (event) => {
 
   event.respondWith(
     (async () => {
-      const cache = await caches.open(CACHE_NAME);
       const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
-      const url = new URL(event.request.url);
-
-      const byPath = await cache.match(url.pathname);
-      if (byPath) return byPath;
 
       const byRequest = await runtimeCache.match(event.request);
       if (byRequest) return byRequest;
@@ -227,7 +222,7 @@ self.addEventListener("fetch", (event) => {
 });
 ```
 
-`isReadRequest` checks the `X-SW-Cache-Strategy` header (set by the client, see [API Integration](/docs/patterns/api-integration)), then falls back to method. Mutations bypass the SW entirely. When `X-SW-Stale: true` is set, the SW serves cached data immediately and refreshes in the background. Without it, the default cache-first strategy is used: install cache by pathname, runtime cache by full URL, SPA `/index.html` for navigations, network with cache-on-success. In both modes, the `X-SW-Cache-Tags` header is stored (see [tag management](#6-tag-management)) so selective invalidation works after mutations sync.
+`isReadRequest` checks the `X-SW-Cache-Strategy` header (set by the client, see [API Integration](/docs/patterns/api-integration)), then falls back to method. Mutations bypass the SW entirely. When `X-SW-Stale: true` is set, the SW serves cached data immediately and refreshes in the background. Without it, the default cache-first strategy is used: runtime cache by full request, SPA `/index.html` for navigations, network with cache-on-success. In both modes, the `X-SW-Cache-Tags` header is stored (see [tag management](#6-tag-management)) so selective invalidation works after mutations sync.
 
 ### 6. Tag Management
 

@@ -136,11 +136,9 @@ npx @swoff/cli generate --files-only
 
 ```javascript
 // In your app entry point (e.g., main.tsx, app.js)
-import { initServiceWorker, shouldRegisterSW } from "./swoff/sw-injector.js";
+import { initServiceWorker } from "./swoff/sw-injector.js";
 
-if (shouldRegisterSW()) {
-  initServiceWorker();
-}
+initServiceWorker();
 ```
 
 ---
@@ -156,7 +154,7 @@ npx @swoff/cli validate
 **What it checks:**
 
 - Required fields are present (`enabled`, `version`, `serviceWorker`, `features`, `build`)
-- `serviceWorker.autoRegister` and `autoUpdate` are booleans
+- `serviceWorker.autoRegister` and `autoActivate` are booleans
 - `defaultStrategy` is one of the 5 valid strategies
 - All feature flags are known and boolean
 - `version` is `"from-package"` or valid semver
@@ -367,7 +365,7 @@ npx @swoff/cli clean
 
 The CLI expects `swoff.config.json` in the current working directory. You can customize:
 
-- Service worker settings (autoRegister, autoUpdate, strategies)
+- Service worker settings (autoRegister, autoActivate, strategies)
 - Feature toggles (offline, PWA, mutation queue, etc.)
 - Build output directory and filename
 - PWA install behavior

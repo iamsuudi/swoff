@@ -14,8 +14,8 @@ export function generateSwGeneratorBuild(ctx: GeneratorContext): void {
  *   "build": "your-build && node swoff/sw-generator.js"
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
+import { join, dirname, relative } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -44,28 +44,46 @@ const version = config.version === 'from-package' ? pkg.version || '1.0.0' : con
 const outputDir = config.build?.outputDir || 'dist';
 const swFilename = config.build?.swFilename || 'sw';
 
-let sw = template;
-sw = sw.replace('// [[CACHE_NAME]]', \`CACHE_NAME = 'sw-v\${version}'\`);
-
-const baseAssets = ['/', '/index.html'];
-const pwaAssets = config.features?.pwa ? ['/manifest.json'] : [];
-const assetsToCache = [...baseAssets, ...pwaAssets];
-sw = sw.replace('// [[ASSETS_LIST]]', \`ASSETS_TO_CACHE = \${JSON.stringify(assetsToCache.map(url => ({ url, options: {} })), null, 2)}\`);
-sw = sw.replace('// [[AUTO_SKIP_WAITING]]', \`const AUTO_SKIP_WAITING = \${config.serviceWorker?.autoUpdate || false};\`);
-
 const outDir = join(projectRoot, outputDir);
 if (!existsSync(outDir)) {
-  import('fs').then(fs => fs.mkdirSync(outDir, { recursive: true }));
+  mkdirSync(outDir, { recursive: true });
 }
 
-writeFileSync(join(projectRoot, outputDir, \`\${swFilename}-v\${version}.js\`), sw);
-writeFileSync(join(projectRoot, outputDir, 'version.json'), JSON.stringify({
+function collectAssets(dir) {
+  const entries = readdirSync(dir, { withFileTypes: true });
+  const assets = [];
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      assets.push(...collectAssets(fullPath));
+    } else {
+      assets.push('/' + relative(outDir, fullPath));
+    }
+  }
+  return assets;
+}
+
+const allAssets = collectAssets(outDir);
+const swFile = \`\${swFilename}-v\${version}.js\`;
+const filtered = allAssets.filter(a => !a.endsWith(swFile) && a !== '/version.json');
+const fallback = ['/index.html'];
+if (config.features?.pwa) fallback.push('/manifest.json');
+const combined = [...new Set([...fallback, ...filtered])];
+const assetsToCache = combined.map(url => ({ url, options: {} }));
+
+let sw = template;
+sw = sw.replace('// [[CACHE_NAME]]', \`CACHE_NAME = 'sw-v\${version}'\`);
+sw = sw.replace('// [[ASSETS_LIST]]', \`ASSETS_TO_CACHE = \${JSON.stringify(assetsToCache, null, 2)}\`);
+sw = sw.replace('// [[AUTO_SKIP_WAITING]]', \`const AUTO_SKIP_WAITING = \${config.serviceWorker?.autoActivate || false};\`);
+
+writeFileSync(join(outDir, swFile), sw);
+writeFileSync(join(outDir, 'version.json'), JSON.stringify({
   version,
   minSupportedVersion: config.minSupportedVersion || '0.0.0',
   generatedAt: new Date().toISOString(),
 }, null, 2));
 
-console.log(\`Service worker built: \${outputDir}/\${swFilename}-v\${version}.js\`);
+console.log(\`Service worker built: \${outputDir}/\${swFile}\`);
 `;
 
   writeFile(ctx, "sw-generator.js", code);

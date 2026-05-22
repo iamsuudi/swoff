@@ -6,7 +6,7 @@ import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateSwInjector(ctx: GeneratorContext): void {
   const autoRegister = ctx.config.serviceWorker.autoRegister;
-  const autoUpdate = ctx.config.serviceWorker.autoUpdate;
+  const autoActivate = ctx.config.serviceWorker.autoActivate;
   const ext = ctx.ext;
 
   const code = `/**
@@ -14,20 +14,13 @@ export function generateSwInjector(ctx: GeneratorContext): void {
  * Framework-agnostic client registration with version checking.
  *
  * Usage:
- *   import { initServiceWorker, shouldRegisterSW } from './swoff/sw-injector.${ext}';
+ *   import { initServiceWorker } from './swoff/sw-injector.${ext}';
  *
  *   // Call in your app entry point (e.g., main.tsx, app.js):
- *   if (shouldRegisterSW()) {
- *     initServiceWorker();
- *   }
+ *   initServiceWorker();
  *
- *   // Or defer until after onboarding:
- *   function myShouldRegister() {
- *     return localStorage.getItem('onboarding-complete') === 'true';
- *   }
- *   if (myShouldRegister()) {
- *     initServiceWorker();
- *   }
+ *   // Or defer until after onboarding, but still call initServiceWorker():
+ *   // (edit the shouldRegister function below instead)
  *
  * Window events:
  *   sw-version-detected  - Version info available on window
@@ -47,7 +40,7 @@ export function generateSwInjector(ctx: GeneratorContext): void {
  */
 
 const AUTO_REGISTER = ${autoRegister};
-const AUTO_UPDATE = ${autoUpdate};
+const AUTO_ACTIVATE = ${autoActivate};
 
 async function checkForUpdate() {
   const response = await fetch("/version.json");
@@ -68,17 +61,11 @@ async function doRegisterServiceWorker(version) {
   return registration;
 }
 
-export function shouldRegisterSW() {
-  if (!AUTO_REGISTER) return false;
-
-  // Add custom conditions here. Return false to prevent registration.
+function shouldRegister() {
+  // Add custom preconditions here. Return false to prevent registration.
   // Examples:
-  //   - Check if user completed onboarding
-  //   - Check if user accepted terms
-  //   - Check if user is on a slow connection
-  //
-  // if (!localStorage.getItem("onboarding-complete")) return false;
-  // if (navigator.connection?.effectiveType === "slow-2g") return false;
+  //   if (!localStorage.getItem("onboarding-complete")) return false;
+  //   if (navigator.connection?.effectiveType === "slow-2g") return false;
 
   return true;
 }
@@ -88,6 +75,8 @@ export async function initServiceWorker() {
     console.warn("Service Workers not supported");
     return;
   }
+
+  if (!shouldRegister()) return;
 
   try {
     const manifest = await checkForUpdate();
@@ -107,12 +96,29 @@ export async function initServiceWorker() {
       window.swUpdateRequired =
         currentVersion < (manifest.minSupportedVersion || "0.0.0");
 
-      if (AUTO_UPDATE) {
+      if (AUTO_REGISTER) {
         const registration = await navigator.serviceWorker.getRegistration();
         if (registration && registration.waiting) {
-          registration.waiting.postMessage({ type: "SKIP_WAITING" });
+          if (AUTO_ACTIVATE) {
+            registration.waiting.postMessage({ type: "SKIP_WAITING" });
+          } else {
+            window.dispatchEvent(
+              new CustomEvent("sw-update-available", {
+                detail: { version: manifest.version },
+              })
+            );
+          }
         } else {
-          await doRegisterServiceWorker(manifest.version);
+          const newReg = await doRegisterServiceWorker(manifest.version);
+          if (AUTO_ACTIVATE && newReg.waiting) {
+            newReg.waiting.postMessage({ type: "SKIP_WAITING" });
+          } else {
+            window.dispatchEvent(
+              new CustomEvent("sw-update-available", {
+                detail: { version: manifest.version },
+              })
+            );
+          }
         }
       } else {
         window.dispatchEvent(
@@ -125,35 +131,45 @@ export async function initServiceWorker() {
       await doRegisterServiceWorker(manifest.version);
     }
   } catch (error) {
+    // Offline or version.json fetch failed — try using existing registration
+    try {
+      const existing = await navigator.serviceWorker.getRegistration();
+      if (existing && existing.active) {
+        window.currentSWVersion = localStorage.getItem("swRegisteredVersion") || "unknown";
+        window.dispatchEvent(new CustomEvent("sw-version-detected"));
+        window.dispatchEvent(new CustomEvent("sw-ready"));
+        return;
+      }
+    } catch {
+      // Registration check also failed, nothing we can do
+    }
+
     console.error("Service Worker initialization failed:", error);
     window.swError = true;
     window.dispatchEvent(new CustomEvent("sw-error"));
   }
 }
 
-export function handleUpdateApproved(newVersion) {
-  return navigator.serviceWorker.getRegistration().then((registration) => {
-    if (registration && registration.waiting) {
-      registration.waiting.postMessage({ type: "SKIP_WAITING" });
-      registration.addEventListener("controllerchange", () => {
-        window.location.reload();
-      });
-    } else {
-      return doRegisterServiceWorker(newVersion).then(() => {
-        navigator.serviceWorker.addEventListener("controllerchange", () => {
-          window.location.reload();
-        });
-      });
-    }
-  });
+export async function handleUpdateApproved(newVersion) {
+  const registration = await navigator.serviceWorker.getRegistration();
+  if (registration && registration.waiting) {
+    registration.waiting.postMessage({ type: "SKIP_WAITING" });
+    registration.addEventListener("controllerchange", () => {
+      window.location.reload();
+    });
+  } else {
+    await doRegisterServiceWorker(newVersion);
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      window.location.reload();
+    });
+  }
 }
 
-export function skipWaiting() {
-  return navigator.serviceWorker.ready.then((registration) => {
-    if (registration.waiting) {
-      registration.waiting.postMessage({ type: "SKIP_WAITING" });
-    }
-  });
+export async function skipWaiting() {
+  const registration = await navigator.serviceWorker.ready;
+  if (registration.waiting) {
+    registration.waiting.postMessage({ type: "SKIP_WAITING" });
+  }
 }
 
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {

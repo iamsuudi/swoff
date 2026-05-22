@@ -6,31 +6,35 @@ icon: Rocket
 
 # Introduction
 
-Swoff is a **toolbox**, not a framework. Every feature is a file you copy and own.
+Swoff is a **CLI toolbox**, not a framework. It generates files you own and control.
 
-- **Pick what you need** — skip what you don't
+- **Pick what you need** — toggle features in `swoff.config.json`
 - **Tweak everything** — the code is yours, no library fights you
-- **Zero lock-in** — delete the files you don't need
+- **Zero runtime dependencies** — the generated files are all you need
 
 ## Quick Start
 
-```npm
-npx @swoff/cli init
-npx @swoff/cli generate
+```bash
+npx @swoff/cli init     # create swoff.config.json + swoff/ directory
+npx @swoff/cli generate # generate SW + supporting files
 ```
 
 This creates:
 
 - `swoff.config.json` — your configuration
+- `swoff/` — injector, fetch wrapper, cache helpers, PWA install handler, TypeScript declarations
 - `dist/sw-v{version}.js` — the service worker
-- `src/hooks/`, `src/components/` — supporting files
+- `dist/version.json` — version manifest for update detection
+- `public/manifest.json` — Web App Manifest (if `public/` exists and no existing manifest)
+
+Generated files are yours to edit, extend, or delete.
 
 ## Full Guide
 
 1. [Configuration](/docs/configuration) — set up swoff.config.json
 2. [Concepts](/docs/concepts/what-is-offline-and-sw) — offline capability and service workers
 3. [Core Architecture](/docs/core/offline-architecture) — offline-first principles
-4. [Patterns](/docs/patterns/) — copy the core files in order
+4. [Patterns](/docs/patterns/) — understand the generated files
 5. [Framework Guides](/docs/guides/) — integrate with your stack
 6. [Reference](/docs/reference/budget-manager) — Budget Manager (client runtime patterns)
 
@@ -38,24 +42,45 @@ This creates:
 
 ### Config-Driven (Recommended)
 
-Edit `swoff.config.json`, run `npx swoff generate`. CLI handles the SW.
+Edit `swoff.config.json`, run `npx @swoff/cli generate`. The CLI handles everything:
 
 ```json
 {
+  "$schema": "https://swoff.netlify.app/schema/v1.json",
   "enabled": true,
   "version": "from-package",
   "serviceWorker": {
+    "autoRegister": true,
+    "autoActivate": false,
     "defaultStrategy": "cache-first",
     "strategies": {
       "/api/*": "network-first"
     }
+  },
+  "features": {
+    "versionedSw": true,
+    "offlineReads": true,
+    "pwa": true,
+    "tagInvalidation": true,
+    "crossTabSync": true,
+    "clientRegistration": true
   }
 }
 ```
 
 ### Custom Code Mode
 
-Set `"enabled": false` and write your own service worker.
+Set `"enabled": false` and write your own service worker. The CLI skips SW generation but still creates supporting files.
+
+### Clean
+
+Remove all Swoff traces:
+
+```bash
+npx @swoff/cli clean
+```
+
+Deletes `swoff/`, `swoff.config.json`, and `dist/version.json`.
 
 ## Reference
 

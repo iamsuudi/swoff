@@ -5,9 +5,9 @@
     "sw-template",
     "build-scripts",
     "client-registration",
+    "pwa-installability",
     "api-integration",
     "invalidation-tags",
-    "pwa-installability",
     "indexeddb-patterns"
   ]
 }

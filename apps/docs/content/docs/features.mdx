@@ -1,69 +1,119 @@
 ---
 title: Features
-description: What Swoff provides — copy-paste code, not npm packages.
+description: What Swoff provides — CLI-generated code, zero runtime deps.
 icon: Puzzle
 ---
 
 # Features
 
-Swoff is copy-paste code you own. No npm packages. No library updates that break your app.
+Swoff is a CLI that generates code you own. Zero runtime dependencies — the generated files are all you need.
 
-## Three Tiers
+## CLI Commands
 
-### Required Core
+| Command | Purpose |
+|---------|---------|
+| `init` | Create `swoff.config.json` and `swoff/` directory |
+| `generate` | Generate SW + supporting files from config |
+| `add` | Toggle a feature on in `swoff.config.json` |
+| `clean` | Remove all Swoff traces (swoff/, config, version.json) |
+| `validate` | Validate config against JSON schema |
 
-Copy these 4 files into your project:
+## Generated Files
 
-| File | Purpose |
-|------|---------|
-| [SW Template](/docs/patterns/sw-template) | Versioned service worker with caching strategies |
-| [Build Scripts](/docs/patterns/build-scripts) | Generate versioned SW + version.json |
-| [Client Registration](/docs/patterns/client-registration) | SW registration with update consent |
-| [API Integration](/docs/patterns/api-integration) | Fetch wrapper with cache strategy headers |
+The CLI outputs to two locations:
 
-### Optional
+- **`dist/`** — service worker (`sw-v{version}.js`) and version manifest (`version.json`)
+- **`swoff/`** — client-side helpers (injector, fetch wrapper, cache, PWA install, etc.)
+- **`public/manifest.json`** — Web App Manifest (only if `public/` exists and no existing manifest)
 
-Add as needed:
+## Features Toggle
 
-| File | Purpose |
-|------|---------|
-| [PWA Installability](/docs/patterns/pwa-installability) | Manifest, install prompt, standalone mode |
-| [IndexedDB Patterns](/docs/patterns/indexeddb-patterns) | DB setup, CRUD, migrations, quota management |
+Configure via `swoff.config.json`:
 
-### Advanced
+### Core (enabled by default)
 
-Production patterns — each independent:
+| Feature | Default | Generates |
+|---------|---------|-----------|
+| `versionedSw` | `true` | Versioned SW with install/activate lifecycle |
+| `offlineReads` | `true` | Cache API responses for offline reads |
+| `pwa` | `true` | PWA install handler + manifest.json |
+| `crossTabSync` | `true` | Cross-tab cache invalidation (via `cache.js`) |
+| `tagInvalidation` | `true` | URL-based cache tag generation + invalidation |
+| `clientRegistration` | `true` | `sw-injector.js` with version checking and update consent |
 
-| File | Purpose |
-|------|---------|
-| [Mutation Queuing](/docs/advanced/mutation-queuing) | Queue offline writes, sync on reconnect |
-| [Background Sync](/docs/advanced/background-sync) | Sync after tab close (Chrome/Edge) |
-| [Conflict Resolution](/docs/advanced/conflict-resolution) | LWW, custom merge, manual, CRDT |
-| [Auth Stack](/docs/advanced/authentication) | Token storage, auth-aware fetch, lock screen |
-| [Testing](/docs/advanced/testing) | Vitest + fake-indexeddb + Playwright |
-| [Debugging](/docs/advanced/debugging) | DevTools, postMessage monitoring |
+### Optional (disabled by default)
+
+| Feature | Default | Generates |
+|---------|---------|-----------|
+| `mutationQueue` | `false` | Store offline writes, sync on reconnect |
+| `backgroundSync` | `false` | Background Sync API (Chrome/Edge) |
+| `auth` | `false` | Auth token storage, auth-aware fetch |
+| `indexeddb` | `false` | IndexedDB CRUD, migrations, quota management |
+
+## Cache Trimming
+
+Control runtime cache size without writing code:
+
+```json
+{
+  "serviceWorker": {
+    "maxCacheEntries": 200,
+    "maxCacheAge": 604800000
+  }
+}
+```
+
+| Field | Default | Description |
+|---|---|---|
+| `maxCacheEntries` | `100` | Evict oldest entries when count exceeds limit (`0` disables) |
+| `maxCacheAge` | `604800000` | Evict entries older than this many ms (`0` disables) |
+
+## Invalidation Tags
+
+The `invalidation-tags.js` helper parses REST URLs into cache tags:
+
+```javascript
+generateTags("/api/todos/42")
+// → ["todos", "todo:42"]
+```
+
+Tagged cache entries are invalidated automatically after mutations — no manual cache management needed.
+
+## Service Worker Architecture
+
+The generated SW uses a **versioned** lifecycle:
+
+1. **Install** — precache app shell assets, skip on reinstall
+2. **Activate** — claim clients, delete old caches
+3. **Fetch** — apply per-URL caching strategies with tag-based invalidation
+
+Update flow:
+- New SW detected → user consent prompt (configurable via `autoActivate`)
+- On approval → skipWaiting → controllerchange → reload
+- Cross-tab sync broadcasts invalidations to all open tabs
 
 ## Swoff vs Traditional PWA Libraries
 
 | | Swoff | Traditional PWA Libraries |
-|--|-------|---------------------------|
+|---|---|---|
 | Dependencies | Zero runtime deps | npm packages |
-| Control | You own the code | Library updates can break your app |
+| Control | You own the generated code | Library updates can break your app |
 | Updates | Consent-based, versioned | Often automatic |
 | Offline | Guaranteed by architecture | Depends on library |
 | Framework | Agnostic | Often framework-specific |
 
 ## Build Your Stack
 
-| Stack | Files | Use case |
-|-------|-------|----------|
-| **Minimal** | SW Template + Build Scripts + Client Registration | Versioned SW updates only |
-| **Standard** | Above + API Integration + IndexedDB | Offline reads, cached data |
-| **Full Client Runtime** | Above + Mutation Queuing + Conflict Resolution | Offline reads + queued writes with sync |
-| **Full + Auth** | Above + Auth Stack | Offline app with auth |
+| Stack | Features | Use case |
+|-------|----------|----------|
+| **Minimal** | versionedSw, clientRegistration | Versioned SW updates only |
+| **Standard** | Above + offlineReads + tagInvalidation + crossTabSync | Offline reads, cached data |
+| **Full Client Runtime** | Above + mutationQueue + backgroundSync | Offline reads + queued writes with sync |
+| **Full + Auth** | Above + auth | Offline app with auth |
 
 ## Next Steps
 
 - [Introduction](/docs/introduction) — getting started
-- [Patterns](/docs/patterns/) — copy the required core files
+- [Configuration](/docs/configuration) — set up swoff.config.json
+- [Patterns](/docs/patterns/) — understand the generated files
 - [Reference](/docs/reference/budget-manager) — Budget Manager (Swoff patterns in action)

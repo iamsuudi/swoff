@@ -2,16 +2,15 @@
   "title": "Advanced",
   "icon": "Rocket",
   "pages": [
-    "authentication",
     "mutation-queuing",
     "background-sync",
-    "push-notifications",
-    "error-handling",
-    "performance",
+    "conflict-resolution",
+    "authentication",
     "testing",
     "debugging",
-    "conflict-resolution",
+    "performance",
     "benchmarks",
-    "accessibility"
+    "accessibility",
+    "push-notifications"
   ]
 }

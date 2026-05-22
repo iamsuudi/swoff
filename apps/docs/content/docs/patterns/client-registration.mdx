@@ -152,7 +152,16 @@ function shouldRegister() {
 
 ## Error Handling
 
-Registration can fail for several reasons. Handle failures gracefully:
+Registration can fail for several reasons.
+
+| Cause | Fix |
+|---|---|
+| Not HTTPS | Serve over HTTPS or localhost |
+| Wrong path | Verify SW URL matches the generated file |
+| Wrong MIME type | Ensure `.js` files serve as `text/javascript` |
+| Scope mismatch | SW must be at root or explicitly set scope |
+
+Handle failures gracefully in `initServiceWorker()`:
 
 ```javascript
 async function initServiceWorker() {
@@ -165,97 +174,72 @@ async function initServiceWorker() {
 
   try {
     const manifest = await checkForUpdate();
-    const currentVersion = localStorage.getItem("swRegisteredVersion");
-
-    if (currentVersion === manifest.version) {
-      const registration = await navigator.serviceWorker.getRegistration();
-      if (registration?.active) {
-        window.currentSWVersion = currentVersion;
-        window.swReady = true;
-        window.dispatchEvent(new CustomEvent("sw-ready"));
-      }
-      return;
-    }
-
-    if (currentVersion && currentVersion !== manifest.version) {
-      window.swAvailableVersion = manifest.version;
-      window.swUpdateRequired = currentVersion < (manifest.minSupportedVersion || "0.0.0");
-
-      if (autoRegister) {
-        const registration = await navigator.serviceWorker.getRegistration();
-        if (registration && registration.waiting) {
-          if (autoActivate) {
-            registration.waiting.postMessage({ type: "SKIP_WAITING" });
-          } else {
-            window.dispatchEvent(new CustomEvent("sw-update-available", {
-              detail: { version: manifest.version },
-            }));
-          }
-        } else {
-          const newReg = await registerServiceWorker(manifest.version);
-          if (autoActivate && newReg.waiting) {
-            newReg.waiting.postMessage({ type: "SKIP_WAITING" });
-          } else {
-            window.dispatchEvent(new CustomEvent("sw-update-available", {
-              detail: { version: manifest.version },
-            }));
-          }
-        }
-      } else {
-        window.dispatchEvent(new CustomEvent("sw-update-available", {
-          detail: { version: manifest.version },
-        }));
-      }
-
-      return;
-    }
-
-    await registerServiceWorker(manifest.version);
+    const swUrl = `/sw-v${manifest.version}.js`;
+    const registration = await navigator.serviceWorker.register(swUrl);
+    // registration success logic...
   } catch (error) {
-    console.error("Service Worker initialization failed:", error);
+    console.error("SW registration failed:", error);
     window.swError = true;
     window.dispatchEvent(new CustomEvent("sw-error"));
-    // App continues without SW - data won't be cached offline
+    // App continues without SW — data won't be cached offline
   }
-}
-
-async function registerServiceWorker(version) {
-  const swUrl = `/sw-v${version}.js`;
-  const registration = await navigator.serviceWorker.register(swUrl);
-
-  localStorage.setItem("swRegisteredVersion", version);
-  window.currentSWVersion = version;
-  window.swRegisteredVersion = version;
-  window.swReady = true;
-
-  window.dispatchEvent(new CustomEvent("sw-version-detected"));
-  window.dispatchEvent(new CustomEvent("sw-ready"));
-
-  return registration;
 }
 ```
 
 ### Registration Failure Recovery
 
-If registration fails, the app should continue working (without offline capability):
+The app should keep working without offline caching:
 
 ```javascript
-// In your app initialization
 async function initializeApp() {
-  // App works even without SW - just without offline caching
   renderApp();
-
-  // Try to initialize SW in background
   await initServiceWorker();
-
-  // If SW failed, show a banner (optional)
   if (window.swError) {
     showOfflineUnavailableBanner();
   }
 }
 ```
 
-See [Error Handling](/docs/advanced/error-handling) for more patterns.
+### Update Failure
+
+A new version of the SW fails to install or activate:
+
+```javascript
+async function handleUpdateFailure() {
+  const registration = await navigator.serviceWorker.getRegistration();
+
+  if (registration) {
+    await registration.unregister();
+    const manifest = await checkForUpdate();
+    await navigator.serviceWorker.register(`/sw-v${manifest.version}.js`);
+  }
+}
+```
+
+### Scope Errors
+
+The SW controls fewer pages than expected:
+
+```javascript
+// In client, pass scope during registration:
+await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+```
+
+Scope is determined by SW file location — `/sw.js` controls `/`, `/js/sw.js` controls `/js/*`.
+
+### Global Error Handler
+
+Catch unhandled errors at the window level:
+
+```javascript
+window.addEventListener("error", (event) => {
+  console.error("Unhandled error:", event.error);
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("Unhandled promise rejection:", event.reason);
+});
+```
 
 ## TypeScript Declarations
 

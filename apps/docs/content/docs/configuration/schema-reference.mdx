@@ -14,64 +14,72 @@ Full schema at `https://swoff.netlify.app/schema/v1.json`.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enabled` | boolean | `true` | Enable config-driven generation |
-| `version` | string | `"from-package"` | SW version. Use `"from-package"` to read from package.json, or specify semver like `"1.0.0"` |
+| `enabled` | boolean | `true` | Enable config-driven SW generation. Set `false` to write your own SW manually |
+| `version` | string | `"from-package"` | SW version. Use `"from-package"` to read from `package.json`, or specify semver like `"1.0.0"` |
 | `minSupportedVersion` | string | `"0.0.0"` | Force update for clients running older versions |
 
 ### serviceWorker
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `autoRegister` | boolean | `true` | Automatically register SW on page load. Set `false` for deferred registration (e.g., after onboarding) |
-| `autoActivate` | boolean | `false` | Automatically activate newly registered SW (skipWaiting). Only applies when `autoRegister` or `handleUpdateApproved()` registers a new version. |
-| `defaultStrategy` | string | `"cache-first"` | Default caching strategy |
-| `strategies` | object | `{}` | Per-URL pattern strategies |
-| `maxCacheEntries` | integer | `100` | Max cached entries |
-| `maxCacheAge` | integer | `604800000` | Max cache age in ms (7 days) |
-| `runtimeCacheName` | string | `"swoff-runtime"` | Runtime cache name |
+| `autoRegister` | boolean | `true` | Auto-register new SW versions on page load. Set `false` for consent-based registration |
+| `autoActivate` | boolean | `false` | Auto-activate new SW via `skipWaiting`. Only applies when `autoRegister` or `handleUpdateApproved()` registers a new version |
+| `defaultStrategy` | string | `"cache-first"` | Default caching strategy for unmatched routes |
+| `strategies` | object | `{}` | Per-URL pattern strategy overrides |
+| `maxCacheEntries` | integer | `100` | Max runtime cache entries (`0` disables trimming) |
+| `maxCacheAge` | integer | `604800000` | Max cache age in ms (`0` disables trimming). 604800000 = 7 days |
+| `runtimeCacheName` | string | `"swoff-runtime"` | Runtime cache storage name |
 
 ### strategies values
 
-- `cache-first` — Serve cache, fall back to network
+- `cache-first` — Serve from cache, fall back to network
 - `network-first` — Try network, fall back to cache
 - `stale-while-revalidate` — Serve cached, refresh in background
-- `cache-only` — Cache only
-- `network-only` — Network only
+- `cache-only` — Cache only (never network)
+- `network-only` — Network only (never cache)
 
 ### features
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `versionedSw` | boolean | `true` | Versioned SW (prevents silent updates) |
-| `offlineReads` | boolean | `true` | Cache API responses for offline reads |
+| `versionedSw` | boolean | `true` | Versioned SW lifecycle (install, activate, skipWaiting) |
+| `offlineReads` | boolean | `true` | Cache API responses with tag-based invalidation |
 | `mutationQueue` | boolean | `false` | Queue offline writes, sync on reconnect |
 | `backgroundSync` | boolean | `false` | Background Sync API (Chrome/Edge only) |
-| `pwa` | boolean | `true` | PWA installability |
-| `auth` | boolean | `false` | Auth integration |
-| `crossTabSync` | boolean | `true` | Cross-tab cache invalidation |
-| `tagInvalidation` | boolean | `true` | Tag-based cache invalidation |
-| `clientRegistration` | boolean | `true` | Generate client-side SW registration code (`sw-injector`) |
+| `pwa` | boolean | `true` | PWA install handler + manifest.json |
+| `auth` | boolean | `false` | Auth token storage, auth-aware fetch |
+| `crossTabSync` | boolean | `true` | Cross-tab cache invalidation via postMessage |
+| `tagInvalidation` | boolean | `true` | URL-based cache tag generation |
+| `clientRegistration` | boolean | `true` | Generate `sw-injector.js` with version checking and update consent |
 | `indexeddb` | boolean | `false` | Generate IndexedDB storage patterns |
 
 ### pwa
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `preventDefaultInstall` | boolean | `false` | When `false`, browser shows native install prompt naturally while event is captured. When `true`, prompt is suppressed and dev must call `promptInstall()` manually |
+| `preventDefaultInstall` | boolean | `false` | Suppress native install prompt. When `true`, dev must call `promptInstall()` manually |
 
 ### build
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `outputDir` | string | `"dist"` | Output directory |
-| `swFilename` | string | `"sw"` | SW filename (without version) |
+| `outputDir` | string | `"dist"` | Build output directory for SW + version.json |
+| `swFilename` | string | `"sw"` | SW filename (without version). Produces `<swFilename>-v<version>.js` |
 
 ### database
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `name` | string | `"app-db"` | IndexedDB name |
-| `stores` | array | `[]` | Object store names |
+| `name` | string | `"app-db"` | IndexedDB database name |
+| `stores` | array | `[]` | Array of object store names |
+
+## Manifest
+
+The CLI generates `public/manifest.json` when `features.pwa` is `true`, but only if:
+- The `public/` directory exists at project root
+- No `public/manifest.json` already exists
+
+The generated manifest includes full PWA fields (name, short_name, icons, start_url, display, background_color, theme_color, description, scope, categories, lang, orientation).
 
 ## Example Config
 
@@ -88,7 +96,9 @@ Full schema at `https://swoff.netlify.app/schema/v1.json`.
     "strategies": {
       "/api/*": "network-first",
       "/static/*": "cache-first"
-    }
+    },
+    "maxCacheEntries": 200,
+    "maxCacheAge": 604800000
   },
   "features": {
     "versionedSw": true,
@@ -114,11 +124,7 @@ Full schema at `https://swoff.netlify.app/schema/v1.json`.
 
 ## Validation
 
-```bash
-npx ajv validate -s https://swoff.netlify.app/schema/v1.json -d swoff.config.json
-```
-
-Or use the CLI:
+Validate your config against the schema:
 
 ```bash
 npx @swoff/cli validate

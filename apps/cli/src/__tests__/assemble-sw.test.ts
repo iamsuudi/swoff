@@ -15,10 +15,11 @@ describe("assembleSW", () => {
     expect(sw).toContain("SWOFF");
   });
 
-  it("includes config header", () => {
-    const sw = assembleSW(config, "1.0.0");
+  it("includes config header with resolved version", () => {
+    const sw = assembleSW(config, "2.5.0");
     expect(sw).toContain("Swoff Service Worker - Auto-Generated");
-    expect(sw).toContain("Version: 1.0.0");
+    expect(sw).toContain("Version: 2.5.0");
+    expect(sw).not.toContain("Version: from-package");
   });
 
   it("includes install handler", () => {

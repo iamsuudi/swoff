@@ -101,8 +101,10 @@ if (config.features.indexeddb) {
 generateSwGeneratorBuild(ctx);
 console.log("  sw-generator");
 
-generateTypeDefinitions(ctx);
-console.log("  swoff.d.ts");
+if (language === "ts") {
+  generateTypeDefinitions(ctx);
+  console.log("  swoff.d.ts");
+}
 
 if (config.features.pwa) {
   generatePwaInstall(ctx);

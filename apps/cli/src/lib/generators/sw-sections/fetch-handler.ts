@@ -11,20 +11,20 @@ export function generateFetchHandler(
   const hasTrim = (maxCacheEntries ?? 0) > 0 || (maxCacheAge ?? 0) > 0;
 
   const tagInvalidationCode = tagInvalidation ? `
-        const tagsHeader = event.request.headers.get("X-SW-Cache-Tags");
-        if (tagsHeader) {
-          const url = new URL(event.request.url).href;
-          const tags = tagsHeader.split(",").map((t) => t.trim());
-          await cacheTagUrl(url, tags);
-        }` : "";
+          const tagsHeader = event.request.headers.get("X-SW-Cache-Tags");
+          if (tagsHeader) {
+            const url = new URL(event.request.url).href;
+            const tags = tagsHeader.split(",").map((t) => t.trim());
+            await cacheTagUrl(url, tags);
+          }` : "";
 
   const staleTagCode = tagInvalidation ? `
-        const tagsHeader = request.headers.get("X-SW-Cache-Tags");
-        if (tagsHeader) {
-          const url = new URL(request.url).href;
-          const tags = tagsHeader.split(",").map((t) => t.trim());
-          await cacheTagUrl(url, tags);
-        }` : "";
+      const tagsHeader = request.headers.get("X-SW-Cache-Tags");
+      if (tagsHeader) {
+        const url = new URL(request.url).href;
+        const tags = tagsHeader.split(",").map((t) => t.trim());
+        await cacheTagUrl(url, tags);
+      }` : "";
 
   const trimCode = hasTrim ? `        await trimRuntimeCache(CACHE_NAME_RUNTIME);\n` : "";
 

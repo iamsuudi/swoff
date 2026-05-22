@@ -4,12 +4,12 @@
 
 import type { SwoffConfig } from "../../shared/config-types.js";
 
-export function generateConfigHeader(config: SwoffConfig): string {
+export function generateConfigHeader(config: SwoffConfig, resolvedVersion: string): string {
   return `/**
  * Swoff Service Worker - Auto-Generated
  * Generated from swoff.config.json
  * DO NOT EDIT MANUALLY
- * Version: ${config.version}
+ * Version: ${resolvedVersion}
  * Features: versionedSw=${config.features.versionedSw}, offlineReads=${config.features.offlineReads}, mutationQueue=${config.features.mutationQueue}, backgroundSync=${config.features.backgroundSync}, tagInvalidation=${config.features.tagInvalidation}
  * Default Strategy: ${config.serviceWorker.defaultStrategy}
  * See: https://swoff.netlify.app/docs

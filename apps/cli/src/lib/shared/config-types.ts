@@ -65,6 +65,23 @@ export const VALID_STRATEGIES = [
 
 export const API_PREFIXES = ["api", "v1", "v2", "v3", "rest", "graphql", "gql"];
 
+/**
+ * Deep merge a partial config over the defaults.
+ * Unlike a shallow spread, this preserves all nested default fields
+ * when the user only overrides a subset.
+ */
+export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>): SwoffConfig {
+  return {
+    ...base,
+    ...override,
+    serviceWorker: { ...base.serviceWorker, ...override.serviceWorker },
+    features: { ...base.features, ...override.features },
+    pwa: { ...base.pwa, ...override.pwa },
+    database: { ...base.database, ...override.database },
+    build: { ...base.build, ...override.build },
+  };
+}
+
 export const defaultConfig: SwoffConfig = {
   enabled: true,
   version: "from-package",

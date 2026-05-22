@@ -8,9 +8,7 @@
  *   node swoff-files-generator.js --project-root <path> --package-dir <path> --language <ts|js> --config-path <path>
  */
 
-import { existsSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { join } from "path";
 import { loadConfig } from "../config/loader.js";
 import type { GeneratorContext } from "./file-generators/context.js";
 import { generateSwTemplate } from "./file-generators/sw-template.js";
@@ -36,7 +34,6 @@ function getArg(name: string): string | null {
 }
 
 const projectRoot = getArg("project-root") || process.cwd();
-const packageDir = getArg("package-dir") || join(dirname(fileURLToPath(import.meta.url)), "../..");
 const language = getArg("language") || "ts";
 const configPath = getArg("config-path") || join(projectRoot, "swoff.config.json");
 

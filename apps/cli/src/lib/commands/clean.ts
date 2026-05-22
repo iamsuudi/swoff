@@ -5,12 +5,12 @@
 import { readFileSync, existsSync, readdirSync, unlinkSync } from "fs";
 import { join } from "path";
 import { log } from "../cli/logger.js";
-import { loadConfig } from "../config/loader.js";
+import { loadConfigAsync } from "../config/loader.js";
 
 export async function cleanCommand(projectRoot: string) {
   log.header("Cleaning Old Service Worker Files");
 
-  const { config, configPath } = loadConfig(projectRoot);
+  const { config, configPath } = await loadConfigAsync(projectRoot);
 
   if (!configPath) {
     log.warn('No swoff.config.json found. Run "swoff init" first.');
@@ -19,6 +19,7 @@ export async function cleanCommand(projectRoot: string) {
 
   const outputDir = config.build.outputDir || "dist";
   const swFilename = config.build.swFilename || "sw";
+  const escapedName = swFilename.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
   const distPath = join(projectRoot, outputDir);
   if (!existsSync(distPath)) {
@@ -34,7 +35,7 @@ export async function cleanCommand(projectRoot: string) {
   }
 
   const files = readdirSync(distPath);
-  const swPattern = new RegExp(`^${swFilename}-v\\d+\\.\\d+\\.\\d+\\.js$`);
+  const swPattern = new RegExp(`^${escapedName}-v\\d+\\.\\d+\\.\\d+\\.js$`);
   const swFiles = files.filter((f) => swPattern.test(f));
 
   if (swFiles.length === 0) {

@@ -7,7 +7,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { spawn } from "child_process";
 import { log } from "../cli/logger.js";
-import { loadConfig } from "../config/loader.js";
+import { loadConfigAsync } from "../config/loader.js";
 import { detectProjectLanguage } from "../utils/detect-language.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -24,7 +24,7 @@ export async function generateCommand(projectRoot: string, options: GenerateOpti
 
   log.header("Generating Swoff Files");
 
-  const { config, configPath } = loadConfig(projectRoot);
+  const { config, configPath } = await loadConfigAsync(projectRoot);
 
   if (!configPath) {
     log.warn('No swoff.config.json found. Run "swoff init" first.');

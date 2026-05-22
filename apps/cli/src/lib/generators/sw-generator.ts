@@ -98,7 +98,7 @@ export async function generate(options: GeneratorOptions = {}): Promise<void> {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (fileURLToPath(import.meta.url) === fileURLToPath(new URL(process.argv[1], "file:"))) {
   generate().catch((err) => {
     console.error(err);
     process.exit(1);

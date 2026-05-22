@@ -125,6 +125,19 @@ export async function initServiceWorker() {
       await doRegisterServiceWorker(manifest.version);
     }
   } catch (error) {
+    // Offline or version.json fetch failed — try using existing registration
+    try {
+      const existing = await navigator.serviceWorker.getRegistration();
+      if (existing && existing.active) {
+        window.currentSWVersion = localStorage.getItem("swRegisteredVersion") || "unknown";
+        window.dispatchEvent(new CustomEvent("sw-version-detected"));
+        window.dispatchEvent(new CustomEvent("sw-ready"));
+        return;
+      }
+    } catch {
+      // Registration check also failed, nothing we can do
+    }
+
     console.error("Service Worker initialization failed:", error);
     window.swError = true;
     window.dispatchEvent(new CustomEvent("sw-error"));

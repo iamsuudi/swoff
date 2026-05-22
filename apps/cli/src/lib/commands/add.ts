@@ -5,8 +5,8 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { log } from "../cli/logger.js";
-import { loadConfig } from "../config/loader.js";
-import { defaultConfig, type SwoffConfig } from "../shared/config-types.js";
+import { loadConfigAsync } from "../config/loader.js";
+import { defaultConfig, mergeConfigs, type SwoffConfig } from "../shared/config-types.js";
 import { generateCommand } from "./generate.js";
 
 const featureMap: Record<string, Record<string, boolean>> = {
@@ -35,8 +35,7 @@ export async function addCommand(projectRoot: string, feature: string) {
     return;
   }
 
-  const { config, configPath } = loadConfig(projectRoot);
-
+  const { configPath } = await loadConfigAsync(projectRoot);
   const resolvedConfigPath = configPath || join(projectRoot, "swoff.config.json");
 
   if (!configPath) {

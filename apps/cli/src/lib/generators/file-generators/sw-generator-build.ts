@@ -14,7 +14,7 @@ export function generateSwGeneratorBuild(ctx: GeneratorContext): void {
  *   "build": "your-build && node swoff/sw-generator.js"
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -55,7 +55,7 @@ sw = sw.replace('// [[AUTO_SKIP_WAITING]]', \`const AUTO_SKIP_WAITING = \${confi
 
 const outDir = join(projectRoot, outputDir);
 if (!existsSync(outDir)) {
-  import('fs').then(fs => fs.mkdirSync(outDir, { recursive: true }));
+  mkdirSync(outDir, { recursive: true });
 }
 
 writeFileSync(join(projectRoot, outputDir, \`\${swFilename}-v\${version}.js\`), sw);

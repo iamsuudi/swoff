@@ -5,12 +5,12 @@
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
 import { log } from "../cli/logger.js";
-import { loadConfig } from "../config/loader.js";
+import { loadConfigAsync } from "../config/loader.js";
 
 export async function infoCommand(projectRoot: string) {
   log.header("Swoff Configuration Summary");
 
-  const { config, configPath } = loadConfig(projectRoot);
+  const { config, configPath } = await loadConfigAsync(projectRoot);
 
   if (!configPath) {
     log.warn('No swoff.config.json found. Run "swoff init" first.');

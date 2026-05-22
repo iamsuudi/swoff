@@ -37,8 +37,7 @@ export function assembleSW(config: SwoffConfig, version: string): string {
     sw = sw.replace("// [[TAG_MANAGEMENT]]", "");
   }
 
-  sw = `// [[CONFIG_HEADER]]\n\n${sw}`;
-  sw = sw.replace("// [[CONFIG_HEADER]]", generateConfigHeader(config));
+  sw = `${generateConfigHeader(config)}\n\n${sw}`;
 
   if (features.backgroundSync) {
     sw += `\n\n${generateBackgroundSyncHandler()}`;

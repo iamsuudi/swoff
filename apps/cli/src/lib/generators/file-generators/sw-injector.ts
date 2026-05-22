@@ -144,29 +144,26 @@ export async function initServiceWorker() {
   }
 }
 
-export function handleUpdateApproved(newVersion) {
-  return navigator.serviceWorker.getRegistration().then((registration) => {
-    if (registration && registration.waiting) {
-      registration.waiting.postMessage({ type: "SKIP_WAITING" });
-      registration.addEventListener("controllerchange", () => {
-        window.location.reload();
-      });
-    } else {
-      return doRegisterServiceWorker(newVersion).then(() => {
-        navigator.serviceWorker.addEventListener("controllerchange", () => {
-          window.location.reload();
-        });
-      });
-    }
-  });
+export async function handleUpdateApproved(newVersion) {
+  const registration = await navigator.serviceWorker.getRegistration();
+  if (registration && registration.waiting) {
+    registration.waiting.postMessage({ type: "SKIP_WAITING" });
+    registration.addEventListener("controllerchange", () => {
+      window.location.reload();
+    });
+  } else {
+    await doRegisterServiceWorker(newVersion);
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      window.location.reload();
+    });
+  }
 }
 
-export function skipWaiting() {
-  return navigator.serviceWorker.ready.then((registration) => {
-    if (registration.waiting) {
-      registration.waiting.postMessage({ type: "SKIP_WAITING" });
-    }
-  });
+export async function skipWaiting() {
+  const registration = await navigator.serviceWorker.ready;
+  if (registration.waiting) {
+    registration.waiting.postMessage({ type: "SKIP_WAITING" });
+  }
 }
 
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {

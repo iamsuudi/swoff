@@ -126,4 +126,37 @@ describe("assembleSW", () => {
     expect(sw).toContain("/api/*");
     expect(sw).toContain("network-first");
   });
+
+  it("includes trimRuntimeCache when maxCacheEntries is set", () => {
+    const configWithTrim: SwoffConfig = {
+      ...config,
+      serviceWorker: {
+        ...config.serviceWorker,
+        maxCacheEntries: 100,
+      },
+    };
+    const sw = assembleSW(configWithTrim, "1.0.0");
+    expect(sw).toContain("trimRuntimeCache");
+    expect(sw).toContain("MAX_CACHE_ENTRIES = 100");
+    expect(sw).toContain("MAX_CACHE_AGE = 0");
+  });
+
+  it("includes trimRuntimeCache when maxCacheAge is set", () => {
+    const configWithTrim: SwoffConfig = {
+      ...config,
+      serviceWorker: {
+        ...config.serviceWorker,
+        maxCacheAge: 86400000,
+      },
+    };
+    const sw = assembleSW(configWithTrim, "1.0.0");
+    expect(sw).toContain("trimRuntimeCache");
+    expect(sw).toContain("MAX_CACHE_AGE = 86400000");
+    expect(sw).toContain("MAX_CACHE_ENTRIES = 0");
+  });
+
+  it("excludes trimRuntimeCache when no trimming configured", () => {
+    const sw = assembleSW(config, "1.0.0");
+    expect(sw).not.toContain("trimRuntimeCache");
+  });
 });

@@ -32,7 +32,7 @@ export async function initCommand(projectRoot: string, framework?: string) {
 
   const configPath = join(projectRoot, "swoff.config.json");
   writeFileSync(configPath, JSON.stringify(config, null, 2));
-  log.success("Created swoff.config.json");
+  log.info("Created swoff.config.json");
 
   const dirs = ["swoff"];
   for (const dir of dirs) {

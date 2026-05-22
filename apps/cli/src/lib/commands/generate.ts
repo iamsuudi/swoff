@@ -45,10 +45,10 @@ export async function generateCommand(projectRoot: string, options: GenerateOpti
     return;
   }
 
-  log.info(configPath);
+  log.info(`Config: ${configPath}`);
 
   const detectedLang = language ?? detectProjectLanguage(projectRoot);
-  log.info(detectedLang);
+  log.info(`Language: ${detectedLang}`);
 
   if (!filesOnly) {
     statusLine("→ Service worker...");
@@ -81,7 +81,7 @@ export async function generateCommand(projectRoot: string, options: GenerateOpti
     try {
       const files = generateFiles(ctx, (name) => statusLine(`→ ${name}...`));
       clearStatusLine();
-      log.success(`Generated ${files.length} framework files`);
+      log.success(`Generated ${files.length} supporting files`);
     } catch (err: unknown) {
       clearStatusLine();
       log.error(`File generation failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -89,15 +89,13 @@ export async function generateCommand(projectRoot: string, options: GenerateOpti
   }
 
   log.success("Generation complete!");
-  log.help("Import the SW injector in your app entry point:");
-  log.help("  import { initServiceWorker, shouldRegisterSW } from './swoff/sw-injector.js';");
-  log.help("  if (shouldRegisterSW()) initServiceWorker();");
-  log.help("");
-  log.help("Use the fetch wrapper for API calls:");
-  log.help("  import { fetchWithCache } from './swoff/fetch-wrapper.js';");
-  log.help("  const data = await fetchWithCache('/api/data').then(r => r.json());");
-  log.help("");
-  log.help('Add to your build script: "build": "your-build && node swoff/sw-generator.js"');
-  log.help("");
-  log.help("Read the docs: https://swoff.netlify.app/docs");
+  log.info("Next steps:");
+  log.help("1. Import the SW injector in your app entry point:");
+  log.help("   import { initServiceWorker, shouldRegisterSW } from './swoff/sw-injector.js';");
+  log.help("   if (shouldRegisterSW()) initServiceWorker();");
+  log.help("2. Use the fetch wrapper for API calls:");
+  log.help("   import { fetchWithCache } from './swoff/fetch-wrapper.js';");
+  log.help("   const data = await fetchWithCache('/api/data').then(r => r.json());");
+  log.help('3. Add to your build script: "build": "your-build && node swoff/sw-generator.js"');
+  log.help("4. Read the docs: https://swoff.netlify.app/docs");
 }

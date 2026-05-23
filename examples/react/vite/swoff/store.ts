@@ -1,26 +1,16 @@
 /**
- * Generates store.js - IndexedDB CRUD operations.
- */
-
-import { GeneratorContext, writeFile } from "./context.js";
-
-export function generateStore(ctx: GeneratorContext): void {
-  const ext = ctx.ext;
-  const dbName = ctx.config.features.indexeddb?.name || "app-db";
-
-  const code = `/**
  * Swoff IndexedDB Store
  * Generic CRUD operations for app's IndexedDB database.
  *
  * Usage:
- *   import { getRecord, putRecord, deleteRecord, openAppDB } from './swoff/store.${ext}';
+ *   import { getRecord, putRecord, deleteRecord, openAppDB } from './swoff/store.ts';
  *
  *   const record = await getRecord('todos', 'todo-123');
  *   await putRecord('todos', { id: 'todo-123', title: 'New task', $synced: false });
  *   await deleteRecord('todos', 'todo-123');
  */
 
-const DB_NAME = "${dbName}";
+const DB_NAME = "app-db";
 
 export function openAppDB() {
   return new Promise((resolve, reject) => {
@@ -72,8 +62,4 @@ export async function getAllRecords(storeName) {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
-}
-`;
-
-  writeFile(ctx, `store.${ext}`, code);
 }

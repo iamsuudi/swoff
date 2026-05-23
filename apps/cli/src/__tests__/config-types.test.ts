@@ -32,7 +32,11 @@ describe("config-types", () => {
     it("has all known features as booleans", () => {
       for (const feature of KNOWN_FEATURES) {
         expect(defaultConfig.features).toHaveProperty(feature);
-        expect(typeof defaultConfig.features[feature]).toBe("boolean");
+        if (feature === "auth") {
+          expect(typeof defaultConfig.features[feature]).toBe("object");
+        } else {
+          expect(typeof defaultConfig.features[feature]).toBe("boolean");
+        }
       }
     });
 
@@ -75,7 +79,6 @@ describe("config-types", () => {
   describe("constants", () => {
     it("KNOWN_FEATURES contains only boolean features", () => {
       expect(KNOWN_FEATURES).toContain("versionedSw");
-      expect(KNOWN_FEATURES).toContain("offlineReads");
       expect(KNOWN_FEATURES).toContain("mutationQueue");
       expect(KNOWN_FEATURES).toContain("backgroundSync");
       expect(KNOWN_FEATURES).toContain("auth");
@@ -86,9 +89,10 @@ describe("config-types", () => {
       expect(KNOWN_FEATURES).not.toContain("indexeddb");
     });
 
-    it("OBJECT_FEATURES lists pwa and indexeddb", () => {
+    it("OBJECT_FEATURES lists pwa, indexeddb, and auth", () => {
       expect(OBJECT_FEATURES).toContain("pwa");
       expect(OBJECT_FEATURES).toContain("indexeddb");
+      expect(OBJECT_FEATURES).toContain("auth");
     });
 
     it("VALID_STRATEGIES contains all 5 strategies", () => {

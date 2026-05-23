@@ -1,6 +1,5 @@
 import { Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
-import UpdatePrompt from "./components/UpdatePrompt";
 import SWProgressBar from "./components/SWProgressBar";
 import HomePage from "./HomePage";
 import NoteDetailPage from "./NoteDetailPage";
@@ -22,7 +21,6 @@ export default function App() {
           <Route path="/about" element={<AboutPage />} />
         </Routes>
       </main>
-      <UpdatePrompt />
     </>
   );
 }

@@ -5,6 +5,7 @@
 import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateIndexedDB(ctx: GeneratorContext): void {
+  const ext = ctx.ext;
   const dbName = ctx.config.features.indexeddb?.name || "app-db";
   const stores = ctx.config.features.indexeddb?.stores || [];
 
@@ -27,7 +28,7 @@ export function generateIndexedDB(ctx: GeneratorContext): void {
  * Database initialization with schema migrations.
  *
  * Usage:
- *   import { openDB } from './swoff/indexeddb.js';
+ *   import { openDB } from './swoff/indexeddb.${ext}';
  *
  *   const db = await openDB();
  */
@@ -77,5 +78,5 @@ export async function monitorStorage() {
 }
 `;
 
-  writeFile(ctx, "indexeddb.js", code);
+  writeFile(ctx, `indexeddb.${ext}`, code);
 }

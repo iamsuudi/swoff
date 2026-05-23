@@ -1,22 +1,14 @@
 /**
- * Generates reconcile.js - ID reconciliation after mutation sync.
- */
-
-import { GeneratorContext, writeFile } from "./context.js";
-
-export function generateReconcile(ctx: GeneratorContext): void {
-  const ext = ctx.ext;
-  const code = `/**
  * Swoff ID Reconciliation
  * Update local records with server data after mutation sync.
  *
  * Usage:
- *   import { reconcileRecord } from './swoff/reconcile.${ext}';
+ *   import { reconcileRecord } from './swoff/reconcile.ts';
  *
  *   await reconcileRecord('todos', 'temp_abc123', serverData);
  */
 
-import { getRecord, putRecord, deleteRecord } from './store.${ext}';
+import { getRecord, putRecord, deleteRecord } from './store.ts';
 
 export async function reconcileRecord(storeName, tempId, serverData) {
   const existing = await getRecord(storeName, tempId);
@@ -50,8 +42,4 @@ export async function reconcileReferences(storeName, oldId, newId) {
   //     await putRecord('transactions', txn);
   //   }
   // }
-}
-`;
-
-  writeFile(ctx, `reconcile.${ext}`, code);
 }

@@ -1,0 +1,45 @@
+{
+  "enabled": true,
+  "version": "from-package",
+  "minSupportedVersion": "1.0.0",
+  "serviceWorker": {
+    "autoRegister": true,
+    "autoActivate": true,
+    "defaultStrategy": "cache-first",
+    "strategies": {
+      "/api/*": "network-first",
+      "/static/*": "cache-first"
+    },
+    "clearRuntimeOnUpdate": false,
+    "navigationMode": "spa",
+    "spaEntry": "/index.html"
+  },
+  "features": {
+    "pwa": {
+      "enabled": true,
+      "preventDefaultInstall": false
+    },
+    "indexeddb": {
+      "enabled": false,
+      "name": "app-db",
+      "stores": []
+    },
+    "versionedSw": true,
+    "mutationQueue": true,
+    "backgroundSync": true,
+    "auth": {
+      "enabled": true,
+      "type": "bearer",
+      "refreshPath": "/api/refresh",
+      "userEndpoint": "/api/me"
+    },
+    "crossTabSync": true,
+    "tagInvalidation": true,
+    "clientRegistration": true
+  },
+  "build": {
+    "outputDir": "dist",
+    "swFilename": "sw"
+  },
+  "$schema": "https://swoff.netlify.app/schema/v1.json"
+}

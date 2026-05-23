@@ -69,6 +69,11 @@ async function trimRuntimeCache(cacheName) {
 ` : "";
 
   return `${trimFunction}
+async function fromPrecache(request) {
+  const cache = await caches.open(CACHE_NAME);
+  return cache.match(request);
+}
+
 function isReadRequest(request) {
   const strategy = request.headers.get("X-SW-Cache-Strategy");
   if (strategy === "read") return true;
@@ -77,9 +82,9 @@ function isReadRequest(request) {
 }
 
 function determineCacheStrategy(request, customStrategies, defaultStrategy) {
-  const url = request.url;
+  const path = new URL(request.url).pathname;
   for (const [pattern, strategy] of Object.entries(customStrategies)) {
-    if (url.includes(pattern.replace("*", ""))) return strategy;
+    if (path.startsWith(pattern.replace("*", ""))) return strategy;
   }
   return defaultStrategy;
 }
@@ -118,6 +123,9 @@ async function cacheFirst(event, request) {
 
   const cached = await runtimeCache.match(request);
   if (cached) return cached;
+
+  const precached = await fromPrecache(request);
+  if (precached) return precached;
 ${navCode}
   const response = await fetch(request);
   if (response.ok) {
@@ -148,6 +156,9 @@ ${trimCode}        })(),
   } catch {
     const cached = await runtimeCache.match(request);
     if (cached) return cached;
+
+    const precached = await fromPrecache(request);
+    if (precached) return precached;
 ${navCode}
     throw new Error("Request failed and no cached response available");
   }
@@ -160,6 +171,12 @@ async function staleWhileRevalidate(event, request) {
   if (cached) {
     event.waitUntil(refreshCache(runtimeCache, request));
     return cached;
+  }
+
+  const precached = await fromPrecache(request);
+  if (precached) {
+    event.waitUntil(refreshCache(runtimeCache, request));
+    return precached;
   }
 
   const response = await fetch(request);
@@ -185,6 +202,9 @@ async function cacheOnly(event, request) {
 
   const byRequest = await runtimeCache.match(request);
   if (byRequest) return byRequest;
+
+  const precached = await fromPrecache(request);
+  if (precached) return precached;
 
   return new Response("Not in cache", { status: 404 });
 }

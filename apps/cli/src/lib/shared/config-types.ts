@@ -1,3 +1,10 @@
+export interface AuthConfig {
+  enabled: boolean;
+  type: "cookie" | "bearer" | "custom";
+  refreshPath: string;
+  userEndpoint: string;
+}
+
 export interface SwoffConfig {
   $schema?: string;
   enabled: boolean;
@@ -26,10 +33,9 @@ export interface SwoffConfig {
       stores: string[];
     };
     versionedSw: boolean;
-    offlineReads: boolean;
     mutationQueue: boolean;
     backgroundSync: boolean;
-    auth: boolean;
+    auth: AuthConfig;
     crossTabSync: boolean;
     tagInvalidation: boolean;
     clientRegistration: boolean;
@@ -42,7 +48,6 @@ export interface SwoffConfig {
 
 export const KNOWN_FEATURES = [
   "versionedSw",
-  "offlineReads",
   "mutationQueue",
   "backgroundSync",
   "auth",
@@ -51,7 +56,7 @@ export const KNOWN_FEATURES = [
   "clientRegistration",
 ] as const;
 
-export const OBJECT_FEATURES = ["pwa", "indexeddb"] as const;
+export const OBJECT_FEATURES = ["pwa", "indexeddb", "auth"] as const;
 
 export const VALID_STRATEGIES = [
   "cache-first",
@@ -63,6 +68,12 @@ export const VALID_STRATEGIES = [
 
 export const API_PREFIXES = ["api", "v1", "v2", "v3", "rest", "graphql", "gql"];
 
+function normalizeAuth(auth: unknown): AuthConfig {
+  if (typeof auth === "boolean") return { ...defaultAuth, enabled: auth };
+  if (auth && typeof auth === "object") return { ...defaultAuth, ...(auth as Partial<AuthConfig>) };
+  return defaultAuth;
+}
+
 export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>): SwoffConfig {
   return {
     ...base,
@@ -73,10 +84,18 @@ export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>):
       ...override.features,
       pwa: { ...base.features.pwa, ...override.features?.pwa },
       indexeddb: { ...base.features.indexeddb, ...override.features?.indexeddb },
+      auth: normalizeAuth(override.features?.auth),
     },
     build: { ...base.build, ...override.build },
   };
 }
+
+export const defaultAuth: AuthConfig = {
+  enabled: false,
+  type: "bearer",
+  refreshPath: "/api/refresh",
+  userEndpoint: "/api/me",
+};
 
 export const defaultConfig: SwoffConfig = {
   enabled: true,
@@ -102,10 +121,9 @@ export const defaultConfig: SwoffConfig = {
       stores: [],
     },
     versionedSw: true,
-    offlineReads: true,
     mutationQueue: false,
     backgroundSync: false,
-    auth: false,
+    auth: { ...defaultAuth },
     crossTabSync: true,
     tagInvalidation: true,
     clientRegistration: true,

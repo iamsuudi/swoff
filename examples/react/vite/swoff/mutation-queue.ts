@@ -1,34 +1,9 @@
 /**
- * Generates mutation-queue.js - offline mutation queue with IndexedDB.
- */
-
-import { GeneratorContext, writeFile } from "./context.js";
-
-export function generateMutationQueue(ctx: GeneratorContext): void {
-  const ext = ctx.ext;
-  const authEnabled = ctx.config.features.auth.enabled;
-
-  const importLines = authEnabled
-    ? `import { getAuth } from "./auth-store.${ext}";
-`
-    : "";
-
-  const authReplayBlock = authEnabled
-    ? `  const auth = await getAuth();
-  const authHeader = auth?.token ? { Authorization: \`Bearer \${auth.token}\` } : {};
-`
-    : "";
-
-  const authHeadersSpread = authEnabled
-    ? `            ...authHeader,`
-    : "";
-
-  const code = `/**
  * Swoff Mutation Queue
  * Queue offline writes and sync when connection returns.
  *
  * Usage:
- *   import { queueMutation, processMutationQueue, flushMutations, getPendingCount } from './swoff/mutation-queue.${ext}';
+ *   import { queueMutation, processMutationQueue, flushMutations, getPendingCount } from './swoff/mutation-queue.ts';
  *
  *   // Queue a mutation
  *   await queueMutation({
@@ -46,7 +21,8 @@ export function generateMutationQueue(ctx: GeneratorContext): void {
  *   // Auto-processes on online event
  */
 
-${importLines}const DB_NAME = "swoff-queue";
+import { getAuth } from "./auth-store.ts";
+const DB_NAME = "swoff-queue";
 const STORE_NAME = "mutations";
 const MAX_RETRIES = 5;
 
@@ -99,7 +75,9 @@ export async function processMutationQueue() {
   isSyncing = true;
 
   try {
-${authReplayBlock}    const db = await openQueueDB();
+  const auth = await getAuth();
+  const authHeader = auth?.token ? { Authorization: `Bearer ${auth.token}` } : {};
+    const db = await openQueueDB();
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
     const index = store.index("by-timestamp");
@@ -125,12 +103,12 @@ ${authReplayBlock}    const db = await openQueueDB();
           method: item.method,
           headers: {
             "Content-Type": "application/json",
-${authHeadersSpread}            ...item.headers,
+            ...authHeader,            ...item.headers,
           },
           body: JSON.stringify(item.body),
         });
 
-        if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         const serverData = await response.json();
 
@@ -139,7 +117,7 @@ ${authHeadersSpread}            ...item.headers,
         }
 
         if (item.tags && item.tags.length > 0) {
-          const { invalidateByTags } = await import("./cache.${ext}");
+          const { invalidateByTags } = await import("./cache.ts");
           await invalidateByTags(item.tags);
         }
 
@@ -166,10 +144,7 @@ ${authHeadersSpread}            ...item.headers,
 export async function flushMutations() {
   await processMutationQueue();
 }
-`;
 
-  // Helper functions (unchanged) are appended outside the template string
-  const helpers = `
 async function removeFromQueue(id) {
   const db = await openQueueDB();
   const tx = db.transaction(STORE_NAME, "readwrite");
@@ -194,16 +169,16 @@ async function rollbackMutation(item) {
   if (!item.storeName) return;
 
   if (item.method === "POST" && item.tempId) {
-    const { deleteRecord } = await import("./store.${ext}");
+    const { deleteRecord } = await import("./store.ts");
     await deleteRecord(item.storeName, item.tempId);
   } else if (
     (item.method === "PUT" || item.method === "PATCH") &&
     item.previousData
   ) {
-    const { putRecord } = await import("./store.${ext}");
+    const { putRecord } = await import("./store.ts");
     await putRecord(item.storeName, { ...item.previousData, $synced: true });
   } else if (item.method === "DELETE" && item.tempId && item.previousData) {
-    const { putRecord } = await import("./store.${ext}");
+    const { putRecord } = await import("./store.ts");
     await putRecord(item.storeName, { ...item.previousData, $synced: true });
   }
 
@@ -220,7 +195,7 @@ async function rollbackMutation(item) {
 }
 
 async function reconcileRecord(storeName, tempId, serverData) {
-  const { getRecord, putRecord, deleteRecord } = await import("./store.${ext}");
+  const { getRecord, putRecord, deleteRecord } = await import("./store.ts");
   const existing = await getRecord(storeName, tempId);
   if (!existing) return;
 
@@ -247,8 +222,4 @@ export async function getPendingCount() {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
-}
-`;
-
-  writeFile(ctx, `mutation-queue.${ext}`, code + helpers);
 }

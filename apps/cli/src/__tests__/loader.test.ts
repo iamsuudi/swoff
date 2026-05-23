@@ -30,7 +30,7 @@ describe("loadConfig", () => {
       version: "2.0.0",
       serviceWorker: { autoRegister: false, autoActivate: true, defaultStrategy: "network-first", strategies: {} },
       features: {
-        versionedSw: true, offlineReads: true, mutationQueue: true,
+        versionedSw: true, mutationQueue: true,
         backgroundSync: false, pwa: { enabled: true, preventDefaultInstall: true }, auth: false,
         crossTabSync: true, tagInvalidation: true,
         clientRegistration: true, indexeddb: { enabled: true, name: "test-db", stores: [] },

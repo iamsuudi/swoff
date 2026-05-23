@@ -32,7 +32,10 @@ export async function validateCommand(projectRoot: string) {
   log.help(`Default strategy: ${config.serviceWorker.defaultStrategy}`);
   log.help(
     `Features enabled: ${Object.entries(config.features)
-      .filter(([_, v]) => v)
+      .filter(([_, v]) => {
+        if (typeof v === "object" && v !== null) return v.enabled === true;
+        return v === true;
+      })
       .map(([k]) => k)
       .join(", ")}`,
   );

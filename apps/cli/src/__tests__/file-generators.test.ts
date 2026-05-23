@@ -73,6 +73,19 @@ describe("generateSwTemplate", () => {
     expect(content).toContain("network: {");
     expect(content).toContain("Network request failed");
   });
+
+  it("includes config-driven strategy code", () => {
+    const ctx = makeContext({
+      features: { ...defaultConfig.features, tagInvalidation: true },
+      serviceWorker: { ...defaultConfig.serviceWorker, strategies: { "/api/*": "network-first" } },
+    });
+    generateSwTemplate(ctx);
+    const content = readFileSync(join(ctx.swoffDir, "sw-template.js"), "utf8");
+    expect(content).toContain("determineCacheStrategy");
+    expect(content).toContain("fromPrecache");
+    expect(content).toContain("network-first");
+    expect(content).toContain("invalidateByTag");
+  });
 });
 
 describe("generateSwInjector", () => {
@@ -89,6 +102,7 @@ describe("generateSwInjector", () => {
     expect(content).toContain("shouldRegister");
     expect(content).toContain("handleUpdateApproved");
     expect(content).toContain("skipWaiting");
+    expect(content).toContain("waitForController");
   });
 
   it("generates TS when ext is ts", () => {
@@ -105,6 +119,24 @@ describe("generateSwInjector", () => {
     generateSwInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "sw-injector.js"), "utf8");
     expect(content).toContain("AUTO_REGISTER = false");
+  });
+
+  it("includes PWA install listeners when pwa is enabled", () => {
+    const ctx = makeContext();
+    generateSwInjector(ctx);
+    const content = readFileSync(join(ctx.swoffDir, "sw-injector.js"), "utf8");
+    expect(content).toContain("beforeinstallprompt");
+    expect(content).toContain("appinstalled");
+    expect(content).toContain("window.deferredInstallPrompt");
+    expect(content).toContain("pwaInstallable");
+  });
+
+  it("includes TAG_INVALIDATED handler when crossTabSync is enabled", () => {
+    const ctx = makeContext();
+    generateSwInjector(ctx);
+    const content = readFileSync(join(ctx.swoffDir, "sw-injector.js"), "utf8");
+    expect(content).toContain("TAG_INVALIDATED");
+    expect(content).toContain('"cache-invalidated"');
   });
 });
 
@@ -129,9 +161,9 @@ describe("generateCache", () => {
     const content = readFileSync(join(ctx.swoffDir, "cache.js"), "utf8");
     expect(content).toContain("invalidateByTag");
     expect(content).toContain("invalidateByTags");
-    expect(content).toContain("initCrossTabSync");
     expect(content).toContain("INVALIDATE_TAG");
-    expect(content).toContain("TAG_INVALIDATED");
+    expect(content).not.toContain("initCrossTabSync");
+    expect(content).not.toContain("TAG_INVALIDATED");
   });
 });
 
@@ -168,7 +200,6 @@ describe("generateMutationQueue", () => {
     expect(content).toContain("reconcileRecord");
     expect(content).toContain("MAX_RETRIES");
     expect(content).toContain("swoff-queue");
-    expect(content).toContain("window.addEventListener(\"online\", processMutationQueue)");
   });
 });
 
@@ -217,21 +248,15 @@ describe("generateIndexedDB", () => {
 });
 
 describe("generatePwaInstall", () => {
-  it("generates with correct preventDefault setting", () => {
-    const ctx = makeContext({ features: { ...defaultConfig.features, pwa: { enabled: true, preventDefaultInstall: true } } });
+  it("generates promptInstall and isInstallable utilities", () => {
+    const ctx = makeContext();
     generatePwaInstall(ctx);
     const content = readFileSync(join(ctx.swoffDir, "pwa-install.js"), "utf8");
-    expect(content).toContain("PREVENT_DEFAULT_INSTALL = true");
-    expect(content).toContain("beforeinstallprompt");
     expect(content).toContain("promptInstall");
     expect(content).toContain("isInstallable");
-  });
-
-  it("generates with preventDefault false", () => {
-    const ctx = makeContext({ features: { ...defaultConfig.features, pwa: { enabled: true, preventDefaultInstall: false } } });
-    generatePwaInstall(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "pwa-install.js"), "utf8");
-    expect(content).toContain("PREVENT_DEFAULT_INSTALL = false");
+    expect(content).toContain("window.deferredInstallPrompt");
+    expect(content).not.toContain("beforeinstallprompt");
+    expect(content).not.toContain("appinstalled");
   });
 });
 

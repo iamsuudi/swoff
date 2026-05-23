@@ -1,19 +1,10 @@
 /**
- * Generates pwa-install.{js|ts} - PWA install prompt utility.
- */
-
-import { GeneratorContext, writeFile } from "./context.js";
-
-export function generatePwaInstall(ctx: GeneratorContext): void {
-  const ext = ctx.ext;
-
-  const code = `/**
  * Swoff PWA Install Prompt
  * Manual install trigger and installability check.
  * Event listeners are registered in sw-injector at app entry.
  *
  * Usage:
- *   import { isInstallable, promptInstall } from './swoff/pwa-install.${ext}';
+ *   import { isInstallable, promptInstall } from './swoff/pwa-install.ts';
  *
  *   if (isInstallable()) {
  *     const result = await promptInstall();
@@ -54,8 +45,4 @@ export async function promptInstall() {
 
   window.deferredInstallPrompt = null;
   return choice;
-}
-`;
-
-  writeFile(ctx, `pwa-install.${ext}`, code);
 }

@@ -28,6 +28,10 @@ import { generateIndexedDB } from "./file-generators/indexeddb.js";
 import { generatePwaInstall } from "./file-generators/pwa-install.js";
 import { generateManifest } from "./file-generators/manifest.js";
 import { generateInvalidationTags } from "./file-generators/invalidation-tags.js";
+import { generateAuthStore } from "./file-generators/auth-store.js";
+import { generateAuthFetch } from "./file-generators/auth-fetch.js";
+import { generateAuthUser } from "./file-generators/auth-user.js";
+import { generateAuthState } from "./file-generators/auth-state.js";
 import { generateSwGeneratorBuild } from "./file-generators/sw-generator-build.js";
 import { generateTypeDefinitions } from "./file-generators/type-definitions.js";
 
@@ -40,13 +44,17 @@ interface Step {
 export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => void): string[] {
   const steps: Step[] = [
     { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
-    { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: ctx.config.features.clientRegistration },
+    { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: ctx.config.features.clientRegistration || ctx.config.features.pwa.enabled || ctx.config.features.crossTabSync },
     { name: "fetch-wrapper", gen: () => generateFetchWrapper(ctx), enabled: true },
-    { name: "cache", gen: () => generateCache(ctx), enabled: ctx.config.features.tagInvalidation || ctx.config.features.crossTabSync },
+    { name: "cache", gen: () => generateCache(ctx), enabled: ctx.config.features.tagInvalidation },
     { name: "store", gen: () => generateStore(ctx), enabled: ctx.config.features.mutationQueue },
     { name: "reconcile", gen: () => generateReconcile(ctx), enabled: ctx.config.features.mutationQueue },
     { name: "mutation-queue", gen: () => generateMutationQueue(ctx), enabled: ctx.config.features.mutationQueue },
     { name: "background-sync", gen: () => generateBackgroundSync(ctx), enabled: ctx.config.features.backgroundSync },
+    { name: "auth-store", gen: () => generateAuthStore(ctx), enabled: ctx.config.features.auth.enabled },
+    { name: "auth-fetch", gen: () => generateAuthFetch(ctx), enabled: ctx.config.features.auth.enabled },
+    { name: "auth-user", gen: () => generateAuthUser(ctx), enabled: ctx.config.features.auth.enabled },
+    { name: "auth-state", gen: () => generateAuthState(ctx), enabled: ctx.config.features.auth.enabled },
     { name: "indexeddb", gen: () => generateIndexedDB(ctx), enabled: ctx.config.features.indexeddb.enabled },
     { name: "sw-generator", gen: () => generateSwGeneratorBuild(ctx), enabled: true },
     { name: "swoff.d.ts", gen: () => generateTypeDefinitions(ctx), enabled: ctx.ext === "ts" },

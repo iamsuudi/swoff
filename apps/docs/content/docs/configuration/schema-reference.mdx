@@ -43,7 +43,6 @@ Full schema at `https://swoff.netlify.app/schema/v1.json`.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `versionedSw` | boolean | `true` | Versioned SW lifecycle (install, activate, skipWaiting) |
-| `offlineReads` | boolean | `true` | Cache API responses with tag-based invalidation |
 | `mutationQueue` | boolean | `false` | Queue offline writes, sync on reconnect |
 | `backgroundSync` | boolean | `false` | Background Sync API (Chrome/Edge only) |
 | `pwa` | boolean | `true` | PWA install handler + manifest.json |
@@ -102,7 +101,6 @@ The generated manifest includes full PWA fields (name, short_name, icons, start_
   },
   "features": {
     "versionedSw": true,
-    "offlineReads": true,
     "mutationQueue": false,
     "backgroundSync": false,
     "pwa": true,

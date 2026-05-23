@@ -1,17 +1,9 @@
 /**
- * Generates invalidation-tags.js - URL-based tag generation helper.
- */
-
-import { GeneratorContext, writeFile } from "./context.js";
-
-export function generateInvalidationTags(ctx: GeneratorContext): void {
-  const ext = ctx.ext;
-  const code = `/**
  * Swoff Invalidation Tags Helper
  * URL-based tag generation from REST endpoints for automatic cache invalidation.
  *
  * Usage:
- *   import { generateTags, invalidateUrl } from './swoff/invalidation-tags.${ext}';
+ *   import { generateTags, invalidateUrl } from './swoff/invalidation-tags.ts';
  *
  *   // Generate tags from URL
  *   generateTags("/api/todos");          // ["todos"]
@@ -27,7 +19,7 @@ export function generateInvalidationTags(ctx: GeneratorContext): void {
  *   await invalidateUrl("/api/todos/42");
  */
 
-import { invalidateByTag, invalidateByTags } from "./cache.${ext}";
+import { invalidateByTag, invalidateByTags } from "./cache.ts";
 
 export function generateTags(url) {
   const parsed = typeof url === "string" ? new URL(url, window.location.origin) : url;
@@ -55,7 +47,7 @@ export function generateTags(url) {
     const collection = resourceSegments[0];
     const id = resourceSegments[1];
     const singular = collection.replace(/s$/, "");
-    tags.push(\`\${singular}:\${id}\`);
+    tags.push(`${singular}:${id}`);
   }
 
   // Sub-resource tags: /api/todos/42/comments -> "comments"
@@ -76,7 +68,7 @@ export function generateTagsFromMethod(method, url) {
   }
 
   // For mutations, add method prefix
-  return tags.map((tag) => \`\${method.toLowerCase()}-\${tag}\`);
+  return tags.map((tag) => `${method.toLowerCase()}-${tag}`);
 }
 
 export async function invalidateUrl(url) {
@@ -87,8 +79,4 @@ export async function invalidateUrl(url) {
 export async function invalidateByMethod(method, url) {
   const tags = generateTagsFromMethod(method, url);
   await invalidateByTags(tags);
-}
-`;
-
-  writeFile(ctx, `invalidation-tags.${ext}`, code);
 }

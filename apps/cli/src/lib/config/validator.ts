@@ -78,6 +78,18 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       }
     }
 
+    const tagInvalidationVal = features.tagInvalidation;
+    const crossTabSyncVal = features.crossTabSync;
+    if (crossTabSyncVal === true && tagInvalidationVal !== true) {
+      errors.push("crossTabSync requires tagInvalidation to be enabled");
+    }
+
+    const backgroundSyncVal = features.backgroundSync;
+    const mutationQueueVal = features.mutationQueue;
+    if (backgroundSyncVal === true && mutationQueueVal !== true) {
+      errors.push("backgroundSync requires mutationQueue to be enabled");
+    }
+
     const indexeddb = features.indexeddb as Record<string, unknown> | undefined;
     if (indexeddb && typeof indexeddb === "object") {
       if (indexeddb.enabled !== undefined && typeof indexeddb.enabled !== "boolean") {
@@ -102,6 +114,22 @@ export function validateConfig(config: Record<string, unknown>): string[] {
             errors.push(`features.indexeddb.store "${store}" must match pattern ^[a-zA-Z0-9-_]+$`);
           }
         }
+      }
+    }
+
+    const auth = features.auth as Record<string, unknown> | undefined;
+    if (auth && typeof auth === "object") {
+      if (auth.enabled !== undefined && typeof auth.enabled !== "boolean") {
+        errors.push("features.auth.enabled must be a boolean");
+      }
+      if (auth.type !== undefined && !["cookie", "bearer", "custom"].includes(auth.type as string)) {
+        errors.push('features.auth.type must be "cookie", "bearer", or "custom"');
+      }
+      if (auth.refreshPath !== undefined && typeof auth.refreshPath !== "string") {
+        errors.push("features.auth.refreshPath must be a string");
+      }
+      if (auth.userEndpoint !== undefined && typeof auth.userEndpoint !== "string") {
+        errors.push("features.auth.userEndpoint must be a string");
       }
     }
   }

@@ -12,6 +12,8 @@ export function generateSwInjector(ctx: GeneratorContext): void {
   const crossTabSync = ctx.config.features.crossTabSync;
   const ext = ctx.ext;
 
+  const mutationQueueEnabled = ctx.config.features.mutationQueue;
+
   const code = `/**
  * Swoff SW Injector
  * Framework-agnostic SW registration, PWA install support, and cross-tab sync.
@@ -31,6 +33,9 @@ export function generateSwInjector(ctx: GeneratorContext): void {
  *   pwa-installable      - PWA can be installed (detail: { isInstallable: true })
  *   pwa-installed        - User accepted install (detail: { outcome: 'accepted' })
  *   cache-invalidated    - Cache entries with given tags cleared (detail: { tags })
+ *   mutation-sync-complete - Queued mutations synced (detail: { succeeded, failed })
+ *   mutation-queue-changed - Queue modified
+ *   mutation-rollback     - Mutation exhausted retries (detail: { method, url, tempId, previousData })
  *
  * Window properties:
  *   window.latestSWVersion       - Latest version from version.json
@@ -43,7 +48,8 @@ export function generateSwInjector(ctx: GeneratorContext): void {
  *   window.deferredInstallPrompt - Captured BeforeInstallPromptEvent
  *   window.pwaInstallable        - Whether PWA can be installed
  */
-
+${mutationQueueEnabled ? `import { processMutationQueue } from "./mutation-queue.${ext}";
+` : ""}
 const AUTO_REGISTER = ${autoRegister};
 const AUTO_ACTIVATE = ${autoActivate};
 
@@ -215,6 +221,10 @@ window.addEventListener("appinstalled", () => {
     })
   );
 });
+` : ""}
+${mutationQueueEnabled ? `
+// --- Mutation Queue Listener ---
+window.addEventListener("online", processMutationQueue);
 ` : ""}
 // --- SW Message Listener ---
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {

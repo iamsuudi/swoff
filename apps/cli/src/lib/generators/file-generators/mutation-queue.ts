@@ -221,8 +221,6 @@ export async function getPendingCount() {
     request.onerror = () => reject(request.error);
   });
 }
-
-window.addEventListener("online", processMutationQueue);
 `;
 
   writeFile(ctx, `mutation-queue.${ext}`, code);

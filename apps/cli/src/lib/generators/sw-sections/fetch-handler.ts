@@ -3,12 +3,20 @@
  */
 
 export function generateFetchHandler(
-  swConfig: { defaultStrategy: string; strategies: Record<string, string>; maxCacheEntries?: number; maxCacheAge?: number },
+  swConfig: { defaultStrategy: string; strategies: Record<string, string>; maxCacheEntries?: number; maxCacheAge?: number; navigationMode?: string; spaEntry?: string },
   tagInvalidation: boolean,
 ): string {
-  const { defaultStrategy, strategies, maxCacheEntries, maxCacheAge } = swConfig;
+  const { defaultStrategy, strategies, maxCacheEntries, maxCacheAge, navigationMode, spaEntry } = swConfig;
 
   const hasTrim = (maxCacheEntries ?? 0) > 0 || (maxCacheAge ?? 0) > 0;
+  const navMode = navigationMode ?? "spa";
+  const spaPath = spaEntry ?? "/index.html";
+  const navCode = navMode === "spa" ? `
+  if (request.mode === "navigate") {
+    const precache = await caches.open(CACHE_NAME);
+    const entry = await precache.match("${spaPath}");
+    if (entry) return entry;
+  }` : "";
 
   const tagInvalidationCode = tagInvalidation ? `
           const tagsHeader = event.request.headers.get("X-SW-Cache-Tags");
@@ -97,8 +105,6 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (strategy === "network-only") {
-
-  if (strategy === "network-only") {
     event.respondWith(networkOnly(event, event.request));
     return;
   }
@@ -110,28 +116,19 @@ self.addEventListener("fetch", (event) => {
 async function cacheFirst(event, request) {
   const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
 
-  const byRequest = await runtimeCache.match(request);
-  if (byRequest) return byRequest;
-
-  if (request.mode === "navigate") {
-    const spa = await cache.match("/index.html");
-    if (spa) return spa;
+  const cached = await runtimeCache.match(request);
+  if (cached) return cached;
+${navCode}
+  const response = await fetch(request);
+  if (response.ok) {
+    const cloned = response.clone();
+    event.waitUntil(
+      (async () => {
+        await runtimeCache.put(request, cloned);${tagInvalidationCode}
+${trimCode}      })(),
+    );
   }
-
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      const cloned = response.clone();
-      event.waitUntil(
-        (async () => {
-          await runtimeCache.put(request, cloned);${tagInvalidationCode}
-${trimCode}        })(),
-      );
-    }
-    return response;
-  } catch {
-    return new Response("Offline: content not available", { status: 503 });
-  }
+  return response;
 }
 
 async function networkFirst(event, request) {
@@ -151,14 +148,8 @@ ${trimCode}        })(),
   } catch {
     const cached = await runtimeCache.match(request);
     if (cached) return cached;
-
-    if (request.mode === "navigate") {
-      const cache = await caches.open(CACHE_NAME);
-      const spa = await cache.match("/index.html");
-      if (spa) return spa;
-    }
-
-    return new Response("Offline: content not available", { status: 503 });
+${navCode}
+    throw new Error("Request failed and no cached response available");
   }
 }
 
@@ -171,15 +162,11 @@ async function staleWhileRevalidate(event, request) {
     return cached;
   }
 
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      await runtimeCache.put(request, response.clone());${staleTagCode}
-${hasTrim ? "      await trimRuntimeCache(CACHE_NAME_RUNTIME);\n" : ""}    }
-    return response;
-  } catch {
-    return new Response("Offline: content not available", { status: 503 });
-  }
+  const response = await fetch(request);
+  if (response.ok) {
+    await runtimeCache.put(request, response.clone());${staleTagCode}
+${hasTrim ? "      await trimRuntimeCache(CACHE_NAME_RUNTIME);\n" : ""}  }
+  return response;
 }
 
 async function refreshCache(cache, request) {
@@ -203,10 +190,6 @@ async function cacheOnly(event, request) {
 }
 
 async function networkOnly(event, request) {
-  try {
-    return await fetch(request);
-  } catch {
-    return new Response("Network error", { status: 503 });
-  }
+  return fetch(request);
 }`;
 }

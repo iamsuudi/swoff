@@ -89,23 +89,19 @@ self.addEventListener("fetch", (event) => {
       const byPath = await cache.match(url.pathname);
       if (byPath) return byPath;
 
-      const byRequest = await runtimeCache.match(event.request);
-      if (byRequest) return byRequest;
+      const cached = await runtimeCache.match(event.request);
+      if (cached) return cached;
 
       if (event.request.mode === "navigate") {
         const spa = await cache.match("/index.html");
         if (spa) return spa;
       }
 
-      try {
-        const response = await fetch(event.request);
-        if (response.ok) {
-          await runtimeCache.put(event.request, response.clone());
-        }
-        return response;
-      } catch {
-        return new Response("Offline: content not available", { status: 503 });
+      const response = await fetch(event.request);
+      if (response.ok) {
+        await runtimeCache.put(event.request, response.clone());
       }
+      return response;
     })(),
   );
 });

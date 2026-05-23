@@ -11,7 +11,7 @@ Swoff uses a JSON config. Run the CLI to generate the SW and supporting files.
 ## Quick Setup
 
 ```bash
-# Initialize (creates swoff.config.json + directory structure)
+# Initialize (creates swoff.config.json + swoff/ directory)
 npx @swoff/cli init
 
 # Review and customize the config
@@ -23,16 +23,16 @@ npx @swoff/cli generate
 
 The CLI creates:
 
-| Config | Creates |
-|--------|---------|
-| `swoff.config.json` | Service worker + version.json |
-| `src/hooks/` | `useOffline.ts`, `useApiData.ts` |
-| `src/components/` | `OfflineIndicator.tsx`, `PWAInstallButton.tsx` |
-| `src/utils/` | `crossTabSync.ts` |
+| Output | Description |
+|--------|-------------|
+| `dist/sw-v{version}.js` | Versioned service worker |
+| `dist/version.json` | Version manifest for update detection |
+| `swoff/` | Client helpers — injector, fetch wrapper, cache, PWA install, etc. |
+| `public/manifest.json` | Web App Manifest (if `public/` exists and no existing manifest) |
 
-Generated based on `features` toggles in your config.
+Files in `swoff/` are generated based on `features` toggles in your config. Every file is yours to edit.
 
-## Configuration
+## Complete Config
 
 ```json
 {
@@ -41,12 +41,15 @@ Generated based on `features` toggles in your config.
   "version": "from-package",
   "minSupportedVersion": "1.0.0",
   "serviceWorker": {
+    "autoRegister": true,
     "autoActivate": false,
     "defaultStrategy": "cache-first",
     "strategies": {
       "/api/*": "network-first",
       "/static/*": "cache-first"
-    }
+    },
+    "maxCacheEntries": 200,
+    "maxCacheAge": 604800000
   },
   "features": {
     "versionedSw": true,
@@ -56,7 +59,12 @@ Generated based on `features` toggles in your config.
     "pwa": true,
     "auth": false,
     "crossTabSync": true,
-    "tagInvalidation": true
+    "tagInvalidation": true,
+    "clientRegistration": true,
+    "indexeddb": false
+  },
+  "pwa": {
+    "preventDefaultInstall": false
   },
   "build": {
     "outputDir": "dist",
@@ -64,6 +72,31 @@ Generated based on `features` toggles in your config.
   }
 }
 ```
+
+## Adding Features
+
+Toggle a feature without editing JSON by hand:
+
+```bash
+npx @swoff/cli add mutation-queue
+npx @swoff/cli add background-sync
+```
+
+Then regenerate:
+
+```bash
+npx @swoff/cli generate
+```
+
+## Cleaning Up
+
+Remove all Swoff traces:
+
+```bash
+npx @swoff/cli clean
+```
+
+Deletes `swoff/`, `swoff.config.json`, and `dist/version.json`.
 
 ## Next Steps
 

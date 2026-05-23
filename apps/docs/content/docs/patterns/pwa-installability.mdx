@@ -80,6 +80,31 @@ async function promptInstall() {
 }
 ```
 
+### iOS
+
+iOS Safari does not fire the `beforeinstallprompt` event. Detect and show manual install instructions:
+
+```javascript
+function detectPWAInstallability() {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+  if (isIOS) {
+    showIOSInstallInstructions();
+    return;
+  }
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    window.deferredInstallPrompt = e;
+  });
+}
+
+function showIOSInstallInstructions() {
+  // Guide users to: Share → Add to Home Screen
+  console.log("iOS: Use Share menu → Add to Home Screen");
+}
+```
+
 ### 4. Using the Generated Handler
 
 If you generated `swoff/pwa-install.js` via the CLI:

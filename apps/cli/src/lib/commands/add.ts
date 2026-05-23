@@ -9,11 +9,11 @@ import { loadConfigAsync } from "../config/loader.js";
 import { defaultConfig, mergeConfigs, type SwoffConfig } from "../shared/config-types.js";
 import { generateCommand } from "./generate.js";
 
-const featureMap: Record<string, Record<string, boolean>> = {
+const featureMap: Record<string, Record<string, unknown>> = {
   offline: { offlineReads: true },
   "mutation-queue": { mutationQueue: true },
   mutationqueue: { mutationQueue: true },
-  pwa: { pwa: true },
+  pwa: { pwa: { enabled: true } },
   "cross-tab": { crossTabSync: true },
   crosstab: { crossTabSync: true },
   auth: { auth: true },
@@ -21,7 +21,7 @@ const featureMap: Record<string, Record<string, boolean>> = {
   taginvalidation: { tagInvalidation: true },
   "background-sync": { backgroundSync: true },
   backgroundsync: { backgroundSync: true },
-  indexeddb: { indexeddb: true },
+  indexeddb: { indexeddb: { enabled: true } },
 };
 
 export async function addCommand(projectRoot: string, feature: string) {

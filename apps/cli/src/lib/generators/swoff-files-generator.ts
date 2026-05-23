@@ -47,11 +47,11 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
     { name: "reconcile", gen: () => generateReconcile(ctx), enabled: ctx.config.features.mutationQueue },
     { name: "mutation-queue", gen: () => generateMutationQueue(ctx), enabled: ctx.config.features.mutationQueue },
     { name: "background-sync", gen: () => generateBackgroundSync(ctx), enabled: ctx.config.features.backgroundSync },
-    { name: "indexeddb", gen: () => generateIndexedDB(ctx), enabled: ctx.config.features.indexeddb },
+    { name: "indexeddb", gen: () => generateIndexedDB(ctx), enabled: ctx.config.features.indexeddb.enabled },
     { name: "sw-generator", gen: () => generateSwGeneratorBuild(ctx), enabled: true },
     { name: "swoff.d.ts", gen: () => generateTypeDefinitions(ctx), enabled: ctx.ext === "ts" },
-    { name: "pwa-install", gen: () => generatePwaInstall(ctx), enabled: ctx.config.features.pwa },
-    { name: "manifest.json", gen: () => generateManifest(ctx), enabled: ctx.config.features.pwa },
+    { name: "pwa-install", gen: () => generatePwaInstall(ctx), enabled: ctx.config.features.pwa.enabled },
+    { name: "manifest.json", gen: () => generateManifest(ctx), enabled: ctx.config.features.pwa.enabled },
     { name: "invalidation-tags", gen: () => generateInvalidationTags(ctx), enabled: ctx.config.features.tagInvalidation },
   ];
 

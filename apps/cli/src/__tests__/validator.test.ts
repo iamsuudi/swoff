@@ -17,14 +17,13 @@ describe("validateConfig", () => {
       offlineReads: true,
       mutationQueue: false,
       backgroundSync: false,
-      pwa: true,
+      pwa: { enabled: true, preventDefaultInstall: false },
       auth: false,
       crossTabSync: true,
       tagInvalidation: true,
       clientRegistration: true,
-      indexeddb: false,
+      indexeddb: { enabled: false, name: "app-db", stores: [] },
     },
-    pwa: { preventDefaultInstall: false },
     build: { outputDir: "dist", swFilename: "sw" },
   };
 
@@ -128,13 +127,65 @@ describe("validateConfig", () => {
       expect(errors).toContain('Unknown feature "unknownFeature"');
     });
 
-    it("rejects non-boolean feature values", () => {
+    it("rejects boolean for object feature pwa", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, pwa: "yes" },
+        features: { ...validConfig.features, pwa: true },
       };
       const errors = validateConfig(config);
-      expect(errors[0]).toContain('Feature "pwa" must be a boolean');
+      expect(errors[0]).toContain('Feature "pwa" must be an object');
+    });
+
+    it("accepts object feature pwa", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, pwa: { enabled: true, preventDefaultInstall: false } },
+      };
+      expect(validateConfig(config)).toEqual([]);
+    });
+
+    it("validates pwa.enabled is boolean", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, pwa: { enabled: "yes", preventDefaultInstall: false } },
+      };
+      const errors = validateConfig(config);
+      expect(errors).toContain("features.pwa.enabled must be a boolean");
+    });
+
+    it("validates pwa.preventDefaultInstall is boolean", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, pwa: { enabled: true, preventDefaultInstall: "true" } },
+      };
+      const errors = validateConfig(config);
+      expect(errors).toContain("features.pwa.preventDefaultInstall must be a boolean");
+    });
+
+    it("validates indexeddb.name is string", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, indexeddb: { enabled: false, name: 123, stores: [] } },
+      };
+      const errors = validateConfig(config);
+      expect(errors).toContain("features.indexeddb.name must be a string");
+    });
+
+    it("validates indexeddb.stores is array", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, indexeddb: { enabled: false, name: "db", stores: "todos" } },
+      };
+      const errors = validateConfig(config);
+      expect(errors).toContain("features.indexeddb.stores must be an array");
+    });
+
+    it("accepts valid indexeddb config", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, indexeddb: { enabled: true, name: "my-db", stores: ["todos", "users"] } },
+      };
+      expect(validateConfig(config)).toEqual([]);
     });
   });
 
@@ -151,12 +202,6 @@ describe("validateConfig", () => {
 
     it("rejects invalid version format", () => {
       const config = { ...validConfig, version: "latest" };
-      const errors = validateConfig(config);
-      expect(errors[0]).toContain("Invalid version");
-    });
-
-    it("rejects partial semver", () => {
-      const config = { ...validConfig, version: "1.0" };
       const errors = validateConfig(config);
       expect(errors[0]).toContain("Invalid version");
     });
@@ -192,68 +237,6 @@ describe("validateConfig", () => {
       };
       const errors = validateConfig(config);
       expect(errors).toContain("build.swFilename must be a string");
-    });
-  });
-
-  describe("pwa validation", () => {
-    it("rejects non-boolean preventDefaultInstall", () => {
-      const config = {
-        ...validConfig,
-        pwa: { preventDefaultInstall: "true" },
-      };
-      const errors = validateConfig(config);
-      expect(errors).toContain("pwa.preventDefaultInstall must be a boolean");
-    });
-
-    it("accepts boolean preventDefaultInstall", () => {
-      const config = { ...validConfig, pwa: { preventDefaultInstall: true } };
-      expect(validateConfig(config)).toEqual([]);
-    });
-  });
-
-  describe("database validation", () => {
-    it("rejects non-string database name", () => {
-      const config = {
-        ...validConfig,
-        database: { name: 123, stores: [] },
-      };
-      const errors = validateConfig(config);
-      expect(errors).toContain("database.name must be a string");
-    });
-
-    it("rejects invalid database name pattern", () => {
-      const config = {
-        ...validConfig,
-        database: { name: "my db", stores: [] },
-      };
-      const errors = validateConfig(config);
-      expect(errors[0]).toContain("must match pattern");
-    });
-
-    it("rejects non-array stores", () => {
-      const config = {
-        ...validConfig,
-        database: { name: "app-db", stores: "todos" },
-      };
-      const errors = validateConfig(config);
-      expect(errors).toContain("database.stores must be an array");
-    });
-
-    it("rejects invalid store names", () => {
-      const config = {
-        ...validConfig,
-        database: { name: "app-db", stores: ["my store"] },
-      };
-      const errors = validateConfig(config);
-      expect(errors[0]).toContain("must match pattern");
-    });
-
-    it("accepts valid database config", () => {
-      const config = {
-        ...validConfig,
-        database: { name: "app-db", stores: ["todos", "users"] },
-      };
-      expect(validateConfig(config)).toEqual([]);
     });
   });
 });

@@ -8,18 +8,19 @@ icon: Zap
 
 Modern web frameworks (Next.js, Nuxt, etc.) have shifted toward server-side rendering, leaving powerful browser APIs — Service Worker, IndexedDB, Cache API — underutilized. Meanwhile, state management libraries lock you into specific frameworks, and most tools abstract away the browser's native offline capabilities.
 
-Swoff is a framework-agnostic, zero-dependency blueprint for client-first web apps. It's code you **own**, not an npm package:
+Swoff is a framework-agnostic, zero-dependency CLI for client-first web apps. It generates code you **own**:
 
-- Copy patterns directly into your project and modify them
+- Run `npx @swoff/cli generate` to produce SW + supporting files
+- Every generated file is yours — edit, extend, or remove as needed
 - Pair with any framework (React, Vue, Svelte, vanilla JS)
 - Build offline-first, installable PWAs that feel native
 - Ship updates instantly — no app store friction
 
-> We provide code and architecture, not dependencies.
+> We provide code and architecture, not locked-in dependencies.
 
 ## What Swoff is NOT
 
-- **Not an npm package** — code you copy, not install
+- **Not a runtime npm package** — the CLI generates code you own, with zero runtime dependencies
 - **Not a backend framework** — bring your own Go, Node.js, Python
 - **Not tied to any fullstack framework** — purely client-side
 - **Not an SSR framework** — we focus on browser APIs after the page loads
@@ -33,4 +34,5 @@ Swoff focuses on **client-side browser APIs** (offline app shell, data caching, 
 - Read the [Introduction](/docs/introduction) to get started
 - Browse the [Features](/docs/features) to understand the full toolbox
 - Follow the [Core Architecture](/docs/core/offline-architecture) guides
-- Check the [Reference Implementation](/docs/reference/budget-manager) (Budget Manager app)
+- Check the CLI reference: `npx @swoff/cli --help`
+- See the [Reference Implementation](/docs/reference/budget-manager) (Budget Manager app)

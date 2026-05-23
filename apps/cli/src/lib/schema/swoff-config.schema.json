@@ -65,21 +65,37 @@
         },
         "maxCacheEntries": {
           "type": "integer",
-          "description": "Maximum number of cached entries",
+          "description": "Maximum number of cached entries (0 disables trimming)",
           "default": 100,
-          "minimum": 1
+          "minimum": 0
         },
         "maxCacheAge": {
           "type": "integer",
-          "description": "Maximum age of cached entries in milliseconds",
+          "description": "Maximum age of cached entries in milliseconds (0 disables trimming)",
           "default": 604800000,
-          "minimum": 1000
+          "minimum": 0
         },
         "runtimeCacheName": {
           "type": "string",
           "description": "Custom runtime cache name",
           "default": "swoff-runtime",
           "pattern": "^[a-zA-Z0-9-_]+$"
+        },
+        "clearRuntimeOnUpdate": {
+          "type": "boolean",
+          "description": "Delete runtime cache on SW activate. Use as a security measure: when true, cached API responses are cleared on every SW update, preventing poisoned data from persisting.",
+          "default": false
+        },
+        "navigationMode": {
+          "type": "string",
+          "description": "How navigation requests are handled. 'spa' falls back to spaEntry on cache miss. 'default' uses the strategy as-is without special navigation handling.",
+          "default": "spa",
+          "enum": ["spa", "default"]
+        },
+        "spaEntry": {
+          "type": "string",
+          "description": "Fallback URL for navigation requests when navigationMode is 'spa'",
+          "default": "/index.html"
         }
       },
       "required": ["autoRegister", "autoActivate", "defaultStrategy"]
@@ -109,9 +125,21 @@
           "default": false
         },
         "pwa": {
-          "type": "boolean",
-          "description": "Enable PWA installability (manifest handling should be done separately)",
-          "default": true
+          "type": "object",
+          "description": "PWA installability configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable PWA installability (generate pwa-install.js + manifest.json)",
+              "default": true
+            },
+            "preventDefaultInstall": {
+              "type": "boolean",
+              "description": "Prevent browser's native install prompt. When false, browser prompt shows naturally while event is captured. When true, prompt is suppressed and dev must call promptInstall() manually.",
+              "default": false
+            }
+          },
+          "required": ["enabled", "preventDefaultInstall"]
         },
         "auth": {
           "type": "boolean",
@@ -134,46 +162,34 @@
           "default": true
         },
         "indexeddb": {
-          "type": "boolean",
-          "description": "Generate IndexedDB storage patterns",
-          "default": false
+          "type": "object",
+          "description": "IndexedDB storage configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Generate IndexedDB storage patterns",
+              "default": false
+            },
+            "name": {
+              "type": "string",
+              "description": "Database name",
+              "default": "app-db",
+              "pattern": "^[a-zA-Z0-9-_]+$"
+            },
+            "stores": {
+              "type": "array",
+              "description": "Object store names (user defines their own schema)",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9-_]+$"
+              },
+              "default": []
+            }
+          },
+          "required": ["enabled", "name"]
         }
       },
       "required": ["versionedSw", "offlineReads", "mutationQueue", "backgroundSync", "pwa", "auth", "crossTabSync", "tagInvalidation", "clientRegistration", "indexeddb"]
-    },
-    "pwa": {
-      "type": "object",
-      "description": "PWA installability configuration",
-      "properties": {
-        "preventDefaultInstall": {
-          "type": "boolean",
-          "description": "Prevent browser's native install prompt. When false, browser prompt shows naturally while event is captured. When true, prompt is suppressed and dev must call promptInstall() manually.",
-          "default": false
-        }
-      },
-      "required": ["preventDefaultInstall"]
-    },
-    "database": {
-      "type": "object",
-      "description": "IndexedDB configuration",
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Database name",
-          "default": "app-db",
-          "pattern": "^[a-zA-Z0-9-_]+$"
-        },
-        "stores": {
-          "type": "array",
-          "description": "Object store names (user defines their own schema)",
-          "items": {
-            "type": "string",
-            "pattern": "^[a-zA-Z0-9-_]+$"
-          },
-          "default": []
-        }
-      },
-      "required": ["name"]
     },
     "build": {
       "type": "object",

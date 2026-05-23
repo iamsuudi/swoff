@@ -14,7 +14,7 @@ Gradually move from manual SW code to config-driven generation.
 npx @swoff/cli init
 ```
 
-This creates `swoff.config.json`. Or create it manually:
+This creates `swoff.config.json` and the `swoff/` directory. Or create config manually:
 
 ```json
 {
@@ -22,12 +22,14 @@ This creates `swoff.config.json`. Or create it manually:
   "enabled": true,
   "version": "from-package",
   "serviceWorker": {
+    "autoRegister": true,
     "autoActivate": false,
     "defaultStrategy": "cache-first"
   },
   "features": {
     "versionedSw": true,
-    "offlineReads": true
+    "offlineReads": true,
+    "clientRegistration": true
   }
 }
 ```
@@ -35,22 +37,26 @@ This creates `swoff.config.json`. Or create it manually:
 ## 2. Generate SW
 
 ```bash
-npx swoff generate
+npx @swoff/cli generate
 ```
 
-Creates `dist/sw-v{version}.js` and `dist/version.json`.
+Creates `dist/sw-v{version}.js`, `dist/version.json`, and `swoff/` with supporting files.
 
 ## 3. Register
 
-Replace your manual SW registration with:
+Replace your manual SW registration with the generated `swoff/sw-injector.js`:
 
 ```javascript
-if ('serviceWorker' in navigator) {
-  fetch('/version.json')
-    .then(r => r.json())
-    .then(({ version }) => {
-      navigator.serviceWorker.register(`/sw-v${version}.js`);
-    });
+import { initServiceWorker } from "./swoff/sw-injector.js";
+
+initServiceWorker();
+```
+
+If you prefer a basic registration (no version checking):
+
+```javascript
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js");
 }
 ```
 
@@ -61,12 +67,13 @@ if ('serviceWorker' in navigator) {
   "features": {
     "offlineReads": true,
     "mutationQueue": true,
-    "crossTabSync": true
+    "crossTabSync": true,
+    "tagInvalidation": true
   }
 }
 ```
 
-Run `npx swoff generate` after each change.
+Run `npx @swoff/cli generate` after each change.
 
 ## 5. Custom Cache Strategies
 
@@ -82,7 +89,7 @@ Run `npx swoff generate` after each change.
 }
 ```
 
-## 6. Disable Config (Custom Code Mode)
+## 6. Custom Code Mode
 
 If you need full custom SW code:
 
@@ -92,7 +99,7 @@ If you need full custom SW code:
 }
 ```
 
-Then write your own `sw.js` manually.
+Then write your own `sw.js` manually. The CLI still generates supporting files into `swoff/`.
 
 ## Manual → Config Mapping
 
@@ -102,6 +109,7 @@ Then write your own `sw.js` manually.
 | `caches.match()` | Handled by generator |
 | `caches.put()` | Handled by generator |
 | Manual version cleanup | `versionedSw: true` |
+| Custom install prompt | `autoActivate: false` + `sw-update-available` event |
 
 ## Rollback
 
@@ -110,4 +118,4 @@ Set `"enabled": false` in config and restore your manual SW file.
 ## Next Steps
 
 - [Schema Reference](/docs/configuration/schema-reference) — full field list
-- [Patterns](/docs/patterns/) — copy the core files
+- [Patterns](/docs/patterns/) — understand the generated files

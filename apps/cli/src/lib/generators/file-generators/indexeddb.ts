@@ -5,8 +5,8 @@
 import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateIndexedDB(ctx: GeneratorContext): void {
-  const dbName = ctx.config.database?.name || "app-db";
-  const stores = ctx.config.database?.stores || [];
+  const dbName = ctx.config.features.indexeddb?.name || "app-db";
+  const stores = ctx.config.features.indexeddb?.stores || [];
 
   const storesCode =
     stores.length > 0

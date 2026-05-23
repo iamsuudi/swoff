@@ -84,6 +84,12 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       errors.push("crossTabSync requires tagInvalidation to be enabled");
     }
 
+    const backgroundSyncVal = features.backgroundSync;
+    const mutationQueueVal = features.mutationQueue;
+    if (backgroundSyncVal === true && mutationQueueVal !== true) {
+      errors.push("backgroundSync requires mutationQueue to be enabled");
+    }
+
     const indexeddb = features.indexeddb as Record<string, unknown> | undefined;
     if (indexeddb && typeof indexeddb === "object") {
       if (indexeddb.enabled !== undefined && typeof indexeddb.enabled !== "boolean") {

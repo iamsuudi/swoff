@@ -26,7 +26,10 @@ export async function infoCommand(projectRoot: string) {
   log.normal(`Auto Activate: ${config.serviceWorker.autoActivate}`);
 
   const enabledFeatures = Object.entries(config.features)
-    .filter(([_, v]) => v)
+    .filter(([_, v]) => {
+      if (typeof v === "object" && v !== null) return v.enabled === true;
+      return v === true;
+    })
     .map(([k]) => k);
   log.normal("Features Enabled:");
   enabledFeatures.forEach((f) => log.help(`  ${f}`));

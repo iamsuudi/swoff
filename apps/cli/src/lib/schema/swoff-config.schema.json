@@ -136,11 +136,34 @@
           },
           "required": ["enabled", "preventDefaultInstall"]
         },
-        "auth": {
+    "auth": {
+      "type": "object",
+      "description": "Auth integration configuration",
+      "properties": {
+        "enabled": {
           "type": "boolean",
           "description": "Enable auth integration",
           "default": false
         },
+        "type": {
+          "type": "string",
+          "description": "Auth type",
+          "enum": ["cookie", "bearer", "custom"],
+          "default": "bearer"
+        },
+        "refreshPath": {
+          "type": "string",
+          "description": "Token refresh endpoint path",
+          "default": "/api/refresh"
+        },
+        "userEndpoint": {
+          "type": "string",
+          "description": "User info endpoint path",
+          "default": "/api/me"
+        }
+      },
+      "required": ["enabled", "type"]
+    },
         "crossTabSync": {
           "type": "boolean",
           "description": "Cross-tab cache invalidation sync",

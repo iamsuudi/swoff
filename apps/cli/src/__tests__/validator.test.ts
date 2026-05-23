@@ -196,6 +196,15 @@ describe("validateConfig", () => {
       expect(errors).toContain("crossTabSync requires tagInvalidation to be enabled");
     });
 
+    it("rejects backgroundSync without mutationQueue", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, backgroundSync: true, mutationQueue: false },
+      };
+      const errors = validateConfig(config);
+      expect(errors).toContain("backgroundSync requires mutationQueue to be enabled");
+    });
+
     it("validates auth.enabled is boolean", () => {
       const config = {
         ...validConfig,

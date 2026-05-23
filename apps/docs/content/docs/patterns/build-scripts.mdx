@@ -55,11 +55,13 @@ let sw = template.replace(
 sw = sw.replace("// [[ASSETS_LIST]]", `ASSETS_TO_CACHE = ${JSON.stringify(assetsToCache, null, 2)}`);
 
 writeFileSync(join(outputDir, swFile), sw);
+const config = JSON.parse(readFileSync(join(__dirname, "swoff.config.json"), "utf8"));
+
 writeFileSync(
   join(outputDir, "version.json"),
   JSON.stringify({
     version: pkg.version,
-    minSupportedVersion: pkg.minSupportedVersion || "0.0.0",
+    minSupportedVersion: config.minSupportedVersion || "0.0.0",
     generatedAt: new Date().toISOString(),
   }),
 );
@@ -94,6 +96,5 @@ Test offline: DevTools → Application → Service Workers → Check "Offline".
 
 ## Next Steps
 
-- Copy the [SW Template](/docs/patterns/sw-template) — the actual SW code
-- Set up [Client Registration](/docs/patterns/client-registration) — register from your app
-- Follow your [Framework Guide](/docs/guides/) — where to place files and output dirs
+- [Client Registration](/docs/patterns/client-registration) — register from your app
+- [API Integration](/docs/patterns/api-integration) — coordinate client fetches with the SW

@@ -26,7 +26,6 @@ export interface SwoffConfig {
       stores: string[];
     };
     versionedSw: boolean;
-    offlineReads: boolean;
     mutationQueue: boolean;
     backgroundSync: boolean;
     auth: boolean;
@@ -42,7 +41,6 @@ export interface SwoffConfig {
 
 export const KNOWN_FEATURES = [
   "versionedSw",
-  "offlineReads",
   "mutationQueue",
   "backgroundSync",
   "auth",
@@ -102,7 +100,6 @@ export const defaultConfig: SwoffConfig = {
       stores: [],
     },
     versionedSw: true,
-    offlineReads: true,
     mutationQueue: false,
     backgroundSync: false,
     auth: false,

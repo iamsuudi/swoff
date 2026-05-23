@@ -75,7 +75,6 @@ describe("config-types", () => {
   describe("constants", () => {
     it("KNOWN_FEATURES contains only boolean features", () => {
       expect(KNOWN_FEATURES).toContain("versionedSw");
-      expect(KNOWN_FEATURES).toContain("offlineReads");
       expect(KNOWN_FEATURES).toContain("mutationQueue");
       expect(KNOWN_FEATURES).toContain("backgroundSync");
       expect(KNOWN_FEATURES).toContain("auth");

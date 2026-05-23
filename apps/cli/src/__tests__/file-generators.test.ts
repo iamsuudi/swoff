@@ -123,15 +123,27 @@ describe("generateFetchWrapper", () => {
 });
 
 describe("generateCache", () => {
-  it("exports cache invalidation functions", () => {
+  it("includes cross-tab sync when enabled", () => {
     const ctx = makeContext();
-    generateCache(ctx);
+    generateCache(ctx, true);
     const content = readFileSync(join(ctx.swoffDir, "cache.js"), "utf8");
     expect(content).toContain("invalidateByTag");
     expect(content).toContain("invalidateByTags");
     expect(content).toContain("initCrossTabSync");
     expect(content).toContain("INVALIDATE_TAG");
     expect(content).toContain("TAG_INVALIDATED");
+    expect(content).toContain("controllerchange");
+  });
+
+  it("excludes cross-tab sync when disabled", () => {
+    const ctx = makeContext();
+    generateCache(ctx, false);
+    const content = readFileSync(join(ctx.swoffDir, "cache.js"), "utf8");
+    expect(content).toContain("invalidateByTag");
+    expect(content).toContain("invalidateByTags");
+    expect(content).not.toContain("initCrossTabSync");
+    expect(content).not.toContain("TAG_INVALIDATED");
+    expect(content).not.toContain("controllerchange");
   });
 });
 

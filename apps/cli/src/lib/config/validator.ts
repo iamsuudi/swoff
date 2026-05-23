@@ -78,6 +78,12 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       }
     }
 
+    const tagInvalidationVal = features.tagInvalidation;
+    const crossTabSyncVal = features.crossTabSync;
+    if (crossTabSyncVal === true && tagInvalidationVal !== true) {
+      errors.push("crossTabSync requires tagInvalidation to be enabled");
+    }
+
     const indexeddb = features.indexeddb as Record<string, unknown> | undefined;
     if (indexeddb && typeof indexeddb === "object") {
       if (indexeddb.enabled !== undefined && typeof indexeddb.enabled !== "boolean") {

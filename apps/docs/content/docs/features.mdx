@@ -35,9 +35,8 @@ Configure via `swoff.config.json`:
 | Feature | Default | Generates |
 |---------|---------|-----------|
 | `versionedSw` | `true` | Versioned SW with install/activate lifecycle |
-| `offlineReads` | `true` | Cache API responses for offline reads |
 | `pwa` | `true` | PWA install handler + manifest.json |
-| `crossTabSync` | `true` | Cross-tab cache invalidation (via `cache.js`) |
+| `crossTabSync` | `true` | Cross-tab cache invalidation (requires `tagInvalidation`) |
 | `tagInvalidation` | `true` | URL-based cache tag generation + invalidation |
 | `clientRegistration` | `true` | `sw-injector.js` with version checking and update consent |
 
@@ -107,7 +106,7 @@ Update flow:
 | Stack | Features | Use case |
 |-------|----------|----------|
 | **Minimal** | versionedSw, clientRegistration | Versioned SW updates only |
-| **Standard** | Above + offlineReads + tagInvalidation + crossTabSync | Offline reads, cached data |
+| **Standard** | Above + tagInvalidation + crossTabSync | Tag-based cache invalidation, cross-tab sync |
 | **Full Client Runtime** | Above + mutationQueue + backgroundSync | Offline reads + queued writes with sync |
 | **Full + Auth** | Above + auth | Offline app with auth |
 

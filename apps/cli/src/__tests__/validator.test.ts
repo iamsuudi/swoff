@@ -14,7 +14,6 @@ describe("validateConfig", () => {
     },
     features: {
       versionedSw: true,
-      offlineReads: true,
       mutationQueue: false,
       backgroundSync: false,
       pwa: { enabled: true, preventDefaultInstall: false },
@@ -186,6 +185,15 @@ describe("validateConfig", () => {
         features: { ...validConfig.features, indexeddb: { enabled: true, name: "my-db", stores: ["todos", "users"] } },
       };
       expect(validateConfig(config)).toEqual([]);
+    });
+
+    it("rejects crossTabSync without tagInvalidation", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, crossTabSync: true, tagInvalidation: false },
+      };
+      const errors = validateConfig(config);
+      expect(errors).toContain("crossTabSync requires tagInvalidation to be enabled");
     });
   });
 

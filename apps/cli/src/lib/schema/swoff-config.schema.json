@@ -109,11 +109,6 @@
           "description": "Enable versioned service worker (prevents silent updates)",
           "default": true
         },
-        "offlineReads": {
-          "type": "boolean",
-          "description": "Cache API responses for offline read access",
-          "default": true
-        },
         "mutationQueue": {
           "type": "boolean",
           "description": "Queue offline writes and sync when back online",
@@ -189,7 +184,7 @@
           "required": ["enabled", "name"]
         }
       },
-      "required": ["versionedSw", "offlineReads", "mutationQueue", "backgroundSync", "pwa", "auth", "crossTabSync", "tagInvalidation", "clientRegistration", "indexeddb"]
+      "required": ["versionedSw", "mutationQueue", "backgroundSync", "pwa", "auth", "crossTabSync", "tagInvalidation", "clientRegistration", "indexeddb"]
     },
     "build": {
       "type": "object",

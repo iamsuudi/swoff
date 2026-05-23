@@ -120,7 +120,7 @@ npx @swoff/cli generate --files-only
 | `swoff/sw-template.js`       | always                              | SW template with placeholders     |
 | `swoff/sw-injector.js`       | `clientRegistration`                | Client-side SW registration       |
 | `swoff/fetch-wrapper.js`     | always                              | Fetch with cache strategy headers |
-| `swoff/cache.js`             | `tagInvalidation` or `crossTabSync` | Cache tag invalidation            |
+| `swoff/cache.js`             | `tagInvalidation`              | Cache tag invalidation + cross-tab sync (if `crossTabSync` enabled) |
 | `swoff/invalidation-tags.js` | `tagInvalidation`                   | URL-to-tag generation helper      |
 | `swoff/store.js`             | `mutationQueue`                     | IndexedDB CRUD operations         |
 | `swoff/reconcile.js`         | `mutationQueue`                     | ID reconciliation after sync      |
@@ -173,7 +173,7 @@ Validating swoff.config.json...
 Config summary:
   Version: from-package
   Default strategy: cache-first
-  Features enabled: versionedSw, offlineReads, pwa, crossTabSync, tagInvalidation, clientRegistration
+  Features enabled: versionedSw, pwa, crossTabSync, tagInvalidation, clientRegistration
 ```
 
 ---
@@ -190,7 +190,6 @@ npx @swoff/cli add <feature>
 
 | Feature            | Flag Enabled      |
 | ------------------ | ----------------- |
-| `offline`          | `offlineReads`    |
 | `mutation-queue`   | `mutationQueue`   |
 | `pwa`              | `pwa`             |
 | `cross-tab`        | `crossTabSync`    |
@@ -202,9 +201,6 @@ npx @swoff/cli add <feature>
 **Examples:**
 
 ```bash
-# Add offline feature
-npx @swoff/cli add offline
-
 # Add mutation queue
 npx @swoff/cli add mutation-queue
 
@@ -238,7 +234,6 @@ Auto Update: false
 
 Features Enabled:
   versionedSw
-  offlineReads
   pwa
   crossTabSync
   tagInvalidation

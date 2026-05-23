@@ -4,16 +4,42 @@
 
 import { GeneratorContext, writeFile } from "./context.js";
 
-export function generateCache(ctx: GeneratorContext): void {
+export function generateCache(ctx: GeneratorContext, crossTabSyncEnabled: boolean): void {
+  const crossTabCode = crossTabSyncEnabled
+    ? `
+export function initCrossTabSync() {
+  if (!navigator.serviceWorker) return;
+
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
+      window.dispatchEvent(
+        new CustomEvent("cache-invalidated", {
+          detail: { tags: [event.data.tag] },
+        })
+      );
+    }
+  });
+}
+
+(function() {
+  const tryInit = () => {
+    if (navigator.serviceWorker?.controller) {
+      initCrossTabSync();
+    } else {
+      navigator.serviceWorker?.addEventListener("controllerchange", tryInit, { once: true });
+    }
+  };
+  tryInit();
+})();
+`
+    : "";
+
   const code = `/**
- * Swoff Cache Invalidation & Cross-Tab Sync
- * Framework-agnostic cache tag invalidation and cross-tab synchronization.
+ * Swoff Cache Invalidation
+ * Framework-agnostic cache tag invalidation.
  *
  * Usage:
- *   import { invalidateByTag, initCrossTabSync } from './swoff/cache.js';
- *
- *   // Call once during app init
- *   initCrossTabSync();
+ *   import { invalidateByTag } from './swoff/cache.js';
  *
  *   // After a mutation, invalidate related cache
  *   await invalidateByTag("todos");
@@ -37,21 +63,7 @@ export async function invalidateByTags(tags) {
     await invalidateByTag(tag);
   }
 }
-
-export function initCrossTabSync() {
-  if (!navigator.serviceWorker) return;
-
-  navigator.serviceWorker.addEventListener("message", (event) => {
-    if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
-      window.dispatchEvent(
-        new CustomEvent("cache-invalidated", {
-          detail: { tags: [event.data.tag] },
-        })
-      );
-    }
-  });
-}
-`;
+${crossTabCode}`;
 
   writeFile(ctx, "cache.js", code);
 }

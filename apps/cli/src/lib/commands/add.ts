@@ -10,11 +10,10 @@ import { defaultConfig, mergeConfigs, type SwoffConfig } from "../shared/config-
 import { generateCommand } from "./generate.js";
 
 const featureMap: Record<string, Record<string, unknown>> = {
-  offline: { offlineReads: true },
   "mutation-queue": { mutationQueue: true },
   mutationqueue: { mutationQueue: true },
   pwa: { pwa: { enabled: true } },
-  "cross-tab": { crossTabSync: true },
+  "cross-tab": { crossTabSync: true, tagInvalidation: true },
   crosstab: { crossTabSync: true },
   auth: { auth: true },
   "tag-invalidation": { tagInvalidation: true },
@@ -31,7 +30,7 @@ export async function addCommand(projectRoot: string, feature: string) {
 
   if (!configUpdate) {
     log.error(`Unknown feature: ${feature}`);
-    log.info("Available features: offline, mutation-queue, pwa, cross-tab, auth, tag-invalidation, background-sync, indexeddb");
+    log.info("Available features: mutation-queue, pwa, cross-tab, auth, tag-invalidation, background-sync, indexeddb");
     return;
   }
 
@@ -46,7 +45,6 @@ export async function addCommand(projectRoot: string, feature: string) {
       minSupportedVersion: "0.0.0",
       features: {
         ...defaultConfig.features,
-        offlineReads: false,
         crossTabSync: false,
       },
     };

@@ -29,7 +29,6 @@ describe("CLI commands integration", () => {
         },
         features: {
           versionedSw: true,
-          offlineReads: true,
           mutationQueue: false,
           backgroundSync: false,
           pwa: { enabled: true, preventDefaultInstall: false },
@@ -125,7 +124,7 @@ describe("CLI commands integration", () => {
           versionedSw: true,
           pwa: { enabled: true, preventDefaultInstall: false },
           indexeddb: { enabled: false, name: "app-db", stores: [] },
-          offlineReads: 1,
+          auth: 1,
         },
       };
 
@@ -137,7 +136,7 @@ describe("CLI commands integration", () => {
       }
 
       expect(errors).toHaveLength(1);
-      expect(errors).toContain('Feature "offlineReads" must be a boolean or object');
+      expect(errors).toContain('Feature "auth" must be a boolean or object');
     });
   });
 });

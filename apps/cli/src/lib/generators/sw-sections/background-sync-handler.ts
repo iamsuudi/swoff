@@ -11,11 +11,11 @@ self.addEventListener("sync", (event) => {
   }
 });
 
-async function processMutationQueueInSW() {
-  const SW_DB_NAME = "swoff-queue";
-  const SW_STORE_NAME = "mutations";
-  const SW_MAX_RETRIES = 5;
+const SW_DB_NAME = "swoff-queue";
+const SW_STORE_NAME = "mutations";
+const SW_MAX_RETRIES = 5;
 
+async function processMutationQueueInSW() {
   let succeeded = 0;
   let failed = 0;
   const tagsToInvalidate = new Set();

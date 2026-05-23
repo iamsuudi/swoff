@@ -73,6 +73,19 @@ describe("generateSwTemplate", () => {
     expect(content).toContain("network: {");
     expect(content).toContain("Network request failed");
   });
+
+  it("includes config-driven strategy code", () => {
+    const ctx = makeContext({
+      features: { ...defaultConfig.features, tagInvalidation: true },
+      serviceWorker: { ...defaultConfig.serviceWorker, strategies: { "/api/*": "network-first" } },
+    });
+    generateSwTemplate(ctx);
+    const content = readFileSync(join(ctx.swoffDir, "sw-template.js"), "utf8");
+    expect(content).toContain("determineCacheStrategy");
+    expect(content).toContain("fromPrecache");
+    expect(content).toContain("network-first");
+    expect(content).toContain("invalidateByTag");
+  });
 });
 
 describe("generateSwInjector", () => {

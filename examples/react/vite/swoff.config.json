@@ -4,10 +4,9 @@
   "minSupportedVersion": "1.0.0",
   "serviceWorker": {
     "autoRegister": true,
-    "autoActivate": false,
-    "defaultStrategy": "cache-first",
+    "autoActivate": true,
+    "defaultStrategy": "network-only",
     "strategies": {
-      "/api/*": "network-first",
       "/static/*": "cache-first"
     },
     "clearRuntimeOnUpdate": false,

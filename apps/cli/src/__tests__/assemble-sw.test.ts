@@ -45,6 +45,14 @@ describe("assembleSW", () => {
     expect(sw).toContain("networkOnly");
   });
 
+  it("checks precache from all strategies", () => {
+    const sw = assembleSW(config, "1.0.0");
+    expect(sw).toContain("fromPrecache");
+    expect(sw).toContain("async function fromPrecache");
+    expect(sw).toContain("cache.match(request)");
+    expect(sw).toContain("precached = await fromPrecache(request)");
+  });
+
   it("includes message handler", () => {
     const sw = assembleSW(config, "1.0.0");
     expect(sw).toContain('self.addEventListener("message"');

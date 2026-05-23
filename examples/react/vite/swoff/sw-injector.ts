@@ -31,7 +31,7 @@
  */
 
 const AUTO_REGISTER = true;
-const AUTO_ACTIVATE = false;
+const AUTO_ACTIVATE = true;
 
 // --- SW Registration ---
 
@@ -43,16 +43,6 @@ async function checkForUpdate() {
   return response.json();
 }
 
-async function waitForController() {
-  return new Promise((resolve) => {
-    if (navigator.serviceWorker.controller) {
-      resolve();
-    } else {
-      navigator.serviceWorker.addEventListener("controllerchange", resolve, { once: true });
-    }
-  });
-}
-
 async function doRegisterServiceWorker(version) {
   const swUrl = `/sw-v${version}.js`;
   const registration = await navigator.serviceWorker.register(swUrl);
@@ -60,7 +50,6 @@ async function doRegisterServiceWorker(version) {
   window.currentSWVersion = version;
   window.swRegisteredVersion = version;
   window.dispatchEvent(new CustomEvent("sw-version-detected"));
-  await waitForController();
   window.dispatchEvent(new CustomEvent("sw-ready"));
   return registration;
 }
@@ -88,10 +77,7 @@ export async function initServiceWorker() {
       if (registration && registration.active) {
         window.currentSWVersion = currentVersion;
         window.dispatchEvent(new CustomEvent("sw-version-detected"));
-        await waitForController();
-        if (!window.swReady) {
-          window.dispatchEvent(new CustomEvent("sw-ready"));
-        }
+        window.dispatchEvent(new CustomEvent("sw-ready"));
       }
     } else if (currentVersion && currentVersion !== manifest.version) {
       window.swAvailableVersion = manifest.version;
@@ -138,10 +124,7 @@ export async function initServiceWorker() {
       if (existing && existing.active) {
         window.currentSWVersion = localStorage.getItem("swRegisteredVersion") || "unknown";
         window.dispatchEvent(new CustomEvent("sw-version-detected"));
-        await waitForController();
-        if (!window.swReady) {
-          window.dispatchEvent(new CustomEvent("sw-ready"));
-        }
+        window.dispatchEvent(new CustomEvent("sw-ready"));
         return;
       }
     } catch {}

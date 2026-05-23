@@ -1,7 +1,7 @@
 {
   "name": "swoff-note-app-vite",
   "private": true,
-  "version": "0.0.2",
+  "version": "0.0.3",
   "minSupportedVersion": "0.0.0",
   "type": "module",
   "scripts": {

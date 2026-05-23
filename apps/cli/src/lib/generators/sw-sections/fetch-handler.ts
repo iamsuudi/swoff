@@ -77,9 +77,9 @@ function isReadRequest(request) {
 }
 
 function determineCacheStrategy(request, customStrategies, defaultStrategy) {
-  const url = request.url;
+  const path = new URL(request.url).pathname;
   for (const [pattern, strategy] of Object.entries(customStrategies)) {
-    if (url.includes(pattern.replace("*", ""))) return strategy;
+    if (path.startsWith(pattern.replace("*", ""))) return strategy;
   }
   return defaultStrategy;
 }

@@ -89,6 +89,7 @@ describe("generateSwInjector", () => {
     expect(content).toContain("shouldRegister");
     expect(content).toContain("handleUpdateApproved");
     expect(content).toContain("skipWaiting");
+    expect(content).toContain("waitForController");
   });
 
   it("generates TS when ext is ts", () => {

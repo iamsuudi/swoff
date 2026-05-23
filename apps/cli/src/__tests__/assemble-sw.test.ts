@@ -28,10 +28,11 @@ describe("assembleSW", () => {
     expect(sw).toContain("SW_PROGRESS");
   });
 
-  it("includes activate handler", () => {
+  it("includes activate handler with clients.claim()", () => {
     const sw = assembleSW(config, "1.0.0");
     expect(sw).toContain('self.addEventListener("activate"');
     expect(sw).toContain("caches.keys()");
+    expect(sw).toContain("self.clients.claim()");
   });
 
   it("includes fetch handler with strategies", () => {
@@ -126,6 +127,8 @@ describe("assembleSW", () => {
     const sw = assembleSW(configWithStrategies, "1.0.0");
     expect(sw).toContain("/api/*");
     expect(sw).toContain("network-first");
+    expect(sw).toContain("new URL(request.url).pathname");
+    expect(sw).toContain("path.startsWith");
   });
 
   it("includes trimRuntimeCache when maxCacheEntries is set", () => {

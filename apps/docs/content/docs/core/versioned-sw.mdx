@@ -73,11 +73,10 @@ Users explicitly approve updates. The flow: `idle → available → downloading 
 
 ### Minimum Supported Version (Forced Updates)
 
-When releasing critical updates, set `minSupportedVersion` in `package.json`:
+When releasing critical updates, set `minSupportedVersion` in `swoff.config.json`:
 
-```json title="package.json"
+```json title="swoff.config.json"
 {
-  "version": "1.0.5",
   "minSupportedVersion": "1.0.5"
 }
 ```
@@ -122,9 +121,5 @@ npm run build
 
 ## Next Steps
 
-- Follow the [Patterns](/docs/patterns/) sequentially to implement the versioning system
-- Start with the [SW Template](/docs/patterns/sw-template) — the actual SW code
-- Set up [Build Scripts](/docs/patterns/build-scripts) to automate versioning
-- Register from your app: [Client Registration](/docs/patterns/client-registration)
-- Add [PWA Installability](/docs/patterns/pwa-installability) as an optional layer
-- Follow your [Framework Guide](/docs/guides/) — integration examples
+- [SW Template](/docs/patterns/sw-template) — the actual SW code
+- [Build Scripts](/docs/patterns/build-scripts) — automating versioning

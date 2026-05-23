@@ -14,6 +14,8 @@ export function generateSwInjector(ctx: GeneratorContext): void {
 
   const mutationQueueEnabled = ctx.config.features.mutationQueue;
 
+  const authEnabled = ctx.config.features.auth.enabled;
+
   const code = `/**
  * Swoff SW Injector
  * Framework-agnostic SW registration, PWA install support, and cross-tab sync.
@@ -36,6 +38,8 @@ export function generateSwInjector(ctx: GeneratorContext): void {
  *   mutation-sync-complete - Queued mutations synced (detail: { succeeded, failed })
  *   mutation-queue-changed - Queue modified
  *   mutation-rollback     - Mutation exhausted retries (detail: { method, url, tempId, previousData })
+ *   sw-auth-unauthorized  - 401 response received (token expired or invalid)${authEnabled ? `
+ *   sw-auth-state-change  - Login or logout (detail: { authenticated: boolean })` : ""}
  *
  * Window properties:
  *   window.latestSWVersion       - Latest version from version.json

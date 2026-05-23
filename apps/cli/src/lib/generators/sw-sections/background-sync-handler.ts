@@ -3,7 +3,11 @@
  * Processes mutation queue when browser sync fires.
  */
 
-export function generateBackgroundSyncHandler(): string {
+export function generateBackgroundSyncHandler(authType?: string): string {
+  const credentialsLine = authType === "cookie"
+    ? `          credentials: "same-origin",`
+    : "";
+
   return `
 self.addEventListener("sync", (event) => {
   if (event.tag === "sync-mutations") {
@@ -54,7 +58,7 @@ async function processMutationQueueInSW() {
           method: item.method,
           headers: { "Content-Type": "application/json", ...item.headers },
           body: JSON.stringify(item.body),
-        });
+${credentialsLine}        });
         if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
 
         if (item.tags) {

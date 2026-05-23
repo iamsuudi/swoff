@@ -60,7 +60,7 @@ export function assembleSW(config: SwoffConfig, version: string, projectRoot?: s
   sw = sw.replace("// [[FETCH_HANDLER]]", generateFetchHandler(serviceWorker, features.tagInvalidation));
   sw = sw.replace("// [[ACTIVATE_HANDLER]]", generateActivateHandler(serviceWorker.clearRuntimeOnUpdate));
   sw = sw.replace("// [[INSTALL_HANDLER]]", generateInstallHandler());
-  sw = sw.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(features.tagInvalidation));
+  sw = sw.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(features.tagInvalidation, features.auth.enabled));
 
   if (features.tagInvalidation) {
     sw = sw.replace("// [[TAG_MANAGEMENT]]", generateTagManagement());
@@ -71,7 +71,8 @@ export function assembleSW(config: SwoffConfig, version: string, projectRoot?: s
   sw = `${generateConfigHeader(config, version)}\n\n${sw}`;
 
   if (features.backgroundSync) {
-    sw += `\n\n${generateBackgroundSyncHandler()}`;
+    const authType = features.auth.enabled ? features.auth.type : undefined;
+    sw += `\n\n${generateBackgroundSyncHandler(authType)}`;
   }
 
   return sw;

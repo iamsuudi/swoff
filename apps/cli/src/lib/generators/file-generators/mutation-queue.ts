@@ -6,12 +6,29 @@ import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateMutationQueue(ctx: GeneratorContext): void {
   const ext = ctx.ext;
+  const authEnabled = ctx.config.features.auth.enabled;
+
+  const importLines = authEnabled
+    ? `import { getAuth } from "./auth-store.${ext}";
+`
+    : "";
+
+  const authReplayBlock = authEnabled
+    ? `  const auth = await getAuth();
+  const authHeader = auth?.token ? { Authorization: \`Bearer \${auth.token}\` } : {};
+`
+    : "";
+
+  const authHeadersSpread = authEnabled
+    ? `            ...authHeader,`
+    : "";
+
   const code = `/**
  * Swoff Mutation Queue
  * Queue offline writes and sync when connection returns.
  *
  * Usage:
- *   import { queueMutation, processMutationQueue, getPendingCount } from './swoff/mutation-queue.${ext}';
+ *   import { queueMutation, processMutationQueue, flushMutations, getPendingCount } from './swoff/mutation-queue.${ext}';
  *
  *   // Queue a mutation
  *   await queueMutation({
@@ -23,10 +40,13 @@ export function generateMutationQueue(ctx: GeneratorContext): void {
  *     tempId: "temp_abc123",
  *   });
  *
+ *   // Flush queued mutations (e.g., after login)
+ *   await flushMutations();
+ *
  *   // Auto-processes on online event
  */
 
-const DB_NAME = "swoff-queue";
+${importLines}const DB_NAME = "swoff-queue";
 const STORE_NAME = "mutations";
 const MAX_RETRIES = 5;
 
@@ -79,7 +99,7 @@ export async function processMutationQueue() {
   isSyncing = true;
 
   try {
-    const db = await openQueueDB();
+${authReplayBlock}    const db = await openQueueDB();
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
     const index = store.index("by-timestamp");
@@ -105,7 +125,7 @@ export async function processMutationQueue() {
           method: item.method,
           headers: {
             "Content-Type": "application/json",
-            ...item.headers,
+${authHeadersSpread}            ...item.headers,
           },
           body: JSON.stringify(item.body),
         });
@@ -143,6 +163,13 @@ export async function processMutationQueue() {
   }
 }
 
+export async function flushMutations() {
+  await processMutationQueue();
+}
+`;
+
+  // Helper functions (unchanged) are appended outside the template string
+  const helpers = `
 async function removeFromQueue(id) {
   const db = await openQueueDB();
   const tx = db.transaction(STORE_NAME, "readwrite");
@@ -223,5 +250,5 @@ export async function getPendingCount() {
 }
 `;
 
-  writeFile(ctx, `mutation-queue.${ext}`, code);
+  writeFile(ctx, `mutation-queue.${ext}`, code + helpers);
 }

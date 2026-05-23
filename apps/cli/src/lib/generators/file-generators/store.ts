@@ -5,6 +5,7 @@
 import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateStore(ctx: GeneratorContext): void {
+  const ext = ctx.ext;
   const dbName = ctx.config.features.indexeddb?.name || "app-db";
 
   const code = `/**
@@ -12,7 +13,7 @@ export function generateStore(ctx: GeneratorContext): void {
  * Generic CRUD operations for app's IndexedDB database.
  *
  * Usage:
- *   import { getRecord, putRecord, deleteRecord, openAppDB } from './swoff/store.js';
+ *   import { getRecord, putRecord, deleteRecord, openAppDB } from './swoff/store.${ext}';
  *
  *   const record = await getRecord('todos', 'todo-123');
  *   await putRecord('todos', { id: 'todo-123', title: 'New task', $synced: false });
@@ -74,5 +75,5 @@ export async function getAllRecords(storeName) {
 }
 `;
 
-  writeFile(ctx, "store.js", code);
+  writeFile(ctx, `store.${ext}`, code);
 }

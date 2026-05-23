@@ -1,72 +1,28 @@
 /**
- * Generates pwa-install.js - PWA install prompt handler.
+ * Generates pwa-install.{js|ts} - PWA install prompt utility.
  */
 
 import { GeneratorContext, writeFile } from "./context.js";
 
 export function generatePwaInstall(ctx: GeneratorContext): void {
-  const preventDefault = ctx.config.features.pwa?.preventDefaultInstall ?? false;
+  const ext = ctx.ext;
 
   const code = `/**
- * Swoff PWA Install Prompt Handler
- * Captures beforeinstallprompt event and provides manual install trigger.
+ * Swoff PWA Install Prompt
+ * Manual install trigger and installability check.
+ * Event listeners are registered in sw-injector at app entry.
  *
  * Usage:
- *   import { isInstallable, promptInstall } from './swoff/pwa-install.js';
+ *   import { isInstallable, promptInstall } from './swoff/pwa-install.${ext}';
  *
- *   // Listen for installable event
- *   window.addEventListener('pwa-installable', (e) => {
- *     console.log('PWA can be installed:', e.detail.isInstallable);
- *     // Show your custom install button
- *   });
- *
- *   // When user clicks install button
- *   async function onInstallClick() {
+ *   if (isInstallable()) {
  *     const result = await promptInstall();
- *     console.log('User choice:', result);
+ *     console.log('User choice:', result.outcome);
  *   }
  *
- * Window events:
- *   pwa-installable  - PWA can be installed (detail: { isInstallable: true })
- *   pwa-installed    - User accepted install (detail: { outcome: 'accepted' })
- *   pwa-dismissed    - User dismissed install (detail: { outcome: 'dismissed' })
- *
- * Window properties:
+ * Window properties (set by sw-injector):
  *   window.deferredInstallPrompt - The captured BeforeInstallPromptEvent
- *   window.pwaInstallable        - Whether PWA can be installed
  */
-
-const PREVENT_DEFAULT_INSTALL = ${preventDefault};
-
-window.addEventListener("beforeinstallprompt", (e) => {
-  // Always capture the event so we never lose it
-  window.deferredInstallPrompt = e;
-  window.pwaInstallable = true;
-
-  if (PREVENT_DEFAULT_INSTALL) {
-    // Suppress browser's native prompt
-    e.preventDefault();
-  }
-  // When false, browser shows native prompt naturally
-  // but we still capture the event for manual triggering
-
-  window.dispatchEvent(
-    new CustomEvent("pwa-installable", {
-      detail: { isInstallable: true },
-    })
-  );
-});
-
-window.addEventListener("appinstalled", () => {
-  window.deferredInstallPrompt = null;
-  window.pwaInstallable = false;
-
-  window.dispatchEvent(
-    new CustomEvent("pwa-installed", {
-      detail: { outcome: "accepted" },
-    })
-  );
-});
 
 export function isInstallable() {
   return !!window.deferredInstallPrompt;
@@ -101,5 +57,5 @@ export async function promptInstall() {
 }
 `;
 
-  writeFile(ctx, "pwa-install.js", code);
+  writeFile(ctx, `pwa-install.${ext}`, code);
 }

@@ -5,12 +5,13 @@
 import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateFetchWrapper(ctx: GeneratorContext): void {
+  const ext = ctx.ext;
   const code = `/**
  * Swoff Fetch Wrapper
  * Framework-agnostic fetch with cache strategy, tags, and query deduplication.
  *
  * Usage:
- *   import { fetchWithCache } from './swoff/fetch-wrapper.js';
+ *   import { fetchWithCache } from './swoff/fetch-wrapper.${ext}';
  *
  *   // GET - cached with tag
  *   const todos = await fetchWithCache("/api/todos", { tags: ["todos"] }).then(r => r.json());
@@ -78,5 +79,5 @@ export async function fetchWithCacheOrQueue(input, options = {}) {
 }
 `;
 
-  writeFile(ctx, "fetch-wrapper.js", code);
+  writeFile(ctx, `fetch-wrapper.${ext}`, code);
 }

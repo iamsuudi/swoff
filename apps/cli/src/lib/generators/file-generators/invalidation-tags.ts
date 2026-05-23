@@ -5,12 +5,13 @@
 import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateInvalidationTags(ctx: GeneratorContext): void {
+  const ext = ctx.ext;
   const code = `/**
  * Swoff Invalidation Tags Helper
  * URL-based tag generation from REST endpoints for automatic cache invalidation.
  *
  * Usage:
- *   import { generateTags, invalidateUrl } from './swoff/invalidation-tags.js';
+ *   import { generateTags, invalidateUrl } from './swoff/invalidation-tags.${ext}';
  *
  *   // Generate tags from URL
  *   generateTags("/api/todos");          // ["todos"]
@@ -26,7 +27,7 @@ export function generateInvalidationTags(ctx: GeneratorContext): void {
  *   await invalidateUrl("/api/todos/42");
  */
 
-import { invalidateByTag, invalidateByTags } from "./cache.js";
+import { invalidateByTag, invalidateByTags } from "./cache.${ext}";
 
 export function generateTags(url) {
   const parsed = typeof url === "string" ? new URL(url, window.location.origin) : url;
@@ -89,5 +90,5 @@ export async function invalidateByMethod(method, url) {
 }
 `;
 
-  writeFile(ctx, "invalidation-tags.js", code);
+  writeFile(ctx, `invalidation-tags.${ext}`, code);
 }

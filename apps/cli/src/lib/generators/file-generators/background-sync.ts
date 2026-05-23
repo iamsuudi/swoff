@@ -5,13 +5,14 @@
 import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateBackgroundSync(ctx: GeneratorContext): void {
+  const ext = ctx.ext;
   const code = `/**
  * Swoff Background Sync
  * Register sync events for processing mutation queue after tab close.
  * Falls back to online event listener in unsupported browsers.
  *
  * Usage:
- *   import { syncWhenPossible } from './swoff/background-sync.js';
+ *   import { syncWhenPossible } from './swoff/background-sync.${ext}';
  *
  *   await syncWhenPossible({
  *     method: "POST",
@@ -23,7 +24,7 @@ export function generateBackgroundSync(ctx: GeneratorContext): void {
  *   });
  */
 
-import { queueMutation, processMutationQueue, getPendingCount } from "./mutation-queue.js";
+import { queueMutation, processMutationQueue, getPendingCount } from "./mutation-queue.${ext}";
 
 const SYNC_TAG = "sync-mutations";
 
@@ -57,5 +58,5 @@ export async function retrySync() {
 window.addEventListener("mutation-sync-complete", retrySync);
 `;
 
-  writeFile(ctx, "background-sync.js", code);
+  writeFile(ctx, `background-sync.${ext}`, code);
 }

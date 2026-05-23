@@ -40,9 +40,9 @@ interface Step {
 export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => void): string[] {
   const steps: Step[] = [
     { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
-    { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: ctx.config.features.clientRegistration },
+    { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: ctx.config.features.clientRegistration || ctx.config.features.pwa.enabled || ctx.config.features.crossTabSync },
     { name: "fetch-wrapper", gen: () => generateFetchWrapper(ctx), enabled: true },
-    { name: "cache", gen: () => generateCache(ctx, ctx.config.features.crossTabSync), enabled: ctx.config.features.tagInvalidation },
+    { name: "cache", gen: () => generateCache(ctx), enabled: ctx.config.features.tagInvalidation },
     { name: "store", gen: () => generateStore(ctx), enabled: ctx.config.features.mutationQueue },
     { name: "reconcile", gen: () => generateReconcile(ctx), enabled: ctx.config.features.mutationQueue },
     { name: "mutation-queue", gen: () => generateMutationQueue(ctx), enabled: ctx.config.features.mutationQueue },

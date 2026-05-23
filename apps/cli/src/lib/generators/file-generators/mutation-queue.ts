@@ -5,12 +5,13 @@
 import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateMutationQueue(ctx: GeneratorContext): void {
+  const ext = ctx.ext;
   const code = `/**
  * Swoff Mutation Queue
  * Queue offline writes and sync when connection returns.
  *
  * Usage:
- *   import { queueMutation, processMutationQueue, getPendingCount } from './swoff/mutation-queue.js';
+ *   import { queueMutation, processMutationQueue, getPendingCount } from './swoff/mutation-queue.${ext}';
  *
  *   // Queue a mutation
  *   await queueMutation({
@@ -118,7 +119,7 @@ export async function processMutationQueue() {
         }
 
         if (item.tags && item.tags.length > 0) {
-          const { invalidateByTags } = await import("./cache.js");
+          const { invalidateByTags } = await import("./cache.${ext}");
           await invalidateByTags(item.tags);
         }
 
@@ -166,16 +167,16 @@ async function rollbackMutation(item) {
   if (!item.storeName) return;
 
   if (item.method === "POST" && item.tempId) {
-    const { deleteRecord } = await import("./store.js");
+    const { deleteRecord } = await import("./store.${ext}");
     await deleteRecord(item.storeName, item.tempId);
   } else if (
     (item.method === "PUT" || item.method === "PATCH") &&
     item.previousData
   ) {
-    const { putRecord } = await import("./store.js");
+    const { putRecord } = await import("./store.${ext}");
     await putRecord(item.storeName, { ...item.previousData, $synced: true });
   } else if (item.method === "DELETE" && item.tempId && item.previousData) {
-    const { putRecord } = await import("./store.js");
+    const { putRecord } = await import("./store.${ext}");
     await putRecord(item.storeName, { ...item.previousData, $synced: true });
   }
 
@@ -192,7 +193,7 @@ async function rollbackMutation(item) {
 }
 
 async function reconcileRecord(storeName, tempId, serverData) {
-  const { getRecord, putRecord, deleteRecord } = await import("./store.js");
+  const { getRecord, putRecord, deleteRecord } = await import("./store.${ext}");
   const existing = await getRecord(storeName, tempId);
   if (!existing) return;
 
@@ -224,5 +225,5 @@ export async function getPendingCount() {
 window.addEventListener("online", processMutationQueue);
 `;
 
-  writeFile(ctx, "mutation-queue.js", code);
+  writeFile(ctx, `mutation-queue.${ext}`, code);
 }

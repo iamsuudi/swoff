@@ -106,6 +106,24 @@ describe("generateSwInjector", () => {
     const content = readFileSync(join(ctx.swoffDir, "sw-injector.js"), "utf8");
     expect(content).toContain("AUTO_REGISTER = false");
   });
+
+  it("includes PWA install listeners when pwa is enabled", () => {
+    const ctx = makeContext();
+    generateSwInjector(ctx);
+    const content = readFileSync(join(ctx.swoffDir, "sw-injector.js"), "utf8");
+    expect(content).toContain("beforeinstallprompt");
+    expect(content).toContain("appinstalled");
+    expect(content).toContain("window.deferredInstallPrompt");
+    expect(content).toContain("pwaInstallable");
+  });
+
+  it("includes TAG_INVALIDATED handler when crossTabSync is enabled", () => {
+    const ctx = makeContext();
+    generateSwInjector(ctx);
+    const content = readFileSync(join(ctx.swoffDir, "sw-injector.js"), "utf8");
+    expect(content).toContain("TAG_INVALIDATED");
+    expect(content).toContain('"cache-invalidated"');
+  });
 });
 
 describe("generateFetchWrapper", () => {
@@ -123,27 +141,15 @@ describe("generateFetchWrapper", () => {
 });
 
 describe("generateCache", () => {
-  it("includes cross-tab sync when enabled", () => {
+  it("exports cache invalidation functions", () => {
     const ctx = makeContext();
-    generateCache(ctx, true);
+    generateCache(ctx);
     const content = readFileSync(join(ctx.swoffDir, "cache.js"), "utf8");
     expect(content).toContain("invalidateByTag");
     expect(content).toContain("invalidateByTags");
-    expect(content).toContain("initCrossTabSync");
     expect(content).toContain("INVALIDATE_TAG");
-    expect(content).toContain("TAG_INVALIDATED");
-    expect(content).toContain("controllerchange");
-  });
-
-  it("excludes cross-tab sync when disabled", () => {
-    const ctx = makeContext();
-    generateCache(ctx, false);
-    const content = readFileSync(join(ctx.swoffDir, "cache.js"), "utf8");
-    expect(content).toContain("invalidateByTag");
-    expect(content).toContain("invalidateByTags");
     expect(content).not.toContain("initCrossTabSync");
     expect(content).not.toContain("TAG_INVALIDATED");
-    expect(content).not.toContain("controllerchange");
   });
 });
 
@@ -229,21 +235,15 @@ describe("generateIndexedDB", () => {
 });
 
 describe("generatePwaInstall", () => {
-  it("generates with correct preventDefault setting", () => {
-    const ctx = makeContext({ features: { ...defaultConfig.features, pwa: { enabled: true, preventDefaultInstall: true } } });
+  it("generates promptInstall and isInstallable utilities", () => {
+    const ctx = makeContext();
     generatePwaInstall(ctx);
     const content = readFileSync(join(ctx.swoffDir, "pwa-install.js"), "utf8");
-    expect(content).toContain("PREVENT_DEFAULT_INSTALL = true");
-    expect(content).toContain("beforeinstallprompt");
     expect(content).toContain("promptInstall");
     expect(content).toContain("isInstallable");
-  });
-
-  it("generates with preventDefault false", () => {
-    const ctx = makeContext({ features: { ...defaultConfig.features, pwa: { enabled: true, preventDefaultInstall: false } } });
-    generatePwaInstall(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "pwa-install.js"), "utf8");
-    expect(content).toContain("PREVENT_DEFAULT_INSTALL = false");
+    expect(content).toContain("window.deferredInstallPrompt");
+    expect(content).not.toContain("beforeinstallprompt");
+    expect(content).not.toContain("appinstalled");
   });
 });
 

@@ -29,14 +29,10 @@ This creates:
 
 Generated files are yours to edit, extend, or delete.
 
-## Full Guide
+## Next Steps
 
-1. [Configuration](/docs/configuration) — set up swoff.config.json
-2. [Concepts](/docs/concepts/what-is-offline-and-sw) — offline capability and service workers
-3. [Core Architecture](/docs/core/offline-architecture) — offline-first principles
-4. [Patterns](/docs/patterns/) — understand the generated files
-5. [Framework Guides](/docs/guides/) — integrate with your stack
-6. [Reference](/docs/reference/budget-manager) — Budget Manager (client runtime patterns)
+- [Configuration](/docs/configuration) — full config reference
+- [Features](/docs/features) — what each toggle generates
 
 ## Two Approaches
 
@@ -49,20 +45,32 @@ Edit `swoff.config.json`, run `npx @swoff/cli generate`. The CLI handles everyth
   "$schema": "https://swoff.netlify.app/schema/v1.json",
   "enabled": true,
   "version": "from-package",
+  "minSupportedVersion": "1.0.0",
   "serviceWorker": {
     "autoRegister": true,
     "autoActivate": false,
     "defaultStrategy": "cache-first",
     "strategies": {
       "/api/*": "network-first"
-    }
+    },
+    "clearRuntimeOnUpdate": false,
+    "navigationMode": "spa",
+    "spaEntry": "/index.html"
   },
   "features": {
     "versionedSw": true,
-    "pwa": true,
-    "tagInvalidation": true,
+    "mutationQueue": false,
+    "backgroundSync": false,
+    "pwa": { "enabled": true, "preventDefaultInstall": false },
+    "auth": { "enabled": false, "type": "bearer", "refreshPath": "/api/refresh", "userEndpoint": "/api/me" },
     "crossTabSync": true,
-    "clientRegistration": true
+    "tagInvalidation": true,
+    "clientRegistration": true,
+    "indexeddb": { "enabled": false, "name": "app-db", "stores": [] }
+  },
+  "build": {
+    "outputDir": "dist",
+    "swFilename": "sw"
   }
 }
 ```

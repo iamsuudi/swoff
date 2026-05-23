@@ -26,9 +26,12 @@ function makeContext(overrides?: Partial<SwoffConfig>): GeneratorContext {
     ...defaultConfig,
     ...overrides,
     serviceWorker: { ...defaultConfig.serviceWorker, ...overrides?.serviceWorker },
-    features: { ...defaultConfig.features, ...overrides?.features },
-    pwa: { ...defaultConfig.pwa, ...overrides?.pwa },
-    database: { ...defaultConfig.database, ...overrides?.database },
+    features: {
+      ...defaultConfig.features,
+      ...overrides?.features,
+      pwa: { ...defaultConfig.features.pwa, ...overrides?.features?.pwa },
+      indexeddb: { ...defaultConfig.features.indexeddb, ...overrides?.features?.indexeddb },
+    },
     build: { ...defaultConfig.build, ...overrides?.build },
   };
 
@@ -134,7 +137,7 @@ describe("generateCache", () => {
 
 describe("generateStore", () => {
   it("uses database name from config", () => {
-    const ctx = makeContext({ database: { name: "my-custom-db", stores: [] } });
+    const ctx = makeContext({ features: { indexeddb: { enabled: true, name: "my-custom-db", stores: [] } } });
     generateStore(ctx);
     const content = readFileSync(join(ctx.swoffDir, "store.js"), "utf8");
     expect(content).toContain('DB_NAME = "my-custom-db"');
@@ -195,9 +198,7 @@ describe("generateBackgroundSync", () => {
 
 describe("generateIndexedDB", () => {
   it("uses database name from config", () => {
-    const ctx = makeContext({
-      database: { name: "custom-db", stores: ["todos", "users"] },
-    });
+    const ctx = makeContext({ features: { indexeddb: { enabled: true, name: "custom-db", stores: ["todos", "users"] } } });
     generateIndexedDB(ctx);
     const content = readFileSync(join(ctx.swoffDir, "indexeddb.js"), "utf8");
     expect(content).toContain('DB_NAME = "custom-db"');
@@ -217,7 +218,7 @@ describe("generateIndexedDB", () => {
 
 describe("generatePwaInstall", () => {
   it("generates with correct preventDefault setting", () => {
-    const ctx = makeContext({ pwa: { preventDefaultInstall: true } });
+    const ctx = makeContext({ features: { pwa: { enabled: true, preventDefaultInstall: true } } });
     generatePwaInstall(ctx);
     const content = readFileSync(join(ctx.swoffDir, "pwa-install.js"), "utf8");
     expect(content).toContain("PREVENT_DEFAULT_INSTALL = true");
@@ -227,7 +228,7 @@ describe("generatePwaInstall", () => {
   });
 
   it("generates with preventDefault false", () => {
-    const ctx = makeContext({ pwa: { preventDefaultInstall: false } });
+    const ctx = makeContext({ features: { pwa: { enabled: true, preventDefaultInstall: false } } });
     generatePwaInstall(ctx);
     const content = readFileSync(join(ctx.swoffDir, "pwa-install.js"), "utf8");
     expect(content).toContain("PREVENT_DEFAULT_INSTALL = false");

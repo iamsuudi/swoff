@@ -3,12 +3,20 @@
  */
 
 export function generateFetchHandler(
-  swConfig: { defaultStrategy: string; strategies: Record<string, string>; maxCacheEntries?: number; maxCacheAge?: number },
+  swConfig: { defaultStrategy: string; strategies: Record<string, string>; maxCacheEntries?: number; maxCacheAge?: number; navigationMode?: string; spaEntry?: string },
   tagInvalidation: boolean,
 ): string {
-  const { defaultStrategy, strategies, maxCacheEntries, maxCacheAge } = swConfig;
+  const { defaultStrategy, strategies, maxCacheEntries, maxCacheAge, navigationMode, spaEntry } = swConfig;
 
   const hasTrim = (maxCacheEntries ?? 0) > 0 || (maxCacheAge ?? 0) > 0;
+  const navMode = navigationMode ?? "spa";
+  const spaPath = spaEntry ?? "/index.html";
+  const navCode = navMode === "spa" ? `
+  if (request.mode === "navigate") {
+    const precache = await caches.open(CACHE_NAME);
+    const entry = await precache.match("${spaPath}");
+    if (entry) return entry;
+  }` : "";
 
   const tagInvalidationCode = tagInvalidation ? `
           const tagsHeader = event.request.headers.get("X-SW-Cache-Tags");
@@ -108,14 +116,9 @@ self.addEventListener("fetch", (event) => {
 async function cacheFirst(event, request) {
   const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
 
-  const byRequest = await runtimeCache.match(request);
-  if (byRequest) return byRequest;
-
-  if (request.mode === "navigate") {
-    const spa = await cache.match("/index.html");
-    if (spa) return spa;
-  }
-
+  const cached = await runtimeCache.match(request);
+  if (cached) return cached;
+${navCode}
   const response = await fetch(request);
   if (response.ok) {
     const cloned = response.clone();
@@ -145,13 +148,7 @@ ${trimCode}        })(),
   } catch {
     const cached = await runtimeCache.match(request);
     if (cached) return cached;
-
-    if (request.mode === "navigate") {
-      const cache = await caches.open(CACHE_NAME);
-      const spa = await cache.match("/index.html");
-      if (spa) return spa;
-    }
-
+${navCode}
     throw new Error("Request failed and no cached response available");
   }
 }

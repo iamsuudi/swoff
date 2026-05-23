@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { defaultConfig, defaultInitConfig, KNOWN_FEATURES, VALID_STRATEGIES, API_PREFIXES } from "../lib/shared/config-types.js";
+import { defaultConfig, defaultInitConfig, KNOWN_FEATURES, VALID_STRATEGIES, API_PREFIXES, OBJECT_FEATURES } from "../lib/shared/config-types.js";
 
 describe("config-types", () => {
   describe("defaultConfig", () => {
@@ -9,8 +9,6 @@ describe("config-types", () => {
       expect(defaultConfig).toHaveProperty("minSupportedVersion");
       expect(defaultConfig).toHaveProperty("serviceWorker");
       expect(defaultConfig).toHaveProperty("features");
-      expect(defaultConfig).toHaveProperty("pwa");
-      expect(defaultConfig).toHaveProperty("database");
       expect(defaultConfig).toHaveProperty("build");
     });
 
@@ -21,10 +19,14 @@ describe("config-types", () => {
       expect(defaultConfig.serviceWorker.autoRegister).toBe(true);
       expect(defaultConfig.serviceWorker.autoActivate).toBe(false);
       expect(defaultConfig.serviceWorker.defaultStrategy).toBe("cache-first");
+      expect(defaultConfig.serviceWorker.clearRuntimeOnUpdate).toBe(false);
+      expect(defaultConfig.serviceWorker.navigationMode).toBe("spa");
+      expect(defaultConfig.serviceWorker.spaEntry).toBe("/index.html");
       expect(defaultConfig.build.outputDir).toBe("dist");
       expect(defaultConfig.build.swFilename).toBe("sw");
-      expect(defaultConfig.pwa.preventDefaultInstall).toBe(false);
-      expect(defaultConfig.database.name).toBe("app-db");
+      expect(defaultConfig.features.pwa.enabled).toBe(true);
+      expect(defaultConfig.features.pwa.preventDefaultInstall).toBe(false);
+      expect(defaultConfig.features.indexeddb.name).toBe("app-db");
     });
 
     it("has all known features as booleans", () => {
@@ -34,12 +36,22 @@ describe("config-types", () => {
       }
     });
 
+    it("has object features with correct shape", () => {
+      expect(typeof defaultConfig.features.pwa).toBe("object");
+      expect(typeof defaultConfig.features.pwa.enabled).toBe("boolean");
+      expect(typeof defaultConfig.features.pwa.preventDefaultInstall).toBe("boolean");
+      expect(typeof defaultConfig.features.indexeddb).toBe("object");
+      expect(typeof defaultConfig.features.indexeddb.enabled).toBe("boolean");
+      expect(typeof defaultConfig.features.indexeddb.name).toBe("string");
+      expect(Array.isArray(defaultConfig.features.indexeddb.stores)).toBe(true);
+    });
+
     it("has empty strategies by default", () => {
       expect(defaultConfig.serviceWorker.strategies).toEqual({});
     });
 
     it("has empty stores by default", () => {
-      expect(defaultConfig.database.stores).toEqual([]);
+      expect(defaultConfig.features.indexeddb.stores).toEqual([]);
     });
   });
 
@@ -61,17 +73,22 @@ describe("config-types", () => {
   });
 
   describe("constants", () => {
-    it("KNOWN_FEATURES contains all expected features", () => {
+    it("KNOWN_FEATURES contains only boolean features", () => {
       expect(KNOWN_FEATURES).toContain("versionedSw");
       expect(KNOWN_FEATURES).toContain("offlineReads");
       expect(KNOWN_FEATURES).toContain("mutationQueue");
       expect(KNOWN_FEATURES).toContain("backgroundSync");
-      expect(KNOWN_FEATURES).toContain("pwa");
       expect(KNOWN_FEATURES).toContain("auth");
       expect(KNOWN_FEATURES).toContain("crossTabSync");
       expect(KNOWN_FEATURES).toContain("tagInvalidation");
       expect(KNOWN_FEATURES).toContain("clientRegistration");
-      expect(KNOWN_FEATURES).toContain("indexeddb");
+      expect(KNOWN_FEATURES).not.toContain("pwa");
+      expect(KNOWN_FEATURES).not.toContain("indexeddb");
+    });
+
+    it("OBJECT_FEATURES lists pwa and indexeddb", () => {
+      expect(OBJECT_FEATURES).toContain("pwa");
+      expect(OBJECT_FEATURES).toContain("indexeddb");
     });
 
     it("VALID_STRATEGIES contains all 5 strategies", () => {

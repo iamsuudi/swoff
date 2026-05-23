@@ -1,14 +1,8 @@
-/**
- * Config validator - checks swoff.config.json for correctness.
- * Returns an array of error strings (empty if valid).
- */
-
-import { KNOWN_FEATURES, VALID_STRATEGIES } from "../shared/config-types.js";
+import { KNOWN_FEATURES, OBJECT_FEATURES, VALID_STRATEGIES } from "../shared/config-types.js";
 
 export function validateConfig(config: Record<string, unknown>): string[] {
   const errors: string[] = [];
 
-  // Required fields
   const requiredFields = ["enabled", "version", "serviceWorker", "features", "build"];
   const missingFields = requiredFields.filter(
     (field) => config[field] === undefined || config[field] === null,
@@ -17,7 +11,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     errors.push(`Missing required fields: ${missingFields.join(", ")}`);
   }
 
-  // serviceWorker
   if (config.serviceWorker) {
     const sw = config.serviceWorker as Record<string, unknown>;
 
@@ -44,29 +37,81 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         }
       }
     }
+
+    if (sw.clearRuntimeOnUpdate !== undefined && typeof sw.clearRuntimeOnUpdate !== "boolean") {
+      errors.push("serviceWorker.clearRuntimeOnUpdate must be a boolean");
+    }
+
+    if (sw.navigationMode !== undefined && !["spa", "default"].includes(sw.navigationMode as string)) {
+      errors.push('serviceWorker.navigationMode must be "spa" or "default"');
+    }
+
+    if (sw.spaEntry !== undefined && typeof sw.spaEntry !== "string") {
+      errors.push("serviceWorker.spaEntry must be a string");
+    }
   }
 
-  // features
   if (config.features) {
     const features = config.features as Record<string, unknown>;
+
     for (const [key, value] of Object.entries(features)) {
-      if (!KNOWN_FEATURES.includes(key as (typeof KNOWN_FEATURES)[number])) {
+      if (OBJECT_FEATURES.includes(key as (typeof OBJECT_FEATURES)[number])) {
+        if (typeof value !== "object" || value === null) {
+          errors.push(`Feature "${key}" must be an object`);
+          continue;
+        }
+      } else if (!KNOWN_FEATURES.includes(key as (typeof KNOWN_FEATURES)[number])) {
         errors.push(`Unknown feature "${key}"`);
-      }
-      if (typeof value !== "boolean") {
+        continue;
+      } else if (typeof value !== "boolean") {
         errors.push(`Feature "${key}" must be a boolean, got ${typeof value}`);
+      }
+    }
+
+    const pwa = features.pwa as Record<string, unknown> | undefined;
+    if (pwa && typeof pwa === "object") {
+      if (pwa.enabled !== undefined && typeof pwa.enabled !== "boolean") {
+        errors.push("features.pwa.enabled must be a boolean");
+      }
+      if (pwa.preventDefaultInstall !== undefined && typeof pwa.preventDefaultInstall !== "boolean") {
+        errors.push("features.pwa.preventDefaultInstall must be a boolean");
+      }
+    }
+
+    const indexeddb = features.indexeddb as Record<string, unknown> | undefined;
+    if (indexeddb && typeof indexeddb === "object") {
+      if (indexeddb.enabled !== undefined && typeof indexeddb.enabled !== "boolean") {
+        errors.push("features.indexeddb.enabled must be a boolean");
+      }
+      if (indexeddb.name !== undefined && typeof indexeddb.name !== "string") {
+        errors.push("features.indexeddb.name must be a string");
+      }
+      if (indexeddb.name && typeof indexeddb.name === "string" && !/^[a-zA-Z0-9-_]+$/.test(indexeddb.name as string)) {
+        errors.push(`features.indexeddb.name "${indexeddb.name}" must match pattern ^[a-zA-Z0-9-_]+$`);
+      }
+      if (indexeddb.stores !== undefined && !Array.isArray(indexeddb.stores)) {
+        errors.push("features.indexeddb.stores must be an array");
+      }
+      if (indexeddb.stores && Array.isArray(indexeddb.stores)) {
+        for (const store of indexeddb.stores as string[]) {
+          if (typeof store !== "string") {
+            errors.push("features.indexeddb.stores must contain only strings");
+            break;
+          }
+          if (!/^[a-zA-Z0-9-_]+$/.test(store)) {
+            errors.push(`features.indexeddb.store "${store}" must match pattern ^[a-zA-Z0-9-_]+$`);
+          }
+        }
       }
     }
   }
 
-  // version
   if (config.version && typeof config.version === "string" && config.version !== "from-package") {
     if (!/^\d+\.\d+\.\d+$/.test(config.version as string)) {
       errors.push(`Invalid version "${config.version}". Must be "from-package" or semver (e.g., "1.0.0")`);
     }
   }
 
-  // minSupportedVersion
   if (config.minSupportedVersion && typeof config.minSupportedVersion === "string") {
     if (!/^\d+\.\d+\.\d+$/.test(config.minSupportedVersion as string)) {
       errors.push(
@@ -75,7 +120,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     }
   }
 
-  // build
   if (config.build) {
     const build = config.build as Record<string, unknown>;
     if (build.outputDir && typeof build.outputDir !== "string") {
@@ -83,39 +127,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     }
     if (build.swFilename && typeof build.swFilename !== "string") {
       errors.push("build.swFilename must be a string");
-    }
-  }
-
-  // pwa
-  if (config.pwa) {
-    const pwa = config.pwa as Record<string, unknown>;
-    if (pwa.preventDefaultInstall !== undefined && typeof pwa.preventDefaultInstall !== "boolean") {
-      errors.push("pwa.preventDefaultInstall must be a boolean");
-    }
-  }
-
-  // database
-  if (config.database) {
-    const db = config.database as Record<string, unknown>;
-    if (db.name && typeof db.name !== "string") {
-      errors.push("database.name must be a string");
-    }
-    if (db.name && typeof db.name === "string" && !/^[a-zA-Z0-9-_]+$/.test(db.name as string)) {
-      errors.push(`database.name "${db.name}" must match pattern ^[a-zA-Z0-9-_]+$`);
-    }
-    if (db.stores && !Array.isArray(db.stores)) {
-      errors.push("database.stores must be an array");
-    }
-    if (db.stores && Array.isArray(db.stores)) {
-      for (const store of db.stores as string[]) {
-        if (typeof store !== "string") {
-          errors.push("database.stores must contain only strings");
-          break;
-        }
-        if (!/^[a-zA-Z0-9-_]+$/.test(store)) {
-          errors.push(`database.store "${store}" must match pattern ^[a-zA-Z0-9-_]+$`);
-        }
-      }
     }
   }
 

@@ -31,13 +31,11 @@ describe("loadConfig", () => {
       serviceWorker: { autoRegister: false, autoActivate: true, defaultStrategy: "network-first", strategies: {} },
       features: {
         versionedSw: true, offlineReads: true, mutationQueue: true,
-        backgroundSync: false, pwa: true, auth: false,
+        backgroundSync: false, pwa: { enabled: true, preventDefaultInstall: true }, auth: false,
         crossTabSync: true, tagInvalidation: true,
-        clientRegistration: true, indexeddb: true,
+        clientRegistration: true, indexeddb: { enabled: true, name: "test-db", stores: [] },
       },
-      pwa: { preventDefaultInstall: true },
       build: { outputDir: "build", swFilename: "service-worker" },
-      database: { name: "test-db", stores: [] },
     };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
 

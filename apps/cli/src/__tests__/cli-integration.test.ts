@@ -32,14 +32,13 @@ describe("CLI commands integration", () => {
           offlineReads: true,
           mutationQueue: false,
           backgroundSync: false,
-          pwa: true,
+          pwa: { enabled: true, preventDefaultInstall: false },
           auth: false,
           crossTabSync: true,
           tagInvalidation: true,
           clientRegistration: true,
-          indexeddb: false,
+          indexeddb: { enabled: false, name: "app-db", stores: [] },
         },
-        pwa: { preventDefaultInstall: false },
         build: { outputDir: "dist", swFilename: "sw" },
       };
       writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config, null, 2));
@@ -48,7 +47,7 @@ describe("CLI commands integration", () => {
       expect(parsed.$schema).toBe("https://swoff.netlify.app/schema/v1.json");
       expect(parsed.enabled).toBe(true);
       expect(parsed.version).toBe("from-package");
-      expect(parsed.pwa.preventDefaultInstall).toBe(false);
+      expect(parsed.features.pwa.preventDefaultInstall).toBe(false);
     });
 
     it("creates swoff directory", () => {
@@ -120,25 +119,25 @@ describe("CLI commands integration", () => {
       expect(missing).toContain("build");
     });
 
-    it("validates feature flags are booleans", () => {
+    it("validates feature flags are booleans or objects", () => {
       const config = {
         features: {
           versionedSw: true,
-          pwa: "yes",
+          pwa: { enabled: true, preventDefaultInstall: false },
+          indexeddb: { enabled: false, name: "app-db", stores: [] },
           offlineReads: 1,
         },
       };
 
       const errors: string[] = [];
       for (const [key, value] of Object.entries(config.features)) {
-        if (typeof value !== "boolean") {
-          errors.push(`Feature "${key}" must be a boolean`);
+        if (typeof value !== "boolean" && typeof value !== "object") {
+          errors.push(`Feature "${key}" must be a boolean or object`);
         }
       }
 
-      expect(errors).toHaveLength(2);
-      expect(errors).toContain('Feature "pwa" must be a boolean');
-      expect(errors).toContain('Feature "offlineReads" must be a boolean');
+      expect(errors).toHaveLength(1);
+      expect(errors).toContain('Feature "offlineReads" must be a boolean or object');
     });
   });
 });

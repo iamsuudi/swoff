@@ -5,7 +5,7 @@
 import { GeneratorContext, writeFile } from "./context.js";
 
 export function generatePwaInstall(ctx: GeneratorContext): void {
-  const preventDefault = ctx.config.pwa?.preventDefaultInstall ?? false;
+  const preventDefault = ctx.config.features.pwa?.preventDefaultInstall ?? false;
 
   const code = `/**
  * Swoff PWA Install Prompt Handler

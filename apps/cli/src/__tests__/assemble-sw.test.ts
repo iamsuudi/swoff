@@ -100,7 +100,7 @@ describe("assembleSW", () => {
   it("includes PWA assets when pwa feature is enabled", () => {
     const configWithPwa: SwoffConfig = {
       ...config,
-      features: { ...config.features, pwa: true },
+      features: { ...config.features, pwa: { enabled: true, preventDefaultInstall: false } },
     };
     const sw = assembleSW(configWithPwa, "1.0.0");
     expect(sw).toContain("/manifest.json");
@@ -109,7 +109,7 @@ describe("assembleSW", () => {
   it("excludes PWA assets when pwa feature is disabled", () => {
     const configNoPwa: SwoffConfig = {
       ...config,
-      features: { ...config.features, pwa: false },
+      features: { ...config.features, pwa: { enabled: false, preventDefaultInstall: false } },
     };
     const sw = assembleSW(configNoPwa, "1.0.0");
     expect(sw).not.toContain("/manifest.json");

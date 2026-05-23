@@ -67,7 +67,7 @@ const allAssets = collectAssets(outDir);
 const swFile = \`\${swFilename}-v\${version}.js\`;
 const filtered = allAssets.filter(a => !a.endsWith(swFile) && a !== '/version.json');
 const fallback = ['/index.html'];
-if (config.features?.pwa) fallback.push('/manifest.json');
+if (config.features?.pwa?.enabled) fallback.push('/manifest.json');
 const combined = [...new Set([...fallback, ...filtered])];
 const assetsToCache = combined.map(url => ({ url, options: {} }));
 

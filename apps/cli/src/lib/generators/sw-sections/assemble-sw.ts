@@ -37,7 +37,7 @@ export function assembleSW(config: SwoffConfig, version: string, projectRoot?: s
   const swFilename = config.build?.swFilename || "sw";
 
   const fallback: string[] = ["/index.html"];
-  if (features.pwa) fallback.push("/manifest.json");
+  if (features.pwa.enabled) fallback.push("/manifest.json");
 
   const scanned: string[] = [];
   if (projectRoot) {
@@ -58,7 +58,7 @@ export function assembleSW(config: SwoffConfig, version: string, projectRoot?: s
   sw = sw.replace("// [[AUTO_SKIP_WAITING]]", `const AUTO_SKIP_WAITING = ${config.serviceWorker.autoActivate};`);
 
   sw = sw.replace("// [[FETCH_HANDLER]]", generateFetchHandler(serviceWorker, features.tagInvalidation));
-  sw = sw.replace("// [[ACTIVATE_HANDLER]]", generateActivateHandler());
+  sw = sw.replace("// [[ACTIVATE_HANDLER]]", generateActivateHandler(serviceWorker.clearRuntimeOnUpdate));
   sw = sw.replace("// [[INSTALL_HANDLER]]", generateInstallHandler());
   sw = sw.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(features.tagInvalidation));
 

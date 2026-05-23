@@ -1,8 +1,17 @@
-/**
- * Generates the SW activate event handler (old cache cleanup).
- */
+export function generateActivateHandler(clearRuntimeOnUpdate?: boolean): string {
+  if (clearRuntimeOnUpdate) {
+    return `
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+      )
+    )
+  );
+});`;
+  }
 
-export function generateActivateHandler(): string {
   return `
 self.addEventListener("activate", (event) => {
   event.waitUntil(

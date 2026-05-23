@@ -1,8 +1,6 @@
 export interface AuthConfig {
   enabled: boolean;
   type: "cookie" | "bearer" | "custom";
-  loginPath: string;
-  logoutPath: string;
   refreshPath: string;
   userEndpoint: string;
 }
@@ -95,8 +93,6 @@ export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>):
 export const defaultAuth: AuthConfig = {
   enabled: false,
   type: "bearer",
-  loginPath: "/api/login",
-  logoutPath: "/api/logout",
   refreshPath: "/api/refresh",
   userEndpoint: "/api/me",
 };

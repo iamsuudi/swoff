@@ -1,88 +1,35 @@
 /**
- * Generates auth-fetch.ts/js — config-driven authenticated fetch wrapper.
- * Uses auth config to generate appropriate withAuthHeaders() and isAuthUrl().
- */
-
-import { GeneratorContext, writeFile } from "./context.js";
-
-export function generateAuthFetch(ctx: GeneratorContext): void {
-  const ext = ctx.ext;
-  const authConfig = ctx.config.features.auth;
-  const { refreshPath, userEndpoint, type } = authConfig;
-
-  function generateWithAuthHeaders(): string {
-    switch (type) {
-      case "cookie":
-        return `function withAuthHeaders(headers, _auth) {
-  // Cookie/Session auth — browser auto-sends cookies.
-  // No header modification needed.
-  return headers;
-}`;
-      case "bearer":
-        return `function withAuthHeaders(headers, auth) {
-  // --- EDIT THIS BLOCK FOR YOUR BACKEND ---
-  // JWT Bearer token:
-  if (auth?.token) {
-    headers.set("Authorization", \`Bearer \${auth.token}\`);
-  }
-  // --- END OF EDITABLE BLOCK ---
-  return headers;
-}`;
-      case "custom":
-        return `function withAuthHeaders(headers, auth) {
-  // --- EDIT THIS BLOCK FOR YOUR BACKEND ---
-  // Custom header (e.g., X-API-Key, X-Auth-Token):
-  // if (auth?.token) {
-  //   headers.set("X-Auth-Token", auth.token);
-  // }
-  // --- END OF EDITABLE BLOCK ---
-  return headers;
-}`;
-      default:
-        return `function withAuthHeaders(headers, auth) {
-  // --- EDIT THIS BLOCK FOR YOUR BACKEND ---
-  if (auth?.token) {
-    headers.set("Authorization", \`Bearer \${auth.token}\`);
-  }
-  // --- END OF EDITABLE BLOCK ---
-  return headers;
-}`;
-    }
-  }
-
-  const credentialsLine =
-    type === "cookie"
-      ? `const fetchOptions = { ...options, headers, credentials: "include" };`
-      : `const fetchOptions = { ...options, headers };`;
-
-  const code = `/**
  * Auth-Aware Fetch — attaches auth headers, excludes auth endpoints from cache,
  * and handles 401 responses.
  *
  * Usage:
- *   import { authenticatedFetch } from "./auth-fetch.${ext}";
+ *   import { authenticatedFetch } from "./auth-fetch.ts";
  *   const data = await authenticatedFetch("/api/data").then((r) => r.json());
  */
 
-import { fetchWithCache } from "./fetch-wrapper.${ext}";
-import { getAuth, setAuth, clearAuth } from "./auth-store.${ext}";
+import { fetchWithCache } from "./fetch-wrapper.ts";
+import { getAuth, setAuth, clearAuth } from "./auth-store.ts";
 
-${generateWithAuthHeaders()}
+function withAuthHeaders(headers, auth) {
+  // --- EDIT THIS BLOCK FOR YOUR BACKEND ---
+  // JWT Bearer token:
+  if (auth?.token) {
+    headers.set("Authorization", `Bearer ${auth.token}`);
+  }
+  // --- END OF EDITABLE BLOCK ---
+  return headers;
+}
 
 /**
  * Auth endpoints that should never be cached by the SW.
- * Edit this list to match your backend's auth routes.
+ * Configured via swoff.config.json features.auth paths.
  */
 function isAuthUrl(url) {
   const authPaths = [
-    "/login",
-    "/logout",
-    "/register",
     "/api/login",
     "/api/logout",
-    "/api/register",
-    "${refreshPath}",
-    "${userEndpoint}",
+    "/api/refresh",
+    "/api/me",
   ];
   return authPaths.some((path) => url.includes(path));
 }
@@ -106,7 +53,7 @@ export async function authenticatedFetch(input, options = {}) {
     headers.set("X-SW-Cache-Strategy", "mutation");
   }
 
-  ${credentialsLine}
+  const fetchOptions = { ...options, headers };
   const response = await fetchWithCache(input, fetchOptions);
 
   // Handle 401 — auth expired or invalidated server-side
@@ -132,7 +79,7 @@ export async function ensureValidAuth() {
   // Token expired — refresh it (deduplicated)
   if (!refreshPromise) {
     refreshPromise = (async () => {
-      const response = await authenticatedFetch("${refreshPath}", {
+      const response = await authenticatedFetch("/api/refresh", {
         method: "POST",
         headers: { "X-SW-Cache-Strategy": "mutation" },
       });
@@ -155,8 +102,4 @@ export async function ensureValidAuth() {
   } finally {
     refreshPromise = null;
   }
-}
-`;
-
-  writeFile(ctx, `auth-fetch.${ext}`, code);
 }

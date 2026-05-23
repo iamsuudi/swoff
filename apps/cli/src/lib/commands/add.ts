@@ -15,7 +15,7 @@ const featureMap: Record<string, Record<string, unknown>> = {
   pwa: { pwa: { enabled: true } },
   "cross-tab": { crossTabSync: true, tagInvalidation: true },
   crosstab: { crossTabSync: true },
-  auth: { auth: { enabled: true, type: "bearer", loginPath: "/api/login", logoutPath: "/api/logout", refreshPath: "/api/refresh", userEndpoint: "/api/me" } },
+  auth: { auth: { enabled: true, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" } },
   "tag-invalidation": { tagInvalidation: true },
   taginvalidation: { tagInvalidation: true },
   "background-sync": { backgroundSync: true },

@@ -110,6 +110,22 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         }
       }
     }
+
+    const auth = features.auth as Record<string, unknown> | undefined;
+    if (auth && typeof auth === "object") {
+      if (auth.enabled !== undefined && typeof auth.enabled !== "boolean") {
+        errors.push("features.auth.enabled must be a boolean");
+      }
+      if (auth.type !== undefined && !["cookie", "bearer", "custom"].includes(auth.type as string)) {
+        errors.push('features.auth.type must be "cookie", "bearer", or "custom"');
+      }
+      if (auth.refreshPath !== undefined && typeof auth.refreshPath !== "string") {
+        errors.push("features.auth.refreshPath must be a string");
+      }
+      if (auth.userEndpoint !== undefined && typeof auth.userEndpoint !== "string") {
+        errors.push("features.auth.userEndpoint must be a string");
+      }
+    }
   }
 
   if (config.version && typeof config.version === "string" && config.version !== "from-package") {

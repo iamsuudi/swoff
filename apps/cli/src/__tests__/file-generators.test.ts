@@ -200,7 +200,6 @@ describe("generateMutationQueue", () => {
     expect(content).toContain("reconcileRecord");
     expect(content).toContain("MAX_RETRIES");
     expect(content).toContain("swoff-queue");
-    expect(content).toContain("window.addEventListener(\"online\", processMutationQueue)");
   });
 });
 

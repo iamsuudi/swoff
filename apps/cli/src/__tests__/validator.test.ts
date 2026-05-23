@@ -17,7 +17,7 @@ describe("validateConfig", () => {
       mutationQueue: false,
       backgroundSync: false,
       pwa: { enabled: true, preventDefaultInstall: false },
-      auth: false,
+      auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
       crossTabSync: true,
       tagInvalidation: true,
       clientRegistration: true,
@@ -194,6 +194,42 @@ describe("validateConfig", () => {
       };
       const errors = validateConfig(config);
       expect(errors).toContain("crossTabSync requires tagInvalidation to be enabled");
+    });
+
+    it("validates auth.enabled is boolean", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, auth: { enabled: "yes", type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" } },
+      };
+      const errors = validateConfig(config);
+      expect(errors).toContain("features.auth.enabled must be a boolean");
+    });
+
+    it("validates auth.type is valid", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, auth: { enabled: true, type: "invalid", refreshPath: "/api/refresh", userEndpoint: "/api/me" } },
+      };
+      const errors = validateConfig(config);
+      expect(errors).toContain('features.auth.type must be "cookie", "bearer", or "custom"');
+    });
+
+    it("validates auth.refreshPath is string", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, auth: { enabled: true, type: "bearer", refreshPath: 123, userEndpoint: "/api/me" } },
+      };
+      const errors = validateConfig(config);
+      expect(errors).toContain("features.auth.refreshPath must be a string");
+    });
+
+    it("validates auth.userEndpoint is string", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, auth: { enabled: true, type: "bearer", refreshPath: "/api/refresh", userEndpoint: 456 } },
+      };
+      const errors = validateConfig(config);
+      expect(errors).toContain("features.auth.userEndpoint must be a string");
     });
   });
 

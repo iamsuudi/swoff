@@ -17,6 +17,11 @@
  *   pwa-installable      - PWA can be installed (detail: { isInstallable: true })
  *   pwa-installed        - User accepted install (detail: { outcome: 'accepted' })
  *   cache-invalidated    - Cache entries with given tags cleared (detail: { tags })
+ *   mutation-sync-complete - Queued mutations synced (detail: { succeeded, failed })
+ *   mutation-queue-changed - Queue modified
+ *   mutation-rollback     - Mutation exhausted retries (detail: { method, url, tempId, previousData })
+ *   sw-auth-unauthorized  - 401 response received (token expired or invalid)
+ *   sw-auth-state-change  - Login or logout (detail: { authenticated: boolean })
  *
  * Window properties:
  *   window.latestSWVersion       - Latest version from version.json
@@ -29,6 +34,7 @@
  *   window.deferredInstallPrompt - Captured BeforeInstallPromptEvent
  *   window.pwaInstallable        - Whether PWA can be installed
  */
+import { processMutationQueue } from "./mutation-queue.ts";
 
 const AUTO_REGISTER = true;
 const AUTO_ACTIVATE = true;
@@ -43,6 +49,16 @@ async function checkForUpdate() {
   return response.json();
 }
 
+async function waitForController() {
+  return new Promise((resolve) => {
+    if (navigator.serviceWorker.controller) {
+      resolve();
+    } else {
+      navigator.serviceWorker.addEventListener("controllerchange", resolve, { once: true });
+    }
+  });
+}
+
 async function doRegisterServiceWorker(version) {
   const swUrl = `/sw-v${version}.js`;
   const registration = await navigator.serviceWorker.register(swUrl);
@@ -50,6 +66,7 @@ async function doRegisterServiceWorker(version) {
   window.currentSWVersion = version;
   window.swRegisteredVersion = version;
   window.dispatchEvent(new CustomEvent("sw-version-detected"));
+  await waitForController();
   window.dispatchEvent(new CustomEvent("sw-ready"));
   return registration;
 }
@@ -77,7 +94,10 @@ export async function initServiceWorker() {
       if (registration && registration.active) {
         window.currentSWVersion = currentVersion;
         window.dispatchEvent(new CustomEvent("sw-version-detected"));
-        window.dispatchEvent(new CustomEvent("sw-ready"));
+        await waitForController();
+        if (!window.swReady) {
+          window.dispatchEvent(new CustomEvent("sw-ready"));
+        }
       }
     } else if (currentVersion && currentVersion !== manifest.version) {
       window.swAvailableVersion = manifest.version;
@@ -124,7 +144,10 @@ export async function initServiceWorker() {
       if (existing && existing.active) {
         window.currentSWVersion = localStorage.getItem("swRegisteredVersion") || "unknown";
         window.dispatchEvent(new CustomEvent("sw-version-detected"));
-        window.dispatchEvent(new CustomEvent("sw-ready"));
+        await waitForController();
+        if (!window.swReady) {
+          window.dispatchEvent(new CustomEvent("sw-ready"));
+        }
         return;
       }
     } catch {}
@@ -184,6 +207,10 @@ window.addEventListener("appinstalled", () => {
     })
   );
 });
+
+
+// --- Mutation Queue Listener ---
+window.addEventListener("online", processMutationQueue);
 
 // --- SW Message Listener ---
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {

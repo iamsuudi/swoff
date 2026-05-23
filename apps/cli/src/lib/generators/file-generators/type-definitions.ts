@@ -7,6 +7,10 @@ import { GeneratorContext, writeFile } from "./context.js";
 export function generateTypeDefinitions(ctx: GeneratorContext): void {
   if (ctx.ext !== "ts") return;
 
+  const authBlock = ctx.config.features.auth.enabled ? `
+    swAuthState?: "authenticated" | "unauthenticated" | "loading";
+    swCurrentUser?: object | null;` : "";
+
   const code = `interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -22,7 +26,7 @@ declare global {
     swUpdateRequired?: boolean;
     swMinSupportedVersion?: string;
     swReady?: boolean;
-    swError?: boolean;
+    swError?: boolean;${authBlock}
   }
 }
 

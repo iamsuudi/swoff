@@ -5,8 +5,9 @@
   "serviceWorker": {
     "autoRegister": true,
     "autoActivate": true,
-    "defaultStrategy": "network-only",
+    "defaultStrategy": "cache-first",
     "strategies": {
+      "/api/*": "network-first",
       "/static/*": "cache-first"
     },
     "clearRuntimeOnUpdate": false,
@@ -24,9 +25,14 @@
       "stores": []
     },
     "versionedSw": true,
-    "mutationQueue": false,
-    "backgroundSync": false,
-    "auth": false,
+    "mutationQueue": true,
+    "backgroundSync": true,
+    "auth": {
+      "enabled": true,
+      "type": "bearer",
+      "refreshPath": "/api/refresh",
+      "userEndpoint": "/api/me"
+    },
     "crossTabSync": true,
     "tagInvalidation": true,
     "clientRegistration": true

@@ -1,27 +1,27 @@
 import { useState } from "react";
 
-const priorityColors: Record<string, string> = {
-  high: "border-red-400 bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400",
-  medium: "border-amber-400 bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
-  low: "border-emerald-400 bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400",
+const statusColors: Record<string, string> = {
+  "todo": "border-slate-400 bg-slate-100 text-slate-600 dark:bg-slate-900/30 dark:text-slate-400",
+  "in-progress": "border-blue-400 bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
+  "done": "border-emerald-400 bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400",
 };
 
-interface NoteFormProps {
-  initialData?: { title: string; description: string; priority?: string };
+interface TodoFormProps {
+  initialData?: { title: string; description: string; status?: string };
   onSubmit: (data: Record<string, string>) => void;
   onCancel?: () => void;
   submitLabel?: string;
 }
 
-export default function NoteForm({ initialData, onSubmit, onCancel, submitLabel = "Save" }: NoteFormProps) {
+export default function TodoForm({ initialData, onSubmit, onCancel, submitLabel = "Save" }: TodoFormProps) {
   const [title, setTitle] = useState(initialData?.title || "");
   const [description, setDescription] = useState(initialData?.description || "");
-  const [priority, setPriority] = useState(initialData?.priority || "low");
+  const [status, setStatus] = useState(initialData?.status || "todo");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) return;
-    onSubmit({ title: title.trim(), description: description.trim(), priority });
+    onSubmit({ title: title.trim(), description: description.trim(), status });
   };
 
   return (
@@ -37,13 +37,13 @@ export default function NoteForm({ initialData, onSubmit, onCancel, submitLabel 
           className="w-full resize-none rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white" required />
       </div>
       <div>
-        <label className="mb-1.5 block text-sm font-medium capitalize text-gray-700 dark:text-gray-300">Priority</label>
+        <label className="mb-1.5 block text-sm font-medium capitalize text-gray-700 dark:text-gray-300">Status</label>
         <div className="flex gap-2">
-          {["low", "medium", "high"].map((opt) => (
-            <button key={opt} type="button" onClick={() => setPriority(opt)}
+          {["todo", "in-progress", "done"].map((opt) => (
+            <button key={opt} type="button" onClick={() => setStatus(opt)}
               className={`flex-1 rounded-lg border px-4 py-2 text-sm font-medium capitalize transition ${
-                priority === opt
-                  ? priorityColors[opt]
+                status === opt
+                  ? statusColors[opt]
                   : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400"
               }`}>{opt}</button>
           ))}

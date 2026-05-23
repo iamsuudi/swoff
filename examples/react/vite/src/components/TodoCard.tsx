@@ -1,31 +1,31 @@
 import { Link } from "react-router-dom";
 
-const priorityColors: Record<string, string> = {
-  high: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800",
-  medium: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800",
-  low: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800",
+const statusColors: Record<string, string> = {
+  "todo": "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800",
+  "in-progress": "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
+  "done": "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800",
 };
 
-interface NoteCardProps {
+interface TodoCardProps {
   id: number;
   title: string;
   description: string;
-  priority: string;
+  status: string;
   updatedAt: string;
   detailUrl: string;
   editUrl: string;
   onDelete?: (id: number) => void;
 }
 
-export default function NoteCard({ id, title, description, priority, updatedAt, detailUrl, editUrl, onDelete }: NoteCardProps) {
+export default function TodoCard({ id, title, description, status, updatedAt, detailUrl, editUrl, onDelete }: TodoCardProps) {
   return (
     <div className="group relative flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 dark:border-gray-700 dark:bg-gray-800">
       <div className="mb-3 flex items-start justify-between gap-3">
         <Link to={detailUrl} className="flex-1">
           <h3 className="text-lg font-semibold text-gray-900 line-clamp-1 dark:text-white">{title}</h3>
         </Link>
-        <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium ${priorityColors[priority] || priorityColors.low}`}>
-          {priority}
+        <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${statusColors[status] || statusColors["todo"]}`}>
+          {status}
         </span>
       </div>
       <Link to={detailUrl} className="flex-1">

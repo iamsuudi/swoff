@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { getNote, updateNote } from "./api/notes";
-import NoteForm from "./components/NoteForm";
-import type { Note } from "./api/notes";
+import { authenticatedFetch } from "../../swoff/auth-fetch";
+import { generateTags, invalidateByMethod } from "../../swoff/invalidation-tags";
+import { queueMutation } from "../../swoff/mutation-queue";
+import NoteForm from "../components/NoteForm";
 
-export default function NoteEditPage() {
+export default function NotesEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [note, setNote] = useState<Note | null>(null);
+  const [note, setNote] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -15,17 +16,29 @@ export default function NoteEditPage() {
     (async () => {
       try {
         setIsLoading(true);
-        setNote(await getNote(Number(id)));
+        const res = await authenticatedFetch(`/api/notes/${id}`, { tags: generateTags(`/api/notes/${id}`) });
+        setNote(await res.json());
       } catch { setNote(null); }
       finally { setIsLoading(false); }
     })();
   }, [id]);
 
-  const handleSubmit = async (data: { title: string; description: string; priority: string }) => {
-    try {
-      await updateNote(Number(id), data);
+  const handleSubmit = async (data: Record<string, string>) => {
+    const body = { ...data, updatedAt: new Date().toISOString() };
+
+    if (!navigator.onLine) {
+      await queueMutation({ method: "PUT", url: `/api/notes/${id}`, body, tags: generateTags(`/api/notes/${id}`) });
       navigate(`/notes/${id}`);
-    } catch { alert("Failed to update note"); }
+      return;
+    }
+
+    await authenticatedFetch(`/api/notes/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    await invalidateByMethod("PUT", `/api/notes/${id}`);
+    navigate(`/notes/${id}`);
   };
 
   if (isLoading) {
@@ -41,7 +54,7 @@ export default function NoteEditPage() {
       <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Note not found</h1>
-          <Link to="/" className="mt-4 inline-flex items-center gap-2 rounded-lg border border-teal-500 px-5 py-2 text-sm font-medium text-teal-600 transition hover:bg-teal-50 dark:text-teal-400 dark:hover:bg-teal-900/30">Back to Home</Link>
+          <Link to="/notes" className="mt-4 inline-flex items-center gap-2 rounded-lg border border-teal-500 px-5 py-2 text-sm font-medium text-teal-600 transition hover:bg-teal-50 dark:text-teal-400 dark:hover:bg-teal-900/30">Back to Notes</Link>
         </div>
       </div>
     );
@@ -58,7 +71,7 @@ export default function NoteEditPage() {
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8 dark:border-gray-700 dark:bg-gray-800">
           <h1 className="mb-6 text-2xl font-bold text-gray-900 dark:text-white">Edit Note</h1>
-          <NoteForm initialData={note} onSubmit={handleSubmit} onCancel={() => navigate(`/notes/${id}`)} />
+          <NoteForm initialData={note} onSubmit={handleSubmit} onCancel={() => navigate(`/notes/${id}`)} submitLabel="Update Note" />
         </div>
       </div>
     </div>

@@ -1,34 +1,42 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { getNotes, deleteNote } from "./api/notes";
-import NoteCard from "./components/NoteCard";
-import type { Note } from "./api/notes";
+import { authenticatedFetch } from "../../swoff/auth-fetch";
+import { generateTags, invalidateByMethod } from "../../swoff/invalidation-tags";
+import { queueMutation } from "../../swoff/mutation-queue";
+import NoteCard from "../components/NoteCard";
+import { usePendingQueue } from "../hooks/usePendingQueue";
+import { useMutationSync } from "../hooks/useMutationSync";
 
-export default function HomePage() {
-  const [notes, setNotes] = useState<Note[]>([]);
+export default function NotesListPage() {
+  const [notes, setNotes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-
-  useEffect(() => { loadNotes(); }, []);
+  const { pendingCount } = usePendingQueue();
 
   const loadNotes = async () => {
     try {
       setIsLoading(true);
-      const data = await getNotes();
-      setNotes(data);
+      const res = await authenticatedFetch("/api/notes", { tags: generateTags("/api/notes") });
+      setNotes(await res.json());
     } catch { setNotes([]); }
     finally { setIsLoading(false); }
   };
 
+  useMutationSync(loadNotes, "notes");
+  useEffect(() => { loadNotes(); }, []);
+
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this note?")) return;
-    try {
-      await deleteNote(id);
-      await loadNotes();
-    } catch { alert("Failed to delete note"); }
+    if (!navigator.onLine) {
+      await queueMutation({ method: "DELETE", url: `/api/notes/${id}`, tags: generateTags(`/api/notes/${id}`) });
+      return;
+    }
+    await authenticatedFetch(`/api/notes/${id}`, { method: "DELETE" });
+    await invalidateByMethod("DELETE", `/api/notes/${id}`);
+    await loadNotes();
   };
 
-  const filteredNotes = notes.filter(
+  const filtered = notes.filter(
     (n) => n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
            n.description.toLowerCase().includes(searchQuery.toLowerCase()),
   );
@@ -54,14 +62,26 @@ export default function HomePage() {
           </Link>
         </div>
 
+        {pendingCount > 0 && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
+            Changes saved offline — syncing when connection restores
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent" />
           </div>
-        ) : filteredNotes.length > 0 ? (
+        ) : filtered.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredNotes.map((note) => (
-              <NoteCard key={note.id} note={note} onDelete={handleDelete} />
+            {filtered.map((note) => (
+              <NoteCard
+                key={note.id} id={note.id}
+                title={note.title} description={note.description}
+                priority={note.priority} updatedAt={note.updatedAt}
+                detailUrl={`/notes/${note.id}`} editUrl={`/notes/${note.id}/edit`}
+                onDelete={handleDelete}
+              />
             ))}
           </div>
         ) : (

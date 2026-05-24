@@ -13,6 +13,7 @@ export interface GeneratorContext {
   swoffDir: string;
   ext: string;
   generatedFiles: string[];
+  frameworkName: string;
 }
 
 export function ensureSwoffDir(ctx: GeneratorContext): void {

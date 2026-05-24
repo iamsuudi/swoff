@@ -34,6 +34,7 @@ import { generateAuthUser } from "./file-generators/auth-user.js";
 import { generateAuthState } from "./file-generators/auth-state.js";
 import { generateSwGeneratorBuild } from "./file-generators/sw-generator-build.js";
 import { generateTypeDefinitions } from "./file-generators/type-definitions.js";
+import { generateHooks } from "./file-generators/generate-hooks.js";
 
 interface Step {
   name: string;
@@ -61,6 +62,7 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
     { name: "pwa-install", gen: () => generatePwaInstall(ctx), enabled: ctx.config.features.pwa.enabled },
     { name: "manifest.json", gen: () => generateManifest(ctx), enabled: ctx.config.features.pwa.enabled },
     { name: "invalidation-tags", gen: () => generateInvalidationTags(ctx), enabled: ctx.config.features.tagInvalidation },
+    { name: "hooks", gen: () => generateHooks(ctx), enabled: ctx.config.framework === "react" },
   ];
 
   for (const step of steps) {
@@ -102,6 +104,7 @@ if (fileURLToPath(import.meta.url) === fileURLToPath(new URL(process.argv[1], "f
     swoffDir,
     ext,
     generatedFiles,
+    frameworkName: config.framework ?? "vanilla",
   };
 
   const ttyStatus = process.stdout.isTTY

@@ -30,6 +30,12 @@
       "default": "0.0.0",
       "pattern": "^\\d+\\.\\d+\\.\\d+$"
     },
+    "framework": {
+      "type": "string",
+      "description": "Detected frontend framework. Used to generate framework-specific hooks and adapters. Set automatically by `swoff init`.",
+      "default": "vanilla",
+      "enum": ["react", "vue", "svelte", "vanilla"]
+    },
     "serviceWorker": {
       "type": "object",
       "description": "Service Worker configuration",
@@ -66,13 +72,13 @@
         "maxCacheEntries": {
           "type": "integer",
           "description": "Maximum number of cached entries (0 disables trimming)",
-          "default": 100,
+          "default": 0,
           "minimum": 0
         },
         "maxCacheAge": {
           "type": "integer",
           "description": "Maximum age of cached entries in milliseconds (0 disables trimming)",
-          "default": 604800000,
+          "default": 0,
           "minimum": 0
         },
         "runtimeCacheName": {

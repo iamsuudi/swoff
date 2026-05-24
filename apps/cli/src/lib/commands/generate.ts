@@ -6,7 +6,6 @@
 import { log } from "../cli/logger.js";
 import { loadConfig } from "../config/loader.js";
 import { detectProjectLanguage } from "../utils/detect-language.js";
-import { detectFramework } from "../utils/detect-framework.js";
 import { generateGuide } from "./generate-guide.js";
 import { generateSW } from "../generators/sw-generator.js";
 import { generateFiles } from "../generators/swoff-files-generator.js";
@@ -52,6 +51,9 @@ export async function generateCommand(
 
   log.info(`Config: ${configPath}`);
 
+  const frameworkName = config.framework ?? "vanilla";
+  log.info(`Framework: ${frameworkName}`);
+
   const detectedLang = (language ?? detectProjectLanguage(projectRoot)) as "ts" | "js";
   log.info(`Language: ${detectedLang}`);
 
@@ -82,6 +84,7 @@ export async function generateCommand(
       swoffDir,
       ext,
       generatedFiles,
+      frameworkName,
     };
 
     statusLine("→ Files...");
@@ -99,7 +102,6 @@ export async function generateCommand(
 
   log.success("Generation complete!");
 
-  const projectInfo = detectFramework(projectRoot);
-  const guide = generateGuide({ config, projectInfo, lang: detectedLang });
+  const guide = generateGuide({ config, frameworkName, lang: detectedLang });
   log.normal("\n" + guide.join("\n"));
 }

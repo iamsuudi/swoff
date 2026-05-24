@@ -1,18 +1,17 @@
 import type { SwoffConfig } from "../shared/config-types.js";
-import type { ProjectInfo } from "../utils/detect-framework.js";
 
 export interface GuideContext {
   config: SwoffConfig;
-  projectInfo: ProjectInfo;
+  frameworkName: string;
   lang: string;
 }
 
 export function generateGuide(ctx: GuideContext): string[] {
   const lines: string[] = [];
-  const { config, projectInfo, lang } = ctx;
+  const { config, frameworkName, lang } = ctx;
   const ext = lang === "ts" ? "ts" : "js";
 
-  const isReact = projectInfo.framework === "react" && projectInfo.bundler === "vite";
+  const isReact = frameworkName === "react";
 
   lines.push("");
   lines.push("  ── Getting Started ──");
@@ -38,83 +37,15 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push(`    <link rel="manifest" href="/manifest.json">`);
     if (isReact) {
       lines.push("");
-      lines.push("  React hooks (create in hooks/usePWAUpdate.tsx):");
-      lines.push(`    import { useState, useEffect, useCallback } from "react";`);
+      lines.push("  React hooks generated in swoff/hooks/usePWAUpdate.tsx:");
+      lines.push(`    import { usePWAUpdate, useSWProgress } from "../swoff/hooks/usePWAUpdate.${ext}x";`);
       lines.push("");
-      lines.push("    export function usePWAUpdate() {");
-      lines.push("      const [state, setState] = useState({");
-      lines.push('        updateStatus: "idle",');
-      lines.push("        currentVersion: null,");
-      lines.push("        availableVersion: null,");
-      lines.push("        progress: 0,");
-      lines.push("        forceUpdate: false,");
-      lines.push("        error: null,");
-      lines.push("      });");
-      lines.push("");
-      lines.push("      useEffect(() => {");
-      lines.push("        setState((s) => ({ ...s, currentVersion: window.currentSWVersion || null }));");
-      lines.push("");
-      lines.push("        const onAvailable = (e) => setState((s) => ({");
-      lines.push("          ...s,");
-      lines.push('          updateStatus: "available",');
-      lines.push("          availableVersion: e.detail.version,");
-      lines.push("          forceUpdate: window.swUpdateRequired || false,");
-      lines.push("        }));");
-      lines.push("        const onProgress = (e) => setState((s) => ({");
-      lines.push("          ...s,");
-      lines.push('          updateStatus: "downloading",');
-      lines.push("          progress: e.detail.percent,");
-      lines.push("        }));");
-      lines.push('        const onReady = () => setState((s) => ({ ...s, updateStatus: "idle", progress: 0 }));');
-      lines.push('        const onError = () => setState((s) => ({ ...s, error: "SW registration failed" }));');
-      lines.push("");
-      lines.push('        window.addEventListener("sw-update-available", onAvailable);');
-      lines.push('        window.addEventListener("sw-progress", onProgress);');
-      lines.push('        window.addEventListener("sw-ready", onReady);');
-      lines.push('        window.addEventListener("sw-error", onError);');
-      lines.push("        return () => {");
-      lines.push('          window.removeEventListener("sw-update-available", onAvailable);');
-      lines.push('          window.removeEventListener("sw-progress", onProgress);');
-      lines.push('          window.removeEventListener("sw-ready", onReady);');
-      lines.push('          window.removeEventListener("sw-error", onError);');
-      lines.push("        };");
-      lines.push("      }, []);");
-      lines.push("");
-      lines.push("      const acceptUpdate = useCallback(async () => {");
-      lines.push("        if (!state.availableVersion) return;");
-      lines.push(`        const { handleUpdateApproved } = await import("./swoff/sw-injector.${ext}");`);
-      lines.push("        await handleUpdateApproved(state.availableVersion);");
-      lines.push("      }, [state.availableVersion]);");
-      lines.push("");
-      lines.push("      const dismissUpdate = useCallback(() => {");
-      lines.push('        sessionStorage.setItem("sw-dismissed-update", "true");');
-      lines.push('        setState((s) => ({ ...s, updateStatus: "idle" }));');
-      lines.push("      }, []);");
-      lines.push("");
-      lines.push("      return { ...state, acceptUpdate, dismissUpdate };");
-      lines.push("    }");
-      lines.push("");
-      lines.push("    export function useSWProgress() {");
-      lines.push("      const [state, setState] = useState({");
-      lines.push('        status: "idle",');
-      lines.push("        progress: 0,");
-      lines.push("      });");
-      lines.push("");
-      lines.push("      useEffect(() => {");
-      lines.push("        const onProgress = (e) => setState({");
-      lines.push('          status: "installing",');
-      lines.push("          progress: e.detail.percent,");
-      lines.push("        });");
-      lines.push('        const onReady = () => setState({ status: "idle", progress: 0 });');
-      lines.push("");
-      lines.push('        window.addEventListener("sw-progress", onProgress);');
-      lines.push('        window.addEventListener("sw-ready", onReady);');
-      lines.push("        return () => {");
-      lines.push('          window.removeEventListener("sw-progress", onProgress);');
-      lines.push('          window.removeEventListener("sw-ready", onReady);');
-      lines.push("        };");
-      lines.push("      }, []);");
-      lines.push("      return state;");
+      lines.push("    function App() {");
+      lines.push("      const { updateStatus, progress, acceptUpdate, dismissUpdate } = usePWAUpdate();");
+      lines.push("      const { status } = useSWProgress();");
+      lines.push("      if (updateStatus === 'available') return <UpdatePrompt ... />;");
+      lines.push("      if (status === 'installing') return <SWProgressBar progress={progress} />;");
+      lines.push("      return <MainApp />;");
       lines.push("    }");
     }
   }
@@ -126,30 +57,14 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push(`    import { queueMutation, processMutationQueue, getPendingCount } from "./swoff/mutation-queue.${ext}";`);
     if (isReact) {
       lines.push("");
-      lines.push("  React hook (create in hooks/useMutationQueue.tsx):");
-      lines.push(`    import { useState, useEffect } from "react";`);
-      lines.push(`    import { getPendingCount } from "../swoff/mutation-queue.${ext}";`);
+      lines.push("  React hook generated in swoff/hooks/useMutationQueue.tsx:");
+      lines.push(`    import { useMutationQueue } from "../swoff/hooks/useMutationQueue.${ext}x";`);
       lines.push("");
-      lines.push("    export function useMutationQueue() {");
-      lines.push("      const [state, setState] = useState({ pending: 0, lastSync: null });");
-      lines.push("");
-      lines.push("      useEffect(() => {");
-      lines.push("        getPendingCount().then((count) => setState((s) => ({ ...s, pending: count })));");
-      lines.push("");
-      lines.push("        const onSync = (e) => setState({");
-      lines.push("          pending: 0,");
-      lines.push("          lastSync: { succeeded: e.detail.succeeded, failed: e.detail.failed },");
-      lines.push("        });");
-      lines.push("        const onChange = async () => setState((s) => ({ ...s, pending: await getPendingCount() }));");
-      lines.push("");
-      lines.push('        window.addEventListener("mutation-sync-complete", onSync);');
-      lines.push('        window.addEventListener("mutation-queue-changed", onChange);');
-      lines.push("        return () => {");
-      lines.push('          window.removeEventListener("mutation-sync-complete", onSync);');
-      lines.push('          window.removeEventListener("mutation-queue-changed", onChange);');
-      lines.push("        };");
-      lines.push("      }, []);");
-      lines.push("      return state;");
+      lines.push("    function SyncStatus() {");
+      lines.push("      const { pending, lastSync } = useMutationQueue();");
+      lines.push("      if (pending > 0) return <span>{pending} pending</span>;");
+      lines.push("      if (lastSync?.failed) return <span>{lastSync.failed} failed</span>;");
+      lines.push("      return null;");
       lines.push("    }");
     }
   }
@@ -172,35 +87,13 @@ export function generateGuide(ctx: GuideContext): string[] {
     }
     if (isReact) {
       lines.push("");
-      lines.push("  React hook (create in hooks/useAuth.tsx):");
-      lines.push(`    import { useState, useEffect } from "react";`);
-      lines.push(`    import { getAuthState } from "../swoff/auth-state.${ext}";`);
+      lines.push("  React hook generated in swoff/hooks/useAuth.tsx:");
+      lines.push(`    import { useAuth } from "../swoff/hooks/useAuth.${ext}x";`);
       lines.push("");
-      lines.push("    export function useAuth() {");
-      lines.push("      const [state, setState] = useState({");
-      lines.push("        authenticated: false,");
-      lines.push("        user: null,");
-      lines.push("        online: navigator.onLine,");
-      lines.push("      });");
-      lines.push("");
-      lines.push("      useEffect(() => {");
-      lines.push("        getAuthState().then(setState);");
-      lines.push("");
-      lines.push("        const onOnline = () => setState((s) => ({ ...s, online: true }));");
-      lines.push("        const onOffline = () => setState((s) => ({ ...s, online: false }));");
-      lines.push("        const onAuthChange = () => getAuthState().then(setState);");
-      lines.push("");
-      lines.push('        window.addEventListener("online", onOnline);');
-      lines.push('        window.addEventListener("offline", onOffline);');
-      lines.push('        window.addEventListener("sw-auth-state-change", onAuthChange);');
-      lines.push("");
-      lines.push("        return () => {");
-      lines.push('          window.removeEventListener("online", onOnline);');
-      lines.push('          window.removeEventListener("offline", onOffline);');
-      lines.push('          window.removeEventListener("sw-auth-state-change", onAuthChange);');
-      lines.push("        };");
-      lines.push("      }, []);");
-      lines.push("      return state;");
+      lines.push("    function Profile() {");
+      lines.push("      const { authenticated, user, online } = useAuth();");
+      lines.push("      if (!authenticated) return <LoginPage />;");
+      lines.push("      return <div>Welcome {user?.name} {!online && '(offline)'}</div>;");
       lines.push("    }");
       if (config.features.mutationQueue) {
         lines.push("");

@@ -42,7 +42,7 @@ const options = args.slice(1);
 
 async function main() {
   if (command === "--version" || command === "-v") {
-    console.log(cliVersion);
+    console.log(`@swoff/cli ${cliVersion}`);
     process.exit(0);
   }
 

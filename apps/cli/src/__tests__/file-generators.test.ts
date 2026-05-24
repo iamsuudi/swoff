@@ -41,6 +41,7 @@ function makeContext(overrides?: Partial<SwoffConfig>): GeneratorContext {
     swoffDir: join(testDir, "swoff"),
     ext: "js",
     generatedFiles: [],
+    frameworkName: "vanilla",
   };
 }
 

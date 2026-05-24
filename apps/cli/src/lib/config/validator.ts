@@ -148,6 +148,11 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     }
   }
 
+  const fw = config.framework;
+  if (fw !== undefined && typeof fw === "string" && !["react", "vue", "svelte", "vanilla"].includes(fw)) {
+    errors.push('framework must be "react", "vue", "svelte", or "vanilla"');
+  }
+
   if (config.build) {
     const build = config.build as Record<string, unknown>;
     if (build.outputDir && typeof build.outputDir !== "string") {

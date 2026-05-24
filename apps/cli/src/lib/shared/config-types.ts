@@ -10,6 +10,7 @@ export interface SwoffConfig {
   enabled: boolean;
   version: string;
   minSupportedVersion: string;
+  framework?: "react" | "vue" | "svelte" | "vanilla";
   serviceWorker: {
     autoRegister: boolean;
     autoActivate: boolean;

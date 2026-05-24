@@ -1,50 +1,35 @@
-import { existsSync, readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 
-export interface ProjectInfo {
-  framework: "react" | "vue" | "svelte" | "vanilla";
-  bundler: "vite" | "nextjs" | "nuxt" | "sveltekit" | "remix" | "tanstack-router" | "tanstack-start" | "unknown";
-}
+const REACT_DEPS = [
+  "react",
+  "react-dom",
+  "react-router-dom",
+  "remix",
+  "@remix-run/react",
+];
 
-export function detectFramework(projectRoot: string): ProjectInfo {
+export type FrameworkName = "react" | "vue" | "svelte" | "vanilla";
+
+export function detectFramework(projectRoot: string): FrameworkName {
   const pkgPath = join(projectRoot, "package.json");
+  if (!existsSync(pkgPath)) return "vanilla";
+
   let deps: Record<string, string> = {};
   let devDeps: Record<string, string> = {};
-  if (existsSync(pkgPath)) {
-    try {
-      const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
-      deps = pkg.dependencies || {};
-      devDeps = pkg.devDependencies || {};
-    } catch {}
+  try {
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+    deps = pkg.dependencies || {};
+    devDeps = pkg.devDependencies || {};
+  } catch {
+    return "vanilla";
   }
 
   const allDeps = { ...deps, ...devDeps };
 
-  let framework: ProjectInfo["framework"] = "vanilla";
-  if (deps.react || devDeps.react || deps["react-dom"] || devDeps["react-dom"]) {
-    framework = "react";
-  } else if (deps.vue || devDeps.vue) {
-    framework = "vue";
-  } else if (deps.svelte || devDeps.svelte) {
-    framework = "svelte";
-  }
+  if (REACT_DEPS.some((d) => allDeps[d])) return "react";
+  if (allDeps.vue) return "vue";
+  if (allDeps.svelte) return "svelte";
 
-  let bundler: ProjectInfo["bundler"] = "unknown";
-  if (allDeps["@tanstack/start"] || allDeps["@tanstack/react-start"] || allDeps["@tanstack/vue-start"]) {
-    bundler = "tanstack-start";
-  } else if (allDeps["@tanstack/react-router"]) {
-    bundler = "tanstack-router";
-  } else if (existsSync(join(projectRoot, "next.config.js")) || existsSync(join(projectRoot, "next.config.ts")) || existsSync(join(projectRoot, "next.config.mjs"))) {
-    bundler = "nextjs";
-  } else if (existsSync(join(projectRoot, "nuxt.config.js")) || existsSync(join(projectRoot, "nuxt.config.ts")) || existsSync(join(projectRoot, "nuxt.config.mjs"))) {
-    bundler = "nuxt";
-  } else if (existsSync(join(projectRoot, "svelte.config.js")) || existsSync(join(projectRoot, "svelte.config.ts"))) {
-    bundler = "sveltekit";
-  } else if (existsSync(join(projectRoot, "remix.config.js")) || existsSync(join(projectRoot, "remix.config.ts"))) {
-    bundler = "remix";
-  } else if (existsSync(join(projectRoot, "vite.config.ts")) || existsSync(join(projectRoot, "vite.config.js")) || existsSync(join(projectRoot, "vite.config.mjs"))) {
-    bundler = "vite";
-  }
-
-  return { framework, bundler };
+  return "vanilla";
 }

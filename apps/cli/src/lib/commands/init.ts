@@ -6,6 +6,7 @@ import { writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { log } from "../cli/logger.js";
 import { defaultInitConfig, type SwoffConfig } from "../shared/config-types.js";
+import { detectFramework } from "../utils/detect-framework.js";
 
 export async function initCommand(projectRoot: string, framework?: string) {
   log.header("Initializing Swoff");
@@ -21,26 +22,16 @@ export async function initCommand(projectRoot: string, framework?: string) {
     return;
   }
 
-  const config: SwoffConfig = { ...defaultInitConfig };
-
-  if (
-    framework === "react-vite" ||
-    framework === "nextjs" ||
-    framework === "vue-vite"
-  ) {
-    config.features.mutationQueue = true;
-    config.serviceWorker.strategies = {
-      "/api/*": "network-first",
-      "/static/*": "cache-first",
-      "/assets/*": "cache-first",
-    };
-  }
+  const config: SwoffConfig = {
+    ...defaultInitConfig,
+    framework: (framework || detectFramework(projectRoot)) as SwoffConfig["framework"],
+  };
 
   const configPath = join(projectRoot, "swoff.config.json");
   writeFileSync(configPath, JSON.stringify(config, null, 2));
   log.info("Created swoff.config.json");
 
-  const dirs = ["swoff"];
+  const dirs = ["swoff", "swoff/hooks"];
   for (const dir of dirs) {
     const dirPath = join(projectRoot, dir);
     if (!existsSync(dirPath)) {

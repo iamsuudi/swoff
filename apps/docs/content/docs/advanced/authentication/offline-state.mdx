@@ -12,9 +12,9 @@ Your app needs to know the user's auth state even when offline. There are four p
 
 ## Auth State Detection
 
-```js title="swoff/auth/state.js"
-import { getAuth, isAuthValid } from "./store.js";
-import { getCachedUser } from "./user.js";
+```js title="swoff/auth-state.js"
+import { getAuth, isAuthValid } from "./auth-store.js";
+import { getCachedUser } from "./auth-user.js";
 
 export async function getAuthState() {
   const auth = await getAuth();
@@ -53,7 +53,7 @@ await cacheUser(user);
 Redirect to login page or show login form.
 
 ```js
-import { getAuthState } from "./swoff/auth/state.js";
+import { getAuthState } from "./swoff/auth-state.js";
 
 const state = await getAuthState();
 if (state.online && !state.authenticated) {
@@ -97,7 +97,7 @@ if (!state.online && !state.authenticated) {
 
 ```js
 import { useState, useEffect } from "react";
-import { getAuthState } from "./swoff/auth/state.js";
+import { getAuthState } from "./swoff/auth-state.js";
 
 export function useAuth() {
   const [state, setState] = useState({
@@ -132,7 +132,7 @@ export function useAuth() {
 
 ```js
 import { ref, onMounted, onUnmounted } from "vue";
-import { getAuthState } from "./swoff/auth/state.js";
+import { getAuthState } from "./swoff/auth-state.js";
 
 export function useAuth() {
   const state = ref({
@@ -184,6 +184,6 @@ declare global {
 
 ## Next Steps
 
-- **Add local security**: [Lock Screen](/docs/advanced/authentication/lock-screen) — PIN/biometric for client-side data
-- **Queue mutations**: [Mutation Queuing](/docs/advanced/mutation-queuing) — handle writes when offline
-- **Review the SW integration**: [SW Integration](/docs/advanced/authentication/sw-integration)
+- [Lock Screen](/docs/advanced/authentication/lock-screen) — PIN/biometric for client-side data
+- [Mutation Queuing](/docs/advanced/mutation-queuing) — handle writes when offline
+

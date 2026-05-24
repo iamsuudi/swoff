@@ -81,6 +81,7 @@ npx @swoff/cli generate
 
 - `--sw-only` - Generate only the service worker
 - `--files-only` - Generate only supporting files
+- `--language <ts|js>` - Force output language (auto-detected from project if omitted)
 
 **Examples:**
 
@@ -100,9 +101,9 @@ npx @swoff/cli generate --files-only
 | File                         | Feature Flag                        | Description                       |
 | ---------------------------- | ----------------------------------- | --------------------------------- |
 | `swoff/sw-template.js`       | always                              | SW template with placeholders     |
-| `swoff/sw-injector.js`       | `clientRegistration`                | Client-side SW registration       |
+| `swoff/sw-injector.js`       | `clientRegistration`, `pwa`, `crossTabSync`                | Client-side SW registration       |
 | `swoff/fetch-wrapper.js`     | always                              | Fetch with cache strategy headers |
-| `swoff/cache.js`             | `tagInvalidation`              | Cache tag invalidation + cross-tab sync (if `crossTabSync` enabled) |
+| `swoff/cache.js`             | `tagInvalidation`              | Tag-based cache invalidation |
 | `swoff/invalidation-tags.js` | `tagInvalidation`                   | URL-to-tag generation helper      |
 | `swoff/store.js`             | `mutationQueue`                     | IndexedDB CRUD operations         |
 | `swoff/reconcile.js`         | `mutationQueue`                     | ID reconciliation after sync      |
@@ -179,16 +180,15 @@ npx @swoff/cli add <feature>
 
 **Available Features:**
 
-| Feature            | Aliases                 | Flag Enabled      |
-| ------------------ | ----------------------- | ----------------- |
-| `mutation-queue`   | `mutationqueue`         | `mutationQueue`   |
-| `pwa`              | —                       | `pwa`             |
-| `cross-tab`        | `crosstab`              | `crossTabSync`    |
-| `auth`             | —                       | `auth`            |
-| `tag-invalidation` | `taginvalidation`       | `tagInvalidation` |
-| `background-sync`  | `backgroundsync`        | `backgroundSync`  |
-| `indexeddb`        | —                       | `indexeddb`       |
-| `offline`          | —                       | `offline`         |
+| Feature            | Aliases                 | Config Written                                      |
+| ------------------ | ----------------------- | --------------------------------------------------- |
+| `mutation-queue`   | `mutationqueue`         | `{ "mutationQueue": true }`                         |
+| `pwa`              | —                       | `{ "pwa": { "enabled": true } }`                    |
+| `cross-tab`        | `crosstab`              | `{ "crossTabSync": true, "tagInvalidation": true }` |
+| `auth`             | —                       | `{ "auth": { "enabled": true, "type": "bearer", "refreshPath": "/api/refresh", "userEndpoint": "/api/me" } }` |
+| `tag-invalidation` | `taginvalidation`       | `{ "tagInvalidation": true }`                       |
+| `background-sync`  | `backgroundsync`        | `{ "backgroundSync": true }`                        |
+| `indexeddb`        | —                       | `{ "indexeddb": { "enabled": true } }`              |
 
 **Examples:**
 
@@ -349,10 +349,10 @@ npx @swoff/cli clean
 
 ## Configuration File
 
-The CLI expects `swoff.config.json` in the current working directory. You can customize:
+The CLI expects `swoff.config.json` (or `swoff.config.js`) in the current working directory. You can customize:
 
 - Service worker settings (autoRegister, autoActivate, strategies)
-- Feature toggles (offline, PWA, mutation queue, etc.)
+- Feature toggles (PWA, mutation queue, etc.)
 - Build output directory and filename
 - PWA install behavior
 - IndexedDB database name and stores

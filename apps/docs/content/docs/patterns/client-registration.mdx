@@ -87,20 +87,32 @@ async function initServiceWorker() {
             }),
           );
         }
-      }
-    } else {
-      window.dispatchEvent(
-        new CustomEvent("sw-update-available", {
-          detail: { version: manifest.version },
-        }),
-      );
-    }
-  } else {
-    await registerServiceWorker(manifest.version);
-  }
 }
 
-initServiceWorker();
+async function handleUpdateApproved(newVersion) {
+  await registerServiceWorker(newVersion);
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    window.location.reload();
+  });
+}
+
+// Manually trigger skipWaiting to activate a waiting SW immediately
+navigator.serviceWorker.ready.then((registration) => {
+  if (registration.waiting) {
+    registration.waiting.postMessage({ type: "SKIP_WAITING" });
+  }
+});
+```
+
+The generated `sw-injector.js` exports a `skipWaiting()` helper that sends this message. Call it after the user approves an update:
+
+```js
+import { skipWaiting } from "./swoff/sw-injector.js";
+
+async function onUpdateApproved() {
+  await registerServiceWorker(newVersion);
+  skipWaiting();
+}
 ```
 
 ## Handling Updates

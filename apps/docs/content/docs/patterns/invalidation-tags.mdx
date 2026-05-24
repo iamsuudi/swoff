@@ -91,6 +91,22 @@ const data = await fetchWithCache("/graphql", {
 // → tags: ["todos"]
 ```
 
+### Method-Prefixed Tags
+
+The CLI also generates `generateTagsFromMethod` and `invalidateByMethod` which add the HTTP method prefix to tags:
+
+```javascript
+import { generateTagsFromMethod, invalidateByMethod } from './swoff/invalidation-tags.js';
+
+const tags = generateTagsFromMethod("GET", "/api/todos");
+// → ["GET:todos"]
+
+await invalidateByMethod("POST", "/api/todos");
+// Invalidates: ["POST:todos"]
+```
+
+Use these when you want to distinguish cache entries by HTTP method (e.g., `GET:todos` vs `POST:todos`).
+
 ---
 
 ## Cross-Tab Sync

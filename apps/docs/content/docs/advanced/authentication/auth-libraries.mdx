@@ -14,19 +14,19 @@ Identify your auth library's mechanism to know whether you need to configure `wi
 
 The server sets an **http-only cookie** on login. The browser automatically sends it on every same-origin request. **No header setup needed.**
 
-You can skip `withAuthHeaders()` entirely — return headers unchanged. The browser handles everything.
+Set `features.auth.type: "cookie"` in `swoff.config.json` — the CLI generates a no-op `withAuthHeaders()`.
 
 ### Bearer Token Auth (Manual)
 
-The server returns a **token string** on login. The client must store it and manually set `Authorization: Bearer <token>` on every request. **Header setup required.**
+The server returns a **token string** on login. The client must store it and manually set `Authorization: Bearer <token>` on every request. **Header setup handled by CLI.**
 
-You must edit `withAuthHeaders()` to inject the token.
+Set `features.auth.type: "bearer"` — the CLI generates `withAuthHeaders()` with the bearer injection.
 
 ### Custom Header Auth (Manual)
 
-Same as Bearer, but with a non-standard header name (e.g., `X-Auth-Token`, `X-API-Key`, `Authorization: Token`). **Header setup required.**
+Same as Bearer, but with a non-standard header name (e.g., `X-Auth-Token`, `X-API-Key`, `Authorization: Token`). **You must edit the generated stub.**
 
-You must edit `withAuthHeaders()` to inject the token with your custom header.
+Set `features.auth.type: "custom"` — the CLI generates a `withAuthHeaders()` stub you edit.
 
 ## Quick Reference Table
 
@@ -219,6 +219,6 @@ const { data: notes } = await supabase.from("notes").select("*");
 
 ## Next Steps
 
-- **Configure your fetch**: [Auth-Aware Fetch](/docs/advanced/authentication/auth-fetch)
-- **Fetch + cache user data**: [Current User](/docs/advanced/authentication/auth-user)
-- **Integrate with SW**: [SW Integration](/docs/advanced/authentication/sw-integration)
+- [Auth Store](/docs/advanced/authentication/auth-store) — token storage
+- [Auth-Aware Fetch](/docs/advanced/authentication/auth-fetch) — attach credentials to requests
+

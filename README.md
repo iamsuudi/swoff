@@ -34,8 +34,8 @@ swoff/
 
 No install needed! Just read the docs and copy the code:
 
-1. Start with [Concepts](https://swoff.dev/docs/concepts/what-is-offline) — understand offline capability
-2. Follow the [Core Architecture](https://swoff.dev/docs/core/offline-first) guides
+1. Start with [Concepts](https://swoff.dev/docs/concepts/what-is-offline-and-sw) — understand offline capability
+2. Follow the [Core Architecture](https://swoff.dev/docs/core/offline-architecture) guides
 3. Copy [Framework-Agnostic Patterns](https://swoff.dev/docs/patterns/sw-template)
 4. Choose your framework: [Framework Guides](https://swoff.dev/docs/guides)
 
@@ -57,10 +57,9 @@ Check out **Budget Manager** — a fully offline budget tracking app built with 
 
 ## Future Roadmap
 
-- **State management patterns** — Native patterns for data fetching, caching, invalidation
-- **Mutation queuing** — Client-side queue patterns for when users add their own backend
-- **Background sync** — Retry failed requests when online
+- **Auth integration** — Bearer/cookie/auth header patterns with token refresh
 - **Push notifications** — Client-side subscription handling
+- **Build-time CLI** — Code generation from config (in progress)
 
 ## What Swoff is NOT
 

@@ -12,6 +12,7 @@ Full schema at `https://swoff.netlify.app/schema/v1.json`.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `$schema` | string | `"https://swoff.netlify.app/schema/v1.json"` | JSON Schema URL for IDE autocompletion |
 | `enabled` | boolean | `true` | Enable config-driven SW generation. Set `false` to write your own SW manually |
 | `version` | string | `"from-package"` | SW version. Use `"from-package"` to read from `package.json`, or specify semver like `"1.0.0"` |
 | `minSupportedVersion` | string | `"0.0.0"` | Force update for clients running older versions |
@@ -27,8 +28,8 @@ Full schema at `https://swoff.netlify.app/schema/v1.json`.
 | `clearRuntimeOnUpdate` | boolean | `false` | Delete runtime cache on SW activate. Use as a security measure — cached API responses are cleared on every SW update, preventing poisoned data from persisting |
 | `navigationMode` | string | `"spa"` | How navigation requests are handled. `"spa"` falls back to `spaEntry` on cache miss. `"default"` uses the strategy as-is |
 | `spaEntry` | string | `"/index.html"` | Fallback URL for navigation requests when `navigationMode` is `"spa"` |
-| `maxCacheEntries` | integer | `100` | Max runtime cache entries (`0` disables trimming) |
-| `maxCacheAge` | integer | `604800000` | Max cache age in ms (`0` disables trimming). 604800000 = 7 days |
+| `maxCacheEntries` | integer | `0` | Max runtime cache entries (`0` disables trimming) |
+| `maxCacheAge` | integer | `0` | Max cache age in ms (`0` disables trimming) |
 | `runtimeCacheName` | string | `"swoff-runtime"` | Runtime cache storage name |
 
 ### Strategy Values

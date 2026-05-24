@@ -31,48 +31,14 @@ The SW template's fetch handler already handles this — see the [SW Template](/
 
 ## Auth Endpoint Exclusion
 
-Auth endpoints must reach the server every time — no caching. `authenticatedFetch` marks them as `mutation` automatically:
-
-```js title="swoff/auth/fetch.js"
-// swoff/auth/fetch.js — isAuthUrl() checks these paths
-const authPaths = [
-  "/login",
-  "/logout",
-  "/refresh",
-  "/register",
-  "/api/login",
-  "/api/logout",
-  "/api/refresh",
-];
-```
-
-If your backend uses different paths, edit `isAuthUrl()` in [auth-fetch.js](/docs/advanced/authentication/auth-fetch).
+Auth endpoints must reach the server every time — no caching. The generated `auth-fetch.js` `isAuthUrl()` checks these paths: `/login`, `/logout`, `/register`, `/api/login`, `/api/logout`, `/api/register`, plus your configured `refreshPath` and `userEndpoint`.
 
 ## Logout Cache Invalidation
 
-When a user logs out, their user-specific cached data should be cleared. Add this handler to your SW template:
-
-```js title="swoff/sw-template.js"
-self.addEventListener("message", (event) => {
-  if (event.data.type === "SKIP_WAITING") {
-    self.skipWaiting();
-  }
-
-  // Clear runtime cache on logout
-  if (event.data.type === "CLEAR_RUNTIME_CACHE") {
-    event.waitUntil(
-      caches.delete(CACHE_NAME_RUNTIME).then(() => {
-        return caches.open(CACHE_NAME_RUNTIME);
-      }),
-    );
-  }
-});
-```
-
-The client sends this message on logout:
+When auth is enabled, the generated SW template includes a `CLEAR_RUNTIME_CACHE` message handler. The client sends this message on logout:
 
 ```js
-// In your logout function
+// Generated for you — in your logout function
 if ("serviceWorker" in navigator) {
   const registration = await navigator.serviceWorker.getRegistration();
   if (registration?.active) {
@@ -92,15 +58,10 @@ if ("serviceWorker" in navigator) {
 
 ## Background Sync Consideration
 
-When the SW syncing queued mutations (see [Mutation Queuing](/docs/advanced/mutation-queuing)), it runs in the SW context where cookies are **not** available. If your backend uses cookie-based auth:
-
-- The SW sync will fail because cookies are scoped to the page, not the SW
-- Solution: Include the auth token **in the queued mutation payload** or use the client-side sync fallback (`window.addEventListener("online", processMutationQueue)`)
-
-This is why mutation queuing is best handled client-side when using cookie auth.
+When the SW syncs queued mutations, cookie auth works by setting `credentials: "same-origin"` on fetches inside the SW. Bearer auth will **not** work in the SW (token is memory-only in the page). For bearer auth, call `flushMutations()` after re-login to drain the queue from the client context.
 
 ## Next Steps
 
-- **Handle offline states**: [Offline Auth State](/docs/advanced/authentication/offline-state) — the four auth states
-- **Queue mutations behind auth**: [Mutation Queuing](/docs/advanced/mutation-queuing)
-- **Review the SW template**: [SW Template](/docs/patterns/sw-template)
+- [Offline Auth State](/docs/advanced/authentication/offline-state) — the four auth states
+- [Mutation Queuing](/docs/advanced/mutation-queuing) — queue writes behind auth
+

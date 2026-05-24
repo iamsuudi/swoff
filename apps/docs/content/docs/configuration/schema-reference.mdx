@@ -8,17 +8,16 @@ icon: Code
 
 Full schema at `https://swoff.netlify.app/schema/v1.json`.
 
-## Fields
-
-### Root
+## Root
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `$schema` | string | `"https://swoff.netlify.app/schema/v1.json"` | JSON Schema URL for IDE autocompletion |
 | `enabled` | boolean | `true` | Enable config-driven SW generation. Set `false` to write your own SW manually |
 | `version` | string | `"from-package"` | SW version. Use `"from-package"` to read from `package.json`, or specify semver like `"1.0.0"` |
 | `minSupportedVersion` | string | `"0.0.0"` | Force update for clients running older versions |
 
-### serviceWorker
+## serviceWorker
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -26,11 +25,14 @@ Full schema at `https://swoff.netlify.app/schema/v1.json`.
 | `autoActivate` | boolean | `false` | Auto-activate new SW via `skipWaiting`. Only applies when `autoRegister` or `handleUpdateApproved()` registers a new version |
 | `defaultStrategy` | string | `"cache-first"` | Default caching strategy for unmatched routes |
 | `strategies` | object | `{}` | Per-URL pattern strategy overrides |
-| `maxCacheEntries` | integer | `100` | Max runtime cache entries (`0` disables trimming) |
-| `maxCacheAge` | integer | `604800000` | Max cache age in ms (`0` disables trimming). 604800000 = 7 days |
+| `clearRuntimeOnUpdate` | boolean | `false` | Delete runtime cache on SW activate. Use as a security measure — cached API responses are cleared on every SW update, preventing poisoned data from persisting |
+| `navigationMode` | string | `"spa"` | How navigation requests are handled. `"spa"` falls back to `spaEntry` on cache miss. `"default"` uses the strategy as-is |
+| `spaEntry` | string | `"/index.html"` | Fallback URL for navigation requests when `navigationMode` is `"spa"` |
+| `maxCacheEntries` | integer | `0` | Max runtime cache entries (`0` disables trimming) |
+| `maxCacheAge` | integer | `0` | Max cache age in ms (`0` disables trimming) |
 | `runtimeCacheName` | string | `"swoff-runtime"` | Runtime cache storage name |
 
-### strategies values
+### Strategy Values
 
 - `cache-first` — Serve from cache, fall back to network
 - `network-first` — Try network, fall back to cache
@@ -38,43 +40,57 @@ Full schema at `https://swoff.netlify.app/schema/v1.json`.
 - `cache-only` — Cache only (never network)
 - `network-only` — Network only (never cache)
 
-### features
+## features
+
+All features are nested under the `features` key.
+
+### Boolean Features
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `versionedSw` | boolean | `true` | Versioned SW lifecycle (install, activate, skipWaiting) |
 | `mutationQueue` | boolean | `false` | Queue offline writes, sync on reconnect |
-| `backgroundSync` | boolean | `false` | Background Sync API (Chrome/Edge only) |
-| `pwa` | boolean | `true` | PWA install handler + manifest.json |
-| `auth` | boolean | `false` | Auth token storage, auth-aware fetch |
-| `crossTabSync` | boolean | `true` | Cross-tab cache invalidation via postMessage |
+| `backgroundSync` | boolean | `false` | Background Sync API (Chrome/Edge only). Requires `mutationQueue: true` |
+| `crossTabSync` | boolean | `true` | Cross-tab cache invalidation via postMessage. Requires `tagInvalidation: true` |
 | `tagInvalidation` | boolean | `true` | URL-based cache tag generation |
 | `clientRegistration` | boolean | `true` | Generate `sw-injector.js` with version checking and update consent |
-| `indexeddb` | boolean | `false` | Generate IndexedDB storage patterns |
 
-### pwa
+### Object Features
+
+**pwa**
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `enabled` | boolean | `true` | Generate PWA install handler + manifest.json |
 | `preventDefaultInstall` | boolean | `false` | Suppress native install prompt. When `true`, dev must call `promptInstall()` manually |
 
-### build
+**auth**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `false` | Generate auth integration (auth-store, auth-fetch, auth-user, auth-state) |
+| `type` | string | `"bearer"` | Auth mechanism. `"cookie"` — httpOnly cookies (auto-sent by browser). `"bearer"` — bearer token in memory only. `"custom"` — implement your own `withAuthHeaders()` |
+| `refreshPath` | string | `"/api/refresh"` | Token refresh endpoint path |
+| `userEndpoint` | string | `"/api/me"` | User info endpoint path |
+
+**indexeddb**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `false` | Generate IndexedDB storage patterns |
+| `name` | string | `"app-db"` | IndexedDB database name |
+| `stores` | array | `[]` | Array of object store names (user defines their own schema) |
+
+## build
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `outputDir` | string | `"dist"` | Build output directory for SW + version.json |
 | `swFilename` | string | `"sw"` | SW filename (without version). Produces `<swFilename>-v<version>.js` |
 
-### database
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `name` | string | `"app-db"` | IndexedDB database name |
-| `stores` | array | `[]` | Array of object store names |
-
 ## Manifest
 
-The CLI generates `public/manifest.json` when `features.pwa` is `true`, but only if:
+The CLI generates `public/manifest.json` when `features.pwa.enabled` is `true`, but only if:
 - The `public/` directory exists at project root
 - No `public/manifest.json` already exists
 
@@ -96,22 +112,23 @@ The generated manifest includes full PWA fields (name, short_name, icons, start_
       "/api/*": "network-first",
       "/static/*": "cache-first"
     },
-    "maxCacheEntries": 200,
-    "maxCacheAge": 604800000
+    "clearRuntimeOnUpdate": false,
+    "navigationMode": "spa",
+    "spaEntry": "/index.html",
+    "maxCacheEntries": 100,
+    "maxCacheAge": 604800000,
+    "runtimeCacheName": "swoff-runtime"
   },
   "features": {
     "versionedSw": true,
     "mutationQueue": false,
     "backgroundSync": false,
-    "pwa": true,
-    "auth": false,
+    "pwa": { "enabled": true, "preventDefaultInstall": false },
+    "auth": { "enabled": false, "type": "bearer", "refreshPath": "/api/refresh", "userEndpoint": "/api/me" },
     "crossTabSync": true,
     "tagInvalidation": true,
     "clientRegistration": true,
-    "indexeddb": false
-  },
-  "pwa": {
-    "preventDefaultInstall": false
+    "indexeddb": { "enabled": false, "name": "app-db", "stores": [] }
   },
   "build": {
     "outputDir": "dist",

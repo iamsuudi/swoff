@@ -16,10 +16,6 @@ Documentation for the Swoff offline-first blueprint — teaching developers how 
 
 ```bash
 npm run dev
-# or
-pnpm dev
-# or
-yarn dev
 ```
 
 Visit [http://localhost:3000](http://localhost:3000) to view the docs.
@@ -29,10 +25,15 @@ Visit [http://localhost:3000](http://localhost:3000) to view the docs.
 ```
 content/docs/
 ├── index.mdx              # Introduction
+├── introduction.mdx       # Getting started
+├── features.mdx           # Feature overview
+├── configuration/         # Config reference & migration
+├── cli.mdx                # CLI reference
 ├── concepts/              # Theory and browser APIs
 ├── core/                  # Core architecture guides
 ├── patterns/              # Copy-paste code patterns
+├── advanced/              # Advanced patterns (auth, sync, etc.)
+├── integration/           # Framework-agnostic integration concepts
 ├── guides/                # Framework-specific setup
-├── reference/             # Reference implementations
-└── future/                # Planned features
+└── reference/             # Example apps
 ```

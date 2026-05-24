@@ -9,7 +9,7 @@ import { loadConfigAsync } from "../config/loader.js";
 import { defaultConfig, mergeConfigs, type SwoffConfig } from "../shared/config-types.js";
 import { generateCommand } from "./generate.js";
 
-const KNOWN_FEATURES = ["mutation-queue", "mutationqueue", "pwa", "cross-tab", "crosstab", "offline", "auth", "tag-invalidation", "taginvalidation", "background-sync", "backgroundsync", "indexeddb"];
+const KNOWN_FEATURES = ["mutation-queue", "mutationqueue", "pwa", "cross-tab", "crosstab", "auth", "tag-invalidation", "taginvalidation", "background-sync", "backgroundsync", "indexeddb"];
 
 const featureMap: Record<string, Record<string, unknown>> = {
   "mutation-queue": { mutationQueue: true },
@@ -17,7 +17,6 @@ const featureMap: Record<string, Record<string, unknown>> = {
   pwa: { pwa: { enabled: true } },
   "cross-tab": { crossTabSync: true, tagInvalidation: true },
   crosstab: { crossTabSync: true, tagInvalidation: true },
-  offline: { offline: true },
   auth: { auth: { enabled: true, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" } },
   "tag-invalidation": { tagInvalidation: true },
   taginvalidation: { tagInvalidation: true },
@@ -33,7 +32,7 @@ export async function addCommand(projectRoot: string, feature: string) {
 
   if (!configUpdate) {
     log.error(`Unknown feature: ${feature}`);
-    log.info("Available features: mutation-queue, pwa, cross-tab, auth, tag-invalidation, background-sync, indexeddb, offline");
+    log.info("Available features: mutation-queue, pwa, cross-tab, auth, tag-invalidation, background-sync, indexeddb");
     return;
   }
 

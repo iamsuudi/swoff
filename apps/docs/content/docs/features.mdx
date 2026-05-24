@@ -32,22 +32,34 @@ Configure via `swoff.config.json`:
 
 ### Core (enabled by default)
 
-| Feature | Default | Generates |
-|---------|---------|-----------|
-| `versionedSw` | `true` | Versioned SW with install/activate lifecycle |
-| `pwa` | `true` | PWA install handler + manifest.json |
-| `crossTabSync` | `true` | Cross-tab cache invalidation (requires `tagInvalidation`) |
-| `tagInvalidation` | `true` | URL-based cache tag generation + invalidation |
-| `clientRegistration` | `true` | `sw-injector.js` with version checking and update consent |
+| Feature | Type | Default | Generates |
+|---------|------|---------|-----------|
+| `versionedSw` | boolean | `true` | Versioned SW with install/activate lifecycle |
+| `pwa` | object | `{ enabled: true, preventDefaultInstall: false }` | PWA install handler + manifest.json |
+| `crossTabSync` | boolean | `true` | Cross-tab cache invalidation (requires `tagInvalidation`) |
+| `tagInvalidation` | boolean | `true` | URL-based cache tag generation + invalidation |
+| `clientRegistration` | boolean | `true` | `sw-injector.js` with version checking and update consent |
 
 ### Optional (disabled by default)
 
-| Feature | Default | Generates |
-|---------|---------|-----------|
-| `mutationQueue` | `false` | Store offline writes, sync on reconnect |
-| `backgroundSync` | `false` | Background Sync API (Chrome/Edge) |
-| `auth` | `false` | Auth token storage, auth-aware fetch |
-| `indexeddb` | `false` | IndexedDB CRUD, migrations, quota management |
+| Feature | Type | Default | Generates |
+|---------|------|---------|-----------|
+| `mutationQueue` | boolean | `false` | Store offline writes, sync on reconnect |
+| `backgroundSync` | boolean | `false` | Background Sync API (Chrome/Edge) |
+| `auth` | object | `{ enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" }` | Auth token storage (memory-only), auth-aware fetch, user cache |
+| `indexeddb` | object | `{ enabled: false, name: "app-db", stores: [] }` | IndexedDB CRUD, migrations, quota management |
+
+## Service Worker Behavior
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `autoRegister` | boolean | `true` | Auto-register new SW versions on page load |
+| `autoActivate` | boolean | `false` | Auto-activate via `skipWaiting` after registration |
+| `defaultStrategy` | string | `"cache-first"` | Default caching strategy |
+| `strategies` | object | `{}` | Per-URL pattern strategy overrides |
+| `clearRuntimeOnUpdate` | boolean | `false` | Clear runtime cache on SW activate (security measure) |
+| `navigationMode` | string | `"spa"` | SPA navigation fallback or default strategy |
+| `spaEntry` | string | `"/index.html"` | Fallback URL for SPA navigation mode |
 
 ## Cache Trimming
 
@@ -64,8 +76,9 @@ Control runtime cache size without writing code:
 
 | Field | Default | Description |
 |---|---|---|
-| `maxCacheEntries` | `100` | Evict oldest entries when count exceeds limit (`0` disables) |
-| `maxCacheAge` | `604800000` | Evict entries older than this many ms (`0` disables) |
+| `maxCacheEntries` | `0` | Evict oldest entries when count exceeds limit (`0` disables) |
+| `maxCacheAge` | `0` | Evict entries older than this many ms (`0` disables) |
+| `runtimeCacheName` | `"swoff-runtime"` | Runtime cache storage name |
 
 ## Invalidation Tags
 
@@ -101,18 +114,7 @@ Update flow:
 | Offline | Guaranteed by architecture | Depends on library |
 | Framework | Agnostic | Often framework-specific |
 
-## Build Your Stack
-
-| Stack | Features | Use case |
-|-------|----------|----------|
-| **Minimal** | versionedSw, clientRegistration | Versioned SW updates only |
-| **Standard** | Above + tagInvalidation + crossTabSync | Tag-based cache invalidation, cross-tab sync |
-| **Full Client Runtime** | Above + mutationQueue + backgroundSync | Offline reads + queued writes with sync |
-| **Full + Auth** | Above + auth | Offline app with auth |
-
 ## Next Steps
 
-- [Introduction](/docs/introduction) — getting started
-- [Configuration](/docs/configuration) — set up swoff.config.json
-- [Patterns](/docs/patterns/) — understand the generated files
-- [Reference](/docs/reference/budget-manager) — Budget Manager (Swoff patterns in action)
+- [Schema Reference](/docs/configuration/schema-reference) — full field list
+- [CLI Reference](/docs/cli) — command overview

@@ -35,7 +35,10 @@ All framework guides now use the new JSON configuration system:
   },
   "features": {
     "mutationQueue": true,
-    "pwa": true
+    "pwa": {
+      "enabled": true,
+      "preventDefaultInstall": false
+    }
   }
 }
 ```
@@ -63,6 +66,4 @@ Framework Guides (you are here) ← Framework-specific setup
 ## Next Steps
 
 - Pick your framework from the table above
-- Understand the adapter pattern: [Integration](/docs/integration/)
-- See the core patterns all guides build on: [Patterns](/docs/patterns/)
-- Want to add support for a new framework? [Contributing Adapters](/docs/guides/contributing-adapters)
+- [Contributing Adapters](/docs/guides/contributing-adapters) — add support for a new framework

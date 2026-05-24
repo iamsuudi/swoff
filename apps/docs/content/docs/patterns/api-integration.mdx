@@ -190,26 +190,21 @@ async function fetchWithTimeout(input, options = {}) {
 
 ### Offline fallback
 
-When the user goes offline, reads should serve from cache and mutations should be queued:
+When the user goes offline, reads should serve from cache and mutations should be queued. The CLI generates `fetchWithCacheOrQueue` in `swoff/fetch-wrapper.js` which handles this automatically — import it directly:
 
 ```js
-async function fetchWithCacheOrQueue(input, options = {}) {
-  if (!navigator.onLine) {
-    if (options.method === "GET" || options.method === "HEAD") {
-      const cached = await caches.match(input);
-      if (cached) return cached;
-      throw new Error("Offline: no cached data");
+import { fetchWithCacheOrQueue } from "./swoff/fetch-wrapper.js";
+
+async function getData() {
+  try {
+    return await fetchWithCacheOrQueue("/api/data");
+  } catch (err) {
+    if (err.message === "Offline: mutation queued") {
+      // Show queued confirmation
     } else {
-      await queueMutation({
-        method: options.method,
-        url: typeof input === "string" ? input : input.url,
-        body: options.body,
-        tags: options.tags,
-      });
-      throw new Error("Offline: mutation queued");
+      // Show cached fallback or error UI
     }
   }
-  return fetchWithCache(input, options);
 }
 ```
 
@@ -324,6 +319,5 @@ const updated = await graphql(
 
 ## Next Steps
 
-- Generate tags automatically from URLs: [Invalidation Tags](/docs/patterns/invalidation-tags)
-- Set up cross-tab sync for cache invalidation across tabs
-- Add offline mutation queuing: [Mutation Queuing](/docs/advanced/mutation-queuing)
+- [Invalidation Tags](/docs/patterns/invalidation-tags) — generate tags from URLs automatically
+- [Mutation Queuing](/docs/advanced/mutation-queuing) — offline write queue

@@ -48,22 +48,23 @@ Files in `swoff/` are generated based on `features` toggles in your config. Ever
       "/api/*": "network-first",
       "/static/*": "cache-first"
     },
+    "clearRuntimeOnUpdate": false,
+    "navigationMode": "spa",
+    "spaEntry": "/index.html",
     "maxCacheEntries": 200,
-    "maxCacheAge": 604800000
+    "maxCacheAge": 604800000,
+    "runtimeCacheName": "swoff-runtime"
   },
   "features": {
     "versionedSw": true,
     "mutationQueue": false,
     "backgroundSync": false,
-    "pwa": true,
-    "auth": false,
+    "pwa": { "enabled": true, "preventDefaultInstall": false },
+    "auth": { "enabled": false, "type": "bearer", "refreshPath": "/api/refresh", "userEndpoint": "/api/me" },
     "crossTabSync": true,
     "tagInvalidation": true,
     "clientRegistration": true,
-    "indexeddb": false
-  },
-  "pwa": {
-    "preventDefaultInstall": false
+    "indexeddb": { "enabled": false, "name": "app-db", "stores": [] }
   },
   "build": {
     "outputDir": "dist",
@@ -100,4 +101,3 @@ Deletes `swoff/`, `swoff.config.json`, and `dist/version.json`.
 ## Next Steps
 
 - [Schema Reference](/docs/configuration/schema-reference) — full field list
-- [Framework Guides](/docs/guides/) — integrate with your stack

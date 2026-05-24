@@ -1,15 +1,17 @@
 {
   "enabled": true,
-  "version": "from-package",
-  "minSupportedVersion": "1.0.0",
   "features": {
     "pwa": {
       "enabled": true,
       "preventDefaultInstall": false
     },
     "serviceWorker": {
-      "versionedSw": true,
-      "autoRegister": true,
+      "version": {
+        "enabled": true,
+        "source": "from-package",
+        "minSupportedVersion": "1.0.0"
+      },
+      "autoUpdate": true,
       "autoActivate": false,
       "defaultStrategy": "cache-first",
       "strategies": {

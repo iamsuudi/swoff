@@ -5,11 +5,16 @@ export interface AuthConfig {
   userEndpoint: string;
 }
 
+export interface SwVersionConfig {
+  enabled: boolean;
+  source: "from-package" | "manual";
+  value?: string;
+  minSupportedVersion: string;
+}
+
 export interface SwoffConfig {
   $schema?: string;
   enabled: boolean;
-  version: string;
-  minSupportedVersion: string;
   framework?: "react" | "vue" | "svelte" | "vanilla";
   features: {
     pwa: {
@@ -17,8 +22,8 @@ export interface SwoffConfig {
       preventDefaultInstall: boolean;
     };
     serviceWorker: {
-      versionedSw: boolean;
-      autoRegister: boolean;
+      version: SwVersionConfig;
+      autoUpdate: boolean;
       autoActivate: boolean;
       defaultStrategy: string;
       strategies: Record<string, string>;
@@ -69,6 +74,11 @@ function normalizeAuth(auth: unknown): AuthConfig {
   return defaultAuth;
 }
 
+function normalizeSwVersion(ver: unknown): SwVersionConfig {
+  if (ver && typeof ver === "object") return { ...defaultVersionConfig, ...(ver as Partial<SwVersionConfig>) };
+  return defaultVersionConfig;
+}
+
 export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>): SwoffConfig {
   return {
     ...base,
@@ -77,7 +87,11 @@ export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>):
       ...base.features,
       ...override.features,
       pwa: { ...base.features.pwa, ...override.features?.pwa },
-      serviceWorker: { ...base.features.serviceWorker, ...override.features?.serviceWorker },
+      serviceWorker: {
+        ...base.features.serviceWorker,
+        ...override.features?.serviceWorker,
+        version: normalizeSwVersion(override.features?.serviceWorker?.version),
+      },
       auth: normalizeAuth(override.features?.auth),
     },
     build: { ...base.build, ...override.build },
@@ -91,18 +105,22 @@ export const defaultAuth: AuthConfig = {
   userEndpoint: "/api/me",
 };
 
+export const defaultVersionConfig: SwVersionConfig = {
+  enabled: true,
+  source: "from-package",
+  minSupportedVersion: "0.0.0",
+};
+
 export const defaultConfig: SwoffConfig = {
   enabled: true,
-  version: "from-package",
-  minSupportedVersion: "0.0.0",
   features: {
     pwa: {
       enabled: true,
       preventDefaultInstall: false,
     },
     serviceWorker: {
-      versionedSw: true,
-      autoRegister: true,
+      version: { ...defaultVersionConfig },
+      autoUpdate: true,
       autoActivate: false,
       defaultStrategy: "cache-first",
       strategies: {},
@@ -126,11 +144,14 @@ export const defaultConfig: SwoffConfig = {
 export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & { $schema: string } = {
   ...defaultConfig,
   $schema: "https://swoff.netlify.app/schema/v1.json",
-  minSupportedVersion: "1.0.0",
   features: {
     ...defaultConfig.features,
     serviceWorker: {
       ...defaultConfig.features.serviceWorker,
+      version: {
+        ...defaultVersionConfig,
+        minSupportedVersion: "1.0.0",
+      },
       strategies: {
         "/api/*": "network-first",
         "/static/*": "cache-first",

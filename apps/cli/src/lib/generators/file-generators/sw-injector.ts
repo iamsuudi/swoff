@@ -5,8 +5,9 @@
 import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateSwInjector(ctx: GeneratorContext): void {
-  const autoRegister = ctx.config.features.serviceWorker.autoRegister;
+  const autoUpdate = ctx.config.features.serviceWorker.autoUpdate;
   const autoActivate = ctx.config.features.serviceWorker.autoActivate;
+  const versionEnabled = ctx.config.features.serviceWorker.version.enabled;
   const pwaEnabled = ctx.config.features.pwa.enabled;
   const preventDefaultInstall = ctx.config.features.pwa.preventDefaultInstall;
   const crossTabSync = ctx.config.features.crossTabSync;
@@ -16,7 +17,7 @@ export function generateSwInjector(ctx: GeneratorContext): void {
 
   const authEnabled = ctx.config.features.auth.enabled;
 
-  const code = `/**
+  const versionedCode = `/**
  * Swoff SW Injector
  * Framework-agnostic SW registration, PWA install support, and cross-tab sync.
  *
@@ -54,10 +55,18 @@ export function generateSwInjector(ctx: GeneratorContext): void {
  */
 ${mutationQueueEnabled ? `import { processMutationQueue } from "./mutation-queue.${ext}";
 ` : ""}
-const AUTO_REGISTER = ${autoRegister};
+const AUTO_UPDATE = ${autoUpdate};
 const AUTO_ACTIVATE = ${autoActivate};
 
-// --- SW Registration ---
+function semverCompare(a, b) {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if (pa[i] > pb[i]) return 1;
+    if (pa[i] < pb[i]) return -1;
+  }
+  return 0;
+}
 
 async function checkForUpdate() {
   const response = await fetch("/version.json");
@@ -89,17 +98,11 @@ async function doRegisterServiceWorker(version) {
   return registration;
 }
 
-function shouldRegister() {
-  return true;
-}
-
 export async function initServiceWorker() {
   if (!("serviceWorker" in navigator)) {
     console.warn("Service Workers not supported");
     return;
   }
-
-  if (!shouldRegister()) return;
 
   try {
     const manifest = await checkForUpdate();
@@ -120,9 +123,9 @@ export async function initServiceWorker() {
     } else if (currentVersion && currentVersion !== manifest.version) {
       window.swAvailableVersion = manifest.version;
       window.swUpdateRequired =
-        currentVersion < (manifest.minSupportedVersion || "0.0.0");
+        semverCompare(currentVersion, manifest.minSupportedVersion || "0.0.0") < 0;
 
-      if (AUTO_REGISTER) {
+      if (AUTO_UPDATE) {
         const registration = await navigator.serviceWorker.getRegistration();
         if (registration && registration.waiting) {
           if (AUTO_ACTIVATE) {
@@ -197,9 +200,49 @@ export async function skipWaiting() {
     registration.waiting.postMessage({ type: "SKIP_WAITING" });
   }
 }
+`;
 
+  const simpleCode = `/**
+ * Swoff SW Injector (Simple Mode)
+ * Fixed SW URL — no versioned URLs or update events.
+ *
+ * Usage:
+ *   import { initServiceWorker } from './swoff/sw-injector.${ext}';
+ *   initServiceWorker();
+ */
+${mutationQueueEnabled ? `import { processMutationQueue } from "./mutation-queue.${ext}";
+` : ""}
+function waitForController() {
+  return new Promise((resolve) => {
+    if (navigator.serviceWorker.controller) {
+      resolve();
+    } else {
+      navigator.serviceWorker.addEventListener("controllerchange", resolve, { once: true });
+    }
+  });
+}
+
+export async function initServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    console.warn("Service Workers not supported");
+    return;
+  }
+  try {
+    const registration = await navigator.serviceWorker.register("/sw.js");
+    window.currentSWVersion = "simple";
+    window.dispatchEvent(new CustomEvent("sw-version-detected"));
+    await waitForController();
+    window.dispatchEvent(new CustomEvent("sw-ready"));
+  } catch (error) {
+    console.error("Service Worker registration failed:", error);
+    window.swError = true;
+    window.dispatchEvent(new CustomEvent("sw-error"));
+  }
+}
+`;
+
+  const sharedPwaCode = `
 // --- PWA Install Support ---
-${pwaEnabled ? `
 window.addEventListener("beforeinstallprompt", (e) => {
   window.deferredInstallPrompt = e;
   window.pwaInstallable = true;
@@ -225,7 +268,50 @@ window.addEventListener("appinstalled", () => {
     })
   );
 });
+`;
+
+  const sharedListenerCode = `${mutationQueueEnabled ? `
+// --- Mutation Queue Listener ---
+window.addEventListener("online", processMutationQueue);
 ` : ""}
+// --- SW Message Listener ---
+if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data.type === "SW_PROGRESS") {
+      const { percent, downloaded, total } = event.data;
+      window.dispatchEvent(
+        new CustomEvent("sw-progress", {
+          detail: { percent, downloaded, total },
+        })
+      );
+    }
+    if (event.data.type === "BACKGROUND_SYNC_COMPLETE") {
+      const { succeeded, failed, tags } = event.data.detail;
+      window.dispatchEvent(
+        new CustomEvent("mutation-sync-complete", {
+          detail: { succeeded, failed },
+        })
+      );
+      if (tags && tags.length > 0) {
+        window.dispatchEvent(
+          new CustomEvent("cache-invalidated", { detail: { tags } })
+        );
+      }
+      window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
+    }
+${crossTabSync ? `
+    if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
+      window.dispatchEvent(
+        new CustomEvent("cache-invalidated", {
+          detail: { tags: [event.data.tag] },
+        })
+      );
+    }
+` : ""}  });
+}
+`;
+
+  const sharedCode = `${pwaEnabled ? sharedPwaCode : ""}
 ${mutationQueueEnabled ? `
 // --- Mutation Queue Listener ---
 window.addEventListener("online", processMutationQueue);
@@ -266,6 +352,10 @@ ${crossTabSync ? `
 ` : ""}  });
 }
 `;
+
+  const code = versionEnabled
+    ? `${versionedCode}\n${sharedCode}`
+    : `${simpleCode}\n${sharedCode}`;
 
   writeFile(ctx, `sw-injector.${ext}`, code);
 }

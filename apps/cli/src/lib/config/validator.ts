@@ -3,7 +3,7 @@ import { KNOWN_FEATURES, OBJECT_FEATURES, VALID_STRATEGIES } from "../shared/con
 export function validateConfig(config: Record<string, unknown>): string[] {
   const errors: string[] = [];
 
-  const requiredFields = ["enabled", "version", "features", "build"];
+  const requiredFields = ["enabled", "features", "build"];
   const missingFields = requiredFields.filter(
     (field) => config[field] === undefined || config[field] === null,
   );
@@ -40,8 +40,8 @@ export function validateConfig(config: Record<string, unknown>): string[] {
 
     const sw = features.serviceWorker as Record<string, unknown> | undefined;
     if (sw) {
-      if (sw.autoRegister !== undefined && typeof sw.autoRegister !== "boolean") {
-        errors.push("features.serviceWorker.autoRegister must be a boolean");
+      if (sw.autoUpdate !== undefined && typeof sw.autoUpdate !== "boolean") {
+        errors.push("features.serviceWorker.autoUpdate must be a boolean");
       }
       if (sw.autoActivate !== undefined && typeof sw.autoActivate !== "boolean") {
         errors.push("features.serviceWorker.autoActivate must be a boolean");
@@ -64,14 +64,36 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       if (sw.clearRuntimeOnUpdate !== undefined && typeof sw.clearRuntimeOnUpdate !== "boolean") {
         errors.push("features.serviceWorker.clearRuntimeOnUpdate must be a boolean");
       }
-      if (sw.versionedSw !== undefined && typeof sw.versionedSw !== "boolean") {
-        errors.push("features.serviceWorker.versionedSw must be a boolean");
-      }
       if (sw.navigationMode !== undefined && !["spa", "default"].includes(sw.navigationMode as string)) {
         errors.push('features.serviceWorker.navigationMode must be "spa" or "default"');
       }
       if (sw.spaEntry !== undefined && typeof sw.spaEntry !== "string") {
         errors.push("features.serviceWorker.spaEntry must be a string");
+      }
+
+      const ver = sw.version as Record<string, unknown> | undefined;
+      if (ver) {
+        if (ver.enabled !== undefined && typeof ver.enabled !== "boolean") {
+          errors.push("features.serviceWorker.version.enabled must be a boolean");
+        }
+        if (ver.source !== undefined && !["from-package", "manual"].includes(ver.source as string)) {
+          errors.push('features.serviceWorker.version.source must be "from-package" or "manual"');
+        }
+        if (ver.source === "manual" && !ver.value) {
+          errors.push("features.serviceWorker.version.value is required when source is 'manual'");
+        }
+        if (ver.value !== undefined && typeof ver.value === "string" && ver.value !== "from-package") {
+          if (!/^\d+\.\d+\.\d+$/.test(ver.value)) {
+            errors.push(`Invalid version value "${ver.value}". Must be semver (e.g., "1.0.0")`);
+          }
+        }
+        if (ver.minSupportedVersion !== undefined && typeof ver.minSupportedVersion === "string") {
+          if (!/^\d+\.\d+\.\d+$/.test(ver.minSupportedVersion as string)) {
+            errors.push(
+              `Invalid minSupportedVersion "${ver.minSupportedVersion}". Must be semver (e.g., "1.0.0")`,
+            );
+          }
+        }
       }
     }
 
@@ -101,20 +123,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       if (auth.userEndpoint !== undefined && typeof auth.userEndpoint !== "string") {
         errors.push("features.auth.userEndpoint must be a string");
       }
-    }
-  }
-
-  if (config.version && typeof config.version === "string" && config.version !== "from-package") {
-    if (!/^\d+\.\d+\.\d+$/.test(config.version as string)) {
-      errors.push(`Invalid version "${config.version}". Must be "from-package" or semver (e.g., "1.0.0")`);
-    }
-  }
-
-  if (config.minSupportedVersion && typeof config.minSupportedVersion === "string") {
-    if (!/^\d+\.\d+\.\d+$/.test(config.minSupportedVersion as string)) {
-      errors.push(
-        `Invalid minSupportedVersion "${config.minSupportedVersion}". Must be semver (e.g., "1.0.0")`,
-      );
     }
   }
 

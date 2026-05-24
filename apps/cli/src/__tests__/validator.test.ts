@@ -4,13 +4,15 @@ import { validateConfig } from "../lib/config/validator.js";
 describe("validateConfig", () => {
   const validConfig = {
     enabled: true,
-    version: "from-package",
-    minSupportedVersion: "1.0.0",
     features: {
       pwa: { enabled: true, preventDefaultInstall: false },
       serviceWorker: {
-        versionedSw: true,
-        autoRegister: true,
+        version: {
+          enabled: true,
+          source: "from-package",
+          minSupportedVersion: "1.0.0",
+        },
+        autoUpdate: true,
         autoActivate: false,
         defaultStrategy: "cache-first",
         strategies: {},
@@ -38,12 +40,6 @@ describe("validateConfig", () => {
       expect(errors[0]).toContain("Missing required fields");
     });
 
-    it("fails when version is missing", () => {
-      const { version, ...rest } = validConfig;
-      const errors = validateConfig(rest as Record<string, unknown>);
-      expect(errors[0]).toContain("Missing required fields");
-    });
-
     it("fails when features is missing", () => {
       const { features, ...rest } = validConfig;
       const errors = validateConfig(rest as Record<string, unknown>);
@@ -58,13 +54,13 @@ describe("validateConfig", () => {
   });
 
   describe("serviceWorker validation", () => {
-    it("rejects invalid autoRegister type", () => {
+    it("rejects invalid autoUpdate type", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, autoRegister: "yes" } },
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, autoUpdate: "yes" } },
       };
       const errors = validateConfig(config);
-      expect(errors).toContain("features.serviceWorker.autoRegister must be a boolean");
+      expect(errors).toContain("features.serviceWorker.autoUpdate must be a boolean");
     });
 
     it("rejects invalid autoActivate type", () => {
@@ -208,31 +204,55 @@ describe("validateConfig", () => {
   });
 
   describe("version validation", () => {
-    it("accepts from-package", () => {
-      const config = { ...validConfig, version: "from-package" };
+    it("accepts from-package source", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: { ...validConfig.features.serviceWorker.version, source: "from-package" } } },
+      };
       expect(validateConfig(config)).toEqual([]);
     });
 
-    it("accepts valid semver", () => {
-      const config = { ...validConfig, version: "1.2.3" };
+    it("accepts valid semver value with manual source", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: { enabled: true, source: "manual", value: "1.2.3", minSupportedVersion: "0.0.0" } } },
+      };
       expect(validateConfig(config)).toEqual([]);
     });
 
-    it("rejects invalid version format", () => {
-      const config = { ...validConfig, version: "latest" };
+    it("rejects missing value when source is manual", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: { enabled: true, source: "manual", minSupportedVersion: "0.0.0" } } },
+      };
       const errors = validateConfig(config);
-      expect(errors[0]).toContain("Invalid version");
+      expect(errors[0]).toContain("version.value is required when source is 'manual'");
+    });
+
+    it("rejects invalid version value format", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: { enabled: true, source: "manual", value: "latest", minSupportedVersion: "0.0.0" } } },
+      };
+      const errors = validateConfig(config);
+      expect(errors[0]).toContain("Invalid version value");
     });
   });
 
   describe("minSupportedVersion validation", () => {
     it("accepts valid semver", () => {
-      const config = { ...validConfig, minSupportedVersion: "0.1.0" };
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: { ...validConfig.features.serviceWorker.version, minSupportedVersion: "0.1.0" } } },
+      };
       expect(validateConfig(config)).toEqual([]);
     });
 
     it("rejects invalid format", () => {
-      const config = { ...validConfig, minSupportedVersion: "beta" };
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: { ...validConfig.features.serviceWorker.version, minSupportedVersion: "beta" } } },
+      };
       const errors = validateConfig(config);
       expect(errors[0]).toContain("Invalid minSupportedVersion");
     });

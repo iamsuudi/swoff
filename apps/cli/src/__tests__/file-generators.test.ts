@@ -89,18 +89,18 @@ describe("generateSwTemplate", () => {
 describe("generateSwInjector", () => {
   it("generates JS registration with correct config values", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, autoRegister: true, autoActivate: true } },
+      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, autoUpdate: true, autoActivate: true } },
     });
     generateSwInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "sw-injector.js"), "utf8");
-    expect(content).toContain("AUTO_REGISTER = true");
+    expect(content).toContain("AUTO_UPDATE = true");
     expect(content).toContain("AUTO_ACTIVATE = true");
     expect(content).toContain("initServiceWorker");
-    expect(content).not.toContain("shouldRegisterSW");
-    expect(content).toContain("shouldRegister");
+    expect(content).toContain("checkForUpdate");
     expect(content).toContain("handleUpdateApproved");
     expect(content).toContain("skipWaiting");
     expect(content).toContain("waitForController");
+    expect(content).toContain("semverCompare");
   });
 
   it("generates TS when ext is ts", () => {
@@ -110,13 +110,25 @@ describe("generateSwInjector", () => {
     expect(existsSync(join(ctx.swoffDir, "sw-injector.ts"))).toBe(true);
   });
 
-  it("reflects autoRegister false", () => {
+  it("reflects autoUpdate false", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, autoRegister: false } },
+      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, autoUpdate: false } },
     });
     generateSwInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "sw-injector.js"), "utf8");
-    expect(content).toContain("AUTO_REGISTER = false");
+    expect(content).toContain("AUTO_UPDATE = false");
+  });
+
+  it("generates simple injector when version is disabled", () => {
+    const ctx = makeContext({
+      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, version: { ...defaultConfig.features.serviceWorker.version, enabled: false } } },
+    });
+    generateSwInjector(ctx);
+    const content = readFileSync(join(ctx.swoffDir, "sw-injector.js"), "utf8");
+    expect(content).toContain("Simple Mode");
+    expect(content).toContain("navigator.serviceWorker.register(\"/sw.js\")");
+    expect(content).not.toContain("checkForUpdate");
+    expect(content).not.toContain("AUTO_UPDATE");
   });
 
   it("includes PWA install listeners when pwa is enabled", () => {
@@ -130,7 +142,9 @@ describe("generateSwInjector", () => {
   });
 
   it("includes TAG_INVALIDATED handler when crossTabSync is enabled", () => {
-    const ctx = makeContext();
+    const ctx = makeContext({
+      features: { ...defaultConfig.features, crossTabSync: true },
+    });
     generateSwInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "sw-injector.js"), "utf8");
     expect(content).toContain("TAG_INVALIDATED");
@@ -228,7 +242,7 @@ describe("generateSwGeneratorBuild", () => {
     expect(content).toContain("writeFileSync");
     expect(content).toContain("mkdirSync");
     expect(content).toContain("sw-template.js");
-    expect(content).toContain("version.json");
+    expect(content).toContain("createHash");
     expect(content).not.toContain("import('fs').then");
   });
 });

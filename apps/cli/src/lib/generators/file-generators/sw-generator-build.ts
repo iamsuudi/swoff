@@ -16,6 +16,7 @@ export function generateSwGeneratorBuild(ctx: GeneratorContext): void {
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
 import { join, dirname, relative } from 'path';
+import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -40,7 +41,12 @@ const pkg = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) : { 
 const config = JSON.parse(readFileSync(configPath, 'utf8'));
 const template = readFileSync(templatePath, 'utf8');
 
-const version = config.version === 'from-package' ? pkg.version || '1.0.0' : config.version;
+const swConfig = config.features?.serviceWorker || {};
+const versionConfig = swConfig.version || {};
+const versionEnabled = versionConfig.enabled !== false;
+const version = versionConfig.source === 'manual' && versionConfig.value
+  ? versionConfig.value
+  : pkg.version || '1.0.0';
 const outputDir = config.build?.outputDir || 'dist';
 const swFilename = config.build?.swFilename || 'sw';
 
@@ -63,8 +69,12 @@ function collectAssets(dir) {
   return assets;
 }
 
+function generateCacheNameHash(swContent) {
+  return 'sw-cache-' + createHash('sha256').update(swContent).digest('hex').slice(0, 12);
+}
+
 const allAssets = collectAssets(outDir);
-const swFile = \`\${swFilename}-v\${version}.js\`;
+const swFile = versionEnabled ? \`\${swFilename}-v\${version}.js\` : \`\${swFilename}.js\`;
 const filtered = allAssets.filter(a => !a.endsWith(swFile) && a !== '/version.json');
 const fallback = ['/index.html'];
 if (config.features?.pwa?.enabled) fallback.push('/manifest.json');
@@ -72,18 +82,29 @@ const combined = [...new Set([...fallback, ...filtered])];
 const assetsToCache = combined.map(url => ({ url, options: {} }));
 
 let sw = template;
-sw = sw.replace('// [[CACHE_NAME]]', \`CACHE_NAME = 'sw-v\${version}'\`);
+if (versionEnabled) {
+  sw = sw.replace('// [[CACHE_NAME]]', \`CACHE_NAME = 'sw-v\${version}'\`);
+} else {
+  const sentinel = 'SW_CACHE_SENTINEL';
+  sw = sw.replace('// [[CACHE_NAME]]', \`CACHE_NAME = '\${sentinel}'\`);
+}
 sw = sw.replace('// [[ASSETS_LIST]]', \`ASSETS_TO_CACHE = \${JSON.stringify(assetsToCache, null, 2)}\`);
 sw = sw.replace('// [[AUTO_SKIP_WAITING]]', \`const AUTO_SKIP_WAITING = \${config.features?.serviceWorker?.autoActivate || false};\`);
 
-writeFileSync(join(outDir, swFile), sw);
-writeFileSync(join(outDir, 'version.json'), JSON.stringify({
-  version,
-  minSupportedVersion: config.minSupportedVersion || '0.0.0',
-  generatedAt: new Date().toISOString(),
-}, null, 2));
-
-console.log(\`Service worker built: \${outputDir}/\${swFile}\`);
+if (!versionEnabled) {
+  const cacheName = generateCacheNameHash(sw);
+  sw = sw.replace(sentinel, cacheName);
+  writeFileSync(join(outDir, swFile), sw);
+  console.log(\`Service worker built: \${outputDir}/\${swFile}\`);
+} else {
+  writeFileSync(join(outDir, swFile), sw);
+  writeFileSync(join(outDir, 'version.json'), JSON.stringify({
+    version,
+    minSupportedVersion: versionConfig.minSupportedVersion || '0.0.0',
+    generatedAt: new Date().toISOString(),
+  }, null, 2));
+  console.log(\`Service worker built: \${outputDir}/\${swFile}\`);
+}
 `;
 
   writeFile(ctx, "sw-generator.js", code);

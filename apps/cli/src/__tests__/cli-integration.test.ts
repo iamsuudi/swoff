@@ -19,13 +19,15 @@ describe("CLI commands integration", () => {
       const config = {
         $schema: "https://swoff.netlify.app/schema/v1.json",
         enabled: true,
-        version: "from-package",
-        minSupportedVersion: "1.0.0",
         features: {
           pwa: { enabled: true, preventDefaultInstall: false },
           serviceWorker: {
-            versionedSw: true,
-            autoRegister: true,
+            version: {
+              enabled: true,
+              source: "from-package",
+              minSupportedVersion: "1.0.0",
+            },
+            autoUpdate: true,
             autoActivate: false,
             defaultStrategy: "cache-first",
             strategies: { "/api/*": "network-first", "/static/*": "cache-first" },
@@ -44,7 +46,7 @@ describe("CLI commands integration", () => {
       const parsed = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
       expect(parsed.$schema).toBe("https://swoff.netlify.app/schema/v1.json");
       expect(parsed.enabled).toBe(true);
-      expect(parsed.version).toBe("from-package");
+      expect(parsed.features.serviceWorker.version.source).toBe("from-package");
       expect(parsed.features.pwa.preventDefaultInstall).toBe(false);
     });
 
@@ -109,9 +111,8 @@ describe("CLI commands integration", () => {
   describe("config validation scenarios", () => {
     it("detects missing required fields", () => {
       const config = { enabled: true };
-      const required = ["enabled", "version", "features", "build"];
+      const required = ["enabled", "features", "build"];
       const missing = required.filter((f) => !(f in config));
-      expect(missing).toContain("version");
       expect(missing).toContain("features");
       expect(missing).toContain("build");
     });
@@ -120,7 +121,7 @@ describe("CLI commands integration", () => {
       const config = {
         features: {
           pwa: { enabled: true, preventDefaultInstall: false },
-          serviceWorker: { versionedSw: true, autoRegister: true, autoActivate: false, defaultStrategy: "cache-first" },
+          serviceWorker: { version: { enabled: true, source: "from-package", minSupportedVersion: "0.0.0" }, autoUpdate: true, autoActivate: false, defaultStrategy: "cache-first" },
           auth: 1,
         },
       };

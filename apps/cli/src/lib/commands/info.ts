@@ -17,12 +17,14 @@ export async function infoCommand(projectRoot: string) {
     return;
   }
 
-  log.normal(`Version: ${config.version}`);
+  const ver = config.features.serviceWorker.version;
+  log.normal(`Version Enabled: ${ver.enabled}`);
+  log.normal(`Version Source: ${ver.source}`);
   log.normal(
-    `SW Version: ${config.version === "from-package" ? "(from package.json)" : config.version}`,
+    `Resolved Version: ${ver.source === "from-package" ? "(from package.json)" : ver.value || "none"}`,
   );
   log.normal(`Default Strategy: ${config.features.serviceWorker.defaultStrategy}`);
-  log.normal(`Auto Register: ${config.features.serviceWorker.autoRegister}`);
+  log.normal(`Auto Update: ${config.features.serviceWorker.autoUpdate}`);
   log.normal(`Auto Activate: ${config.features.serviceWorker.autoActivate}`);
 
   const enabledFeatures = Object.entries(config.features)
@@ -56,5 +58,7 @@ export async function infoCommand(projectRoot: string) {
       `\nService Worker: ${outputDir}/${swFilename}-v${versionInfo.version}.js`,
     );
     log.normal(`Version Info: ${outputDir}/version.json`);
+  } else {
+    log.normal(`\nService Worker: ${outputDir}/${swFilename}.js (non-versioned)`);
   }
 }

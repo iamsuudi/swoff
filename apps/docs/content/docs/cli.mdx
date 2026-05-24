@@ -28,25 +28,16 @@ npx @swoff/cli init
 
 **Options:**
 
-- `--framework <name>` - Initialize with framework-specific defaults
-
-**Frameworks:**
-
-- `react-vite` - React with Vite
-- `nextjs` - Next.js
-- `vue-vite` - Vue with Vite
+- `--framework <name>` - Explicitly set framework (auto-detected from `package.json` by default). Accepted values: `react`, `vue`, `svelte`, `vanilla`.
 
 **Examples:**
 
 ```bash
-# Basic initialization
+# Basic initialization (auto-detects framework)
 npx @swoff/cli init
 
-# Initialize with React + Vite defaults
-npx @swoff/cli init --framework react-vite
-
-# Initialize with Next.js defaults
-npx @swoff/cli init --framework nextjs
+# Explicitly set framework
+npx @swoff/cli init --framework react
 ```
 
 This command:
@@ -294,7 +285,7 @@ npx @swoff/cli help info
 
 ```bash
 # 1. Initialize Swoff
-npx @swoff/cli init --framework react-vite
+npx @swoff/cli init --framework react
 
 # 2. Review and customize config
 nano swoff.config.json

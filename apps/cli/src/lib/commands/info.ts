@@ -21,13 +21,14 @@ export async function infoCommand(projectRoot: string) {
   log.normal(
     `SW Version: ${config.version === "from-package" ? "(from package.json)" : config.version}`,
   );
-  log.normal(`Default Strategy: ${config.serviceWorker.defaultStrategy}`);
-  log.normal(`Auto Register: ${config.serviceWorker.autoRegister}`);
-  log.normal(`Auto Activate: ${config.serviceWorker.autoActivate}`);
+  log.normal(`Default Strategy: ${config.features.serviceWorker.defaultStrategy}`);
+  log.normal(`Auto Register: ${config.features.serviceWorker.autoRegister}`);
+  log.normal(`Auto Activate: ${config.features.serviceWorker.autoActivate}`);
 
   const enabledFeatures = Object.entries(config.features)
-    .filter(([_, v]) => {
-      if (typeof v === "object" && v !== null) return v.enabled === true;
+    .filter(([k, v]) => {
+      if (k === "serviceWorker") return false;
+      if (typeof v === "object" && v !== null) return (v as Record<string, unknown>).enabled === true;
       return v === true;
     })
     .map(([k]) => k);

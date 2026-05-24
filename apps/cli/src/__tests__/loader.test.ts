@@ -28,12 +28,12 @@ describe("loadConfig", () => {
     const config = {
       enabled: true,
       version: "2.0.0",
-      serviceWorker: { autoRegister: false, autoActivate: true, defaultStrategy: "network-first", strategies: {} },
       features: {
-        versionedSw: true, mutationQueue: true,
-        backgroundSync: false, pwa: { enabled: true, preventDefaultInstall: true }, auth: false,
+        serviceWorker: { autoRegister: false, autoActivate: true, defaultStrategy: "network-first", strategies: {} },
+        mutationQueue: true,
+        backgroundSync: false, pwa: { enabled: true, preventDefaultInstall: true }, auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
         crossTabSync: true, tagInvalidation: true,
-        clientRegistration: true, indexeddb: { enabled: true, name: "test-db", stores: [] },
+        clientRegistration: true,
       },
       build: { outputDir: "build", swFilename: "service-worker" },
     };
@@ -43,7 +43,7 @@ describe("loadConfig", () => {
     expect(result.configPath).toContain("swoff.config.json");
     expect(result.configSource).toBe("JSON");
     expect(result.config.version).toBe("2.0.0");
-    expect(result.config.serviceWorker.autoRegister).toBe(false);
+    expect(result.config.features.serviceWorker.autoRegister).toBe(false);
     expect(result.config.build.outputDir).toBe("build");
   });
 
@@ -54,7 +54,7 @@ describe("loadConfig", () => {
     const result = loadConfig(testDir);
     expect(result.config.version).toBe("3.0.0");
     expect(result.config.enabled).toBe(true); // from defaults
-    expect(result.config.serviceWorker.autoRegister).toBe(true); // from defaults
+    expect(result.config.features.serviceWorker.autoRegister).toBe(true); // from defaults
   });
 
   it("prefers JSON over JS config", () => {

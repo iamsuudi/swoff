@@ -93,14 +93,20 @@ describe("assembleSW", () => {
   it("sets AUTO_SKIP_WAITING based on autoActivate config", () => {
     const configAutoActivate: SwoffConfig = {
       ...config,
-      serviceWorker: { ...config.serviceWorker, autoActivate: true },
+      features: {
+        ...config.features,
+        serviceWorker: { ...config.features.serviceWorker, autoActivate: true },
+      },
     };
     const sw = assembleSW(configAutoActivate, "1.0.0");
     expect(sw).toContain("const AUTO_SKIP_WAITING = true");
 
     const configNoAutoActivate: SwoffConfig = {
       ...config,
-      serviceWorker: { ...config.serviceWorker, autoActivate: false },
+      features: {
+        ...config.features,
+        serviceWorker: { ...config.features.serviceWorker, autoActivate: false },
+      },
     };
     const sw2 = assembleSW(configNoAutoActivate, "1.0.0");
     expect(sw2).toContain("const AUTO_SKIP_WAITING = false");
@@ -127,9 +133,12 @@ describe("assembleSW", () => {
   it("includes custom strategies in fetch handler", () => {
     const configWithStrategies: SwoffConfig = {
       ...config,
-      serviceWorker: {
-        ...config.serviceWorker,
-        strategies: { "/api/*": "network-first" },
+      features: {
+        ...config.features,
+        serviceWorker: {
+          ...config.features.serviceWorker,
+          strategies: { "/api/*": "network-first" },
+        },
       },
     };
     const sw = assembleSW(configWithStrategies, "1.0.0");
@@ -142,9 +151,12 @@ describe("assembleSW", () => {
   it("includes trimRuntimeCache when maxCacheEntries is set", () => {
     const configWithTrim: SwoffConfig = {
       ...config,
-      serviceWorker: {
-        ...config.serviceWorker,
-        maxCacheEntries: 100,
+      features: {
+        ...config.features,
+        serviceWorker: {
+          ...config.features.serviceWorker,
+          maxCacheEntries: 100,
+        },
       },
     };
     const sw = assembleSW(configWithTrim, "1.0.0");
@@ -156,9 +168,12 @@ describe("assembleSW", () => {
   it("includes trimRuntimeCache when maxCacheAge is set", () => {
     const configWithTrim: SwoffConfig = {
       ...config,
-      serviceWorker: {
-        ...config.serviceWorker,
-        maxCacheAge: 86400000,
+      features: {
+        ...config.features,
+        serviceWorker: {
+          ...config.features.serviceWorker,
+          maxCacheAge: 86400000,
+        },
       },
     };
     const sw = assembleSW(configWithTrim, "1.0.0");

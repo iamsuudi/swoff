@@ -14,8 +14,8 @@ export interface CommandDef {
 export const commands: Record<string, CommandDef> = {
   init: {
     description: "Initialize Swoff in current directory",
-    usage: "swoff init [--framework react-vite|nextjs|vue-vite]",
-    examples: ["swoff init", "swoff init --framework react-vite"],
+    usage: "swoff init [--framework react|vue|svelte|vanilla]",
+    examples: ["swoff init", "swoff init --framework react"],
   },
   generate: {
     description: "Generate service worker and supporting files",
@@ -30,7 +30,7 @@ export const commands: Record<string, CommandDef> = {
   add: {
     description: "Add specific feature files",
     usage: "swoff add <feature>",
-    examples: ["swoff add offline", "swoff add pwa", "swoff add mutation-queue"],
+    examples: ["swoff add pwa", "swoff add mutation-queue"],
   },
   info: {
     description: "Show Swoff configuration summary",

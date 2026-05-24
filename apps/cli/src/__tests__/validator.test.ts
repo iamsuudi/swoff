@@ -6,22 +6,21 @@ describe("validateConfig", () => {
     enabled: true,
     version: "from-package",
     minSupportedVersion: "1.0.0",
-    serviceWorker: {
-      autoRegister: true,
-      autoActivate: false,
-      defaultStrategy: "cache-first",
-      strategies: {},
-    },
     features: {
-      versionedSw: true,
+      pwa: { enabled: true, preventDefaultInstall: false },
+      serviceWorker: {
+        versionedSw: true,
+        autoRegister: true,
+        autoActivate: false,
+        defaultStrategy: "cache-first",
+        strategies: {},
+      },
       mutationQueue: false,
       backgroundSync: false,
-      pwa: { enabled: true, preventDefaultInstall: false },
       auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
       crossTabSync: true,
       tagInvalidation: true,
       clientRegistration: true,
-      indexeddb: { enabled: false, name: "app-db", stores: [] },
     },
     build: { outputDir: "dist", swFilename: "sw" },
   };
@@ -45,12 +44,6 @@ describe("validateConfig", () => {
       expect(errors[0]).toContain("Missing required fields");
     });
 
-    it("fails when serviceWorker is missing", () => {
-      const { serviceWorker, ...rest } = validConfig;
-      const errors = validateConfig(rest as Record<string, unknown>);
-      expect(errors[0]).toContain("Missing required fields");
-    });
-
     it("fails when features is missing", () => {
       const { features, ...rest } = validConfig;
       const errors = validateConfig(rest as Record<string, unknown>);
@@ -68,24 +61,25 @@ describe("validateConfig", () => {
     it("rejects invalid autoRegister type", () => {
       const config = {
         ...validConfig,
-        serviceWorker: { ...validConfig.serviceWorker, autoRegister: "yes" },
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, autoRegister: "yes" } },
       };
       const errors = validateConfig(config);
-      expect(errors).toContain("serviceWorker.autoRegister must be a boolean");
+      expect(errors).toContain("features.serviceWorker.autoRegister must be a boolean");
     });
 
     it("rejects invalid autoActivate type", () => {
-      const cfg = { ...validConfig,
-        serviceWorker: { ...validConfig.serviceWorker, autoActivate: 1 },
+      const cfg = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, autoActivate: 1 } },
       };
       const errors = validateConfig(cfg as unknown as Record<string, unknown>);
-      expect(errors).toContain("serviceWorker.autoActivate must be a boolean");
+      expect(errors).toContain("features.serviceWorker.autoActivate must be a boolean");
     });
 
     it("rejects invalid defaultStrategy", () => {
       const config = {
         ...validConfig,
-        serviceWorker: { ...validConfig.serviceWorker, defaultStrategy: "magic-cache" },
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, defaultStrategy: "magic-cache" } },
       };
       const errors = validateConfig(config);
       expect(errors[0]).toContain("Invalid defaultStrategy");
@@ -94,10 +88,7 @@ describe("validateConfig", () => {
     it("rejects invalid strategy in strategies", () => {
       const config = {
         ...validConfig,
-        serviceWorker: {
-          ...validConfig.serviceWorker,
-          strategies: { "/api/*": "invalid" },
-        },
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, strategies: { "/api/*": "invalid" } } },
       };
       const errors = validateConfig(config);
       expect(errors[0]).toContain("Invalid strategy");
@@ -108,7 +99,7 @@ describe("validateConfig", () => {
       for (const strategy of strategies) {
         const config = {
           ...validConfig,
-          serviceWorker: { ...validConfig.serviceWorker, defaultStrategy: strategy },
+          features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, defaultStrategy: strategy } },
         };
         const errors = validateConfig(config);
         expect(errors).toEqual([]);
@@ -159,32 +150,6 @@ describe("validateConfig", () => {
       };
       const errors = validateConfig(config);
       expect(errors).toContain("features.pwa.preventDefaultInstall must be a boolean");
-    });
-
-    it("validates indexeddb.name is string", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, indexeddb: { enabled: false, name: 123, stores: [] } },
-      };
-      const errors = validateConfig(config);
-      expect(errors).toContain("features.indexeddb.name must be a string");
-    });
-
-    it("validates indexeddb.stores is array", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, indexeddb: { enabled: false, name: "db", stores: "todos" } },
-      };
-      const errors = validateConfig(config);
-      expect(errors).toContain("features.indexeddb.stores must be an array");
-    });
-
-    it("accepts valid indexeddb config", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, indexeddb: { enabled: true, name: "my-db", stores: ["todos", "users"] } },
-      };
-      expect(validateConfig(config)).toEqual([]);
     });
 
     it("rejects crossTabSync without tagInvalidation", () => {

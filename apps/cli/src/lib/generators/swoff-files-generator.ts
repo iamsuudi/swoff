@@ -24,7 +24,6 @@ import { generateMutationQueue } from "./file-generators/mutation-queue.js";
 import { generateStore } from "./file-generators/store.js";
 import { generateReconcile } from "./file-generators/reconcile.js";
 import { generateBackgroundSync } from "./file-generators/background-sync.js";
-import { generateIndexedDB } from "./file-generators/indexeddb.js";
 import { generatePwaInstall } from "./file-generators/pwa-install.js";
 import { generateManifest } from "./file-generators/manifest.js";
 import { generateInvalidationTags } from "./file-generators/invalidation-tags.js";
@@ -34,6 +33,7 @@ import { generateAuthUser } from "./file-generators/auth-user.js";
 import { generateAuthState } from "./file-generators/auth-state.js";
 import { generateSwGeneratorBuild } from "./file-generators/sw-generator-build.js";
 import { generateTypeDefinitions } from "./file-generators/type-definitions.js";
+import { generateHooks } from "./file-generators/generate-hooks.js";
 
 interface Step {
   name: string;
@@ -55,12 +55,12 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
     { name: "auth-fetch", gen: () => generateAuthFetch(ctx), enabled: ctx.config.features.auth.enabled },
     { name: "auth-user", gen: () => generateAuthUser(ctx), enabled: ctx.config.features.auth.enabled },
     { name: "auth-state", gen: () => generateAuthState(ctx), enabled: ctx.config.features.auth.enabled },
-    { name: "indexeddb", gen: () => generateIndexedDB(ctx), enabled: ctx.config.features.indexeddb.enabled },
     { name: "sw-generator", gen: () => generateSwGeneratorBuild(ctx), enabled: true },
     { name: "swoff.d.ts", gen: () => generateTypeDefinitions(ctx), enabled: ctx.ext === "ts" },
     { name: "pwa-install", gen: () => generatePwaInstall(ctx), enabled: ctx.config.features.pwa.enabled },
     { name: "manifest.json", gen: () => generateManifest(ctx), enabled: ctx.config.features.pwa.enabled },
     { name: "invalidation-tags", gen: () => generateInvalidationTags(ctx), enabled: ctx.config.features.tagInvalidation },
+    { name: "hooks", gen: () => generateHooks(ctx), enabled: ctx.config.framework === "react" },
   ];
 
   for (const step of steps) {
@@ -102,6 +102,7 @@ if (fileURLToPath(import.meta.url) === fileURLToPath(new URL(process.argv[1], "f
     swoffDir,
     ext,
     generatedFiles,
+    frameworkName: config.framework ?? "vanilla",
   };
 
   const ttyStatus = process.stdout.isTTY

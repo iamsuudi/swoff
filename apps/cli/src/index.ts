@@ -42,7 +42,7 @@ const options = args.slice(1);
 
 async function main() {
   if (command === "--version" || command === "-v") {
-    console.log(cliVersion);
+    console.log(`@swoff/cli ${cliVersion}`);
     process.exit(0);
   }
 
@@ -72,7 +72,7 @@ async function main() {
       if (!feature) {
         log.error("Please specify a feature to add");
         log.info("Usage: swoff add <feature>");
-        log.info("Features: offline, mutation-queue, pwa, cross-tab, auth, tag-invalidation, background-sync, indexeddb");
+        log.info("Features: mutation-queue, pwa, cross-tab, auth, tag-invalidation, background-sync, client-registration");
         process.exit(1);
       }
       await addCommand(projectRoot, feature);

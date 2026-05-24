@@ -5,8 +5,8 @@
 import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateSwInjector(ctx: GeneratorContext): void {
-  const autoRegister = ctx.config.serviceWorker.autoRegister;
-  const autoActivate = ctx.config.serviceWorker.autoActivate;
+  const autoRegister = ctx.config.features.serviceWorker.autoRegister;
+  const autoActivate = ctx.config.features.serviceWorker.autoActivate;
   const pwaEnabled = ctx.config.features.pwa.enabled;
   const preventDefaultInstall = ctx.config.features.pwa.preventDefaultInstall;
   const crossTabSync = ctx.config.features.crossTabSync;

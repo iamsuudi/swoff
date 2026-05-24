@@ -21,22 +21,21 @@ describe("CLI commands integration", () => {
         enabled: true,
         version: "from-package",
         minSupportedVersion: "1.0.0",
-        serviceWorker: {
-          autoRegister: true,
-          autoActivate: false,
-          defaultStrategy: "cache-first",
-          strategies: { "/api/*": "network-first", "/static/*": "cache-first" },
-        },
         features: {
-          versionedSw: true,
+          pwa: { enabled: true, preventDefaultInstall: false },
+          serviceWorker: {
+            versionedSw: true,
+            autoRegister: true,
+            autoActivate: false,
+            defaultStrategy: "cache-first",
+            strategies: { "/api/*": "network-first", "/static/*": "cache-first" },
+          },
           mutationQueue: false,
           backgroundSync: false,
-          pwa: { enabled: true, preventDefaultInstall: false },
-          auth: false,
+          auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
           crossTabSync: true,
           tagInvalidation: true,
           clientRegistration: true,
-          indexeddb: { enabled: false, name: "app-db", stores: [] },
         },
         build: { outputDir: "dist", swFilename: "sw" },
       };
@@ -110,10 +109,9 @@ describe("CLI commands integration", () => {
   describe("config validation scenarios", () => {
     it("detects missing required fields", () => {
       const config = { enabled: true };
-      const required = ["enabled", "version", "serviceWorker", "features", "build"];
+      const required = ["enabled", "version", "features", "build"];
       const missing = required.filter((f) => !(f in config));
       expect(missing).toContain("version");
-      expect(missing).toContain("serviceWorker");
       expect(missing).toContain("features");
       expect(missing).toContain("build");
     });
@@ -121,9 +119,8 @@ describe("CLI commands integration", () => {
     it("validates feature flags are booleans or objects", () => {
       const config = {
         features: {
-          versionedSw: true,
           pwa: { enabled: true, preventDefaultInstall: false },
-          indexeddb: { enabled: false, name: "app-db", stores: [] },
+          serviceWorker: { versionedSw: true, autoRegister: true, autoActivate: false, defaultStrategy: "cache-first" },
           auth: 1,
         },
       };

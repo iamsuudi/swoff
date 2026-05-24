@@ -46,8 +46,7 @@ initServiceWorker();
 | `auth` | Auth integration (cookie/bearer/custom) |
 | `tag-invalidation` | Tag-based cache invalidation |
 | `background-sync` | Background Sync API (Chrome/Edge) |
-| `indexeddb` | IndexedDB storage patterns |
-| `offline` | Offline support infrastructure |
+| `client-registration` | Client registration and lifecycle tracking |
 
 ## Requirements
 

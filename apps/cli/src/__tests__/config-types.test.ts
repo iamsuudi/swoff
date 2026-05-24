@@ -7,7 +7,6 @@ describe("config-types", () => {
       expect(defaultConfig).toHaveProperty("enabled");
       expect(defaultConfig).toHaveProperty("version");
       expect(defaultConfig).toHaveProperty("minSupportedVersion");
-      expect(defaultConfig).toHaveProperty("serviceWorker");
       expect(defaultConfig).toHaveProperty("features");
       expect(defaultConfig).toHaveProperty("build");
     });
@@ -16,17 +15,16 @@ describe("config-types", () => {
       expect(defaultConfig.enabled).toBe(true);
       expect(defaultConfig.version).toBe("from-package");
       expect(defaultConfig.minSupportedVersion).toBe("0.0.0");
-      expect(defaultConfig.serviceWorker.autoRegister).toBe(true);
-      expect(defaultConfig.serviceWorker.autoActivate).toBe(false);
-      expect(defaultConfig.serviceWorker.defaultStrategy).toBe("cache-first");
-      expect(defaultConfig.serviceWorker.clearRuntimeOnUpdate).toBe(false);
-      expect(defaultConfig.serviceWorker.navigationMode).toBe("spa");
-      expect(defaultConfig.serviceWorker.spaEntry).toBe("/index.html");
+      expect(defaultConfig.features.serviceWorker.autoRegister).toBe(true);
+      expect(defaultConfig.features.serviceWorker.autoActivate).toBe(false);
+      expect(defaultConfig.features.serviceWorker.defaultStrategy).toBe("cache-first");
+      expect(defaultConfig.features.serviceWorker.clearRuntimeOnUpdate).toBe(false);
+      expect(defaultConfig.features.serviceWorker.navigationMode).toBe("spa");
+      expect(defaultConfig.features.serviceWorker.spaEntry).toBe("/index.html");
       expect(defaultConfig.build.outputDir).toBe("dist");
       expect(defaultConfig.build.swFilename).toBe("sw");
       expect(defaultConfig.features.pwa.enabled).toBe(true);
       expect(defaultConfig.features.pwa.preventDefaultInstall).toBe(false);
-      expect(defaultConfig.features.indexeddb.name).toBe("app-db");
     });
 
     it("has all known features as booleans", () => {
@@ -44,18 +42,10 @@ describe("config-types", () => {
       expect(typeof defaultConfig.features.pwa).toBe("object");
       expect(typeof defaultConfig.features.pwa.enabled).toBe("boolean");
       expect(typeof defaultConfig.features.pwa.preventDefaultInstall).toBe("boolean");
-      expect(typeof defaultConfig.features.indexeddb).toBe("object");
-      expect(typeof defaultConfig.features.indexeddb.enabled).toBe("boolean");
-      expect(typeof defaultConfig.features.indexeddb.name).toBe("string");
-      expect(Array.isArray(defaultConfig.features.indexeddb.stores)).toBe(true);
     });
 
     it("has empty strategies by default", () => {
-      expect(defaultConfig.serviceWorker.strategies).toEqual({});
-    });
-
-    it("has empty stores by default", () => {
-      expect(defaultConfig.features.indexeddb.stores).toEqual([]);
+      expect(defaultConfig.features.serviceWorker.strategies).toEqual({});
     });
   });
 
@@ -65,7 +55,7 @@ describe("config-types", () => {
     });
 
     it("has default strategies for API and static", () => {
-      expect(defaultInitConfig.serviceWorker.strategies).toEqual({
+      expect(defaultInitConfig.features.serviceWorker.strategies).toEqual({
         "/api/*": "network-first",
         "/static/*": "cache-first",
       });
@@ -78,7 +68,6 @@ describe("config-types", () => {
 
   describe("constants", () => {
     it("KNOWN_FEATURES contains only boolean features", () => {
-      expect(KNOWN_FEATURES).toContain("versionedSw");
       expect(KNOWN_FEATURES).toContain("mutationQueue");
       expect(KNOWN_FEATURES).toContain("backgroundSync");
       expect(KNOWN_FEATURES).toContain("auth");
@@ -86,12 +75,13 @@ describe("config-types", () => {
       expect(KNOWN_FEATURES).toContain("tagInvalidation");
       expect(KNOWN_FEATURES).toContain("clientRegistration");
       expect(KNOWN_FEATURES).not.toContain("pwa");
-      expect(KNOWN_FEATURES).not.toContain("indexeddb");
+      expect(KNOWN_FEATURES).not.toContain("serviceWorker");
+      expect(KNOWN_FEATURES).not.toContain("versionedSw");
     });
 
-    it("OBJECT_FEATURES lists pwa, indexeddb, and auth", () => {
+    it("OBJECT_FEATURES lists pwa, serviceWorker, and auth", () => {
       expect(OBJECT_FEATURES).toContain("pwa");
-      expect(OBJECT_FEATURES).toContain("indexeddb");
+      expect(OBJECT_FEATURES).toContain("serviceWorker");
       expect(OBJECT_FEATURES).toContain("auth");
     });
 

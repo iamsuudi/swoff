@@ -21,7 +21,6 @@
  *   mutation-queue-changed - Queue modified
  *   mutation-rollback     - Mutation exhausted retries (detail: { method, url, tempId, previousData })
  *   sw-auth-unauthorized  - 401 response received (token expired or invalid)
- *   sw-auth-state-change  - Login or logout (detail: { authenticated: boolean })
  *
  * Window properties:
  *   window.latestSWVersion       - Latest version from version.json
@@ -34,10 +33,9 @@
  *   window.deferredInstallPrompt - Captured BeforeInstallPromptEvent
  *   window.pwaInstallable        - Whether PWA can be installed
  */
-import { processMutationQueue } from "./mutation-queue.ts";
 
 const AUTO_REGISTER = true;
-const AUTO_ACTIVATE = true;
+const AUTO_ACTIVATE = false;
 
 // --- SW Registration ---
 
@@ -208,9 +206,6 @@ window.addEventListener("appinstalled", () => {
   );
 });
 
-
-// --- Mutation Queue Listener ---
-window.addEventListener("online", processMutationQueue);
 
 // --- SW Message Listener ---
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {

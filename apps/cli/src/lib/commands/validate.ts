@@ -29,11 +29,12 @@ export async function validateCommand(projectRoot: string) {
   log.success("Configuration is valid!");
   log.info("\nConfig summary:");
   log.help(`Version: ${config.version}`);
-  log.help(`Default strategy: ${config.serviceWorker.defaultStrategy}`);
+  log.help(`Default strategy: ${config.features.serviceWorker.defaultStrategy}`);
   log.help(
     `Features enabled: ${Object.entries(config.features)
-      .filter(([_, v]) => {
-        if (typeof v === "object" && v !== null) return v.enabled === true;
+      .filter(([k, v]) => {
+        if (k === "serviceWorker") return false;
+        if (typeof v === "object" && v !== null) return (v as Record<string, unknown>).enabled === true;
         return v === true;
       })
       .map(([k]) => k)

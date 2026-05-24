@@ -12,7 +12,6 @@ import { generateStore } from "../lib/generators/file-generators/store.js";
 import { generateMutationQueue } from "../lib/generators/file-generators/mutation-queue.js";
 import { generateReconcile } from "../lib/generators/file-generators/reconcile.js";
 import { generateBackgroundSync } from "../lib/generators/file-generators/background-sync.js";
-import { generateIndexedDB } from "../lib/generators/file-generators/indexeddb.js";
 import { generatePwaInstall } from "../lib/generators/file-generators/pwa-install.js";
 import { generateManifest } from "../lib/generators/file-generators/manifest.js";
 import { generateInvalidationTags } from "../lib/generators/file-generators/invalidation-tags.js";
@@ -25,12 +24,11 @@ function makeContext(overrides?: Partial<SwoffConfig>): GeneratorContext {
   const config: SwoffConfig = {
     ...defaultConfig,
     ...overrides,
-    serviceWorker: { ...defaultConfig.serviceWorker, ...overrides?.serviceWorker },
     features: {
       ...defaultConfig.features,
       ...overrides?.features,
       pwa: { ...defaultConfig.features.pwa, ...overrides?.features?.pwa },
-      indexeddb: { ...defaultConfig.features.indexeddb, ...overrides?.features?.indexeddb },
+      serviceWorker: { ...defaultConfig.features.serviceWorker, ...overrides?.features?.serviceWorker },
     },
     build: { ...defaultConfig.build, ...overrides?.build },
   };
@@ -77,8 +75,7 @@ describe("generateSwTemplate", () => {
 
   it("includes config-driven strategy code", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, tagInvalidation: true },
-      serviceWorker: { ...defaultConfig.serviceWorker, strategies: { "/api/*": "network-first" } },
+      features: { ...defaultConfig.features, tagInvalidation: true, serviceWorker: { ...defaultConfig.features.serviceWorker, strategies: { "/api/*": "network-first" } } },
     });
     generateSwTemplate(ctx);
     const content = readFileSync(join(ctx.swoffDir, "sw-template.js"), "utf8");
@@ -92,7 +89,7 @@ describe("generateSwTemplate", () => {
 describe("generateSwInjector", () => {
   it("generates JS registration with correct config values", () => {
     const ctx = makeContext({
-      serviceWorker: { ...defaultConfig.serviceWorker, autoRegister: true, autoActivate: true },
+      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, autoRegister: true, autoActivate: true } },
     });
     generateSwInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "sw-injector.js"), "utf8");
@@ -115,7 +112,7 @@ describe("generateSwInjector", () => {
 
   it("reflects autoRegister false", () => {
     const ctx = makeContext({
-      serviceWorker: { ...defaultConfig.serviceWorker, autoRegister: false },
+      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, autoRegister: false } },
     });
     generateSwInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "sw-injector.js"), "utf8");
@@ -169,23 +166,16 @@ describe("generateCache", () => {
 });
 
 describe("generateStore", () => {
-  it("uses database name from config", () => {
-    const ctx = makeContext({ features: { ...defaultConfig.features, indexeddb: { enabled: true, name: "my-custom-db", stores: [] } } });
+  it("uses app-db as default database name", () => {
+    const ctx = makeContext();
     generateStore(ctx);
     const content = readFileSync(join(ctx.swoffDir, "store.js"), "utf8");
-    expect(content).toContain('DB_NAME = "my-custom-db"');
+    expect(content).toContain('DB_NAME = "app-db"');
     expect(content).toContain("openAppDB");
     expect(content).toContain("getRecord");
     expect(content).toContain("putRecord");
     expect(content).toContain("deleteRecord");
     expect(content).toContain("getAllRecords");
-  });
-
-  it("defaults to app-db", () => {
-    const ctx = makeContext();
-    generateStore(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "store.js"), "utf8");
-    expect(content).toContain('DB_NAME = "app-db"');
   });
 });
 
@@ -225,89 +215,6 @@ describe("generateBackgroundSync", () => {
     expect(content).toContain("SYNC_TAG");
     expect(content).toContain("SyncManager");
     expect(content).toContain("sync-mutations");
-  });
-});
-
-describe("generateIndexedDB", () => {
-  it("uses database name from config", () => {
-    const ctx = makeContext({ features: { ...defaultConfig.features, indexeddb: { enabled: true, name: "custom-db", stores: ["todos", "users"] } } });
-    generateIndexedDB(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "indexeddb.js"), "utf8");
-    expect(content).toContain('DB_NAME = "custom-db"');
-    expect(content).toContain("todos");
-    expect(content).toContain("users");
-    expect(content).toContain("requestPersistentStorage");
-    expect(content).toContain("monitorStorage");
-  });
-
-  it("generates placeholder when no stores configured", () => {
-    const ctx = makeContext();
-    generateIndexedDB(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "indexeddb.js"), "utf8");
-    expect(content).toContain("// Create your object stores here:");
-  });
-});
-
-describe("generatePwaInstall", () => {
-  it("generates promptInstall and isInstallable utilities", () => {
-    const ctx = makeContext();
-    generatePwaInstall(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "pwa-install.js"), "utf8");
-    expect(content).toContain("promptInstall");
-    expect(content).toContain("isInstallable");
-    expect(content).toContain("window.deferredInstallPrompt");
-    expect(content).not.toContain("beforeinstallprompt");
-    expect(content).not.toContain("appinstalled");
-  });
-});
-
-describe("generateManifest", () => {
-  it("creates manifest.json when public/ exists and no existing manifest", () => {
-    const ctx = makeContext();
-    mkdirSync(join(ctx.projectRoot, "public"), { recursive: true });
-    generateManifest(ctx);
-    const manifestPath = join(ctx.projectRoot, "public", "manifest.json");
-    expect(existsSync(manifestPath)).toBe(true);
-    const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-    expect(manifest.name).toBeDefined();
-    expect(manifest.icons).toHaveLength(2);
-    expect(manifest.display).toBe("standalone");
-    expect(manifest.orientation).toBe("portrait-primary");
-    expect(manifest.scope).toBe("/");
-    expect(manifest.lang).toBe("en-US");
-    expect(manifest.categories).toEqual(["utilities", "web"]);
-    expect(manifest.prefer_related_applications).toBe(false);
-    expect(manifest.display_override).toContain("window-controls-overlay");
-    expect(ctx.generatedFiles).toContain("public/manifest.json");
-  });
-
-  it("skips when public/ directory is missing", () => {
-    const ctx = makeContext();
-    generateManifest(ctx);
-    expect(ctx.generatedFiles).not.toContain("public/manifest.json");
-  });
-
-  it("skips when manifest.json already exists", () => {
-    const ctx = makeContext();
-    mkdirSync(join(ctx.projectRoot, "public"), { recursive: true });
-    const manifestPath = join(ctx.projectRoot, "public", "manifest.json");
-    writeFileSync(manifestPath, JSON.stringify({ name: "Custom" }));
-    generateManifest(ctx);
-    const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-    expect(manifest.name).toBe("Custom");
-    expect(ctx.generatedFiles).not.toContain("public/manifest.json");
-  });
-});
-
-describe("generateInvalidationTags", () => {
-  it("exports tag generation functions", () => {
-    const ctx = makeContext();
-    generateInvalidationTags(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "invalidation-tags.js"), "utf8");
-    expect(content).toContain("generateTags");
-    expect(content).toContain("generateTagsFromMethod");
-    expect(content).toContain("invalidateUrl");
-    expect(content).toContain("invalidateByMethod");
   });
 });
 

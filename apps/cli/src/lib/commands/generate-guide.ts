@@ -128,16 +128,6 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push('    await invalidateUrl("/api/todos/42");');
   }
 
-  if (config.features.indexeddb.enabled) {
-    lines.push("");
-    lines.push("  ── IndexedDB ──");
-    lines.push(`  Call on app startup:`);
-    lines.push(`    import { migrateDB } from "./swoff/indexeddb.${ext}";`);
-    lines.push("    await migrateDB();");
-    lines.push("");
-    lines.push(`  Edit swoff/indexeddb.${ext} to define your schema and stores.`);
-  }
-
   if (!config.features.tagInvalidation && config.features.crossTabSync) {
     lines.push("");
     lines.push("  ⚠️ crossTabSync requires tagInvalidation to be enabled.");

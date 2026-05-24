@@ -24,7 +24,6 @@ import { generateMutationQueue } from "./file-generators/mutation-queue.js";
 import { generateStore } from "./file-generators/store.js";
 import { generateReconcile } from "./file-generators/reconcile.js";
 import { generateBackgroundSync } from "./file-generators/background-sync.js";
-import { generateIndexedDB } from "./file-generators/indexeddb.js";
 import { generatePwaInstall } from "./file-generators/pwa-install.js";
 import { generateManifest } from "./file-generators/manifest.js";
 import { generateInvalidationTags } from "./file-generators/invalidation-tags.js";
@@ -56,7 +55,6 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
     { name: "auth-fetch", gen: () => generateAuthFetch(ctx), enabled: ctx.config.features.auth.enabled },
     { name: "auth-user", gen: () => generateAuthUser(ctx), enabled: ctx.config.features.auth.enabled },
     { name: "auth-state", gen: () => generateAuthState(ctx), enabled: ctx.config.features.auth.enabled },
-    { name: "indexeddb", gen: () => generateIndexedDB(ctx), enabled: ctx.config.features.indexeddb.enabled },
     { name: "sw-generator", gen: () => generateSwGeneratorBuild(ctx), enabled: true },
     { name: "swoff.d.ts", gen: () => generateTypeDefinitions(ctx), enabled: ctx.ext === "ts" },
     { name: "pwa-install", gen: () => generatePwaInstall(ctx), enabled: ctx.config.features.pwa.enabled },

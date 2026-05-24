@@ -6,7 +6,7 @@ import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateStore(ctx: GeneratorContext): void {
   const ext = ctx.ext;
-  const dbName = ctx.config.features.indexeddb?.name || "app-db";
+  const dbName = "app-db";
 
   const code = `/**
  * Swoff IndexedDB Store

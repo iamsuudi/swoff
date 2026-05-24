@@ -41,7 +41,7 @@ export function usePWAUpdate() {
 
   const acceptUpdate = useCallback(async () => {
     if (!state.availableVersion) return;
-    const { handleUpdateApproved } = await import("../sw-injector.ts");
+    const { handleUpdateApproved } = await import("../client-injector.ts");
     await handleUpdateApproved(state.availableVersion);
   }, [state.availableVersion]);
 

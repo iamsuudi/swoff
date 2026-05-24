@@ -18,6 +18,7 @@ import { loadConfig } from "../config/loader.js";
 import type { GeneratorContext } from "./file-generators/context.js";
 import { generateSwTemplate } from "./file-generators/sw-template.js";
 import { generateSwInjector } from "./file-generators/sw-injector.js";
+import { generateClientInjector } from "./file-generators/client-injector.js";
 import { generateFetchWrapper } from "./file-generators/fetch-wrapper.js";
 import { generateCache } from "./file-generators/cache.js";
 import { generateMutationQueue } from "./file-generators/mutation-queue.js";
@@ -44,7 +45,8 @@ interface Step {
 export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => void): string[] {
   const steps: Step[] = [
     { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
-    { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: ctx.config.features.clientRegistration || ctx.config.features.pwa.enabled || ctx.config.features.crossTabSync },
+    { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: ctx.config.features.clientRegistration },
+    { name: "client-injector", gen: () => generateClientInjector(ctx), enabled: ctx.config.features.clientRegistration || ctx.config.features.pwa.enabled || ctx.config.features.crossTabSync },
     { name: "fetch-wrapper", gen: () => generateFetchWrapper(ctx), enabled: true },
     { name: "cache", gen: () => generateCache(ctx), enabled: ctx.config.features.tagInvalidation },
     { name: "store", gen: () => generateStore(ctx), enabled: ctx.config.features.mutationQueue },

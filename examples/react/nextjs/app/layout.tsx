@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
-import { initServiceWorker } from "@/swoff/sw-injector";
+import { initServiceWorker } from "@/swoff/client-injector";
 import Header from "@/components/Header";
 import UpdatePrompt from "@/components/UpdatePrompt";
 import SWProgressBar from "@/components/SWProgressBar";

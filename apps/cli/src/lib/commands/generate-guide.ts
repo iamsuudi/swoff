@@ -16,7 +16,7 @@ export function generateGuide(ctx: GuideContext): string[] {
   lines.push("");
   lines.push("  ── Getting Started ──");
   lines.push("  App entry point (" + (isReact ? "main.tsx" : (lang === "ts" ? "main.ts" : "main.js")) + "):");
-  lines.push(`    import { initServiceWorker } from "./swoff/sw-injector.${ext}";`);
+  lines.push(`    import { initServiceWorker } from "./swoff/client-injector.${ext}";`);
   lines.push("    initServiceWorker();");
   lines.push("");
   lines.push("  Fetch wrapper for API calls:");
@@ -24,14 +24,14 @@ export function generateGuide(ctx: GuideContext): string[] {
   lines.push(`    const data = await fetchWithCache("/api/data").then(r => r.json());`);
   lines.push("");
   lines.push("  Add to package.json build script:");
-  lines.push('    "build": "your-build && node swoff/sw-generator.js"');
+  lines.push('    "build": "your-build && node swoff/sw/generator.js"');
 
   if (config.features.pwa.enabled) {
     lines.push("");
     lines.push("  ── PWA ──");
     lines.push(`  Import in app entry:`);
-    lines.push(`    import { initPWAInstall } from "./swoff/pwa-install.${ext}";`);
-    lines.push("    initPWAInstall();");
+    lines.push(`    import { setupPwaInstall, isInstallable, promptInstall } from "./swoff/pwa/install.${ext}";`);
+    lines.push("    setupPwaInstall();");
     lines.push("");
     lines.push(`  Link manifest in index.html <head>:`);
     lines.push(`    <link rel="manifest" href="/manifest.json">`);
@@ -74,11 +74,11 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push("");
     lines.push(`  ── Auth (${authType}) ──`);
     lines.push(`  After login (store token):`);
-    lines.push(`    import { setAuth } from "./swoff/auth-store.${ext}";`);
+    lines.push(`    import { setAuth } from "./swoff/auth/store.${ext}";`);
     lines.push('    await setAuth({ token, expiresAt: Date.now() + 3600000 });');
     lines.push("");
     lines.push(`  For authenticated API calls:`);
-    lines.push(`    import { authenticatedFetch } from "./swoff/auth-fetch.${ext}";`);
+    lines.push(`    import { authenticatedFetch } from "./swoff/auth/fetch.${ext}";`);
     lines.push(`    const data = await authenticatedFetch("/api/me").then(r => r.json());`);
     if (config.features.auth.type === "bearer") {
       lines.push("");

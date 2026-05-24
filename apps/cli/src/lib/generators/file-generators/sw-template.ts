@@ -27,5 +27,5 @@ export function generateSwTemplate(ctx: GeneratorContext): void {
     "// [[AUTO_SKIP_WAITING]]",
   );
 
-  writeFile(ctx, "sw-template.js", code);
+  writeFile(ctx, "sw/template.js", code);
 }

@@ -26,6 +26,7 @@ function writePWAHooks(dir: string, ext: string) {
   writeFileSync(
     join(dir, `usePWAUpdate.${ext}x`),
     `import { useState, useEffect, useCallback } from "react";
+import { handleUpdateApproved } from "../client-injector.${ext}";
 
 export function usePWAUpdate() {
   const [state, setState] = useState({
@@ -68,7 +69,6 @@ export function usePWAUpdate() {
 
   const acceptUpdate = useCallback(async () => {
     if (!state.availableVersion) return;
-    const { handleUpdateApproved } = await import("../sw-injector.${ext}");
     await handleUpdateApproved(state.availableVersion);
   }, [state.availableVersion]);
 
@@ -113,7 +113,7 @@ function writeAuthHook(dir: string, ext: string) {
   writeFileSync(
     join(dir, `useAuth.${ext}x`),
     `import { useState, useEffect } from "react";
-import { getAuthState } from "../auth-state.${ext}";
+import { getAuthState } from "../auth/state.${ext}";
 
 export function useAuth() {
   const [state, setState] = useState({

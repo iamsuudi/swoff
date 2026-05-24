@@ -22,10 +22,10 @@
       "navigationMode": "spa",
       "spaEntry": "/index.html"
     },
-    "mutationQueue": false,
-    "backgroundSync": false,
+    "mutationQueue": true,
+    "backgroundSync": true,
     "auth": {
-      "enabled": false,
+      "enabled": true,
       "type": "bearer",
       "refreshPath": "/api/refresh",
       "userEndpoint": "/api/me"

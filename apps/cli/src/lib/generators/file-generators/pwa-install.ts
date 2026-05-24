@@ -6,23 +6,52 @@ import { GeneratorContext, writeFile } from "./context.js";
 
 export function generatePwaInstall(ctx: GeneratorContext): void {
   const ext = ctx.ext;
+  const preventDefaultInstall = ctx.config.features.pwa.preventDefaultInstall;
 
   const code = `/**
- * Swoff PWA Install Prompt
- * Manual install trigger and installability check.
- * Event listeners are registered in sw-injector at app entry.
+ * Swoff PWA Install Support
+ * Manual install trigger, installability check, and event listener setup.
  *
  * Usage:
- *   import { isInstallable, promptInstall } from './swoff/pwa-install.${ext}';
+ *   import { setupPwaInstall, isInstallable, promptInstall } from './swoff/pwa/install.${ext}';
+ *
+ *   setupPwaInstall();  // sets up beforeinstallprompt and appinstalled listeners
  *
  *   if (isInstallable()) {
  *     const result = await promptInstall();
- *     console.log('User choice:', result.outcome);
  *   }
  *
- * Window properties (set by sw-injector):
+ * Window properties:
  *   window.deferredInstallPrompt - The captured BeforeInstallPromptEvent
  */
+
+export function setupPwaInstall() {
+  window.addEventListener("beforeinstallprompt", (e) => {
+    window.deferredInstallPrompt = e;
+    window.pwaInstallable = true;
+
+    if (${preventDefaultInstall}) {
+      e.preventDefault();
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("pwa-installable", {
+        detail: { isInstallable: true },
+      })
+    );
+  });
+
+  window.addEventListener("appinstalled", () => {
+    window.deferredInstallPrompt = null;
+    window.pwaInstallable = false;
+
+    window.dispatchEvent(
+      new CustomEvent("pwa-installed", {
+        detail: { outcome: "accepted" },
+      })
+    );
+  });
+}
 
 export function isInstallable() {
   return !!window.deferredInstallPrompt;
@@ -57,5 +86,5 @@ export async function promptInstall() {
 }
 `;
 
-  writeFile(ctx, `pwa-install.${ext}`, code);
+  writeFile(ctx, `pwa/install.${ext}`, code);
 }

@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./index.css";
-import { initServiceWorker } from "../swoff/sw-injector";
+import { initServiceWorker } from "../swoff/client-injector";
 
 initServiceWorker();
 

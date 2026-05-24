@@ -67,7 +67,7 @@ const assetsToCache = combined.map(url => ({ url, options: {} }));
 let sw = template;
 sw = sw.replace('// [[CACHE_NAME]]', `CACHE_NAME = 'sw-v${version}'`);
 sw = sw.replace('// [[ASSETS_LIST]]', `ASSETS_TO_CACHE = ${JSON.stringify(assetsToCache, null, 2)}`);
-sw = sw.replace('// [[AUTO_SKIP_WAITING]]', `const AUTO_SKIP_WAITING = ${config.serviceWorker?.autoActivate || false};`);
+sw = sw.replace('// [[AUTO_SKIP_WAITING]]', `const AUTO_SKIP_WAITING = ${config.features?.serviceWorker?.autoActivate || false};`);
 
 writeFileSync(join(outDir, swFile), sw);
 writeFileSync(join(outDir, 'version.json'), JSON.stringify({

@@ -1,5 +1,5 @@
 /**
- * Generates sw-injector.{js|ts} - client-side SW registration + PWA + cross-tab sync.
+ * Generates sw/injector.{js|ts} - core SW registration logic only.
  */
 
 import { GeneratorContext, writeFile } from "./context.js";
@@ -8,23 +8,15 @@ export function generateSwInjector(ctx: GeneratorContext): void {
   const autoUpdate = ctx.config.features.serviceWorker.autoUpdate;
   const autoActivate = ctx.config.features.serviceWorker.autoActivate;
   const versionEnabled = ctx.config.features.serviceWorker.version.enabled;
-  const pwaEnabled = ctx.config.features.pwa.enabled;
-  const preventDefaultInstall = ctx.config.features.pwa.preventDefaultInstall;
-  const crossTabSync = ctx.config.features.crossTabSync;
-  const ext = ctx.ext;
-
   const mutationQueueEnabled = ctx.config.features.mutationQueue;
-
-  const authEnabled = ctx.config.features.auth.enabled;
+  const ext = ctx.ext;
 
   const versionedCode = `/**
  * Swoff SW Injector
- * Framework-agnostic SW registration, PWA install support, and cross-tab sync.
+ * Framework-agnostic SW registration with versioned URLs and update flow.
  *
  * Usage:
- *   import { initServiceWorker } from './swoff/sw-injector.${ext}';
- *
- *   // Call in your app entry point (e.g., main.tsx, app.js):
+ *   import { initServiceWorker } from './swoff/sw/injector.${ext}';
  *   initServiceWorker();
  *
  * Window events:
@@ -33,27 +25,17 @@ export function generateSwInjector(ctx: GeneratorContext): void {
  *   sw-progress          - Download progress (detail: { percent, downloaded, total })
  *   sw-ready             - SW active and controlling page
  *   sw-error             - SW registration failed
- *   pwa-installable      - PWA can be installed (detail: { isInstallable: true })
- *   pwa-installed        - User accepted install (detail: { outcome: 'accepted' })
- *   cache-invalidated    - Cache entries with given tags cleared (detail: { tags })
- *   mutation-sync-complete - Queued mutations synced (detail: { succeeded, failed })
- *   mutation-queue-changed - Queue modified
- *   mutation-rollback     - Mutation exhausted retries (detail: { method, url, tempId, previousData })
- *   sw-auth-unauthorized  - 401 response received (token expired or invalid)${authEnabled ? `
- *   sw-auth-state-change  - Login or logout (detail: { authenticated: boolean })` : ""}
  *
  * Window properties:
  *   window.latestSWVersion       - Latest version from version.json
  *   window.currentSWVersion      - Active SW version
  *   window.swAvailableVersion    - Pending update version
  *   window.swUpdateRequired      - Forced update needed (version < minSupportedVersion)
- *   window.swMinSupportedVersion - Minimum supported version from version.json
+ *   window.swMinSupportedVersion - Minimum supported version
  *   window.swReady               - SW is active
  *   window.swError               - Registration failed
- *   window.deferredInstallPrompt - Captured BeforeInstallPromptEvent
- *   window.pwaInstallable        - Whether PWA can be installed
  */
-${mutationQueueEnabled ? `import { processMutationQueue } from "./mutation-queue.${ext}";
+${mutationQueueEnabled ? `import { processMutationQueue } from "../mutation-queue.${ext}";
 ` : ""}
 const AUTO_UPDATE = ${autoUpdate};
 const AUTO_ACTIVATE = ${autoActivate};
@@ -204,15 +186,24 @@ export async function skipWaiting() {
 
   const simpleCode = `/**
  * Swoff SW Injector (Simple Mode)
- * Fixed SW URL — no versioned URLs or update events.
+ * Fixed SW URL with hash-based cache name — no versioned URLs or update events.
  *
  * Usage:
- *   import { initServiceWorker } from './swoff/sw-injector.${ext}';
+ *   import { initServiceWorker } from './swoff/sw/injector.${ext}';
  *   initServiceWorker();
+ *
+ * Window events:
+ *   sw-ready  - SW active and controlling page
+ *   sw-error  - SW registration failed
+ *
+ * Window properties:
+ *   window.currentSWVersion  - "simple"
+ *   window.swReady           - SW is active
+ *   window.swError           - Registration failed
  */
-${mutationQueueEnabled ? `import { processMutationQueue } from "./mutation-queue.${ext}";
+${mutationQueueEnabled ? `import { processMutationQueue } from "../mutation-queue.${ext}";
 ` : ""}
-function waitForController() {
+async function waitForController() {
   return new Promise((resolve) => {
     if (navigator.serviceWorker.controller) {
       resolve();
@@ -241,121 +232,7 @@ export async function initServiceWorker() {
 }
 `;
 
-  const sharedPwaCode = `
-// --- PWA Install Support ---
-window.addEventListener("beforeinstallprompt", (e) => {
-  window.deferredInstallPrompt = e;
-  window.pwaInstallable = true;
+  const code = versionEnabled ? versionedCode : simpleCode;
 
-  if (${preventDefaultInstall}) {
-    e.preventDefault();
-  }
-
-  window.dispatchEvent(
-    new CustomEvent("pwa-installable", {
-      detail: { isInstallable: true },
-    })
-  );
-});
-
-window.addEventListener("appinstalled", () => {
-  window.deferredInstallPrompt = null;
-  window.pwaInstallable = false;
-
-  window.dispatchEvent(
-    new CustomEvent("pwa-installed", {
-      detail: { outcome: "accepted" },
-    })
-  );
-});
-`;
-
-  const sharedListenerCode = `${mutationQueueEnabled ? `
-// --- Mutation Queue Listener ---
-window.addEventListener("online", processMutationQueue);
-` : ""}
-// --- SW Message Listener ---
-if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-  navigator.serviceWorker.addEventListener("message", (event) => {
-    if (event.data.type === "SW_PROGRESS") {
-      const { percent, downloaded, total } = event.data;
-      window.dispatchEvent(
-        new CustomEvent("sw-progress", {
-          detail: { percent, downloaded, total },
-        })
-      );
-    }
-    if (event.data.type === "BACKGROUND_SYNC_COMPLETE") {
-      const { succeeded, failed, tags } = event.data.detail;
-      window.dispatchEvent(
-        new CustomEvent("mutation-sync-complete", {
-          detail: { succeeded, failed },
-        })
-      );
-      if (tags && tags.length > 0) {
-        window.dispatchEvent(
-          new CustomEvent("cache-invalidated", { detail: { tags } })
-        );
-      }
-      window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
-    }
-${crossTabSync ? `
-    if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
-      window.dispatchEvent(
-        new CustomEvent("cache-invalidated", {
-          detail: { tags: [event.data.tag] },
-        })
-      );
-    }
-` : ""}  });
-}
-`;
-
-  const sharedCode = `${pwaEnabled ? sharedPwaCode : ""}
-${mutationQueueEnabled ? `
-// --- Mutation Queue Listener ---
-window.addEventListener("online", processMutationQueue);
-` : ""}
-// --- SW Message Listener ---
-if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-  navigator.serviceWorker.addEventListener("message", (event) => {
-    if (event.data.type === "SW_PROGRESS") {
-      const { percent, downloaded, total } = event.data;
-      window.dispatchEvent(
-        new CustomEvent("sw-progress", {
-          detail: { percent, downloaded, total },
-        })
-      );
-    }
-    if (event.data.type === "BACKGROUND_SYNC_COMPLETE") {
-      const { succeeded, failed, tags } = event.data.detail;
-      window.dispatchEvent(
-        new CustomEvent("mutation-sync-complete", {
-          detail: { succeeded, failed },
-        })
-      );
-      if (tags && tags.length > 0) {
-        window.dispatchEvent(
-          new CustomEvent("cache-invalidated", { detail: { tags } })
-        );
-      }
-      window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
-    }
-${crossTabSync ? `
-    if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
-      window.dispatchEvent(
-        new CustomEvent("cache-invalidated", {
-          detail: { tags: [event.data.tag] },
-        })
-      );
-    }
-` : ""}  });
-}
-`;
-
-  const code = versionEnabled
-    ? `${versionedCode}\n${sharedCode}`
-    : `${simpleCode}\n${sharedCode}`;
-
-  writeFile(ctx, `sw-injector.${ext}`, code);
+  writeFile(ctx, `sw/injector.${ext}`, code);
 }

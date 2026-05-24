@@ -8,10 +8,10 @@ export function generateSwGeneratorBuild(ctx: GeneratorContext): void {
   const code = `#!/usr/bin/env node
 /**
  * Swoff SW Generator Build Script
- * Reads swoff/sw-template.js and generates versioned SW output.
+ * Reads swoff/sw/template.js and generates versioned SW output.
  *
  * Add to package.json:
- *   "build": "your-build && node swoff/sw-generator.js"
+ *   "build": "your-build && node swoff/sw/generator.js"
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
@@ -23,7 +23,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
 
 const pkgPath = join(projectRoot, 'package.json');
-const templatePath = join(__dirname, 'sw-template.js');
+const templatePath = join(__dirname, 'template.js');
 const configPath = join(projectRoot, 'swoff.config.json');
 
 if (!existsSync(configPath)) {
@@ -33,7 +33,7 @@ if (!existsSync(configPath)) {
 }
 
 if (!existsSync(templatePath)) {
-  console.error('Error: swoff/sw-template.js not found');
+  console.error('Error: swoff/sw/template.js not found');
   process.exit(1);
 }
 
@@ -107,5 +107,5 @@ if (!versionEnabled) {
 }
 `;
 
-  writeFile(ctx, "sw-generator.js", code);
+  writeFile(ctx, "sw/generator.js", code);
 }

@@ -12,7 +12,7 @@ npx @swoff/cli generate
 Import the generated SW injector in your app entry point:
 
 ```js
-import { initServiceWorker } from './swoff/sw-injector.js';
+import { initServiceWorker } from './swoff/client-injector.js';
 
 initServiceWorker();
 ```

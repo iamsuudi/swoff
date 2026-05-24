@@ -1,18 +1,4 @@
 /**
- * Generates auth-store.ts/js — token storage with memory-only for token,
- * IndexedDB for offline user info only (no token persisted).
- *
- * Security: the Bearer token lives in memory only and is cleared on page
- * refresh. Only { user, expiresAt } is persisted to IndexedDB for offline
- * user display. After a page refresh, re-login is required.
- */
-
-import { GeneratorContext, writeFile } from "./context.js";
-
-export function generateAuthStore(ctx: GeneratorContext): void {
-  const ext = ctx.ext;
-
-  const code = `/**
  * Auth Store — Token in memory only; user info in IndexedDB for offline access.
  *
  * Security:
@@ -21,7 +7,7 @@ export function generateAuthStore(ctx: GeneratorContext): void {
  *   user info offline. After a page refresh, re-login is required.
  *
  * Usage:
- *   import { setAuth, getAuth, clearAuth, isAuthValid } from "./auth/store.${ext}";
+ *   import { setAuth, getAuth, clearAuth, isAuthValid } from "./auth-store.ts";
  *
  *   await setAuth({ token, user, expiresAt });
  *   const auth = await getAuth();
@@ -123,8 +109,4 @@ export function isAuthValid(auth) {
   if (!auth) return false;
   if (!auth.expiresAt) return true;
   return Date.now() < auth.expiresAt;
-}
-`;
-
-  writeFile(ctx, `auth/store.${ext}`, code);
 }

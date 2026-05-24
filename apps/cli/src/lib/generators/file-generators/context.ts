@@ -4,7 +4,7 @@
  */
 
 import { existsSync, mkdirSync, writeFileSync } from "fs";
-import { join } from "path";
+import { join, dirname } from "path";
 import type { SwoffConfig } from "../../shared/config-types.js";
 
 export interface GeneratorContext {
@@ -16,12 +16,13 @@ export interface GeneratorContext {
   frameworkName: string;
 }
 
-export function ensureSwoffDir(ctx: GeneratorContext): void {
-  if (!existsSync(ctx.swoffDir)) mkdirSync(ctx.swoffDir, { recursive: true });
+export function ensureDir(dir: string): void {
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
 
 export function writeFile(ctx: GeneratorContext, filename: string, code: string): void {
-  ensureSwoffDir(ctx);
-  writeFileSync(join(ctx.swoffDir, filename), code);
+  const fullPath = join(ctx.swoffDir, filename);
+  ensureDir(dirname(fullPath));
+  writeFileSync(fullPath, code);
   ctx.generatedFiles.push(`swoff/${filename}`);
 }

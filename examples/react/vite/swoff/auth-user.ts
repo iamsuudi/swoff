@@ -1,25 +1,15 @@
 /**
- * Generates auth-user.ts/js — fetch, cache, and invalidate current user.
- */
-
-import { GeneratorContext, writeFile } from "./context.js";
-
-export function generateAuthUser(ctx: GeneratorContext): void {
-  const ext = ctx.ext;
-  const userEndpoint = ctx.config.features.auth.userEndpoint;
-
-  const code = `/**
  * Current User — fetch, cache, and invalidate the current user for offline access.
  *
  * Usage:
- *   import { fetchCurrentUser, cacheUser, getCachedUser, clearCachedUser } from "./auth/user.${ext}";
+ *   import { fetchCurrentUser, cacheUser, getCachedUser, clearCachedUser } from "./auth-user.ts";
  *
  *   await fetchCurrentUser();           // Fetch from server & cache
  *   const user = await getCachedUser(); // Get cached (offline-capable)
  *   await clearCachedUser();            // Clear on logout
  */
 
-import { authenticatedFetch } from "./fetch.${ext}";
+import { authenticatedFetch } from "./auth-fetch.ts";
 
 const DB_NAME = "swoff-auth-user";
 const STORE_NAME = "current-user";
@@ -43,7 +33,7 @@ function openAuthDB() {
  * Uses userEndpoint from swoff.config.json.
  */
 export async function fetchCurrentUser() {
-  const response = await authenticatedFetch("${userEndpoint}");
+  const response = await authenticatedFetch("/api/me");
   if (!response.ok) throw new Error("Failed to fetch user");
 
   const user = await response.json();
@@ -91,8 +81,4 @@ export async function clearCachedUser() {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
-}
-`;
-
-  writeFile(ctx, `auth/user.${ext}`, code);
 }

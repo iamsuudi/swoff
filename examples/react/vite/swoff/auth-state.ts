@@ -1,13 +1,4 @@
 /**
- * Generates auth-state.ts/js — auth state detection for the 4-state matrix.
- */
-
-import { GeneratorContext, writeFile } from "./context.js";
-
-export function generateAuthState(ctx: GeneratorContext): void {
-  const ext = ctx.ext;
-
-  const code = `/**
  * Auth State — detect the four auth states for offline/online handling.
  *
  * States:
@@ -17,12 +8,12 @@ export function generateAuthState(ctx: GeneratorContext): void {
  *   4. Offline + Unauthenticated → Strict offline (public content only)
  *
  * Usage:
- *   import { getAuthState } from "./auth/state.${ext}";
+ *   import { getAuthState } from "./auth-state.ts";
  *   const { authenticated, user, online } = await getAuthState();
  */
 
-import { getAuth, isAuthValid } from "./store.${ext}";
-import { getCachedUser } from "./user.${ext}";
+import { getAuth, isAuthValid } from "./auth-store.ts";
+import { getCachedUser } from "./auth-user.ts";
 
 export async function getAuthState() {
   const auth = await getAuth();
@@ -34,8 +25,4 @@ export async function getAuthState() {
     user,
     online: navigator.onLine,
   };
-}
-`;
-
-  writeFile(ctx, `auth/state.${ext}`, code);
 }

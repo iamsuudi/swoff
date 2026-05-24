@@ -14,6 +14,8 @@ declare global {
     swMinSupportedVersion?: string;
     swReady?: boolean;
     swError?: boolean;
+    swAuthState?: "authenticated" | "unauthenticated" | "loading";
+    swCurrentUser?: object | null;
   }
 }
 

@@ -6,6 +6,8 @@
 import { log } from "../cli/logger.js";
 import { loadConfig } from "../config/loader.js";
 import { detectProjectLanguage } from "../utils/detect-language.js";
+import { detectFramework } from "../utils/detect-framework.js";
+import { generateGuide } from "./generate-guide.js";
 import { generateSW } from "../generators/sw-generator.js";
 import { generateFiles } from "../generators/swoff-files-generator.js";
 import type { GeneratorContext } from "../generators/file-generators/context.js";
@@ -50,7 +52,7 @@ export async function generateCommand(
 
   log.info(`Config: ${configPath}`);
 
-  const detectedLang = language ?? detectProjectLanguage(projectRoot);
+  const detectedLang = (language ?? detectProjectLanguage(projectRoot)) as "ts" | "js";
   log.info(`Language: ${detectedLang}`);
 
   if (!filesOnly) {
@@ -96,17 +98,8 @@ export async function generateCommand(
   }
 
   log.success("Generation complete!");
-  log.normal("\nNext steps:");
-  log.help("1. Import initServiceWorker in your app entry point:");
-  log.help("   import { initServiceWorker } from 'swoff/sw-injector.js';");
-  log.help("   initServiceWorker();");
-  log.help("2. Use the fetch wrapper for API calls:");
-  log.help("   import { fetchWithCache } from 'swoff/fetch-wrapper.js';");
-  log.help(
-    "   const data = await fetchWithCache('/api/data').then(r => r.json());",
-  );
-  log.help(
-    '3. Add to your build script: "build": "your-build && node swoff/sw-generator.js"',
-  );
-  log.help("4. Read the docs: https://swoff.netlify.app/docs");
+
+  const projectInfo = detectFramework(projectRoot);
+  const guide = generateGuide({ config, projectInfo, lang: detectedLang });
+  log.normal("\n" + guide.join("\n"));
 }

@@ -6,6 +6,9 @@ import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateMutationQueue(ctx: GeneratorContext): void {
   const ext = ctx.ext;
+  const ts = ext === "ts";
+  const T = (type: string) => (ts ? `: ${type}` : "");
+  const R = (type: string) => (ts ? `: ${type} ` : " ");
   const authEnabled = ctx.config.features.auth.enabled;
 
   const importLines = authEnabled
@@ -54,7 +57,7 @@ ${importLines}${additionalImports}const DB_NAME = "swoff-queue";
 const STORE_NAME = "mutations";
 const MAX_RETRIES = 5;
 
-function openQueueDB() {
+function openQueueDB${R("Promise<IDBDatabase>")}{
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
     request.onupgradeneeded = (e) => {
@@ -71,174 +74,20 @@ function openQueueDB() {
 
 let isSyncing = false;
 
-export async function queueMutation(mutation) {
-  const db = await openQueueDB();
-  const tx = db.transaction(STORE_NAME, "readwrite");
-  const store = tx.objectStore(STORE_NAME);
-
-  store.add({
-    id: crypto.randomUUID(),
-    method: mutation.method,
-    url: mutation.url,
-    body: mutation.body,
-    headers: mutation.headers || {},
-    previousData: mutation.previousData || null,
-    timestamp: Date.now(),
-    retryCount: 0,
-    tags: mutation.tags || [],
-    storeName: mutation.storeName || null,
-    tempId: mutation.tempId || null,
-  });
-
-  await new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-
-  window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
-}
-
-export async function processMutationQueue() {
-  if (!navigator.onLine || isSyncing) return;
-  isSyncing = true;
-
-  try {
-${authReplayBlock}    const db = await openQueueDB();
-    const tx = db.transaction(STORE_NAME, "readonly");
-    const store = tx.objectStore(STORE_NAME);
-    const index = store.index("by-timestamp");
-    const queue = await new Promise((resolve, reject) => {
-      const request = index.getAll();
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-
-    let succeeded = 0;
-    let failed = 0;
-
-    for (const item of queue) {
-      if (item.retryCount >= MAX_RETRIES) {
-        await rollbackMutation(item);
-        await removeFromQueue(item.id);
-        failed++;
-        continue;
-      }
-
-      try {
-        const response = await fetch(item.url, {
-          method: item.method,
-          headers: {
-            "Content-Type": "application/json",
-${authHeadersSpread}            ...item.headers,
-          },
-          body: JSON.stringify(item.body),
-        });
-
-        if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
-
-        const serverData = await response.json();
-
-        if (item.tempId && item.storeName) {
-          await reconcileRecord(item.storeName, item.tempId, serverData);
-        }
-
-        if (item.tags && item.tags.length > 0) {
-          await invalidateByTags(item.tags);
-        }
-
-        await removeFromQueue(item.id);
-        succeeded++;
-      } catch {
-        item.retryCount++;
-        await updateInQueue(item);
-        failed++;
-      }
-    }
-
-    window.dispatchEvent(
-      new CustomEvent("mutation-sync-complete", {
-        detail: { succeeded, failed },
-      })
-    );
-  } finally {
-    isSyncing = false;
-    window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
-  }
-}
-
-export async function flushMutations() {
+export async function queueMutation(mutation${T("object")}${R("Promise<void>")}{
+export async function processMutationQueue()${R("Promise<void>")}{
+export async function flushMutations()${R("Promise<void>")}{
   await processMutationQueue();
 }
 `;
 
   // Helper functions (unchanged) are appended outside the template string
   const helpers = `
-async function removeFromQueue(id) {
-  const db = await openQueueDB();
-  const tx = db.transaction(STORE_NAME, "readwrite");
-  tx.objectStore(STORE_NAME).delete(id);
-  await new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function updateInQueue(item) {
-  const db = await openQueueDB();
-  const tx = db.transaction(STORE_NAME, "readwrite");
-  tx.objectStore(STORE_NAME).put(item);
-  await new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function rollbackMutation(item) {
-  if (!item.storeName) return;
-
-  if (item.method === "POST" && item.tempId) {
-    await deleteRecord(item.storeName, item.tempId);
-  } else if (
-    (item.method === "PUT" || item.method === "PATCH") &&
-    item.previousData
-  ) {
-    await putRecord(item.storeName, { ...item.previousData, $synced: true });
-  } else if (item.method === "DELETE" && item.tempId && item.previousData) {
-    await putRecord(item.storeName, { ...item.previousData, $synced: true });
-  }
-
-  window.dispatchEvent(
-    new CustomEvent("mutation-rollback", {
-      detail: {
-        method: item.method,
-        url: item.url,
-        tempId: item.tempId,
-        previousData: item.previousData,
-      },
-    })
-  );
-}
-
-async function reconcileRecord(storeName, tempId, serverData) {
-  const existing = await getRecord(storeName, tempId);
-  if (!existing) return;
-
-  const reconciled = {
-    ...existing,
-    ...serverData,
-    id: serverData.id,
-    $synced: true,
-    $syncedAt: Date.now(),
-  };
-
-  await putRecord(storeName, reconciled);
-
-  if (String(tempId) !== String(serverData.id)) {
-    await deleteRecord(storeName, tempId);
-  }
-}
-
-export async function getPendingCount() {
+async function removeFromQueue(id${T("string")}${R("Promise<void>")}{
+async function updateInQueue(item${T("object")}${R("Promise<void>")}{
+async function rollbackMutation(item${T("object")}${R("Promise<void>")}{
+async function reconcileRecord(storeName${T("string")}, tempId${T("string")}, serverData${T("object")}${R("Promise<void>")}{
+export async function getPendingCount()${R("Promise<number>")}{
   const db = await openQueueDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");

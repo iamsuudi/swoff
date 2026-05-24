@@ -6,6 +6,8 @@ import { GeneratorContext, writeFile } from "./context.js";
 
 export function generatePwaInstall(ctx: GeneratorContext): void {
   const ext = ctx.ext;
+  const ts = ext === "ts";
+  const R = (type: string) => (ts ? `: ${type} ` : " ");
   const preventDefaultInstall = ctx.config.features.pwa.preventDefaultInstall;
 
   const code = `/**
@@ -25,7 +27,7 @@ export function generatePwaInstall(ctx: GeneratorContext): void {
  *   window.deferredInstallPrompt - The captured BeforeInstallPromptEvent
  */
 
-export function setupPwaInstall() {
+export function setupPwaInstall()${R("void")}{
   window.addEventListener("beforeinstallprompt", (e) => {
     window.deferredInstallPrompt = e;
     window.pwaInstallable = true;
@@ -53,11 +55,11 @@ export function setupPwaInstall() {
   });
 }
 
-export function isInstallable() {
+export function isInstallable()${R("boolean")}{
   return !!window.deferredInstallPrompt;
 }
 
-export async function promptInstall() {
+export async function promptInstall()${R("Promise<{ outcome: string }>")}{
   if (!window.deferredInstallPrompt) {
     throw new Error("Install prompt not available");
   }

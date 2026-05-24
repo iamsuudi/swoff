@@ -6,6 +6,9 @@ import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateAuthUser(ctx: GeneratorContext): void {
   const ext = ctx.ext;
+  const ts = ext === "ts";
+  const T = (type: string) => (ts ? `: ${type}` : "");
+  const R = (type: string) => (ts ? `: ${type} ` : " ");
   const userEndpoint = ctx.config.features.auth.userEndpoint;
 
   const code = `/**
@@ -24,7 +27,7 @@ import { authenticatedFetch } from "./fetch.${ext}";
 const DB_NAME = "swoff-auth-user";
 const STORE_NAME = "current-user";
 
-function openAuthDB() {
+function openAuthDB()${R("Promise<IDBDatabase>")}{
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
     request.onupgradeneeded = (e) => {
@@ -38,11 +41,7 @@ function openAuthDB() {
   });
 }
 
-/**
- * Fetch current user from your backend and cache locally.
- * Uses userEndpoint from swoff.config.json.
- */
-export async function fetchCurrentUser() {
+export async function fetchCurrentUser()${R("Promise<Record<string, unknown>>")}{
   const response = await authenticatedFetch("${userEndpoint}");
   if (!response.ok) throw new Error("Failed to fetch user");
 
@@ -51,12 +50,9 @@ export async function fetchCurrentUser() {
   return user;
 }
 
-/**
- * Store user in IndexedDB for offline access.
- */
-export async function cacheUser(user) {
+export async function cacheUser(user${T("Record<string, unknown>")}${R("Promise<void>")}{
   const db = await openAuthDB();
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
     store.put({ key: "user", value: user });
@@ -65,10 +61,7 @@ export async function cacheUser(user) {
   });
 }
 
-/**
- * Get cached user — works offline.
- */
-export async function getCachedUser() {
+export async function getCachedUser()${R("Promise<Record<string, unknown> | null>")}{
   const db = await openAuthDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
@@ -79,12 +72,9 @@ export async function getCachedUser() {
   });
 }
 
-/**
- * Clear cached user on logout.
- */
-export async function clearCachedUser() {
+export async function clearCachedUser()${R("Promise<void>")}{
   const db = await openAuthDB();
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
     store.delete("user");

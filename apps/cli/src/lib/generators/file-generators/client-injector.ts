@@ -6,6 +6,7 @@ import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateClientInjector(ctx: GeneratorContext): void {
   const ext = ctx.ext;
+  const ts = ext === "ts";
   const pwaEnabled = ctx.config.features.pwa.enabled;
   const mutationQueueEnabled = ctx.config.features.mutationQueue;
   const crossTabSync = ctx.config.features.crossTabSync;
@@ -112,7 +113,7 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
     }${crossTabHandler}  });
 }
 
-export async function initServiceWorker() {
+export async function initServiceWorker()${ts ? ": Promise<void>" : " "}{
 ${clientRegistration ? "  await swInit();" : "  // No SW registration configured"}
 }${swExports}
 `;

@@ -6,6 +6,9 @@ import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateStore(ctx: GeneratorContext): void {
   const ext = ctx.ext;
+  const ts = ext === "ts";
+  const T = (type: string) => (ts ? `: ${type}` : "");
+  const R = (type: string) => (ts ? `: ${type} ` : " ");
   const dbName = "app-db";
 
   const code = `/**
@@ -22,7 +25,7 @@ export function generateStore(ctx: GeneratorContext): void {
 
 const DB_NAME = "${dbName}";
 
-export function openAppDB() {
+export function openAppDB${R("Promise<IDBDatabase>")}{
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME);
     request.onsuccess = (e) => resolve(e.target.result);
@@ -30,7 +33,7 @@ export function openAppDB() {
   });
 }
 
-export async function getRecord(storeName, id) {
+export async function getRecord(storeName${T("string")}, id${T("IDBValidKey")}${R("Promise<Record<string, unknown> | undefined>")}{
   const db = await openAppDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, "readonly");
@@ -41,7 +44,7 @@ export async function getRecord(storeName, id) {
   });
 }
 
-export async function putRecord(storeName, record) {
+export async function putRecord(storeName${T("string")}, record${T("Record<string, unknown>")}${R("Promise<IDBValidKey>")}{
   const db = await openAppDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, "readwrite");
@@ -52,9 +55,9 @@ export async function putRecord(storeName, record) {
   });
 }
 
-export async function deleteRecord(storeName, id) {
+export async function deleteRecord(storeName${T("string")}, id${T("IDBValidKey")}${R("Promise<void>")}{
   const db = await openAppDB();
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     const tx = db.transaction(storeName, "readwrite");
     const store = tx.objectStore(storeName);
     const request = store.delete(id);
@@ -63,7 +66,7 @@ export async function deleteRecord(storeName, id) {
   });
 }
 
-export async function getAllRecords(storeName) {
+export async function getAllRecords(storeName${T("string")}${R("Promise<Record<string, unknown>[]>")}{
   const db = await openAppDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, "readonly");

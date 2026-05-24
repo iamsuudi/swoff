@@ -7,31 +7,32 @@ import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateAuthFetch(ctx: GeneratorContext): void {
   const ext = ctx.ext;
+  const ts = ext === "ts";
+  const T = (type: string) => (ts ? `: ${type}` : "");
+  const RT = (type: string) => (ts ? `): ${type} ` : ") ");
+
   const authConfig = ctx.config.features.auth;
   const { refreshPath, userEndpoint, type } = authConfig;
 
   function generateWithAuthHeaders(): string {
+    const h = T("Headers");
+    const a = T("object | null");
+
     switch (type) {
       case "cookie":
-        return `function withAuthHeaders(headers, _auth) {
-  // Cookie/Session auth — browser auto-sends cookies.
-  // No header modification needed.
+        return `function withAuthHeaders(headers${h}, _auth${a}${RT("Headers")}{
   return headers;
 }`;
       case "bearer":
-        return `function withAuthHeaders(headers, auth) {
-  // --- EDIT THIS BLOCK FOR YOUR BACKEND ---
-  // JWT Bearer token:
+        return `function withAuthHeaders(headers${h}, auth${a}${RT("Headers")}{
   if (auth?.token) {
     headers.set("Authorization", \`Bearer \${auth.token}\`);
   }
-  // --- END OF EDITABLE BLOCK ---
   return headers;
 }`;
       case "custom":
-        return `function withAuthHeaders(headers, auth) {
+        return `function withAuthHeaders(headers${h}, auth${a}${RT("Headers")}{
   // --- EDIT THIS BLOCK FOR YOUR BACKEND ---
-  // Custom header (e.g., X-API-Key, X-Auth-Token):
   // if (auth?.token) {
   //   headers.set("X-Auth-Token", auth.token);
   // }
@@ -39,12 +40,10 @@ export function generateAuthFetch(ctx: GeneratorContext): void {
   return headers;
 }`;
       default:
-        return `function withAuthHeaders(headers, auth) {
-  // --- EDIT THIS BLOCK FOR YOUR BACKEND ---
+        return `function withAuthHeaders(headers${h}, auth${a}${RT("Headers")}{
   if (auth?.token) {
     headers.set("Authorization", \`Bearer \${auth.token}\`);
   }
-  // --- END OF EDITABLE BLOCK ---
   return headers;
 }`;
     }
@@ -73,7 +72,7 @@ ${generateWithAuthHeaders()}
  * Auth endpoints that should never be cached by the SW.
  * Edit this list to match your backend's auth routes.
  */
-function isAuthUrl(url) {
+function isAuthUrl(url${T("string")}${RT("boolean")}{
   const authPaths = [
     "/login",
     "/logout",
@@ -91,7 +90,7 @@ function isAuthUrl(url) {
  * Auth-aware fetch wrapper.
  * Attaches identity, excludes auth endpoints from cache, handles 401.
  */
-export async function authenticatedFetch(input, options = {}) {
+export async function authenticatedFetch(input${T("RequestInfo")}, options${T("RequestInit")}${RT("Promise<Response>")}{
   const auth = await getAuth();
   const headers = new Headers(options.headers);
 

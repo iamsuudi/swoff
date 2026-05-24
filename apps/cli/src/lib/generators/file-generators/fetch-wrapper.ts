@@ -6,6 +6,10 @@ import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateFetchWrapper(ctx: GeneratorContext): void {
   const ext = ctx.ext;
+  const ts = ext === "ts";
+  const T = (type: string) => (ts ? `: ${type}` : "");
+  const R = (type: string) => (ts ? `: ${type} ` : " ");
+
   const code = `/**
  * Swoff Fetch Wrapper
  * Framework-agnostic fetch with cache strategy, tags, and query deduplication.
@@ -31,7 +35,7 @@ export function generateFetchWrapper(ctx: GeneratorContext): void {
 
 const inFlightRequests = new Map();
 
-export async function fetchWithCache(input, options = {}) {
+export async function fetchWithCache(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; staleWhileRevalidate?: boolean }")}${R("Promise<Response>")}{
   const headers = new Headers(options.headers);
   const method = options.method || "GET";
 
@@ -65,7 +69,7 @@ export async function fetchWithCache(input, options = {}) {
   return fetch(input, { ...options, headers });
 }
 
-export async function fetchWithCacheOrQueue(input, options = {}) {
+export async function fetchWithCacheOrQueue(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; staleWhileRevalidate?: boolean }")}${R("Promise<Response>")}{
   if (!navigator.onLine) {
     if (options.method === "GET" || options.method === "HEAD") {
       const cached = await caches.match(input);

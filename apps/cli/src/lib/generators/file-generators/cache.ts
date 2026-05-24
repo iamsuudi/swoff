@@ -6,6 +6,9 @@ import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateCache(ctx: GeneratorContext): void {
   const ext = ctx.ext;
+  const ts = ext === "ts";
+  const T = (type: string) => (ts ? `: ${type}` : "");
+  const R = (type: string) => (ts ? `: ${type} ` : " ");
 
   const code = `/**
  * Swoff Cache Invalidation
@@ -18,7 +21,7 @@ export function generateCache(ctx: GeneratorContext): void {
  *   await invalidateByTag("todos");
  */
 
-export async function invalidateByTag(tag) {
+export async function invalidateByTag(tag${T("string")}${R("Promise<void>")}{
   if (!navigator.serviceWorker?.controller) return;
 
   navigator.serviceWorker.controller.postMessage({
@@ -31,7 +34,7 @@ export async function invalidateByTag(tag) {
   );
 }
 
-export async function invalidateByTags(tags) {
+export async function invalidateByTags(tags${T("string[]")}${R("Promise<void>")}{
   for (const tag of tags) {
     await invalidateByTag(tag);
   }

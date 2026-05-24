@@ -6,6 +6,10 @@ import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateReconcile(ctx: GeneratorContext): void {
   const ext = ctx.ext;
+  const ts = ext === "ts";
+  const T = (type: string) => (ts ? `: ${type}` : "");
+  const R = (type: string) => (ts ? `: ${type} ` : " ");
+
   const code = `/**
  * Swoff ID Reconciliation
  * Update local records with server data after mutation sync.
@@ -18,7 +22,7 @@ export function generateReconcile(ctx: GeneratorContext): void {
 
 import { getRecord, putRecord, deleteRecord } from './store.${ext}';
 
-export async function reconcileRecord(storeName, tempId, serverData) {
+export async function reconcileRecord(storeName${T("string")}, tempId${T("string")}, serverData${T("Record<string, unknown>")}${R("Promise<void>")}{
   const existing = await getRecord(storeName, tempId);
   if (!existing) return;
 
@@ -39,17 +43,8 @@ export async function reconcileRecord(storeName, tempId, serverData) {
   await reconcileReferences(storeName, tempId, serverData.id);
 }
 
-export async function reconcileReferences(storeName, oldId, newId) {
+export async function reconcileReferences(storeName${T("string")}, oldId${T("string")}, newId${T("string | number")}${R("Promise<void>")}{
   // Override this for your app's schema.
-  // Example: update foreign-key references in related stores.
-  //
-  // const txns = await getAllRecords('transactions');
-  // for (const txn of txns) {
-  //   if (txn.todoId === oldId) {
-  //     txn.todoId = newId;
-  //     await putRecord('transactions', txn);
-  //   }
-  // }
 }
 `;
 

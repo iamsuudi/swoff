@@ -8,8 +8,11 @@ export function generateSwInjector(ctx: GeneratorContext): void {
   const autoUpdate = ctx.config.features.serviceWorker.autoUpdate;
   const autoActivate = ctx.config.features.serviceWorker.autoActivate;
   const versionEnabled = ctx.config.features.serviceWorker.version.enabled;
-  const mutationQueueEnabled = ctx.config.features.mutationQueue;
   const ext = ctx.ext;
+  const ts = ext === "ts";
+
+  const T = (type: string) => (ts ? `: ${type}` : "");
+  const R = (type: string) => (ts ? `: ${type} ` : " ");
 
   const versionedCode = `/**
  * Swoff SW Injector
@@ -35,12 +38,10 @@ export function generateSwInjector(ctx: GeneratorContext): void {
  *   window.swReady               - SW is active
  *   window.swError               - Registration failed
  */
-${mutationQueueEnabled ? `import { processMutationQueue } from "../mutation-queue.${ext}";
-` : ""}
 const AUTO_UPDATE = ${autoUpdate};
 const AUTO_ACTIVATE = ${autoActivate};
 
-function semverCompare(a, b) {
+function semverCompare(a${T("string")}, b${T("string")})${R("number")}{
   const pa = a.split('.').map(Number);
   const pb = b.split('.').map(Number);
   for (let i = 0; i < 3; i++) {
@@ -58,8 +59,8 @@ async function checkForUpdate() {
   return response.json();
 }
 
-async function waitForController() {
-  return new Promise((resolve) => {
+async function waitForController()${R("Promise<void>")}{
+  return new Promise<void>((resolve) => {
     if (navigator.serviceWorker.controller) {
       resolve();
     } else {
@@ -68,7 +69,7 @@ async function waitForController() {
   });
 }
 
-async function doRegisterServiceWorker(version) {
+async function doRegisterServiceWorker(version${T("string")})${R("Promise<ServiceWorkerRegistration>")}{
   const swUrl = \`/sw-v\${version}.js\`;
   const registration = await navigator.serviceWorker.register(swUrl);
   localStorage.setItem("swRegisteredVersion", version);
@@ -80,7 +81,7 @@ async function doRegisterServiceWorker(version) {
   return registration;
 }
 
-export async function initServiceWorker() {
+export async function initServiceWorker()${R("Promise<void>")}{
   if (!("serviceWorker" in navigator)) {
     console.warn("Service Workers not supported");
     return;
@@ -161,7 +162,7 @@ export async function initServiceWorker() {
   }
 }
 
-export async function handleUpdateApproved(newVersion) {
+export async function handleUpdateApproved(newVersion${T("string")})${R("Promise<void>")}{
   const registration = await navigator.serviceWorker.getRegistration();
   if (registration && registration.waiting) {
     registration.waiting.postMessage({ type: "SKIP_WAITING" });
@@ -176,7 +177,7 @@ export async function handleUpdateApproved(newVersion) {
   }
 }
 
-export async function skipWaiting() {
+export async function skipWaiting()${R("Promise<void>")}{
   const registration = await navigator.serviceWorker.ready;
   if (registration.waiting) {
     registration.waiting.postMessage({ type: "SKIP_WAITING" });
@@ -201,10 +202,8 @@ export async function skipWaiting() {
  *   window.swReady           - SW is active
  *   window.swError           - Registration failed
  */
-${mutationQueueEnabled ? `import { processMutationQueue } from "../mutation-queue.${ext}";
-` : ""}
-async function waitForController() {
-  return new Promise((resolve) => {
+async function waitForController()${R("Promise<void>")}{
+  return new Promise<void>((resolve) => {
     if (navigator.serviceWorker.controller) {
       resolve();
     } else {
@@ -213,7 +212,7 @@ async function waitForController() {
   });
 }
 
-export async function initServiceWorker() {
+export async function initServiceWorker()${R("Promise<void>")}{
   if (!("serviceWorker" in navigator)) {
     console.warn("Service Workers not supported");
     return;

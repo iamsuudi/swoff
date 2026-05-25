@@ -1,29 +1,31 @@
 {
   "enabled": true,
-  "version": "from-package",
-  "minSupportedVersion": "1.0.0",
   "features": {
     "pwa": {
       "enabled": true,
       "preventDefaultInstall": false
     },
     "serviceWorker": {
-      "versionedSw": true,
-      "autoRegister": true,
-      "autoActivate": false,
+      "version": {
+        "enabled": true,
+        "source": "from-package",
+        "minSupportedVersion": "1.0.0"
+      },
+      "autoUpdate": true,
+      "autoActivate": true,
       "defaultStrategy": "cache-first",
       "strategies": {
         "/api/*": "network-first",
         "/static/*": "cache-first"
       },
-      "clearRuntimeOnUpdate": false,
+      "clearRuntimeOnUpdate": true,
       "navigationMode": "spa",
       "spaEntry": "/index.html"
     },
-    "mutationQueue": false,
-    "backgroundSync": false,
+    "mutationQueue": true,
+    "backgroundSync": true,
     "auth": {
-      "enabled": false,
+      "enabled": true,
       "type": "bearer",
       "refreshPath": "/api/refresh",
       "userEndpoint": "/api/me"

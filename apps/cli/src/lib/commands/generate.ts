@@ -6,7 +6,7 @@
 import { log } from "../cli/logger.js";
 import { loadConfig } from "../config/loader.js";
 import { detectProjectLanguage } from "../utils/detect-language.js";
-import { generateGuide } from "./generate-guide.js";
+import { appendGeneratorToBuildScript } from "../utils/build-script.js";
 import { generateSW } from "../generators/sw-generator.js";
 import { generateFiles } from "../generators/swoff-files-generator.js";
 import type { GeneratorContext } from "../generators/file-generators/context.js";
@@ -102,6 +102,11 @@ export async function generateCommand(
 
   log.success("Generation complete!");
 
-  const guide = generateGuide({ config, frameworkName, lang: detectedLang });
-  log.normal("\n" + guide.join("\n"));
+  if (appendGeneratorToBuildScript(projectRoot)) {
+    log.info("Added SW generator to package.json build script");
+  }
+
+  log.normal("");
+  log.help("📖  Read swoff/GUIDE.md for the full integration guide");
+  log.help("📖  Read swoff/README.md for quick reference");
 }

@@ -15,21 +15,6 @@
       "description": "Enable or disable config-driven generation",
       "default": true
     },
-    "version": {
-      "type": "string",
-      "description": "Service Worker version. Use 'from-package' to read from package.json, or specify semver like '1.0.0'",
-      "default": "from-package",
-      "oneOf": [
-        { "const": "from-package" },
-        { "pattern": "^\\d+\\.\\d+\\.\\d+$" }
-      ]
-    },
-    "minSupportedVersion": {
-      "type": "string",
-      "description": "Minimum supported version for forced updates. Clients running older versions will be forced to update.",
-      "default": "0.0.0",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$"
-    },
     "framework": {
       "type": "string",
       "description": "Detected frontend framework. Used to generate framework-specific hooks and adapters. Set automatically by `swoff init`.",
@@ -61,19 +46,43 @@
           "type": "object",
           "description": "Service Worker configuration",
           "properties": {
-            "versionedSw": {
-              "type": "boolean",
-              "description": "Enable versioned service worker (prevents silent updates)",
-              "default": true
+            "version": {
+              "type": "object",
+              "description": "Service Worker versioning configuration",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Enable versioned service worker (versioned SW URL, version.json, update events). When disabled, uses a fixed SW URL with hash-based cache naming.",
+                  "default": true
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Version source. 'from-package' reads from package.json, 'manual' uses the value field.",
+                  "default": "from-package",
+                  "enum": ["from-package", "manual"]
+                },
+                "value": {
+                  "type": "string",
+                  "description": "Manual version value. Required when source is 'manual'. Must be semver (e.g., '1.0.0').",
+                  "pattern": "^\\d+\\.\\d+\\.\\d+$"
+                },
+                "minSupportedVersion": {
+                  "type": "string",
+                  "description": "Minimum supported version for forced updates. Clients running older versions will be forced to update.",
+                  "default": "0.0.0",
+                  "pattern": "^\\d+\\.\\d+\\.\\d+$"
+                }
+              },
+              "required": ["enabled", "source"]
             },
-            "autoRegister": {
+            "autoUpdate": {
               "type": "boolean",
               "description": "Automatically register new service worker versions when detected. When false, dispatches sw-update-available event for manual registration via handleUpdateApproved().",
               "default": true
             },
             "autoActivate": {
               "type": "boolean",
-              "description": "Automatically activate newly registered service workers (skipWaiting). Only applies when a new version is registered — use with autoRegister for fully silent updates, or wait for user consent then call handleUpdateApproved().",
+              "description": "Automatically activate newly registered service workers (skipWaiting). Only applies when a new version is registered — use with autoUpdate for fully silent updates, or wait for user consent then call handleUpdateApproved().",
               "default": false
             },
             "defaultStrategy": {
@@ -130,7 +139,7 @@
               "default": "/index.html"
             }
           },
-          "required": ["versionedSw", "autoRegister", "autoActivate", "defaultStrategy"]
+          "required": ["version", "autoUpdate", "autoActivate", "defaultStrategy"]
         },
         "mutationQueue": {
           "type": "boolean",
@@ -208,6 +217,6 @@
       "required": ["outputDir", "swFilename"]
     }
   },
-  "required": ["enabled", "version", "minSupportedVersion", "features", "build"],
+  "required": ["enabled", "features", "build"],
   "additionalProperties": false
 }

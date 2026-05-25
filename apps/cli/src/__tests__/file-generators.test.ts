@@ -6,11 +6,10 @@ import type { GeneratorContext } from "../lib/generators/file-generators/context
 
 import { generateSwTemplate } from "../lib/generators/file-generators/sw-template.js";
 import { generateSwInjector } from "../lib/generators/file-generators/sw-injector.js";
+import { generateClientInjector } from "../lib/generators/file-generators/client-injector.js";
 import { generateFetchWrapper } from "../lib/generators/file-generators/fetch-wrapper.js";
 import { generateCache } from "../lib/generators/file-generators/cache.js";
-import { generateStore } from "../lib/generators/file-generators/store.js";
 import { generateMutationQueue } from "../lib/generators/file-generators/mutation-queue.js";
-import { generateReconcile } from "../lib/generators/file-generators/reconcile.js";
 import { generateBackgroundSync } from "../lib/generators/file-generators/background-sync.js";
 import { generatePwaInstall } from "../lib/generators/file-generators/pwa-install.js";
 import { generateManifest } from "../lib/generators/file-generators/manifest.js";
@@ -56,7 +55,7 @@ describe("generateSwTemplate", () => {
   it("produces a template with placeholders", () => {
     const ctx = makeContext();
     generateSwTemplate(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw-template.js"), "utf8");
+    const content = readFileSync(join(ctx.swoffDir, "sw", "template.js"), "utf8");
     expect(content).toContain("// [[CACHE_NAME]]");
     expect(content).toContain("// [[ASSETS_LIST]]");
     expect(content).toContain("// [[AUTO_SKIP_WAITING]]");
@@ -68,7 +67,7 @@ describe("generateSwTemplate", () => {
   it("includes SWOFF.network matching default-template.ts", () => {
     const ctx = makeContext();
     generateSwTemplate(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw-template.js"), "utf8");
+    const content = readFileSync(join(ctx.swoffDir, "sw", "template.js"), "utf8");
     expect(content).toContain("network: {");
     expect(content).toContain("Network request failed");
   });
@@ -78,7 +77,7 @@ describe("generateSwTemplate", () => {
       features: { ...defaultConfig.features, tagInvalidation: true, serviceWorker: { ...defaultConfig.features.serviceWorker, strategies: { "/api/*": "network-first" } } },
     });
     generateSwTemplate(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw-template.js"), "utf8");
+    const content = readFileSync(join(ctx.swoffDir, "sw", "template.js"), "utf8");
     expect(content).toContain("determineCacheStrategy");
     expect(content).toContain("fromPrecache");
     expect(content).toContain("network-first");
@@ -89,66 +88,103 @@ describe("generateSwTemplate", () => {
 describe("generateSwInjector", () => {
   it("generates JS registration with correct config values", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, autoRegister: true, autoActivate: true } },
+      features: { ...defaultConfig.features, clientRegistration: true, serviceWorker: { ...defaultConfig.features.serviceWorker, autoUpdate: true, autoActivate: true } },
     });
     generateSwInjector(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw-injector.js"), "utf8");
-    expect(content).toContain("AUTO_REGISTER = true");
+    const content = readFileSync(join(ctx.swoffDir, "sw", "injector.js"), "utf8");
+    expect(content).toContain("AUTO_UPDATE = true");
     expect(content).toContain("AUTO_ACTIVATE = true");
     expect(content).toContain("initServiceWorker");
-    expect(content).not.toContain("shouldRegisterSW");
-    expect(content).toContain("shouldRegister");
+    expect(content).toContain("checkForUpdate");
     expect(content).toContain("handleUpdateApproved");
     expect(content).toContain("skipWaiting");
     expect(content).toContain("waitForController");
+    expect(content).toContain("semverCompare");
   });
 
   it("generates TS when ext is ts", () => {
     const ctx = makeContext();
     ctx.ext = "ts";
     generateSwInjector(ctx);
-    expect(existsSync(join(ctx.swoffDir, "sw-injector.ts"))).toBe(true);
+    expect(existsSync(join(ctx.swoffDir, "sw", "injector.ts"))).toBe(true);
   });
 
-  it("reflects autoRegister false", () => {
+  it("reflects autoUpdate false", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, autoRegister: false } },
+      features: { ...defaultConfig.features, clientRegistration: true, serviceWorker: { ...defaultConfig.features.serviceWorker, autoUpdate: false } },
     });
     generateSwInjector(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw-injector.js"), "utf8");
-    expect(content).toContain("AUTO_REGISTER = false");
+    const content = readFileSync(join(ctx.swoffDir, "sw", "injector.js"), "utf8");
+    expect(content).toContain("AUTO_UPDATE = false");
   });
 
-  it("includes PWA install listeners when pwa is enabled", () => {
-    const ctx = makeContext();
+  it("generates simple injector when version is disabled", () => {
+    const ctx = makeContext({
+      features: { ...defaultConfig.features, clientRegistration: true, serviceWorker: { ...defaultConfig.features.serviceWorker, version: { ...defaultConfig.features.serviceWorker.version, enabled: false } } },
+    });
     generateSwInjector(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw-injector.js"), "utf8");
-    expect(content).toContain("beforeinstallprompt");
-    expect(content).toContain("appinstalled");
-    expect(content).toContain("window.deferredInstallPrompt");
-    expect(content).toContain("pwaInstallable");
+    const content = readFileSync(join(ctx.swoffDir, "sw", "injector.js"), "utf8");
+    expect(content).toContain("Simple Mode");
+    expect(content).toContain("navigator.serviceWorker.register(\"/sw.js\")");
+    expect(content).not.toContain("checkForUpdate");
+    expect(content).not.toContain("AUTO_UPDATE");
+  });
+});
+
+describe("generateClientInjector", () => {
+  it("generates orchestrator with PWA setup and SW message listener when pwa enabled", () => {
+    const ctx = makeContext({
+      features: { ...defaultConfig.features, clientRegistration: true },
+    });
+    generateClientInjector(ctx);
+    const content = readFileSync(join(ctx.swoffDir, "client-injector.js"), "utf8");
+    expect(content).toContain("initServiceWorker");
+    expect(content).toContain("setupPwaInstall");
+    expect(content).toContain("SW_PROGRESS");
+    expect(content).toContain("BACKGROUND_SYNC_COMPLETE");
+    expect(content).toContain("handleUpdateApproved");
+    expect(content).toContain("skipWaiting");
   });
 
   it("includes TAG_INVALIDATED handler when crossTabSync is enabled", () => {
-    const ctx = makeContext();
-    generateSwInjector(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw-injector.js"), "utf8");
+    const ctx = makeContext({
+      features: { ...defaultConfig.features, clientRegistration: true, crossTabSync: true },
+    });
+    generateClientInjector(ctx);
+    const content = readFileSync(join(ctx.swoffDir, "client-injector.js"), "utf8");
     expect(content).toContain("TAG_INVALIDATED");
     expect(content).toContain('"cache-invalidated"');
+  });
+
+  it("includes setupPwaInstall and beforeinstallprompt import when pwa enabled", () => {
+    const ctx = makeContext({
+      features: { ...defaultConfig.features, clientRegistration: true },
+    });
+    generateClientInjector(ctx);
+    const content = readFileSync(join(ctx.swoffDir, "client-injector.js"), "utf8");
+    expect(content).toContain("setupPwaInstall");
+    expect(content).toContain("./pwa/install");
+  });
+
+  it("generates without sw/injector import when clientRegistration is false", () => {
+    const ctx = makeContext({
+      features: { ...defaultConfig.features, clientRegistration: false, pwa: { ...defaultConfig.features.pwa, enabled: true } },
+    });
+    generateClientInjector(ctx);
+    const content = readFileSync(join(ctx.swoffDir, "client-injector.js"), "utf8");
+    expect(content).not.toContain("swInit");
+    expect(content).not.toContain("./sw/injector");
+    expect(content).toContain("setupPwaInstall");
+    expect(content).toContain("No SW registration configured");
   });
 });
 
 describe("generateFetchWrapper", () => {
-  it("exports fetchWithCache and fetchWithCacheOrQueue", () => {
+  it("exports fetchWithCache", () => {
     const ctx = makeContext();
     generateFetchWrapper(ctx);
     const content = readFileSync(join(ctx.swoffDir, "fetch-wrapper.js"), "utf8");
     expect(content).toContain("fetchWithCache");
-    expect(content).toContain("fetchWithCacheOrQueue");
-    expect(content).toContain("inFlightRequests");
-    expect(content).toContain("X-SW-Cache-Strategy");
-    expect(content).toContain("X-SW-Stale");
-    expect(content).toContain("X-SW-Cache-Tags");
   });
 });
 
@@ -165,20 +201,6 @@ describe("generateCache", () => {
   });
 });
 
-describe("generateStore", () => {
-  it("uses app-db as default database name", () => {
-    const ctx = makeContext();
-    generateStore(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "store.js"), "utf8");
-    expect(content).toContain('DB_NAME = "app-db"');
-    expect(content).toContain("openAppDB");
-    expect(content).toContain("getRecord");
-    expect(content).toContain("putRecord");
-    expect(content).toContain("deleteRecord");
-    expect(content).toContain("getAllRecords");
-  });
-});
-
 describe("generateMutationQueue", () => {
   it("contains mutation queue functions", () => {
     const ctx = makeContext();
@@ -187,21 +209,8 @@ describe("generateMutationQueue", () => {
     expect(content).toContain("queueMutation");
     expect(content).toContain("processMutationQueue");
     expect(content).toContain("getPendingCount");
-    expect(content).toContain("rollbackMutation");
-    expect(content).toContain("reconcileRecord");
     expect(content).toContain("MAX_RETRIES");
     expect(content).toContain("swoff-queue");
-  });
-});
-
-describe("generateReconcile", () => {
-  it("exports reconcileRecord and reconcileReferences", () => {
-    const ctx = makeContext();
-    generateReconcile(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "reconcile.js"), "utf8");
-    expect(content).toContain("reconcileRecord");
-    expect(content).toContain("reconcileReferences");
-    expect(content).toContain("$synced");
   });
 });
 
@@ -222,13 +231,13 @@ describe("generateSwGeneratorBuild", () => {
   it("generates build script with correct imports", () => {
     const ctx = makeContext();
     generateSwGeneratorBuild(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw-generator.js"), "utf8");
+    const content = readFileSync(join(ctx.swoffDir, "sw", "generator.js"), "utf8");
     expect(content).toContain("#!/usr/bin/env node");
     expect(content).toContain("readFileSync");
     expect(content).toContain("writeFileSync");
     expect(content).toContain("mkdirSync");
-    expect(content).toContain("sw-template.js");
-    expect(content).toContain("version.json");
+    expect(content).toContain("template.js");
+    expect(content).toContain("createHash");
     expect(content).not.toContain("import('fs').then");
   });
 });

@@ -9,7 +9,8 @@
  *   await invalidateByTag("todos");
  */
 
-export async function invalidateByTag(tag) {
+/** Invalidate all cached responses tagged with the given tag. Dispatches cache-invalidated event. */
+export async function invalidateByTag(tag: string): Promise<void> {
   if (!navigator.serviceWorker?.controller) return;
 
   navigator.serviceWorker.controller.postMessage({
@@ -22,7 +23,8 @@ export async function invalidateByTag(tag) {
   );
 }
 
-export async function invalidateByTags(tags) {
+/** Invalidate all cached responses matching any of the given tags. */
+export async function invalidateByTags(tags: string[]): Promise<void> {
   for (const tag of tags) {
     await invalidateByTag(tag);
   }

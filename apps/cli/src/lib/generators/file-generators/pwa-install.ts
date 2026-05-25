@@ -6,29 +6,61 @@ import { GeneratorContext, writeFile } from "./context.js";
 
 export function generatePwaInstall(ctx: GeneratorContext): void {
   const ext = ctx.ext;
+  const ts = ext === "ts";
+  const R = (type: string) => (ts ? `: ${type} ` : " ");
+  const preventDefaultInstall = ctx.config.features.pwa.preventDefaultInstall;
+  const preventLine = preventDefaultInstall ? "    e.preventDefault();\n" : "";
 
   const code = `/**
- * Swoff PWA Install Prompt
- * Manual install trigger and installability check.
- * Event listeners are registered in sw-injector at app entry.
+ * Swoff PWA Install Support
+ * Manual install trigger, installability check, and event listener setup.
  *
  * Usage:
- *   import { isInstallable, promptInstall } from './swoff/pwa-install.${ext}';
+ *   import { setupPwaInstall, isInstallable, promptInstall } from './swoff/pwa/install.${ext}';
+ *
+ *   setupPwaInstall();  // sets up beforeinstallprompt and appinstalled listeners
  *
  *   if (isInstallable()) {
  *     const result = await promptInstall();
- *     console.log('User choice:', result.outcome);
  *   }
  *
- * Window properties (set by sw-injector):
+ * Window properties:
  *   window.deferredInstallPrompt - The captured BeforeInstallPromptEvent
  */
 
-export function isInstallable() {
+/** Set up beforeinstallprompt and appinstalled event listeners. Call once at app startup. */
+export function setupPwaInstall()${R("void")}{
+  window.addEventListener("beforeinstallprompt", (e) => {
+    window.deferredInstallPrompt = e as BeforeInstallPromptEvent;
+    window.pwaInstallable = true;
+
+${preventLine}
+    window.dispatchEvent(
+      new CustomEvent("pwa-installable", {
+        detail: { isInstallable: true },
+      })
+    );
+  });
+
+  window.addEventListener("appinstalled", () => {
+    window.deferredInstallPrompt = null;
+    window.pwaInstallable = false;
+
+    window.dispatchEvent(
+      new CustomEvent("pwa-installed", {
+        detail: { outcome: "accepted" },
+      })
+    );
+  });
+}
+
+/** Check if the PWA install prompt is available (user has met install criteria). */
+export function isInstallable()${R("boolean")}{
   return !!window.deferredInstallPrompt;
 }
 
-export async function promptInstall() {
+/** Show the browser's native install prompt. Throws if prompt is not available. */
+export async function promptInstall()${R("Promise<{ outcome: string }>")}{
   if (!window.deferredInstallPrompt) {
     throw new Error("Install prompt not available");
   }
@@ -57,5 +89,5 @@ export async function promptInstall() {
 }
 `;
 
-  writeFile(ctx, `pwa-install.${ext}`, code);
+  writeFile(ctx, `pwa/install.${ext}`, code);
 }

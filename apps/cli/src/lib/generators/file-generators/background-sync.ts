@@ -6,6 +6,10 @@ import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateBackgroundSync(ctx: GeneratorContext): void {
   const ext = ctx.ext;
+  const ts = ext === "ts";
+  const T = (type: string) => (ts ? `: ${type}` : "");
+  const R = (type: string) => (ts ? `: ${type} ` : " ");
+
   const code = `/**
  * Swoff Background Sync
  * Register sync events for processing mutation queue after tab close.
@@ -19,8 +23,7 @@ export function generateBackgroundSync(ctx: GeneratorContext): void {
  *     url: "/api/todos",
  *     body: { title: "Grocery" },
  *     tags: ["todos"],
- *     storeName: "todos",
- *     tempId: "temp_abc123",
+ *     tags: ["todos"],
  *   });
  */
 
@@ -28,7 +31,7 @@ import { queueMutation, processMutationQueue, getPendingCount } from "./mutation
 
 const SYNC_TAG = "sync-mutations";
 
-async function registerSync() {
+async function registerSync()${R("Promise<void>")}{
   if (!("serviceWorker" in navigator) || !("SyncManager" in window)) {
     window.addEventListener("online", processMutationQueue, { once: true });
     return;
@@ -42,12 +45,14 @@ async function registerSync() {
   }
 }
 
-export async function syncWhenPossible(mutation) {
+/** Queue a mutation and register a background sync event so it runs even after tab close. */
+export async function syncWhenPossible(mutation${T("object")})${R("Promise<void>")}{
   await queueMutation(mutation);
   await registerSync();
 }
 
-export async function retrySync() {
+/** Re-register a background sync if mutations are still pending. Called automatically after each sync cycle. */
+export async function retrySync()${R("Promise<void>")}{
   if (!("serviceWorker" in navigator) || !("SyncManager" in window)) return;
   const count = await getPendingCount();
   if (count > 0) {

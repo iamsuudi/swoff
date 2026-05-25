@@ -1,29 +1,25 @@
 /**
- * Generates sw-injector.{js|ts} - client-side SW registration + PWA + cross-tab sync.
+ * Generates sw/injector.{js|ts} - core SW registration logic only.
  */
 
 import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateSwInjector(ctx: GeneratorContext): void {
-  const autoRegister = ctx.config.features.serviceWorker.autoRegister;
+  const autoUpdate = ctx.config.features.serviceWorker.autoUpdate;
   const autoActivate = ctx.config.features.serviceWorker.autoActivate;
-  const pwaEnabled = ctx.config.features.pwa.enabled;
-  const preventDefaultInstall = ctx.config.features.pwa.preventDefaultInstall;
-  const crossTabSync = ctx.config.features.crossTabSync;
+  const versionEnabled = ctx.config.features.serviceWorker.version.enabled;
   const ext = ctx.ext;
+  const ts = ext === "ts";
 
-  const mutationQueueEnabled = ctx.config.features.mutationQueue;
+  const T = (type: string) => (ts ? `: ${type}` : "");
+  const R = (type: string) => (ts ? `: ${type} ` : " ");
 
-  const authEnabled = ctx.config.features.auth.enabled;
-
-  const code = `/**
+  const versionedCode = `/**
  * Swoff SW Injector
- * Framework-agnostic SW registration, PWA install support, and cross-tab sync.
+ * Framework-agnostic SW registration with versioned URLs and update flow.
  *
  * Usage:
- *   import { initServiceWorker } from './swoff/sw-injector.${ext}';
- *
- *   // Call in your app entry point (e.g., main.tsx, app.js):
+ *   import { initServiceWorker } from './swoff/sw/injector.${ext}';
  *   initServiceWorker();
  *
  * Window events:
@@ -32,32 +28,28 @@ export function generateSwInjector(ctx: GeneratorContext): void {
  *   sw-progress          - Download progress (detail: { percent, downloaded, total })
  *   sw-ready             - SW active and controlling page
  *   sw-error             - SW registration failed
- *   pwa-installable      - PWA can be installed (detail: { isInstallable: true })
- *   pwa-installed        - User accepted install (detail: { outcome: 'accepted' })
- *   cache-invalidated    - Cache entries with given tags cleared (detail: { tags })
- *   mutation-sync-complete - Queued mutations synced (detail: { succeeded, failed })
- *   mutation-queue-changed - Queue modified
- *   mutation-rollback     - Mutation exhausted retries (detail: { method, url, tempId, previousData })
- *   sw-auth-unauthorized  - 401 response received (token expired or invalid)${authEnabled ? `
- *   sw-auth-state-change  - Login or logout (detail: { authenticated: boolean })` : ""}
  *
  * Window properties:
  *   window.latestSWVersion       - Latest version from version.json
  *   window.currentSWVersion      - Active SW version
  *   window.swAvailableVersion    - Pending update version
  *   window.swUpdateRequired      - Forced update needed (version < minSupportedVersion)
- *   window.swMinSupportedVersion - Minimum supported version from version.json
+ *   window.swMinSupportedVersion - Minimum supported version
  *   window.swReady               - SW is active
  *   window.swError               - Registration failed
- *   window.deferredInstallPrompt - Captured BeforeInstallPromptEvent
- *   window.pwaInstallable        - Whether PWA can be installed
  */
-${mutationQueueEnabled ? `import { processMutationQueue } from "./mutation-queue.${ext}";
-` : ""}
-const AUTO_REGISTER = ${autoRegister};
+const AUTO_UPDATE = ${autoUpdate};
 const AUTO_ACTIVATE = ${autoActivate};
 
-// --- SW Registration ---
+function semverCompare(a${T("string")}, b${T("string")})${R("number")}{
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if (pa[i] > pb[i]) return 1;
+    if (pa[i] < pb[i]) return -1;
+  }
+  return 0;
+}
 
 async function checkForUpdate() {
   const response = await fetch("/version.json");
@@ -67,17 +59,17 @@ async function checkForUpdate() {
   return response.json();
 }
 
-async function waitForController() {
-  return new Promise((resolve) => {
+async function waitForController()${R("Promise<void>")}{
+  return new Promise<void>((resolve) => {
     if (navigator.serviceWorker.controller) {
       resolve();
     } else {
-      navigator.serviceWorker.addEventListener("controllerchange", resolve, { once: true });
+      navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true });
     }
   });
 }
 
-async function doRegisterServiceWorker(version) {
+async function doRegisterServiceWorker(version${T("string")})${R("Promise<ServiceWorkerRegistration>")}{
   const swUrl = \`/sw-v\${version}.js\`;
   const registration = await navigator.serviceWorker.register(swUrl);
   localStorage.setItem("swRegisteredVersion", version);
@@ -89,17 +81,12 @@ async function doRegisterServiceWorker(version) {
   return registration;
 }
 
-function shouldRegister() {
-  return true;
-}
-
-export async function initServiceWorker() {
+/** Register the SW with version checking and update flow. Checks version.json, handles updates, and dispatches sw-ready/sw-error events. */
+export async function initServiceWorker()${R("Promise<void>")}{
   if (!("serviceWorker" in navigator)) {
     console.warn("Service Workers not supported");
     return;
   }
-
-  if (!shouldRegister()) return;
 
   try {
     const manifest = await checkForUpdate();
@@ -110,7 +97,7 @@ export async function initServiceWorker() {
     if (currentVersion === manifest.version) {
       const registration = await navigator.serviceWorker.getRegistration();
       if (registration && registration.active) {
-        window.currentSWVersion = currentVersion;
+        window.currentSWVersion = currentVersion ?? undefined;
         window.dispatchEvent(new CustomEvent("sw-version-detected"));
         await waitForController();
         if (!window.swReady) {
@@ -120,9 +107,9 @@ export async function initServiceWorker() {
     } else if (currentVersion && currentVersion !== manifest.version) {
       window.swAvailableVersion = manifest.version;
       window.swUpdateRequired =
-        currentVersion < (manifest.minSupportedVersion || "0.0.0");
+        semverCompare(currentVersion, manifest.minSupportedVersion || "0.0.0") < 0;
 
-      if (AUTO_REGISTER) {
+      if (AUTO_UPDATE) {
         const registration = await navigator.serviceWorker.getRegistration();
         if (registration && registration.waiting) {
           if (AUTO_ACTIVATE) {
@@ -168,7 +155,9 @@ export async function initServiceWorker() {
         }
         return;
       }
-    } catch {}
+    } catch {
+      // Handle the case where no existing active registration is found
+    }
 
     console.error("Service Worker initialization failed:", error);
     window.swError = true;
@@ -176,7 +165,8 @@ export async function initServiceWorker() {
   }
 }
 
-export async function handleUpdateApproved(newVersion) {
+/** Accept a pending SW update. Reloads the page once the new SW takes control. */
+export async function handleUpdateApproved(newVersion${T("string")})${R("Promise<void>")}{
   const registration = await navigator.serviceWorker.getRegistration();
   if (registration && registration.waiting) {
     registration.waiting.postMessage({ type: "SKIP_WAITING" });
@@ -191,81 +181,63 @@ export async function handleUpdateApproved(newVersion) {
   }
 }
 
-export async function skipWaiting() {
+/** Activate a waiting SW without reloading. Useful when you handle the transition yourself. */
+export async function skipWaiting()${R("Promise<void>")}{
   const registration = await navigator.serviceWorker.ready;
   if (registration.waiting) {
     registration.waiting.postMessage({ type: "SKIP_WAITING" });
   }
 }
+`;
 
-// --- PWA Install Support ---
-${pwaEnabled ? `
-window.addEventListener("beforeinstallprompt", (e) => {
-  window.deferredInstallPrompt = e;
-  window.pwaInstallable = true;
+  const simpleCode = `/**
+ * Swoff SW Injector (Simple Mode)
+ * Fixed SW URL with hash-based cache name — no versioned URLs or update events.
+ *
+ * Usage:
+ *   import { initServiceWorker } from './swoff/sw/injector.${ext}';
+ *   initServiceWorker();
+ *
+ * Window events:
+ *   sw-ready  - SW active and controlling page
+ *   sw-error  - SW registration failed
+ *
+ * Window properties:
+ *   window.currentSWVersion  - "simple"
+ *   window.swReady           - SW is active
+ *   window.swError           - Registration failed
+ */
+async function waitForController()${R("Promise<void>")}{
+  return new Promise<void>((resolve) => {
+    if (navigator.serviceWorker.controller) {
+      resolve();
+    } else {
+      navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true });
+    }
+  });
+}
 
-  if (${preventDefaultInstall}) {
-    e.preventDefault();
+/** Register the SW with a fixed URL (non-versioned mode). Dispatches sw-ready/sw-error. */
+export async function initServiceWorker()${R("Promise<void>")}{
+  if (!("serviceWorker" in navigator)) {
+    console.warn("Service Workers not supported");
+    return;
   }
-
-  window.dispatchEvent(
-    new CustomEvent("pwa-installable", {
-      detail: { isInstallable: true },
-    })
-  );
-});
-
-window.addEventListener("appinstalled", () => {
-  window.deferredInstallPrompt = null;
-  window.pwaInstallable = false;
-
-  window.dispatchEvent(
-    new CustomEvent("pwa-installed", {
-      detail: { outcome: "accepted" },
-    })
-  );
-});
-` : ""}
-${mutationQueueEnabled ? `
-// --- Mutation Queue Listener ---
-window.addEventListener("online", processMutationQueue);
-` : ""}
-// --- SW Message Listener ---
-if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-  navigator.serviceWorker.addEventListener("message", (event) => {
-    if (event.data.type === "SW_PROGRESS") {
-      const { percent, downloaded, total } = event.data;
-      window.dispatchEvent(
-        new CustomEvent("sw-progress", {
-          detail: { percent, downloaded, total },
-        })
-      );
-    }
-    if (event.data.type === "BACKGROUND_SYNC_COMPLETE") {
-      const { succeeded, failed, tags } = event.data.detail;
-      window.dispatchEvent(
-        new CustomEvent("mutation-sync-complete", {
-          detail: { succeeded, failed },
-        })
-      );
-      if (tags && tags.length > 0) {
-        window.dispatchEvent(
-          new CustomEvent("cache-invalidated", { detail: { tags } })
-        );
-      }
-      window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
-    }
-${crossTabSync ? `
-    if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
-      window.dispatchEvent(
-        new CustomEvent("cache-invalidated", {
-          detail: { tags: [event.data.tag] },
-        })
-      );
-    }
-` : ""}  });
+  try {
+    const registration = await navigator.serviceWorker.register("/sw.js");
+    window.currentSWVersion = "simple";
+    window.dispatchEvent(new CustomEvent("sw-version-detected"));
+    await waitForController();
+    window.dispatchEvent(new CustomEvent("sw-ready"));
+  } catch (error) {
+    console.error("Service Worker registration failed:", error);
+    window.swError = true;
+    window.dispatchEvent(new CustomEvent("sw-error"));
+  }
 }
 `;
 
-  writeFile(ctx, `sw-injector.${ext}`, code);
+  const code = versionEnabled ? versionedCode : simpleCode;
+
+  writeFile(ctx, `sw/injector.${ext}`, code);
 }

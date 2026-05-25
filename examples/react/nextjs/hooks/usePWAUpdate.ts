@@ -47,7 +47,7 @@ export function usePWAUpdate() {
 
   const acceptUpdate = useCallback(async () => {
     setUpdateStatus("downloading");
-    const { registerServiceWorker } = await import("@/swoff/sw-injector");
+    const { registerServiceWorker } = await import("@/swoff/client-injector");
     if (availableVersion) await registerServiceWorker(availableVersion);
   }, [availableVersion]);
 
@@ -59,7 +59,7 @@ export function usePWAUpdate() {
   }, [forceUpdate]);
 
   const checkForUpdates = useCallback(async () => {
-    const { checkForUpdate } = await import("@/swoff/sw-injector");
+    const { checkForUpdate } = await import("@/swoff/client-injector");
     await checkForUpdate();
   }, []);
 

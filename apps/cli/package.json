@@ -1,6 +1,6 @@
 {
   "name": "@swoff/cli",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "type": "module",
   "description": "CLI for Swoff - Offline-first web apps made easy",
   "bin": {

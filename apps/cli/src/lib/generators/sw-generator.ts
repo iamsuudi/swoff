@@ -33,6 +33,12 @@ const passedConfigPath = configPathArg !== -1 ? args[configPathArg + 1] : null;
 
 const projectRoot = passedProjectRoot || process.cwd();
 
+function resolveVersion(config: { features: { serviceWorker: { version: { source: string; value?: string } } } }, pkgVersion: string): string {
+  const v = config.features.serviceWorker.version;
+  if (v.source === "manual" && v.value) return v.value;
+  return pkgVersion || "1.0.0";
+}
+
 export async function generateSW(options: GeneratorOptions = {}): Promise<{ version: string; outputFile: string }> {
   const optProjectRoot = options.projectRoot || projectRoot;
   const optConfigPath = options.configPath || passedConfigPath || undefined;
@@ -56,34 +62,37 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ vers
     return { version: "", outputFile: "" };
   }
 
-  const version = config.version === "from-package" ? pkg.version || "1.0.0" : config.version;
+  const versionEnabled = config.features.serviceWorker.version.enabled;
+  const version = resolveVersion(config, pkg.version || "1.0.0");
   const sw = assembleSW(config, version, optProjectRoot);
 
   const outputDir = join(optProjectRoot, config.build.outputDir);
-  const swFilename = config.build.swFilename;
 
   if (!existsSync(outputDir)) {
     mkdirSync(outputDir, { recursive: true });
   }
 
-  const outputFile = `${swFilename}-v${version}.js`;
+  const swFilename = config.build.swFilename;
+  const outputFile = versionEnabled ? `${swFilename}-v${version}.js` : `${swFilename}.js`;
 
   try {
     writeFileSync(join(outputDir, outputFile), sw);
-    writeFileSync(
-      join(outputDir, "version.json"),
-      JSON.stringify(
-        {
-          version,
-          minSupportedVersion: config.minSupportedVersion,
-          generatedAt: new Date().toISOString(),
-          configEnabled: config.enabled,
-          configSource,
-        },
-        null,
-        2,
-      ),
-    );
+    if (versionEnabled) {
+      writeFileSync(
+        join(outputDir, "version.json"),
+        JSON.stringify(
+          {
+            version,
+            minSupportedVersion: config.features.serviceWorker.version.minSupportedVersion,
+            generatedAt: new Date().toISOString(),
+            configEnabled: config.enabled,
+            configSource,
+          },
+          null,
+          2,
+        ),
+      );
+    }
 
     status(`✓ ${outputDir}/${outputFile}`);
   } catch (err) {

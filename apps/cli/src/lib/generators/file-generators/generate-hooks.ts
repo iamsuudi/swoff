@@ -20,12 +20,14 @@ export function generateHooks(ctx: GeneratorContext): void {
   if (config.features.mutationQueue) {
     writeMutationQueueHook(hooksDir, ext);
   }
+  writeCachedFetchHook(hooksDir, ext, config.features.tagInvalidation);
 }
 
 function writePWAHooks(dir: string, ext: string) {
   writeFileSync(
     join(dir, `usePWAUpdate.${ext}x`),
     `import { useState, useEffect, useCallback } from "react";
+import { handleUpdateApproved } from "../client-injector.${ext}";
 
 export function usePWAUpdate() {
   const [state, setState] = useState({
@@ -68,7 +70,6 @@ export function usePWAUpdate() {
 
   const acceptUpdate = useCallback(async () => {
     if (!state.availableVersion) return;
-    const { handleUpdateApproved } = await import("../sw-injector.${ext}");
     await handleUpdateApproved(state.availableVersion);
   }, [state.availableVersion]);
 
@@ -113,7 +114,7 @@ function writeAuthHook(dir: string, ext: string) {
   writeFileSync(
     join(dir, `useAuth.${ext}x`),
     `import { useState, useEffect } from "react";
-import { getAuthState } from "../auth-state.${ext}";
+import { getAuthState } from "../auth/state.${ext}";
 
 export function useAuth() {
   const [state, setState] = useState({
@@ -146,6 +147,70 @@ export function useAuth() {
   );
 }
 
+function writeCachedFetchHook(dir: string, ext: string, tagInvalidation: boolean) {
+  const ts = ext === "ts";
+  const extraEffect = tagInvalidation
+    ? `
+  useEffect(() => {
+    const onInvalidated${ts ? ": EventListener" : ""} = (e${ts ? ": Event" : ""}) => {
+      const detail = (e as CustomEvent).detail;
+      const tags = detail?.tags;
+      if (!tags || !Array.isArray(tags)) return;
+      const urlTags = generateTags(url);
+      if (tags.some((t) => urlTags.includes(t))) {
+        setRefetchCount((c) => c + 1);
+      }
+    };
+    window.addEventListener("cache-invalidated", onInvalidated);
+    return () => window.removeEventListener("cache-invalidated", onInvalidated);
+  }, [url]);`
+    : "";
+
+  const importTags = tagInvalidation
+    ? `import { generateTags } from "../invalidation-tags.${ext}";\n`
+    : "";
+
+  const stringType = ts ? ": string" : "";
+  const respType = ts ? "<Response | null>" : "";
+
+  writeFileSync(
+    join(dir, `useCachedFetch.${ext}x`),
+    `import { useState, useEffect, useCallback } from "react";
+import { fetchWithCache } from "../fetch-wrapper.${ext}";
+${importTags}
+export function useCachedFetch(url${stringType}, options = {}) {
+  const [data, setData] = useState${respType}(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [refetchCount, setRefetchCount] = useState(0);
+
+  const refetch = useCallback(() => setRefetchCount((c) => c + 1), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchWithCache(url, options)
+      .then(({ response }) => {
+        if (cancelled) return;
+        setData(response);
+        setError(null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [url, refetchCount]);
+${extraEffect}
+  return { data, error, loading, refetch };
+}
+`,
+  );
+}
+
 function writeMutationQueueHook(dir: string, ext: string) {
   writeFileSync(
     join(dir, `useMutationQueue.${ext}x`),
@@ -165,7 +230,7 @@ export function useMutationQueue() {
       pending: 0,
       lastSync: { succeeded: e.detail.succeeded, failed: e.detail.failed },
     });
-    const onChange = async () => setState((s) => ({ ...s, pending: await getPendingCount() }));
+    const onChange = async () => { const count = await getPendingCount(); setState((s) => ({ ...s, pending: count })); };
 
     window.addEventListener("mutation-sync-complete", onSync as EventListener);
     window.addEventListener("mutation-queue-changed", onChange);

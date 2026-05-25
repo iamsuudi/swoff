@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getAuthState } from "../../swoff/auth-state";
-import { clearAuth } from "../../swoff/auth-store";
+import { clearAuth } from "../../swoff/auth/store";
 import { clearCachedUser } from "../../swoff/auth-user";
 import InstallButton from "./InstallButton";
 

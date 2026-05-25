@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { authenticatedFetch } from "../../swoff/auth-fetch";
+import { authenticatedFetch } from "../../swoff/auth/fetch";
 import { generateTags, invalidateByMethod } from "../../swoff/invalidation-tags";
 import { queueMutation } from "../../swoff/mutation-queue";
 import TodoForm from "../components/TodoForm";

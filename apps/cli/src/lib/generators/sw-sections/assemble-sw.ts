@@ -5,6 +5,7 @@
 
 import { readdirSync, existsSync } from "fs";
 import { join, relative } from "path";
+import { createHash } from "crypto";
 import type { SwoffConfig } from "../../shared/config-types.js";
 import { getDefaultTemplate } from "./default-template.js";
 import { generateConfigHeader } from "./config-header.js";
@@ -31,11 +32,34 @@ function collectAssets(dir: string, baseDir: string): string[] {
   return assets;
 }
 
+function generateCacheNameFromHash(swContent: string): string {
+  const hash = createHash("sha256").update(swContent).digest("hex").slice(0, 12);
+  return `sw-cache-${hash}`;
+}
+
+function applyReplacements(sw: string, config: SwoffConfig, assetsToCache: { url: string; options: Record<string, unknown> }[]): string {
+  const { serviceWorker } = config.features;
+  const { features } = config;
+
+  sw = sw.replace("// [[ASSETS_LIST]]", `ASSETS_TO_CACHE = ${JSON.stringify(assetsToCache, null, 2)}`);
+  sw = sw.replace("// [[AUTO_SKIP_WAITING]]", `const AUTO_SKIP_WAITING = ${serviceWorker.autoActivate};`);
+  sw = sw.replace("// [[FETCH_HANDLER]]", generateFetchHandler(serviceWorker, features.tagInvalidation));
+  sw = sw.replace("// [[ACTIVATE_HANDLER]]", generateActivateHandler(serviceWorker.clearRuntimeOnUpdate));
+  sw = sw.replace("// [[INSTALL_HANDLER]]", generateInstallHandler());
+  sw = sw.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(features.tagInvalidation, features.auth.enabled));
+  sw = features.tagInvalidation
+    ? sw.replace("// [[TAG_MANAGEMENT]]", generateTagManagement())
+    : sw.replace("// [[TAG_MANAGEMENT]]", "");
+
+  return sw;
+}
+
 export function assembleSW(config: SwoffConfig, version: string, projectRoot?: string): string {
   const { serviceWorker } = config.features;
   const { features } = config;
   const outputDir = config.build?.outputDir || "dist";
   const swFilename = config.build?.swFilename || "sw";
+  const versionEnabled = serviceWorker.version.enabled;
 
   const fallback: string[] = ["/index.html"];
   if (features.pwa.enabled) fallback.push("/manifest.json");
@@ -44,32 +68,29 @@ export function assembleSW(config: SwoffConfig, version: string, projectRoot?: s
   if (projectRoot) {
     const distPath = join(projectRoot, outputDir);
     const allAssets = collectAssets(distPath, distPath);
-    const swFile = `${swFilename}-v${version}.js`;
+    const swFile = versionEnabled ? `${swFilename}-v${version}.js` : `${swFilename}.js`;
     for (const a of allAssets) {
       if (a !== `/${swFile}` && a !== "/version.json") scanned.push(a);
     }
   }
 
   const assetsToCache = scanned.length > 0 ? [...new Set([...fallback, ...scanned])] : fallback;
+  const formattedAssets = assetsToCache.map((url) => ({ url, options: {} }));
 
   let sw = getDefaultTemplate();
 
-  sw = sw.replace("// [[CACHE_NAME]]", `CACHE_NAME = 'sw-v${version}'`);
-  sw = sw.replace("// [[ASSETS_LIST]]", `ASSETS_TO_CACHE = ${JSON.stringify(assetsToCache.map((url) => ({ url, options: {} })), null, 2)}`);
-  sw = sw.replace("// [[AUTO_SKIP_WAITING]]", `const AUTO_SKIP_WAITING = ${serviceWorker.autoActivate};`);
-
-  sw = sw.replace("// [[FETCH_HANDLER]]", generateFetchHandler(serviceWorker, features.tagInvalidation));
-  sw = sw.replace("// [[ACTIVATE_HANDLER]]", generateActivateHandler(serviceWorker.clearRuntimeOnUpdate));
-  sw = sw.replace("// [[INSTALL_HANDLER]]", generateInstallHandler());
-  sw = sw.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(features.tagInvalidation, features.auth.enabled));
-
-  if (features.tagInvalidation) {
-    sw = sw.replace("// [[TAG_MANAGEMENT]]", generateTagManagement());
+  if (versionEnabled) {
+    sw = sw.replace("// [[CACHE_NAME]]", `CACHE_NAME = 'sw-v${version}'`);
+    sw = applyReplacements(sw, config, formattedAssets);
+    sw = `${generateConfigHeader(config, version)}\n\n${sw}`;
   } else {
-    sw = sw.replace("// [[TAG_MANAGEMENT]]", "");
+    const sentinel = "SW_CACHE_SENTINEL";
+    sw = sw.replace("// [[CACHE_NAME]]", `CACHE_NAME = '${sentinel}'`);
+    sw = applyReplacements(sw, config, formattedAssets);
+    const cacheName = generateCacheNameFromHash(sw);
+    sw = sw.replace(sentinel, cacheName);
+    sw = `${generateConfigHeader(config, version)}\n\n${sw}`;
   }
-
-  sw = `${generateConfigHeader(config, version)}\n\n${sw}`;
 
   if (features.backgroundSync) {
     const authType = features.auth.enabled ? features.auth.type : undefined;

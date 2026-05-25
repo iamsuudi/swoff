@@ -18,11 +18,12 @@ import { loadConfig } from "../config/loader.js";
 import type { GeneratorContext } from "./file-generators/context.js";
 import { generateSwTemplate } from "./file-generators/sw-template.js";
 import { generateSwInjector } from "./file-generators/sw-injector.js";
+import { generateClientInjector } from "./file-generators/client-injector.js";
 import { generateFetchWrapper } from "./file-generators/fetch-wrapper.js";
 import { generateCache } from "./file-generators/cache.js";
 import { generateMutationQueue } from "./file-generators/mutation-queue.js";
-import { generateStore } from "./file-generators/store.js";
-import { generateReconcile } from "./file-generators/reconcile.js";
+
+
 import { generateBackgroundSync } from "./file-generators/background-sync.js";
 import { generatePwaInstall } from "./file-generators/pwa-install.js";
 import { generateManifest } from "./file-generators/manifest.js";
@@ -34,6 +35,8 @@ import { generateAuthState } from "./file-generators/auth-state.js";
 import { generateSwGeneratorBuild } from "./file-generators/sw-generator-build.js";
 import { generateTypeDefinitions } from "./file-generators/type-definitions.js";
 import { generateHooks } from "./file-generators/generate-hooks.js";
+import { generateGuide } from "./file-generators/guide-generator.js";
+import { generateReadme } from "./file-generators/quick-readme.js";
 
 interface Step {
   name: string;
@@ -44,11 +47,11 @@ interface Step {
 export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => void): string[] {
   const steps: Step[] = [
     { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
-    { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: ctx.config.features.clientRegistration || ctx.config.features.pwa.enabled || ctx.config.features.crossTabSync },
+    { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: ctx.config.features.clientRegistration },
+    { name: "client-injector", gen: () => generateClientInjector(ctx), enabled: ctx.config.features.clientRegistration || ctx.config.features.pwa.enabled || ctx.config.features.crossTabSync },
     { name: "fetch-wrapper", gen: () => generateFetchWrapper(ctx), enabled: true },
     { name: "cache", gen: () => generateCache(ctx), enabled: ctx.config.features.tagInvalidation },
-    { name: "store", gen: () => generateStore(ctx), enabled: ctx.config.features.mutationQueue },
-    { name: "reconcile", gen: () => generateReconcile(ctx), enabled: ctx.config.features.mutationQueue },
+
     { name: "mutation-queue", gen: () => generateMutationQueue(ctx), enabled: ctx.config.features.mutationQueue },
     { name: "background-sync", gen: () => generateBackgroundSync(ctx), enabled: ctx.config.features.backgroundSync },
     { name: "auth-store", gen: () => generateAuthStore(ctx), enabled: ctx.config.features.auth.enabled },
@@ -61,6 +64,8 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
     { name: "manifest.json", gen: () => generateManifest(ctx), enabled: ctx.config.features.pwa.enabled },
     { name: "invalidation-tags", gen: () => generateInvalidationTags(ctx), enabled: ctx.config.features.tagInvalidation },
     { name: "hooks", gen: () => generateHooks(ctx), enabled: ctx.config.framework === "react" },
+    { name: "GUIDE.md", gen: () => generateGuide(ctx), enabled: true },
+    { name: "README.md", gen: () => generateReadme(ctx), enabled: true },
   ];
 
   for (const step of steps) {

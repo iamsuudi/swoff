@@ -7,18 +7,35 @@ import { GeneratorContext, writeFile } from "./context.js";
 export function generateTypeDefinitions(ctx: GeneratorContext): void {
   if (ctx.ext !== "ts") return;
 
-  const authBlock = ctx.config.features.auth.enabled ? `
-    swAuthState?: "authenticated" | "unauthenticated" | "loading";
-    swCurrentUser?: object | null;` : "";
+  const code = `
+// Background Sync API types
+interface SyncManager {
+  register(tag: string): Promise<void>;
+  getTags(): Promise<string[]>;
+}
 
-  const code = `interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+interface SyncEvent extends Event {
+  readonly tag: string;
+  readonly lastChance: boolean;
+}
+
+interface ServiceWorkerGlobalScope {
+  onsync: ((this: ServiceWorkerGlobalScope, ev: SyncEvent) => unknown) | null;
 }
 
 declare global {
+  interface BeforeInstallPromptEvent extends Event {
+    prompt(): Promise<void>;
+    userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+  }
+
+  interface WindowEventMap {
+    beforeinstallprompt: BeforeInstallPromptEvent;
+  }
+
   interface Window {
     deferredInstallPrompt: BeforeInstallPromptEvent | null;
+    pwaInstallable?: boolean;
     latestSWVersion?: string;
     currentSWVersion?: string;
     swRegisteredVersion?: string;
@@ -26,7 +43,15 @@ declare global {
     swUpdateRequired?: boolean;
     swMinSupportedVersion?: string;
     swReady?: boolean;
-    swError?: boolean;${authBlock}
+    swError?: boolean;
+    swAuthState?: "authenticated" | "unauthenticated" | "loading";
+    swCurrentUser?: Record<string, unknown> | null;
+    SyncManager?: { new(): SyncManager };
+  }
+
+  // Extend ServiceWorkerRegistration in the global scope for TS
+  interface ServiceWorkerRegistration {
+    readonly sync: SyncManager;
   }
 }
 
@@ -55,12 +80,9 @@ export interface MutationQueueItem {
   url: string;
   body: unknown;
   headers: Record<string, string>;
-  previousData: unknown | null;
   timestamp: number;
   retryCount: number;
   tags: string[];
-  storeName: string | null;
-  tempId: string | null;
 }
 
 export interface MutationQueueResult {

@@ -79,7 +79,7 @@ async function main() {
       break;
     }
     case "info":
-      await infoCommand(projectRoot);
+      await infoCommand(projectRoot, options[0]);
       break;
     case "clean":
       await cleanCommand(projectRoot);

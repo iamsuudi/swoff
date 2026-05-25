@@ -45,9 +45,15 @@ export async function addCommand(projectRoot: string, feature: string) {
     const newConfig: SwoffConfig = {
       ...defaultConfig,
       $schema: "https://swoff.netlify.app/schema/v1.json",
-      minSupportedVersion: "0.0.0",
       features: {
         ...defaultConfig.features,
+        serviceWorker: {
+          ...defaultConfig.features.serviceWorker,
+          version: {
+            ...defaultConfig.features.serviceWorker.version,
+            minSupportedVersion: "0.0.0",
+          },
+        },
         crossTabSync: false,
       },
     };

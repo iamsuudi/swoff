@@ -17,7 +17,7 @@ export default function AboutPage() {
             <li>Next.js 16 + React 19</li>
             <li>Tailwind CSS v4</li>
             <li>Next.js App Router (API routes + pages)</li>
-            <li>Swoff patterns (sw-template, sw-generator, sw-injector)</li>
+            <li>Swoff patterns (sw/template, sw/generator, sw/injector, client-injector)</li>
           </ul>
         </div>
       </div>

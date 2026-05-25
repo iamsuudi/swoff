@@ -5,7 +5,6 @@ import { defaultConfig, type SwoffConfig } from "../lib/shared/config-types.js";
 describe("assembleSW", () => {
   const config: SwoffConfig = {
     ...defaultConfig,
-    version: "1.0.0",
   };
 
   it("generates a service worker string", () => {
@@ -110,6 +109,22 @@ describe("assembleSW", () => {
     };
     const sw2 = assembleSW(configNoAutoActivate, "1.0.0");
     expect(sw2).toContain("const AUTO_SKIP_WAITING = false");
+  });
+
+  it("uses hash-based cache name when version is disabled", () => {
+    const configNoVersion: SwoffConfig = {
+      ...config,
+      features: {
+        ...config.features,
+        serviceWorker: {
+          ...config.features.serviceWorker,
+          version: { ...config.features.serviceWorker.version, enabled: false },
+        },
+      },
+    };
+    const sw = assembleSW(configNoVersion, "1.0.0");
+    expect(sw).toContain("CACHE_NAME = 'sw-cache-");
+    expect(sw).not.toContain("sw-v1.0.0");
   });
 
   it("includes PWA assets when pwa feature is enabled", () => {

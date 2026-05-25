@@ -1,0 +1,123 @@
+/**
+ * Generates client-injector.{js|ts} - orchestrator that wires feature modules together.
+ */
+
+import { GeneratorContext, writeFile } from "./context.js";
+
+export function generateClientInjector(ctx: GeneratorContext): void {
+  const ext = ctx.ext;
+  const ts = ext === "ts";
+  const pwaEnabled = ctx.config.features.pwa.enabled;
+  const mutationQueueEnabled = ctx.config.features.mutationQueue;
+  const crossTabSync = ctx.config.features.crossTabSync;
+  const clientRegistration = ctx.config.features.clientRegistration;
+
+  const pwaImport = pwaEnabled
+    ? `import { setupPwaInstall } from "./pwa/install.${ext}";
+`
+    : "";
+
+  const pwaCall = pwaEnabled ? `setupPwaInstall();\n` : "";
+
+  const mutationImport = mutationQueueEnabled
+    ? `import { processMutationQueue } from "./mutation-queue.${ext}";
+`
+    : "";
+
+  const mutationOnlineListener = mutationQueueEnabled
+    ? `
+// --- Mutation Queue Online Listener ---
+window.addEventListener("online", processMutationQueue);
+`
+    : "";
+
+  const crossTabHandler = crossTabSync
+    ? `
+    if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
+      window.dispatchEvent(
+        new CustomEvent("cache-invalidated", {
+          detail: { tags: [event.data.tag] },
+        })
+      );
+    }
+`
+    : "";
+
+  const swImport = clientRegistration
+    ? `import {
+  initServiceWorker as swInit,
+  handleUpdateApproved,
+  skipWaiting,
+} from "./sw/injector.${ext}";
+`
+    : "";
+
+  const swExports = clientRegistration
+    ? `
+export { handleUpdateApproved, skipWaiting };
+`
+    : "";
+
+  const code = `/**
+ * Swoff Client Injector
+ * Orchestrates SW registration, PWA install, and cross-tab sync.
+ * Single entry point for all Swoff client-side features.
+ *
+ * Usage:
+ *   import { initServiceWorker } from './swoff/client-injector.${ext}';
+ *   initServiceWorker();
+ *
+ * Window events (dispatched by this module):
+ *   sw-progress           - Download progress (detail: { percent, downloaded, total })
+ *   sw-ready              - SW active and controlling page
+ *   sw-error              - SW registration failed
+ *   cache-invalidated     - Cache entries cleared (detail: { tags })
+ *   mutation-sync-complete - Queued mutations synced (detail: { succeeded, failed })
+ *   mutation-queue-changed - Queue modified
+ *
+ * Window events (dispatched by feature modules):
+ *   pwa-installable       - PWA can be installed (detail: { isInstallable: true })
+ *   pwa-installed         - User accepted install (detail: { outcome: 'accepted' })
+ *   sw-auth-unauthorized  - 401 response received
+ *   sw-auth-state-change  - Login or logout (detail: { authenticated: boolean })
+ *   mutation-rollback     - Mutation exhausted retries
+ *   sw-update-available   - New version ready (detail: { version })
+ *   sw-version-detected   - Version info available
+ */
+${pwaImport}${mutationImport}${swImport}
+${pwaCall}${mutationOnlineListener}
+// --- SW Message Listener ---
+if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data.type === "SW_PROGRESS") {
+      const { percent, downloaded, total } = event.data;
+      window.dispatchEvent(
+        new CustomEvent("sw-progress", {
+          detail: { percent, downloaded, total },
+        })
+      );
+    }
+    if (event.data.type === "BACKGROUND_SYNC_COMPLETE") {
+      const { succeeded, failed, tags } = event.data.detail;
+      window.dispatchEvent(
+        new CustomEvent("mutation-sync-complete", {
+          detail: { succeeded, failed },
+        })
+      );
+      if (tags && tags.length > 0) {
+        window.dispatchEvent(
+          new CustomEvent("cache-invalidated", { detail: { tags } })
+        );
+      }
+      window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
+    }${crossTabHandler}  });
+}
+
+/** Initialize SW registration and all client-side features (PWA install, mutation queue, cross-tab sync). Call once at app startup. */
+export async function initServiceWorker()${ts ? ": Promise<void>" : " "}{
+${clientRegistration ? "  await swInit();" : "  // No SW registration configured"}
+}${swExports}
+`;
+
+  writeFile(ctx, `client-injector.${ext}`, code);
+}

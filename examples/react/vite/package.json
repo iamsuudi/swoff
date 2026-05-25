@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && npx @swoff/cli generate",
+    "build": "vite build && node swoff/sw/generator.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "serve:api": "node server.js",

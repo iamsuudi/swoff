@@ -5,22 +5,21 @@ describe("config-types", () => {
   describe("defaultConfig", () => {
     it("has all required fields", () => {
       expect(defaultConfig).toHaveProperty("enabled");
-      expect(defaultConfig).toHaveProperty("version");
-      expect(defaultConfig).toHaveProperty("minSupportedVersion");
       expect(defaultConfig).toHaveProperty("features");
       expect(defaultConfig).toHaveProperty("build");
     });
 
     it("has correct default values", () => {
       expect(defaultConfig.enabled).toBe(true);
-      expect(defaultConfig.version).toBe("from-package");
-      expect(defaultConfig.minSupportedVersion).toBe("0.0.0");
-      expect(defaultConfig.features.serviceWorker.autoRegister).toBe(true);
+      expect(defaultConfig.features.serviceWorker.autoUpdate).toBe(true);
       expect(defaultConfig.features.serviceWorker.autoActivate).toBe(false);
       expect(defaultConfig.features.serviceWorker.defaultStrategy).toBe("cache-first");
       expect(defaultConfig.features.serviceWorker.clearRuntimeOnUpdate).toBe(false);
       expect(defaultConfig.features.serviceWorker.navigationMode).toBe("spa");
       expect(defaultConfig.features.serviceWorker.spaEntry).toBe("/index.html");
+      expect(defaultConfig.features.serviceWorker.version.enabled).toBe(true);
+      expect(defaultConfig.features.serviceWorker.version.source).toBe("from-package");
+      expect(defaultConfig.features.serviceWorker.version.minSupportedVersion).toBe("0.0.0");
       expect(defaultConfig.build.outputDir).toBe("dist");
       expect(defaultConfig.build.swFilename).toBe("sw");
       expect(defaultConfig.features.pwa.enabled).toBe(true);
@@ -62,7 +61,7 @@ describe("config-types", () => {
     });
 
     it("has minSupportedVersion of 1.0.0", () => {
-      expect(defaultInitConfig.minSupportedVersion).toBe("1.0.0");
+      expect(defaultInitConfig.features.serviceWorker.version.minSupportedVersion).toBe("1.0.0");
     });
   });
 
@@ -77,6 +76,7 @@ describe("config-types", () => {
       expect(KNOWN_FEATURES).not.toContain("pwa");
       expect(KNOWN_FEATURES).not.toContain("serviceWorker");
       expect(KNOWN_FEATURES).not.toContain("versionedSw");
+      expect(KNOWN_FEATURES).not.toContain("autoUpdate");
     });
 
     it("OBJECT_FEATURES lists pwa, serviceWorker, and auth", () => {

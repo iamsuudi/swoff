@@ -6,6 +6,7 @@ import { rmSync, existsSync } from "fs";
 import { join } from "path";
 import { log } from "../cli/logger.js";
 import { loadConfigAsync } from "../config/loader.js";
+import { removeGeneratorFromBuildScript } from "../utils/build-script.js";
 
 export async function cleanCommand(projectRoot: string) {
   log.header("Removing Swoff");
@@ -15,6 +16,11 @@ export async function cleanCommand(projectRoot: string) {
   const outputDir = config?.build?.outputDir || "dist";
 
   let count = 0;
+
+  if (removeGeneratorFromBuildScript(projectRoot)) {
+    log.info("Removed SW generator from package.json build script");
+    count++;
+  }
 
   const swoffDir = join(projectRoot, "swoff");
   if (existsSync(swoffDir)) {

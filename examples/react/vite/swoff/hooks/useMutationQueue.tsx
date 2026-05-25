@@ -14,7 +14,7 @@ export function useMutationQueue() {
       pending: 0,
       lastSync: { succeeded: e.detail.succeeded, failed: e.detail.failed },
     });
-    const onChange = async () => setState((s) => ({ ...s, pending: await getPendingCount() }));
+    const onChange = async () => { const count = await getPendingCount(); setState((s) => ({ ...s, pending: count })); };
 
     window.addEventListener("mutation-sync-complete", onSync as EventListener);
     window.addEventListener("mutation-queue-changed", onChange);

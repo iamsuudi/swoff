@@ -1,6 +1,5 @@
 /**
- * Generates auth-fetch.ts/js — config-driven authenticated fetch wrapper.
- * Uses auth config to generate appropriate withAuthHeaders() and isAuthUrl().
+ * Generates auth-fetch.ts/js — thin auth wrapper around fetchWithCache.
  */
 
 import { GeneratorContext, writeFile } from "./context.js";
@@ -10,29 +9,28 @@ export function generateAuthFetch(ctx: GeneratorContext): void {
   const ts = ext === "ts";
   const T = (type: string) => (ts ? `: ${type}` : "");
   const R = (type: string) => (ts ? `: ${type} ` : " ");
-  const RT = (type: string) => (ts ? `): ${type} ` : ") ");
 
   const authConfig = ctx.config.features.auth;
   const { refreshPath, userEndpoint, type } = authConfig;
 
   function generateWithAuthHeaders(): string {
-    const h = T("Headers");
     const a = T("AuthData | null");
-
+    const h = T("Headers");
+    const hd = T("Headers");
     switch (type) {
       case "cookie":
-        return `function withAuthHeaders(headers${h}, _auth${a}${RT("Headers")}{
+        return `function withAuthHeaders(headers${hd}, _auth${a})${h}{
   return headers;
 }`;
       case "bearer":
-        return `function withAuthHeaders(headers${h}, auth${a}${RT("Headers")}{
+        return `function withAuthHeaders(headers${hd}, auth${a})${h}{
   if (auth?.token) {
     headers.set("Authorization", \`Bearer \${auth.token}\`);
   }
   return headers;
 }`;
       case "custom":
-        return `function withAuthHeaders(headers${h}, auth${a}${RT("Headers")}{
+        return `function withAuthHeaders(headers${hd}, auth${a})${h}{
   // --- EDIT THIS BLOCK FOR YOUR BACKEND ---
   // if (auth?.token) {
   //   headers.set("X-Auth-Token", auth.token);
@@ -41,7 +39,7 @@ export function generateAuthFetch(ctx: GeneratorContext): void {
   return headers;
 }`;
       default:
-        return `function withAuthHeaders(headers${h}, auth${a}${RT("Headers")}{
+        return `function withAuthHeaders(headers${hd}, auth${a})${h}{
   if (auth?.token) {
     headers.set("Authorization", \`Bearer \${auth.token}\`);
   }
@@ -52,16 +50,20 @@ export function generateAuthFetch(ctx: GeneratorContext): void {
 
   const credentialsLine =
     type === "cookie"
-      ? `const fetchOptions = { ...options, headers, credentials: "include" };`
-      : `const fetchOptions = { ...options, headers };`;
+      ? `  const fetchOptions = { ...options, headers, credentials: "include" };`
+      : `  const fetchOptions = { ...options, headers };`;
 
   const code = `/**
- * Auth-Aware Fetch — attaches auth headers, excludes auth endpoints from cache,
- * and handles 401 responses.
+ * Auth-Fetch — attaches auth headers, excludes auth endpoints from cache,
+ * and handles 401 responses. Thin wrapper around fetchWithCache.
  *
  * Usage:
  *   import { authenticatedFetch } from "./auth/fetch.${ext}";
  *   const data = await authenticatedFetch("/api/data").then((r) => r.json());
+ *
+ * Or use fetchWithCache directly:
+ *   import { fetchWithCache } from "../fetch-wrapper.${ext}";
+ *   const data = await fetchWithCache("/api/me", { auth: true });
  */
 
 import { fetchWithCache } from "../fetch-wrapper.${ext}";
@@ -73,7 +75,7 @@ ${generateWithAuthHeaders()}
  * Auth endpoints that should never be cached by the SW.
  * Edit this list to match your backend's auth routes.
  */
-function isAuthUrl(url${T("string")}${RT("boolean")}{
+function isAuthUrl(url${T("string")})${R("boolean")}{
   const authPaths = [
     "/login",
     "/logout",
@@ -87,18 +89,13 @@ function isAuthUrl(url${T("string")}${RT("boolean")}{
   return authPaths.some((path) => url.includes(path));
 }
 
-/**
- * Auth-aware fetch wrapper.
- * Attaches identity, excludes auth endpoints from cache, handles 401.
- */
-export async function authenticatedFetch(input${T("RequestInfo")}, options${T("RequestInit")} = {}${RT("Promise<Response>")}{
+/** Auth-aware fetch. Delegates to fetchWithCache with auth headers, cache bypass for auth endpoints, and 401 handling. */
+export async function authenticatedFetch(input${T("RequestInfo")}, options${T("RequestInit")} = {})${R("Promise<Response>")}{
   const auth = await getAuth();
   const headers = new Headers(options.headers);
 
-  // Attach auth headers (your backend determines how)
   withAuthHeaders(headers, auth);
 
-  // Determine if this is an auth endpoint (login, logout, refresh)
   const url = typeof input === "string" ? input : input.url;
 
   // Mark auth endpoints as mutation to bypass SW cache
@@ -107,7 +104,7 @@ export async function authenticatedFetch(input${T("RequestInfo")}, options${T("R
   }
 
   ${credentialsLine}
-  const response = await fetchWithCache(input, fetchOptions);
+  const { response } = await fetchWithCache(input, fetchOptions);
 
   // Handle 401 — auth expired or invalidated server-side
   if (response.status === 401) {
@@ -129,7 +126,6 @@ export async function ensureValidAuth()${R("Promise<AuthData | null>")}{
   if (!auth) return null;
   if (!auth.expiresAt || Date.now() < auth.expiresAt) return auth;
 
-  // Token expired — refresh it (deduplicated)
   if (!refreshPromise) {
     refreshPromise = (async () => {
       const response = await authenticatedFetch("${refreshPath}", {

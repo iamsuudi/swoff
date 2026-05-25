@@ -21,29 +21,33 @@
  *   // Auto-processes on online event
  */
 
-import { getAuth } from "./auth-store.ts";
+import { getAuth } from "./auth/store.ts";
+import { invalidateByTags } from "./cache.ts";
+import { getRecord, putRecord, deleteRecord } from "./store.ts";
+import type { MutationQueueItem } from "./swoff.d.ts";
 const DB_NAME = "swoff-queue";
 const STORE_NAME = "mutations";
 const MAX_RETRIES = 5;
 
-function openQueueDB() {
-  return new Promise((resolve, reject) => {
+function openQueueDB(): Promise<IDBDatabase> {
+  return new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
     request.onupgradeneeded = (e) => {
-      const db = e.target.result;
+      const db = (e.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         const store = db.createObjectStore(STORE_NAME, { keyPath: "id" });
         store.createIndex("by-timestamp", "timestamp");
       }
     };
-    request.onsuccess = (e) => resolve(e.target.result);
-    request.onerror = (e) => reject(e.target.error);
+    request.onsuccess = (e) => resolve((e.target as IDBOpenDBRequest).result);
+    request.onerror = (e) => reject((e.target as IDBRequest).error);
   });
 }
 
 let isSyncing = false;
 
-export async function queueMutation(mutation) {
+/** Store a write operation in IndexedDB for later sync. Works offline — use it for POST/PUT/PATCH/DELETE when the user might be offline. */
+export async function queueMutation(mutation: Partial<MutationQueueItem>): Promise<void> {
   const db = await openQueueDB();
   const tx = db.transaction(STORE_NAME, "readwrite");
   const store = tx.objectStore(STORE_NAME);
@@ -62,7 +66,7 @@ export async function queueMutation(mutation) {
     tempId: mutation.tempId || null,
   });
 
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -70,18 +74,19 @@ export async function queueMutation(mutation) {
   window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
 }
 
-export async function processMutationQueue() {
+/** Process all queued mutations in order. Sends them to the server and reconciles local data. Runs automatically on the online event. */
+export async function processMutationQueue(): Promise<void> {
   if (!navigator.onLine || isSyncing) return;
   isSyncing = true;
 
   try {
   const auth = await getAuth();
-  const authHeader = auth?.token ? { Authorization: `Bearer ${auth.token}` } : {};
+  const authHeader: Record<string, string> = auth?.token ? { Authorization: `Bearer ${auth.token}` } : {};
     const db = await openQueueDB();
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
     const index = store.index("by-timestamp");
-    const queue = await new Promise((resolve, reject) => {
+    const queue: MutationQueueItem[] = await new Promise<MutationQueueItem[]>((resolve, reject) => {
       const request = index.getAll();
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
@@ -117,7 +122,6 @@ export async function processMutationQueue() {
         }
 
         if (item.tags && item.tags.length > 0) {
-          const { invalidateByTags } = await import("./cache.ts");
           await invalidateByTags(item.tags);
         }
 
@@ -141,44 +145,39 @@ export async function processMutationQueue() {
   }
 }
 
-export async function flushMutations() {
+/** Immediately process all queued mutations. Call this after re-login to flush mutations that failed due to auth expiry. */
+export async function flushMutations(): Promise<void> {
   await processMutationQueue();
 }
 
-async function removeFromQueue(id) {
+async function removeFromQueue(id: string): Promise<void> {
   const db = await openQueueDB();
   const tx = db.transaction(STORE_NAME, "readwrite");
   tx.objectStore(STORE_NAME).delete(id);
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
 }
 
-async function updateInQueue(item) {
+async function updateInQueue(item: MutationQueueItem): Promise<void> {
   const db = await openQueueDB();
   const tx = db.transaction(STORE_NAME, "readwrite");
   tx.objectStore(STORE_NAME).put(item);
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
 }
 
-async function rollbackMutation(item) {
+async function rollbackMutation(item: MutationQueueItem): Promise<void> {
   if (!item.storeName) return;
 
   if (item.method === "POST" && item.tempId) {
-    const { deleteRecord } = await import("./store.ts");
     await deleteRecord(item.storeName, item.tempId);
-  } else if (
-    (item.method === "PUT" || item.method === "PATCH") &&
-    item.previousData
-  ) {
-    const { putRecord } = await import("./store.ts");
+  } else if ((item.method === "PUT" || item.method === "PATCH") && item.previousData) {
     await putRecord(item.storeName, { ...item.previousData, $synced: true });
   } else if (item.method === "DELETE" && item.tempId && item.previousData) {
-    const { putRecord } = await import("./store.ts");
     await putRecord(item.storeName, { ...item.previousData, $synced: true });
   }
 
@@ -194,8 +193,7 @@ async function rollbackMutation(item) {
   );
 }
 
-async function reconcileRecord(storeName, tempId, serverData) {
-  const { getRecord, putRecord, deleteRecord } = await import("./store.ts");
+async function reconcileRecord(storeName: string, tempId: string, serverData: Record<string, unknown>): Promise<void> {
   const existing = await getRecord(storeName, tempId);
   if (!existing) return;
 
@@ -214,12 +212,13 @@ async function reconcileRecord(storeName, tempId, serverData) {
   }
 }
 
-export async function getPendingCount() {
+/** Get the number of queued mutations waiting to be synced. Useful for showing a sync badge. */
+export async function getPendingCount(): Promise<number> {
   const db = await openQueueDB();
-  return new Promise((resolve, reject) => {
+  return new Promise<number>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
     const request = tx.objectStore(STORE_NAME).count();
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve((request as IDBRequest<number>).result);
+    request.onerror = () => reject((request as IDBRequest).error);
   });
 }

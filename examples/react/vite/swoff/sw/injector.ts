@@ -1,11 +1,9 @@
 /**
  * Swoff SW Injector
- * Framework-agnostic SW registration, PWA install support, and cross-tab sync.
+ * Framework-agnostic SW registration with versioned URLs and update flow.
  *
  * Usage:
- *   import { initServiceWorker } from './swoff/sw-injector.ts';
- *
- *   // Call in your app entry point (e.g., main.tsx, app.js):
+ *   import { initServiceWorker } from './swoff/sw/injector.ts';
  *   initServiceWorker();
  *
  * Window events:
@@ -14,32 +12,28 @@
  *   sw-progress          - Download progress (detail: { percent, downloaded, total })
  *   sw-ready             - SW active and controlling page
  *   sw-error             - SW registration failed
- *   pwa-installable      - PWA can be installed (detail: { isInstallable: true })
- *   pwa-installed        - User accepted install (detail: { outcome: 'accepted' })
- *   cache-invalidated    - Cache entries with given tags cleared (detail: { tags })
- *   mutation-sync-complete - Queued mutations synced (detail: { succeeded, failed })
- *   mutation-queue-changed - Queue modified
- *   mutation-rollback     - Mutation exhausted retries (detail: { method, url, tempId, previousData })
- *   sw-auth-unauthorized  - 401 response received (token expired or invalid)
- *   sw-auth-state-change  - Login or logout (detail: { authenticated: boolean })
  *
  * Window properties:
  *   window.latestSWVersion       - Latest version from version.json
  *   window.currentSWVersion      - Active SW version
  *   window.swAvailableVersion    - Pending update version
  *   window.swUpdateRequired      - Forced update needed (version < minSupportedVersion)
- *   window.swMinSupportedVersion - Minimum supported version from version.json
+ *   window.swMinSupportedVersion - Minimum supported version
  *   window.swReady               - SW is active
  *   window.swError               - Registration failed
- *   window.deferredInstallPrompt - Captured BeforeInstallPromptEvent
- *   window.pwaInstallable        - Whether PWA can be installed
  */
-import { processMutationQueue } from "./mutation-queue.ts";
+const AUTO_UPDATE = true;
+const AUTO_ACTIVATE = true;
 
-const AUTO_REGISTER = true;
-const AUTO_ACTIVATE = false;
-
-// --- SW Registration ---
+function semverCompare(a: string, b: string): number {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if (pa[i] > pb[i]) return 1;
+    if (pa[i] < pb[i]) return -1;
+  }
+  return 0;
+}
 
 async function checkForUpdate() {
   const response = await fetch("/version.json");
@@ -49,17 +43,17 @@ async function checkForUpdate() {
   return response.json();
 }
 
-async function waitForController() {
-  return new Promise((resolve) => {
+async function waitForController(): Promise<void> {
+  return new Promise<void>((resolve) => {
     if (navigator.serviceWorker.controller) {
       resolve();
     } else {
-      navigator.serviceWorker.addEventListener("controllerchange", resolve, { once: true });
+      navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true });
     }
   });
 }
 
-async function doRegisterServiceWorker(version) {
+async function doRegisterServiceWorker(version: string): Promise<ServiceWorkerRegistration> {
   const swUrl = `/sw-v${version}.js`;
   const registration = await navigator.serviceWorker.register(swUrl);
   localStorage.setItem("swRegisteredVersion", version);
@@ -71,17 +65,12 @@ async function doRegisterServiceWorker(version) {
   return registration;
 }
 
-function shouldRegister() {
-  return true;
-}
-
-export async function initServiceWorker() {
+/** Register the SW with version checking and update flow. Checks version.json, handles updates, and dispatches sw-ready/sw-error events. */
+export async function initServiceWorker(): Promise<void> {
   if (!("serviceWorker" in navigator)) {
     console.warn("Service Workers not supported");
     return;
   }
-
-  if (!shouldRegister()) return;
 
   try {
     const manifest = await checkForUpdate();
@@ -92,7 +81,7 @@ export async function initServiceWorker() {
     if (currentVersion === manifest.version) {
       const registration = await navigator.serviceWorker.getRegistration();
       if (registration && registration.active) {
-        window.currentSWVersion = currentVersion;
+        window.currentSWVersion = currentVersion ?? undefined;
         window.dispatchEvent(new CustomEvent("sw-version-detected"));
         await waitForController();
         if (!window.swReady) {
@@ -102,9 +91,9 @@ export async function initServiceWorker() {
     } else if (currentVersion && currentVersion !== manifest.version) {
       window.swAvailableVersion = manifest.version;
       window.swUpdateRequired =
-        currentVersion < (manifest.minSupportedVersion || "0.0.0");
+        semverCompare(currentVersion, manifest.minSupportedVersion || "0.0.0") < 0;
 
-      if (AUTO_REGISTER) {
+      if (AUTO_UPDATE) {
         const registration = await navigator.serviceWorker.getRegistration();
         if (registration && registration.waiting) {
           if (AUTO_ACTIVATE) {
@@ -150,7 +139,9 @@ export async function initServiceWorker() {
         }
         return;
       }
-    } catch {}
+    } catch {
+      // Handle the case where no existing active registration is found
+    }
 
     console.error("Service Worker initialization failed:", error);
     window.swError = true;
@@ -158,7 +149,8 @@ export async function initServiceWorker() {
   }
 }
 
-export async function handleUpdateApproved(newVersion) {
+/** Accept a pending SW update. Reloads the page once the new SW takes control. */
+export async function handleUpdateApproved(newVersion: string): Promise<void> {
   const registration = await navigator.serviceWorker.getRegistration();
   if (registration && registration.waiting) {
     registration.waiting.postMessage({ type: "SKIP_WAITING" });
@@ -173,77 +165,10 @@ export async function handleUpdateApproved(newVersion) {
   }
 }
 
-export async function skipWaiting() {
+/** Activate a waiting SW without reloading. Useful when you handle the transition yourself. */
+export async function skipWaiting(): Promise<void> {
   const registration = await navigator.serviceWorker.ready;
   if (registration.waiting) {
     registration.waiting.postMessage({ type: "SKIP_WAITING" });
   }
-}
-
-// --- PWA Install Support ---
-
-window.addEventListener("beforeinstallprompt", (e) => {
-  window.deferredInstallPrompt = e;
-  window.pwaInstallable = true;
-
-  if (false) {
-    e.preventDefault();
-  }
-
-  window.dispatchEvent(
-    new CustomEvent("pwa-installable", {
-      detail: { isInstallable: true },
-    })
-  );
-});
-
-window.addEventListener("appinstalled", () => {
-  window.deferredInstallPrompt = null;
-  window.pwaInstallable = false;
-
-  window.dispatchEvent(
-    new CustomEvent("pwa-installed", {
-      detail: { outcome: "accepted" },
-    })
-  );
-});
-
-
-// --- Mutation Queue Listener ---
-window.addEventListener("online", processMutationQueue);
-
-// --- SW Message Listener ---
-if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-  navigator.serviceWorker.addEventListener("message", (event) => {
-    if (event.data.type === "SW_PROGRESS") {
-      const { percent, downloaded, total } = event.data;
-      window.dispatchEvent(
-        new CustomEvent("sw-progress", {
-          detail: { percent, downloaded, total },
-        })
-      );
-    }
-    if (event.data.type === "BACKGROUND_SYNC_COMPLETE") {
-      const { succeeded, failed, tags } = event.data.detail;
-      window.dispatchEvent(
-        new CustomEvent("mutation-sync-complete", {
-          detail: { succeeded, failed },
-        })
-      );
-      if (tags && tags.length > 0) {
-        window.dispatchEvent(
-          new CustomEvent("cache-invalidated", { detail: { tags } })
-        );
-      }
-      window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
-    }
-
-    if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
-      window.dispatchEvent(
-        new CustomEvent("cache-invalidated", {
-          detail: { tags: [event.data.tag] },
-        })
-      );
-    }
-  });
 }

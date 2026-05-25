@@ -69,11 +69,29 @@ export function generateGuide(ctx: GeneratorContext): void {
 
   w("**Functions:**");
   w("- `fetchWithCache(input, options?)` — main fetch wrapper. Use for all API calls.");
-  w("- `fetchWithCacheOrQueue(input, options?)` — like fetchWithCache but throws when offline, so you can catch and queueMutation instead.");
+  w("- `fetchWithCache(input, options?)` — unified fetch wrapper. Auto-queues writes when offline (disable with `queueOffline: false`).");
+  w("");
+  w("**Returns** `{ response: Response, fromCache: boolean }` — `fromCache` lets the UI show stale indicators when a stale-while-revalidate fallback is served.");
   w("");
 
   w("**Note:** There is no separate `authenticatedMutation` wrapper. For authenticated writes, just use `authenticatedFetch` (see Auth section below).");
   w("");
+
+  if (ctx.frameworkName === "react") {
+    w("### React Hook: `useCachedFetch`");
+    w("Re-fetches automatically when the SW invalidates related cache tags.");
+    w("```tsx");
+    w(`import { useCachedFetch } from "./swoff/hooks/useCachedFetch.${ext}x";`);
+    w("");
+    w('const { data, error, loading, refetch } = useCachedFetch("/api/todos");');
+    w("```");
+    w("");
+    w("**Returns** `{ data: Response | null, error, loading, refetch }`");
+    w("");
+    w("The hook listens for `cache-invalidated` events (when tag invalidation is enabled) and automatically");
+    w("re-fetches if the event's tags match the URL. Call `refetch()` to manually refresh.");
+    w("");
+  }
 
   // ── Mutation Queue ──
   if (config.features.mutationQueue) {
@@ -269,6 +287,7 @@ export function generateGuide(ctx: GeneratorContext): void {
     if (ctx.frameworkName === "react") {
       w("### React Hooks");
       w("- `useAuth()` — returns `{ authenticated, user, online }`, listens to online/offline/auth changes");
+      w("- `useCachedFetch(url, options?)` — fetches with auto-refetch on tag invalidation, see Fetch Wrapper section");
       w("");
     }
   }
@@ -371,6 +390,7 @@ export function generateGuide(ctx: GeneratorContext): void {
       w("### React Hooks");
       w("- `usePWAUpdate()` — returns `{ updateStatus, progress, forceUpdate, acceptUpdate, dismissUpdate }`");
       w("- `useSWProgress()` — returns `{ status, progress }` for download progress during SW update");
+      w("- `useCachedFetch(url, options?)` — fetches with auto-refetch on tag invalidation, see Fetch Wrapper section");
       w("");
     }
   }

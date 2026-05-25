@@ -26,6 +26,11 @@ export function generateFetchHandler(
             await cacheTagUrl(url, tags);
           }` : "";
 
+  const staleVersionCode = tagInvalidation ? `
+    if (staleVersions.has(request.url)) {
+      event.waitUntil(refreshCache(runtimeCache, request).then(() => staleVersions.delete(request.url)));
+    }` : "";
+
   const staleTagCode = tagInvalidation ? `
       const tagsHeader = request.headers.get("X-SW-Cache-Tags");
       if (tagsHeader) {
@@ -74,11 +79,18 @@ async function fromPrecache(request) {
   return cache.match(request);
 }
 
+function markFromCache(response) {
+  const headers = new Headers(response.headers);
+  headers.set("X-SW-From-Cache", "true");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 function isReadRequest(request) {
-  const strategy = request.headers.get("X-SW-Cache-Strategy");
-  if (strategy === "read") return true;
-  if (strategy === "mutation") return false;
-  return request.method === "GET" || request.method === "HEAD";
+  return request.headers.get("X-SW-Cache-Strategy") === "read";
 }
 
 function determineCacheStrategy(request, customStrategies, defaultStrategy) {
@@ -122,10 +134,12 @@ async function cacheFirst(event, request) {
   const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
 
   const cached = await runtimeCache.match(request);
-  if (cached) return cached;
+  if (cached) {${staleVersionCode}
+    return markFromCache(cached);
+  }
 
   const precached = await fromPrecache(request);
-  if (precached) return precached;
+  if (precached) return markFromCache(precached);
 ${navCode}
   const response = await fetch(request);
   if (response.ok) {
@@ -170,13 +184,13 @@ async function staleWhileRevalidate(event, request) {
 
   if (cached) {
     event.waitUntil(refreshCache(runtimeCache, request));
-    return cached;
+    return markFromCache(cached);
   }
 
   const precached = await fromPrecache(request);
   if (precached) {
     event.waitUntil(refreshCache(runtimeCache, request));
-    return precached;
+    return markFromCache(precached);
   }
 
   const response = await fetch(request);
@@ -201,10 +215,12 @@ async function cacheOnly(event, request) {
   const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
 
   const byRequest = await runtimeCache.match(request);
-  if (byRequest) return byRequest;
+  if (byRequest) {${staleVersionCode}
+    return markFromCache(byRequest);
+  }
 
   const precached = await fromPrecache(request);
-  if (precached) return precached;
+  if (precached) return markFromCache(precached);
 
   return new Response("Not in cache", { status: 404 });
 }

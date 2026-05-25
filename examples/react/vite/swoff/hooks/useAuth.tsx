@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getAuthState } from "../auth-state.ts";
+import { getAuthState } from "../auth/state.ts";
 
 export function useAuth() {
   const [state, setState] = useState({

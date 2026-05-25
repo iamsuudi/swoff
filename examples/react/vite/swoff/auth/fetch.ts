@@ -1,22 +1,23 @@
 /**
- * Auth-Aware Fetch — attaches auth headers, excludes auth endpoints from cache,
- * and handles 401 responses.
+ * Auth-Fetch — attaches auth headers, excludes auth endpoints from cache,
+ * and handles 401 responses. Thin wrapper around fetchWithCache.
  *
  * Usage:
- *   import { authenticatedFetch } from "./auth-fetch.ts";
+ *   import { authenticatedFetch } from "./auth/fetch.ts";
  *   const data = await authenticatedFetch("/api/data").then((r) => r.json());
+ *
+ * Or use fetchWithCache directly:
+ *   import { fetchWithCache } from "../fetch-wrapper.ts";
+ *   const data = await fetchWithCache("/api/me", { auth: true });
  */
 
-import { fetchWithCache } from "./fetch-wrapper.ts";
-import { getAuth, setAuth, clearAuth } from "./auth-store.ts";
+import { fetchWithCache } from "../fetch-wrapper.ts";
+import { getAuth, setAuth, clearAuth, type AuthData } from "./store.ts";
 
-function withAuthHeaders(headers, auth) {
-  // --- EDIT THIS BLOCK FOR YOUR BACKEND ---
-  // JWT Bearer token:
+function withAuthHeaders(headers: Headers, auth: AuthData | null): Headers{
   if (auth?.token) {
     headers.set("Authorization", `Bearer ${auth.token}`);
   }
-  // --- END OF EDITABLE BLOCK ---
   return headers;
 }
 
@@ -24,7 +25,7 @@ function withAuthHeaders(headers, auth) {
  * Auth endpoints that should never be cached by the SW.
  * Edit this list to match your backend's auth routes.
  */
-function isAuthUrl(url) {
+function isAuthUrl(url: string): boolean {
   const authPaths = [
     "/login",
     "/logout",
@@ -38,18 +39,13 @@ function isAuthUrl(url) {
   return authPaths.some((path) => url.includes(path));
 }
 
-/**
- * Auth-aware fetch wrapper.
- * Attaches identity, excludes auth endpoints from cache, handles 401.
- */
-export async function authenticatedFetch(input, options = {}) {
+/** Auth-aware fetch. Delegates to fetchWithCache with auth headers, cache bypass for auth endpoints, and 401 handling. */
+export async function authenticatedFetch(input: RequestInfo, options: RequestInit = {}): Promise<Response> {
   const auth = await getAuth();
   const headers = new Headers(options.headers);
 
-  // Attach auth headers (your backend determines how)
   withAuthHeaders(headers, auth);
 
-  // Determine if this is an auth endpoint (login, logout, refresh)
   const url = typeof input === "string" ? input : input.url;
 
   // Mark auth endpoints as mutation to bypass SW cache
@@ -57,8 +53,8 @@ export async function authenticatedFetch(input, options = {}) {
     headers.set("X-SW-Cache-Strategy", "mutation");
   }
 
-  const fetchOptions = { ...options, headers };
-  const response = await fetchWithCache(input, fetchOptions);
+    const fetchOptions = { ...options, headers };
+  const { response } = await fetchWithCache(input, fetchOptions);
 
   // Handle 401 — auth expired or invalidated server-side
   if (response.status === 401) {
@@ -73,14 +69,13 @@ export async function authenticatedFetch(input, options = {}) {
  * Token refresh helper — called before requests when token may be expired.
  * Uses refreshPath from config.
  */
-let refreshPromise = null;
+let refreshPromise: Promise<AuthData | null> | null = null;
 
-export async function ensureValidAuth() {
+export async function ensureValidAuth(): Promise<AuthData | null> {
   const auth = await getAuth();
   if (!auth) return null;
   if (!auth.expiresAt || Date.now() < auth.expiresAt) return auth;
 
-  // Token expired — refresh it (deduplicated)
   if (!refreshPromise) {
     refreshPromise = (async () => {
       const response = await authenticatedFetch("/api/refresh", {

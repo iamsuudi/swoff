@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { handleUpdateApproved } from "../client-injector.ts";
 
 export function usePWAUpdate() {
   const [state, setState] = useState({
@@ -41,7 +42,6 @@ export function usePWAUpdate() {
 
   const acceptUpdate = useCallback(async () => {
     if (!state.availableVersion) return;
-    const { handleUpdateApproved } = await import("../client-injector.ts");
     await handleUpdateApproved(state.availableVersion);
   }, [state.availableVersion]);
 

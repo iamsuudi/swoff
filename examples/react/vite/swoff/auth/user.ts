@@ -2,37 +2,34 @@
  * Current User — fetch, cache, and invalidate the current user for offline access.
  *
  * Usage:
- *   import { fetchCurrentUser, cacheUser, getCachedUser, clearCachedUser } from "./auth-user.ts";
+ *   import { fetchCurrentUser, cacheUser, getCachedUser, clearCachedUser } from "./auth/user.ts";
  *
  *   await fetchCurrentUser();           // Fetch from server & cache
  *   const user = await getCachedUser(); // Get cached (offline-capable)
  *   await clearCachedUser();            // Clear on logout
  */
 
-import { authenticatedFetch } from "./auth-fetch.ts";
+import { authenticatedFetch } from "./fetch.ts";
 
 const DB_NAME = "swoff-auth-user";
 const STORE_NAME = "current-user";
 
-function openAuthDB() {
-  return new Promise((resolve, reject) => {
+function openAuthDB(): Promise<IDBDatabase> {
+  return new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
     request.onupgradeneeded = (e) => {
-      const db = e.target.result;
+      const db = (e.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: "key" });
       }
     };
-    request.onsuccess = (e) => resolve(e.target.result);
-    request.onerror = (e) => reject(e.target.error);
+    request.onsuccess = (e) => resolve((e.target as IDBOpenDBRequest).result);
+    request.onerror = (e) => reject((e.target as IDBRequest).error);
   });
 }
 
-/**
- * Fetch current user from your backend and cache locally.
- * Uses userEndpoint from swoff.config.json.
- */
-export async function fetchCurrentUser() {
+/** Fetch current user from the user endpoint and cache the result in IndexedDB. */
+export async function fetchCurrentUser(): Promise<Record<string, unknown>> {
   const response = await authenticatedFetch("/api/me");
   if (!response.ok) throw new Error("Failed to fetch user");
 
@@ -41,12 +38,10 @@ export async function fetchCurrentUser() {
   return user;
 }
 
-/**
- * Store user in IndexedDB for offline access.
- */
-export async function cacheUser(user) {
+/** Persist user data to IndexedDB for offline access. */
+export async function cacheUser(user: Record<string, unknown>): Promise<void> {
   const db = await openAuthDB();
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
     store.put({ key: "user", value: user });
@@ -55,30 +50,26 @@ export async function cacheUser(user) {
   });
 }
 
-/**
- * Get cached user — works offline.
- */
-export async function getCachedUser() {
+/** Load user data from IndexedDB cache (no token — only user object survives refresh). */
+export async function getCachedUser(): Promise<Record<string, unknown> | null> {
   const db = await openAuthDB();
-  return new Promise((resolve, reject) => {
+  return new Promise<Record<string, unknown> | null>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
     const request = store.get("user");
-    request.onsuccess = () => resolve(request.result?.value || null);
-    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve((request as IDBRequest).result?.value ?? null);
+    request.onerror = () => reject((request as IDBRequest).error);
   });
 }
 
-/**
- * Clear cached user on logout.
- */
-export async function clearCachedUser() {
+/** Remove user data from IndexedDB cache. Call on logout. */
+export async function clearCachedUser(): Promise<void> {
   const db = await openAuthDB();
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
     store.delete("user");
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => reject((tx as IDBTransaction).error);
   });
 }

@@ -3,7 +3,7 @@
  * Generated from swoff.config.json
  * DO NOT EDIT MANUALLY
  * Version: 0.0.0
- * Features: versionedSw=true, mutationQueue=true, backgroundSync=true, tagInvalidation=true
+ * Features: version.enabled=true, mutationQueue=true, backgroundSync=true, tagInvalidation=true
  * Default Strategy: cache-first
  * See: https://swoff.netlify.app/docs
  */
@@ -52,7 +52,7 @@ self.addEventListener("activate", (event) => {
     (async () => {
       const keys = await caches.keys();
       await Promise.all(
-        keys.filter((key) => key !== CACHE_NAME && key !== CACHE_NAME_RUNTIME).map((key) => caches.delete(key))
+        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
       );
       await self.clients.claim();
     })()
@@ -80,11 +80,18 @@ async function fromPrecache(request) {
   return cache.match(request);
 }
 
+function markFromCache(response) {
+  const headers = new Headers(response.headers);
+  headers.set("X-SW-From-Cache", "true");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 function isReadRequest(request) {
-  const strategy = request.headers.get("X-SW-Cache-Strategy");
-  if (strategy === "read") return true;
-  if (strategy === "mutation") return false;
-  return request.method === "GET" || request.method === "HEAD";
+  return request.headers.get("X-SW-Cache-Strategy") === "read";
 }
 
 function determineCacheStrategy(request, customStrategies, defaultStrategy) {
@@ -128,10 +135,15 @@ async function cacheFirst(event, request) {
   const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
 
   const cached = await runtimeCache.match(request);
-  if (cached) return cached;
+  if (cached) {
+    if (staleVersions.has(request.url)) {
+      event.waitUntil(refreshCache(runtimeCache, request).then(() => staleVersions.delete(request.url)));
+    }
+    return markFromCache(cached);
+  }
 
   const precached = await fromPrecache(request);
-  if (precached) return precached;
+  if (precached) return markFromCache(precached);
 
   if (request.mode === "navigate") {
     const precache = await caches.open(CACHE_NAME);
@@ -198,13 +210,13 @@ async function staleWhileRevalidate(event, request) {
 
   if (cached) {
     event.waitUntil(refreshCache(runtimeCache, request));
-    return cached;
+    return markFromCache(cached);
   }
 
   const precached = await fromPrecache(request);
   if (precached) {
     event.waitUntil(refreshCache(runtimeCache, request));
-    return precached;
+    return markFromCache(precached);
   }
 
   const response = await fetch(request);
@@ -235,10 +247,15 @@ async function cacheOnly(event, request) {
   const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
 
   const byRequest = await runtimeCache.match(request);
-  if (byRequest) return byRequest;
+  if (byRequest) {
+    if (staleVersions.has(request.url)) {
+      event.waitUntil(refreshCache(runtimeCache, request).then(() => staleVersions.delete(request.url)));
+    }
+    return markFromCache(byRequest);
+  }
 
   const precached = await fromPrecache(request);
-  if (precached) return precached;
+  if (precached) return markFromCache(precached);
 
   return new Response("Not in cache", { status: 404 });
 }
@@ -247,6 +264,7 @@ async function networkOnly(event, request) {
   return fetch(request);
 }
 
+const staleVersions = new Map();
 const TAG_DB_NAME = "swoff-cache-tags";
 const TAG_STORE_NAME = "tags";
 
@@ -276,6 +294,22 @@ async function cacheTagUrl(url, tags) {
   });
 }
 
+async function refetchAfterInvalidation(url) {
+  try {
+    const response = await fetch(url);
+    if (response.ok) {
+      const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
+      await runtimeCache.put(url, response);
+      staleVersions.delete(url);
+      return true;
+    }
+  } catch {
+    // fetch failed (network error, auth required, etc.)
+  }
+  staleVersions.set(url, Date.now());
+  return false;
+}
+
 async function invalidateByTag(tag) {
   const db = await openTagDB();
   const tx = db.transaction(TAG_STORE_NAME, "readonly");
@@ -288,11 +322,7 @@ async function invalidateByTag(tag) {
   });
   await db.close();
 
-  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
-  for (const entry of entries) {
-    await runtimeCache.delete(entry.url);
-  }
-
+  // Remove from tag index
   const writeDb = await openTagDB();
   const writeTx = writeDb.transaction(TAG_STORE_NAME, "readwrite");
   const writeStore = writeTx.objectStore(TAG_STORE_NAME);
@@ -303,6 +333,11 @@ async function invalidateByTag(tag) {
     writeTx.oncomplete = () => resolve();
     writeTx.onerror = () => reject(writeTx.error);
   });
+
+  // Background refetch each deleted URL; keep stale on failure
+  for (const entry of entries) {
+    refetchAfterInvalidation(entry.url);
+  }
 
   const clients = await self.clients.matchAll();
   clients.forEach((client) => {

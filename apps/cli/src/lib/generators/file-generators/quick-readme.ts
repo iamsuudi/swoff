@@ -70,6 +70,15 @@ export function generateReadme(ctx: GeneratorContext): void {
     w("");
   }
 
+  if (ctx.frameworkName === "react") {
+    w("## React hook — auto-refetch on cache invalidation");
+    w("```tsx");
+    w(`import { useCachedFetch } from "./swoff/hooks/useCachedFetch.${ext}x";`);
+    w('const { data, error, loading, refetch } = useCachedFetch("/api/todos");');
+    w("```");
+    w("");
+  }
+
   w("## Build script");
   w("The SW generator learns your build output to precache assets.");
   w("Swoff has already added this to your `package.json`:");

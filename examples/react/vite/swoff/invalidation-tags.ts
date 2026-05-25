@@ -19,15 +19,15 @@
  *   await invalidateUrl("/api/todos/42");
  */
 
-import { invalidateByTag, invalidateByTags } from "./cache.ts";
+import { invalidateByTags } from "./cache.ts";
 
-export function generateTags(url) {
+/** Generate cache invalidation tags from a URL path. e.g. /api/todos/42 → ["todos", "todo:42"]. Used with fetchWithCache's tags option. */
+export function generateTags(url: string | URL): string[] {
   const parsed = typeof url === "string" ? new URL(url, window.location.origin) : url;
   const segments = parsed.pathname.split("/").filter(Boolean);
 
   if (segments.length === 0) return ["root"];
 
-  // Skip common API prefixes
   const skipPrefixes = ["api", "v1", "v2", "v3", "rest", "graphql", "gql"];
   let startIdx = 0;
   while (startIdx < segments.length && skipPrefixes.includes(segments[startIdx])) {
@@ -39,10 +39,8 @@ export function generateTags(url) {
 
   const tags = [];
 
-  // Collection tag: /api/todos -> "todos"
   tags.push(resourceSegments[0]);
 
-  // Resource tag: /api/todos/42 -> "todo:42"
   if (resourceSegments.length >= 2 && !isNaN(Number(resourceSegments[1]))) {
     const collection = resourceSegments[0];
     const id = resourceSegments[1];
@@ -50,7 +48,6 @@ export function generateTags(url) {
     tags.push(`${singular}:${id}`);
   }
 
-  // Sub-resource tags: /api/todos/42/comments -> "comments"
   for (let i = 2; i < resourceSegments.length; i++) {
     if (isNaN(Number(resourceSegments[i]))) {
       tags.push(resourceSegments[i]);
@@ -60,23 +57,25 @@ export function generateTags(url) {
   return tags;
 }
 
-export function generateTagsFromMethod(method, url) {
+/** Generate tags prefixed by HTTP method. e.g. POST /api/todos → ["post-todos"]. Useful for invalidating only mutation-tagged caches. */
+export function generateTagsFromMethod(method: string, url: string | URL): string[] {
   const tags = generateTags(url);
 
   if (method === "GET" || method === "HEAD") {
     return tags;
   }
 
-  // For mutations, add method prefix
   return tags.map((tag) => `${method.toLowerCase()}-${tag}`);
 }
 
-export async function invalidateUrl(url) {
+/** Invalidate cached responses related to a URL (extracts tags from the URL then calls invalidateByTags). */
+export async function invalidateUrl(url: string | URL): Promise<void> {
   const tags = generateTags(url);
   await invalidateByTags(tags);
 }
 
-export async function invalidateByMethod(method, url) {
+/** Invalidate cached responses tagged with method-prefixed tags from a URL. */
+export async function invalidateByMethod(method: string, url: string | URL): Promise<void> {
   const tags = generateTagsFromMethod(method, url);
   await invalidateByTags(tags);
 }

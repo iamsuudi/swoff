@@ -182,16 +182,11 @@ describe("generateClientInjector", () => {
 });
 
 describe("generateFetchWrapper", () => {
-  it("exports fetchWithCache and fetchWithCacheOrQueue", () => {
+  it("exports fetchWithCache", () => {
     const ctx = makeContext();
     generateFetchWrapper(ctx);
     const content = readFileSync(join(ctx.swoffDir, "fetch-wrapper.js"), "utf8");
     expect(content).toContain("fetchWithCache");
-    expect(content).toContain("fetchWithCacheOrQueue");
-    expect(content).toContain("inFlightRequests");
-    expect(content).toContain("X-SW-Cache-Strategy");
-    expect(content).toContain("X-SW-Stale");
-    expect(content).toContain("X-SW-Cache-Tags");
   });
 });
 

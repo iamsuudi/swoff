@@ -1,9 +1,12 @@
 /**
  * Generates IndexedDB-based tag invalidation logic for the SW.
+ * After invalidation, tries to re-fetch URLs in the background.
+ * On failure, keeps the old entry as stale-while-revalidate fallback.
  */
 
 export function generateTagManagement(): string {
   return `
+const staleVersions = new Map();
 const TAG_DB_NAME = "swoff-cache-tags";
 const TAG_STORE_NAME = "tags";
 
@@ -33,6 +36,22 @@ async function cacheTagUrl(url, tags) {
   });
 }
 
+async function refetchAfterInvalidation(url) {
+  try {
+    const response = await fetch(url);
+    if (response.ok) {
+      const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
+      await runtimeCache.put(url, response);
+      staleVersions.delete(url);
+      return true;
+    }
+  } catch {
+    // fetch failed (network error, auth required, etc.)
+  }
+  staleVersions.set(url, Date.now());
+  return false;
+}
+
 async function invalidateByTag(tag) {
   const db = await openTagDB();
   const tx = db.transaction(TAG_STORE_NAME, "readonly");
@@ -45,11 +64,7 @@ async function invalidateByTag(tag) {
   });
   await db.close();
 
-  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
-  for (const entry of entries) {
-    await runtimeCache.delete(entry.url);
-  }
-
+  // Remove from tag index
   const writeDb = await openTagDB();
   const writeTx = writeDb.transaction(TAG_STORE_NAME, "readwrite");
   const writeStore = writeTx.objectStore(TAG_STORE_NAME);
@@ -60,6 +75,11 @@ async function invalidateByTag(tag) {
     writeTx.oncomplete = () => resolve();
     writeTx.onerror = () => reject(writeTx.error);
   });
+
+  // Background refetch each deleted URL; keep stale on failure
+  for (const entry of entries) {
+    refetchAfterInvalidation(entry.url);
+  }
 
   const clients = await self.clients.matchAll();
   clients.forEach((client) => {

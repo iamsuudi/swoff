@@ -110,8 +110,6 @@ export function generateGuide(ctx: GeneratorContext): void {
     w('  url: "/api/todos",');
     w('  body: { title: "Grocery" },');
     w('  tags: ["todos"],');
-    w('  storeName: "todos",');
-    w('  tempId: "temp_abc123",');
     w("});");
     w("");
     w("// Flush after re-login (mutations queued while offline may fail with 401)");
@@ -145,50 +143,9 @@ export function generateGuide(ctx: GeneratorContext): void {
       w("");
     }
 
-    w("### `mutation-reconcile.ts` — ID reconciliation after sync");
-    w("When a queued mutation succeeds, the server returns the real ID for the created record.");
-    w("`reconcileRecord` replaces the temporary local ID with the server-assigned ID and updates");
-    w("the local IndexedDB cache.");
-    w("");
-
-    w("```ts");
-    w(`import { reconcileRecord } from "./swoff/mutation-reconcile.${ext}";`);
-    w("// Called automatically by mutation-queue — you rarely call this directly");
-    w("```");
-    w("");
-
-    w("**Functions:**");
-    w("- `reconcileRecord(storeName, tempId, serverData)` — replaces temp ID with server ID");
-    w("- `reconcileReferences(storeName, oldId, newId)` — update foreign key references in other records. **Override this** if your data has relationships.");
-    w("");
-
-    w("**Where to edit:**");
-    w("- If your app has related data (e.g., a todo list item references a category), open `mutation-reconcile.ts` and implement `reconcileReferences`.");
-    w("");
   }
 
-  // ── IndexedDB Store ──
-  if (config.features.mutationQueue) {
-    w("### `store.ts` — IndexedDB CRUD utilities");
-    w("Generic read/write helpers for the app's IndexedDB database. Used by mutation-queue and");
-    w("mutation-reconcile internally.");
-    w("```ts");
-    w(`import { getRecord, putRecord, deleteRecord } from "./swoff/store.${ext}";`);
-    w("");
-    w("await putRecord(\"todos\", { id: \"abc\", title: \"Buy milk\" });");
-    w("const record = await getRecord(\"todos\", \"abc\");");
-    w("await deleteRecord(\"todos\", \"abc\");");
-    w("```");
-    w("");
 
-    w("**Functions:**");
-    w("- `openAppDB()` — open the IndexedDB database");
-    w("- `getRecord(storeName, id)` — get a record by ID");
-    w("- `putRecord(storeName, record)` — insert or update");
-    w("- `deleteRecord(storeName, id)` — delete by ID");
-    w("- `getAllRecords(storeName)` — get all records");
-    w("");
-  }
 
   // ── Auth ──
   if (config.features.auth.enabled) {

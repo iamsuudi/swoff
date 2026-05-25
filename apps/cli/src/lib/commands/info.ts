@@ -23,14 +23,12 @@ const FEATURES: Record<string, FeatureInfo> = {
     label: "Mutation Queue",
     description:
       "Queues offline write operations in IndexedDB and replays them when the connection returns. Uses SW_BACKGROUND_SYNC or the online event listener.",
-    files: ["mutation-queue.ts", "mutation-reconcile.ts", "store.ts"],
+    files: ["mutation-queue.ts"],
     functions: [
       "queueMutation(mutation) — store a write for later sync",
       "processMutationQueue() — replay all queued writes",
       "flushMutations() — same as processMutationQueue, call after re-login",
       "getPendingCount() — number of mutations waiting to sync",
-      "reconcileRecord(storeName, tempId, serverData) — replace temp ID with server ID",
-      "reconcileReferences(storeName, oldId, newId) — update FK refs (override for your schema)",
     ],
   },
   "background-sync": {

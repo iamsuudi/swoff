@@ -11,8 +11,7 @@
  *     url: "/api/todos",
  *     body: { title: "Grocery" },
  *     tags: ["todos"],
- *     storeName: "todos",
- *     tempId: "temp_abc123",
+ *     tags: ["todos"],
  *   });
  */
 

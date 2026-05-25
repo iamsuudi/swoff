@@ -22,8 +22,8 @@ import { generateClientInjector } from "./file-generators/client-injector.js";
 import { generateFetchWrapper } from "./file-generators/fetch-wrapper.js";
 import { generateCache } from "./file-generators/cache.js";
 import { generateMutationQueue } from "./file-generators/mutation-queue.js";
-import { generateStore } from "./file-generators/store.js";
-import { generateMutationReconcile } from "./file-generators/mutation-reconcile.js";
+
+
 import { generateBackgroundSync } from "./file-generators/background-sync.js";
 import { generatePwaInstall } from "./file-generators/pwa-install.js";
 import { generateManifest } from "./file-generators/manifest.js";
@@ -51,8 +51,7 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
     { name: "client-injector", gen: () => generateClientInjector(ctx), enabled: ctx.config.features.clientRegistration || ctx.config.features.pwa.enabled || ctx.config.features.crossTabSync },
     { name: "fetch-wrapper", gen: () => generateFetchWrapper(ctx), enabled: true },
     { name: "cache", gen: () => generateCache(ctx), enabled: ctx.config.features.tagInvalidation },
-    { name: "store", gen: () => generateStore(ctx), enabled: ctx.config.features.mutationQueue },
-    { name: "mutation-reconcile", gen: () => generateMutationReconcile(ctx), enabled: ctx.config.features.mutationQueue },
+
     { name: "mutation-queue", gen: () => generateMutationQueue(ctx), enabled: ctx.config.features.mutationQueue },
     { name: "background-sync", gen: () => generateBackgroundSync(ctx), enabled: ctx.config.features.backgroundSync },
     { name: "auth-store", gen: () => generateAuthStore(ctx), enabled: ctx.config.features.auth.enabled },

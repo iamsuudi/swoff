@@ -79,8 +79,6 @@ await queueMutation({
   url: "/api/todos",
   body: { title: "Grocery" },
   tags: ["todos"],
-  storeName: "todos",
-  tempId: "temp_abc123",
 });
 
 // Flush after re-login (mutations queued while offline may fail with 401)
@@ -106,41 +104,6 @@ await syncWhenPossible({ method: "POST", url: "/api/todos", body: { ... } });
 - `retrySync()` — re-register sync if mutations are still pending (called automatically)
 
 > ⚠️ Background Sync is Chrome/Edge only. Not supported in Firefox or Safari.
-
-### `mutation-reconcile.ts` — ID reconciliation after sync
-When a queued mutation succeeds, the server returns the real ID for the created record.
-`reconcileRecord` replaces the temporary local ID with the server-assigned ID and updates
-the local IndexedDB cache.
-
-```ts
-import { reconcileRecord } from "./swoff/mutation-reconcile.ts";
-// Called automatically by mutation-queue — you rarely call this directly
-```
-
-**Functions:**
-- `reconcileRecord(storeName, tempId, serverData)` — replaces temp ID with server ID
-- `reconcileReferences(storeName, oldId, newId)` — update foreign key references in other records. **Override this** if your data has relationships.
-
-**Where to edit:**
-- If your app has related data (e.g., a todo list item references a category), open `mutation-reconcile.ts` and implement `reconcileReferences`.
-
-### `store.ts` — IndexedDB CRUD utilities
-Generic read/write helpers for the app's IndexedDB database. Used by mutation-queue and
-mutation-reconcile internally.
-```ts
-import { getRecord, putRecord, deleteRecord } from "./swoff/store.ts";
-
-await putRecord("todos", { id: "abc", title: "Buy milk" });
-const record = await getRecord("todos", "abc");
-await deleteRecord("todos", "abc");
-```
-
-**Functions:**
-- `openAppDB()` — open the IndexedDB database
-- `getRecord(storeName, id)` — get a record by ID
-- `putRecord(storeName, record)` — insert or update
-- `deleteRecord(storeName, id)` — delete by ID
-- `getAllRecords(storeName)` — get all records
 
 
 ## 🔐 Auth — token management and authenticated requests

@@ -11,8 +11,6 @@
  *     url: "/api/todos",
  *     body: { title: "Grocery" },
  *     tags: ["todos"],
- *     storeName: "todos",
- *     tempId: "temp_abc123",
  *   });
  *
  *   // Flush queued mutations (e.g., after login)
@@ -23,7 +21,6 @@
 
 import { getAuth } from "./auth/store.ts";
 import { invalidateByTags } from "./cache.ts";
-import { getRecord, putRecord, deleteRecord } from "./store.ts";
 import type { MutationQueueItem } from "./swoff.d.ts";
 const DB_NAME = "swoff-queue";
 const STORE_NAME = "mutations";
@@ -58,12 +55,9 @@ export async function queueMutation(mutation: Partial<MutationQueueItem>): Promi
     url: mutation.url,
     body: mutation.body,
     headers: mutation.headers || {},
-    previousData: mutation.previousData || null,
     timestamp: Date.now(),
     retryCount: 0,
     tags: mutation.tags || [],
-    storeName: mutation.storeName || null,
-    tempId: mutation.tempId || null,
   });
 
   await new Promise<void>((resolve, reject) => {
@@ -74,7 +68,7 @@ export async function queueMutation(mutation: Partial<MutationQueueItem>): Promi
   window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
 }
 
-/** Process all queued mutations in order. Sends them to the server and reconciles local data. Runs automatically on the online event. */
+/** Process all queued mutations in order. Sends them to the server. Runs automatically on the online event. */
 export async function processMutationQueue(): Promise<void> {
   if (!navigator.onLine || isSyncing) return;
   isSyncing = true;
@@ -97,7 +91,6 @@ export async function processMutationQueue(): Promise<void> {
 
     for (const item of queue) {
       if (item.retryCount >= MAX_RETRIES) {
-        await rollbackMutation(item);
         await removeFromQueue(item.id);
         failed++;
         continue;
@@ -114,12 +107,6 @@ export async function processMutationQueue(): Promise<void> {
         });
 
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        const serverData = await response.json();
-
-        if (item.tempId && item.storeName) {
-          await reconcileRecord(item.storeName, item.tempId, serverData);
-        }
 
         if (item.tags && item.tags.length > 0) {
           await invalidateByTags(item.tags);
@@ -168,48 +155,6 @@ async function updateInQueue(item: MutationQueueItem): Promise<void> {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
-}
-
-async function rollbackMutation(item: MutationQueueItem): Promise<void> {
-  if (!item.storeName) return;
-
-  if (item.method === "POST" && item.tempId) {
-    await deleteRecord(item.storeName, item.tempId);
-  } else if ((item.method === "PUT" || item.method === "PATCH") && item.previousData) {
-    await putRecord(item.storeName, { ...item.previousData, $synced: true });
-  } else if (item.method === "DELETE" && item.tempId && item.previousData) {
-    await putRecord(item.storeName, { ...item.previousData, $synced: true });
-  }
-
-  window.dispatchEvent(
-    new CustomEvent("mutation-rollback", {
-      detail: {
-        method: item.method,
-        url: item.url,
-        tempId: item.tempId,
-        previousData: item.previousData,
-      },
-    })
-  );
-}
-
-async function reconcileRecord(storeName: string, tempId: string, serverData: Record<string, unknown>): Promise<void> {
-  const existing = await getRecord(storeName, tempId);
-  if (!existing) return;
-
-  const reconciled = {
-    ...existing,
-    ...serverData,
-    id: serverData.id,
-    $synced: true,
-    $syncedAt: Date.now(),
-  };
-
-  await putRecord(storeName, reconciled);
-
-  if (String(tempId) !== String(serverData.id)) {
-    await deleteRecord(storeName, tempId);
-  }
 }
 
 /** Get the number of queued mutations waiting to be synced. Useful for showing a sync badge. */

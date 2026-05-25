@@ -71,12 +71,9 @@ export interface MutationQueueItem {
   url: string;
   body: unknown;
   headers: Record<string, string>;
-  previousData: unknown | null;
   timestamp: number;
   retryCount: number;
   tags: string[];
-  storeName: string | null;
-  tempId: string | null;
 }
 
 export interface MutationQueueResult {

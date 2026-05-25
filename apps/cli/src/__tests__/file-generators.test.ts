@@ -9,7 +9,6 @@ import { generateSwInjector } from "../lib/generators/file-generators/sw-injecto
 import { generateClientInjector } from "../lib/generators/file-generators/client-injector.js";
 import { generateFetchWrapper } from "../lib/generators/file-generators/fetch-wrapper.js";
 import { generateCache } from "../lib/generators/file-generators/cache.js";
-import { generateStore } from "../lib/generators/file-generators/store.js";
 import { generateMutationQueue } from "../lib/generators/file-generators/mutation-queue.js";
 import { generateBackgroundSync } from "../lib/generators/file-generators/background-sync.js";
 import { generatePwaInstall } from "../lib/generators/file-generators/pwa-install.js";
@@ -199,20 +198,6 @@ describe("generateCache", () => {
     expect(content).toContain("INVALIDATE_TAG");
     expect(content).not.toContain("initCrossTabSync");
     expect(content).not.toContain("TAG_INVALIDATED");
-  });
-});
-
-describe("generateStore", () => {
-  it("uses app-db as default database name", () => {
-    const ctx = makeContext();
-    generateStore(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "store.js"), "utf8");
-    expect(content).toContain('DB_NAME = "app-db"');
-    expect(content).toContain("openAppDB");
-    expect(content).toContain("getRecord");
-    expect(content).toContain("putRecord");
-    expect(content).toContain("deleteRecord");
-    expect(content).toContain("getAllRecords");
   });
 });
 

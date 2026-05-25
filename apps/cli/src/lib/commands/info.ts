@@ -22,7 +22,7 @@ const FEATURES: Record<string, FeatureInfo> = {
   "mutation-queue": {
     label: "Mutation Queue",
     description:
-      "Queues offline write operations in IndexedDB and replays them when the connection returns. Uses SW_BACKGROUND_SYNC or the online event listener.",
+      "Queues offline write operations in IndexedDB and replays them when the connection returns. Uses the Background Sync API or the online event listener.",
     files: ["mutation-queue.ts"],
     functions: [
       "queueMutation(mutation) — store a write for later sync",

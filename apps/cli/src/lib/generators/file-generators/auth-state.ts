@@ -26,6 +26,7 @@ export function generateAuthState(ctx: GeneratorContext): void {
 import { getAuth, isAuthValid } from "./store.${ext}";
 import { getCachedUser } from "./user.${ext}";
 
+/** Detect current auth state across the 4-state matrix (online/offline × authenticated/not). */
 export async function getAuthState()${R("Promise<{ authenticated: boolean; user: Record<string, unknown> | null; online: boolean }>")}{
   const auth = await getAuth();
   const valid = isAuthValid(auth);

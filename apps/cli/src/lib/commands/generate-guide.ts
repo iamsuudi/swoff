@@ -12,13 +12,16 @@ export function generateGuide(ctx: GuideContext): string[] {
   const ext = lang === "ts" ? "ts" : "js";
 
   const isReact = frameworkName === "react";
+  const hasClientInjector = config.features.clientRegistration || config.features.pwa.enabled || config.features.crossTabSync;
 
   lines.push("");
   lines.push("  ── Getting Started ──");
-  lines.push("  App entry point (" + (isReact ? "main.tsx" : (lang === "ts" ? "main.ts" : "main.js")) + "):");
-  lines.push(`    import { initServiceWorker } from "./swoff/client-injector.${ext}";`);
-  lines.push("    initServiceWorker();");
-  lines.push("");
+  if (hasClientInjector) {
+    lines.push("  App entry point (" + (isReact ? "main.tsx" : (lang === "ts" ? "main.ts" : "main.js")) + "):");
+    lines.push(`    import { initServiceWorker } from "./swoff/client-injector.${ext}";`);
+    lines.push("    initServiceWorker();");
+    lines.push("");
+  }
   lines.push("  Fetch wrapper for API calls:");
   lines.push(`    import { fetchWithCache } from "./swoff/fetch-wrapper.${ext}";`);
   lines.push(`    const data = await fetchWithCache("/api/data").then(r => r.json());`);

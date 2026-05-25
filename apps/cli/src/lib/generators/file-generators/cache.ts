@@ -21,7 +21,8 @@ export function generateCache(ctx: GeneratorContext): void {
  *   await invalidateByTag("todos");
  */
 
-export async function invalidateByTag(tag${T("string")}${R("Promise<void>")}{
+/** Invalidate all cached responses tagged with the given tag. Dispatches cache-invalidated event. */
+export async function invalidateByTag(tag${T("string")})${R("Promise<void>")}{
   if (!navigator.serviceWorker?.controller) return;
 
   navigator.serviceWorker.controller.postMessage({
@@ -34,7 +35,8 @@ export async function invalidateByTag(tag${T("string")}${R("Promise<void>")}{
   );
 }
 
-export async function invalidateByTags(tags${T("string[]")}${R("Promise<void>")}{
+/** Invalidate all cached responses matching any of the given tags. */
+export async function invalidateByTags(tags${T("string[]")})${R("Promise<void>")}{
   for (const tag of tags) {
     await invalidateByTag(tag);
   }

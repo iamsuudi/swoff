@@ -11,7 +11,7 @@ import { generateFetchWrapper } from "../lib/generators/file-generators/fetch-wr
 import { generateCache } from "../lib/generators/file-generators/cache.js";
 import { generateStore } from "../lib/generators/file-generators/store.js";
 import { generateMutationQueue } from "../lib/generators/file-generators/mutation-queue.js";
-import { generateReconcile } from "../lib/generators/file-generators/reconcile.js";
+import { generateMutationReconcile } from "../lib/generators/file-generators/mutation-reconcile.js";
 import { generateBackgroundSync } from "../lib/generators/file-generators/background-sync.js";
 import { generatePwaInstall } from "../lib/generators/file-generators/pwa-install.js";
 import { generateManifest } from "../lib/generators/file-generators/manifest.js";
@@ -237,11 +237,11 @@ describe("generateMutationQueue", () => {
   });
 });
 
-describe("generateReconcile", () => {
+describe("generateMutationReconcile", () => {
   it("exports reconcileRecord and reconcileReferences", () => {
     const ctx = makeContext();
-    generateReconcile(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "reconcile.js"), "utf8");
+    generateMutationReconcile(ctx);
+    const content = readFileSync(join(ctx.swoffDir, "mutation-reconcile.js"), "utf8");
     expect(content).toContain("reconcileRecord");
     expect(content).toContain("reconcileReferences");
     expect(content).toContain("$synced");

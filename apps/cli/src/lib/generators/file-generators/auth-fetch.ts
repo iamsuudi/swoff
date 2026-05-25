@@ -9,6 +9,7 @@ export function generateAuthFetch(ctx: GeneratorContext): void {
   const ext = ctx.ext;
   const ts = ext === "ts";
   const T = (type: string) => (ts ? `: ${type}` : "");
+  const R = (type: string) => (ts ? `: ${type} ` : " ");
   const RT = (type: string) => (ts ? `): ${type} ` : ") ");
 
   const authConfig = ctx.config.features.auth;
@@ -16,7 +17,7 @@ export function generateAuthFetch(ctx: GeneratorContext): void {
 
   function generateWithAuthHeaders(): string {
     const h = T("Headers");
-    const a = T("object | null");
+    const a = T("AuthData | null");
 
     switch (type) {
       case "cookie":
@@ -64,7 +65,7 @@ export function generateAuthFetch(ctx: GeneratorContext): void {
  */
 
 import { fetchWithCache } from "../fetch-wrapper.${ext}";
-import { getAuth, setAuth, clearAuth } from "./store.${ext}";
+import { getAuth, setAuth, clearAuth${ts ? ", type AuthData" : ""} } from "./store.${ext}";
 
 ${generateWithAuthHeaders()}
 
@@ -90,7 +91,7 @@ function isAuthUrl(url${T("string")}${RT("boolean")}{
  * Auth-aware fetch wrapper.
  * Attaches identity, excludes auth endpoints from cache, handles 401.
  */
-export async function authenticatedFetch(input${T("RequestInfo")}, options${T("RequestInit")}${RT("Promise<Response>")}{
+export async function authenticatedFetch(input${T("RequestInfo")}, options${T("RequestInit")} = {}${RT("Promise<Response>")}{
   const auth = await getAuth();
   const headers = new Headers(options.headers);
 
@@ -121,9 +122,9 @@ export async function authenticatedFetch(input${T("RequestInfo")}, options${T("R
  * Token refresh helper — called before requests when token may be expired.
  * Uses refreshPath from config.
  */
-let refreshPromise = null;
+let refreshPromise${T("Promise<AuthData | null> | null")} = null;
 
-export async function ensureValidAuth() {
+export async function ensureValidAuth()${R("Promise<AuthData | null>")}{
   const auth = await getAuth();
   if (!auth) return null;
   if (!auth.expiresAt || Date.now() < auth.expiresAt) return auth;

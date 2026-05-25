@@ -33,9 +33,9 @@ export const commands: Record<string, CommandDef> = {
     examples: ["swoff add pwa", "swoff add mutation-queue"],
   },
   info: {
-    description: "Show Swoff configuration summary",
-    usage: "swoff info",
-    examples: ["swoff info"],
+    description: "Show Swoff configuration summary or per-feature details",
+    usage: "swoff info [feature]",
+    examples: ["swoff info", "swoff info mutation-queue", "swoff info auth"],
   },
   clean: {
     description: "Remove Swoff from the project (swoff/, config, version.json)",

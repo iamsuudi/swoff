@@ -113,6 +113,7 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
     }${crossTabHandler}  });
 }
 
+/** Initialize SW registration and all client-side features (PWA install, mutation queue, cross-tab sync). Call once at app startup. */
 export async function initServiceWorker()${ts ? ": Promise<void>" : " "}{
 ${clientRegistration ? "  await swInit();" : "  // No SW registration configured"}
 }${swExports}

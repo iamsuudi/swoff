@@ -31,9 +31,10 @@ export function generateInvalidationTags(ctx: GeneratorContext): void {
  *   await invalidateUrl("/api/todos/42");
  */
 
-import { invalidateByTag, invalidateByTags } from "./cache.${ext}";
+import { invalidateByTags } from "./cache.${ext}";
 
-export function generateTags(url${T("string | URL")}${R("string[]")}{
+/** Generate cache invalidation tags from a URL path. e.g. /api/todos/42 → ["todos", "todo:42"]. Used with fetchWithCache's tags option. */
+export function generateTags(url${T("string | URL")})${R("string[]")}{
   const parsed = typeof url === "string" ? new URL(url, window.location.origin) : url;
   const segments = parsed.pathname.split("/").filter(Boolean);
 
@@ -68,7 +69,8 @@ export function generateTags(url${T("string | URL")}${R("string[]")}{
   return tags;
 }
 
-export function generateTagsFromMethod(method${T("string")}, url${T("string | URL")}${R("string[]")}{
+/** Generate tags prefixed by HTTP method. e.g. POST /api/todos → ["post-todos"]. Useful for invalidating only mutation-tagged caches. */
+export function generateTagsFromMethod(method${T("string")}, url${T("string | URL")})${R("string[]")}{
   const tags = generateTags(url);
 
   if (method === "GET" || method === "HEAD") {
@@ -78,12 +80,14 @@ export function generateTagsFromMethod(method${T("string")}, url${T("string | UR
   return tags.map((tag) => \`\${method.toLowerCase()}-\${tag}\`);
 }
 
-export async function invalidateUrl(url${T("string | URL")}${R("Promise<void>")}{
+/** Invalidate cached responses related to a URL (extracts tags from the URL then calls invalidateByTags). */
+export async function invalidateUrl(url${T("string | URL")})${R("Promise<void>")}{
   const tags = generateTags(url);
   await invalidateByTags(tags);
 }
 
-export async function invalidateByMethod(method${T("string")}, url${T("string | URL")}${R("Promise<void>")}{
+/** Invalidate cached responses tagged with method-prefixed tags from a URL. */
+export async function invalidateByMethod(method${T("string")}, url${T("string | URL")})${R("Promise<void>")}{
   const tags = generateTagsFromMethod(method, url);
   await invalidateByTags(tags);
 }

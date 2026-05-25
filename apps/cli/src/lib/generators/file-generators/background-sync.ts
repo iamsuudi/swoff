@@ -32,7 +32,7 @@ import { queueMutation, processMutationQueue, getPendingCount } from "./mutation
 
 const SYNC_TAG = "sync-mutations";
 
-async function registerSync${R("Promise<void>")}{
+async function registerSync()${R("Promise<void>")}{
   if (!("serviceWorker" in navigator) || !("SyncManager" in window)) {
     window.addEventListener("online", processMutationQueue, { once: true });
     return;
@@ -46,12 +46,14 @@ async function registerSync${R("Promise<void>")}{
   }
 }
 
-export async function syncWhenPossible(mutation${T("object")}${R("Promise<void>")}{
+/** Queue a mutation and register a background sync event so it runs even after tab close. */
+export async function syncWhenPossible(mutation${T("object")})${R("Promise<void>")}{
   await queueMutation(mutation);
   await registerSync();
 }
 
-export async function retrySync${R("Promise<void>")}{
+/** Re-register a background sync if mutations are still pending. Called automatically after each sync cycle. */
+export async function retrySync()${R("Promise<void>")}{
   if (!("serviceWorker" in navigator) || !("SyncManager" in window)) return;
   const count = await getPendingCount();
   if (count > 0) {

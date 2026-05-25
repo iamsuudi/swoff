@@ -9,6 +9,8 @@ export function generateStore(ctx: GeneratorContext): void {
   const ts = ext === "ts";
   const T = (type: string) => (ts ? `: ${type}` : "");
   const R = (type: string) => (ts ? `: ${type} ` : " ");
+  const PT = (type: string) => (ts ? `<${type}>` : "");
+  const AS = (type: string) => (ts ? ` as ${type}` : "");
   const dbName = "app-db";
 
   const code = `/**
@@ -25,55 +27,60 @@ export function generateStore(ctx: GeneratorContext): void {
 
 const DB_NAME = "${dbName}";
 
-export function openAppDB${R("Promise<IDBDatabase>")}{
-  return new Promise((resolve, reject) => {
+/** Open the app's IndexedDB database. Creates it if it doesn't exist. */
+export function openAppDB()${R("Promise<IDBDatabase>")}{
+  return new Promise${PT("IDBDatabase")}((resolve, reject) => {
     const request = indexedDB.open(DB_NAME);
-    request.onsuccess = (e) => resolve(e.target.result);
-    request.onerror = (e) => reject(e.target.error);
+    request.onsuccess = (e) => resolve((e.target${AS("IDBOpenDBRequest")}).result);
+    request.onerror = (e) => reject((e.target${AS("IDBRequest")}).error);
   });
 }
 
-export async function getRecord(storeName${T("string")}, id${T("IDBValidKey")}${R("Promise<Record<string, unknown> | undefined>")}{
+/** Get a record by ID from an IndexedDB store. Returns undefined if not found. */
+export async function getRecord(storeName${T("string")}, id${T("IDBValidKey")})${R("Promise<Record<string, unknown> | undefined>")}{
   const db = await openAppDB();
-  return new Promise((resolve, reject) => {
+  return new Promise${PT("Record<string, unknown> | undefined")}((resolve, reject) => {
     const tx = db.transaction(storeName, "readonly");
     const store = tx.objectStore(storeName);
     const request = store.get(id);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve((request${AS("IDBRequest<Record<string, unknown> | undefined>")}).result);
+    request.onerror = () => reject((request${AS("IDBRequest")}).error);
   });
 }
 
-export async function putRecord(storeName${T("string")}, record${T("Record<string, unknown>")}${R("Promise<IDBValidKey>")}{
+/** Store a record in an IndexedDB store (insert or update). Returns the record's key. */
+export async function putRecord(storeName${T("string")}, record${T("Record<string, unknown>")})${R("Promise<IDBValidKey>")}{
   const db = await openAppDB();
-  return new Promise((resolve, reject) => {
+  return new Promise${PT("IDBValidKey")}((resolve, reject) => {
     const tx = db.transaction(storeName, "readwrite");
     const store = tx.objectStore(storeName);
     const request = store.put(record);
-    tx.oncomplete = () => resolve(request.result);
-    tx.onerror = () => reject(tx.error);
+    tx.oncomplete = () => resolve((request${AS("IDBRequest<IDBValidKey>")}).result);
+    tx.onerror = () => reject((tx${AS("IDBTransaction")}).error);
   });
 }
 
-export async function deleteRecord(storeName${T("string")}, id${T("IDBValidKey")}${R("Promise<void>")}{
+/** Delete a record by ID from an IndexedDB store. */
+export async function deleteRecord(storeName${T("string")}, id${T("IDBValidKey")})${R("Promise<void>")}{
   const db = await openAppDB();
-  return new Promise<void>((resolve, reject) => {
+  return new Promise${PT("void")}((resolve, reject) => {
     const tx = db.transaction(storeName, "readwrite");
     const store = tx.objectStore(storeName);
-    const request = store.delete(id);
+    store.delete(id);
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => reject((tx${AS("IDBTransaction")}).error);
   });
 }
 
-export async function getAllRecords(storeName${T("string")}${R("Promise<Record<string, unknown>[]>")}{
+/** Get all records from an IndexedDB store. */
+export async function getAllRecords(storeName${T("string")})${R("Promise<Record<string, unknown>[]>")}{
   const db = await openAppDB();
-  return new Promise((resolve, reject) => {
+  return new Promise${PT("Record<string, unknown>[]")}((resolve, reject) => {
     const tx = db.transaction(storeName, "readonly");
     const store = tx.objectStore(storeName);
     const request = store.getAll();
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve((request${AS("IDBRequest<Record<string, unknown>[]>")}).result);
+    request.onerror = () => reject((request${AS("IDBRequest")}).error);
   });
 }
 `;

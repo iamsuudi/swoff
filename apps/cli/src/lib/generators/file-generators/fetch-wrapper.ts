@@ -35,7 +35,8 @@ export function generateFetchWrapper(ctx: GeneratorContext): void {
 
 const inFlightRequests = new Map();
 
-export async function fetchWithCache(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; staleWhileRevalidate?: boolean }")}${R("Promise<Response>")}{
+/** Fetch with SW cache strategy. GET responses are cached by the SW; POST/PUT/DELETE pass through. Supports deduplication of in-flight requests and stale-while-revalidate. */
+export async function fetchWithCache(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; staleWhileRevalidate?: boolean }")})${R("Promise<Response>")}{
   const headers = new Headers(options.headers);
   const method = options.method || "GET";
 
@@ -57,7 +58,7 @@ export async function fetchWithCache(input${T("RequestInfo")}, options${T("Reque
   if (method === "GET" || method === "HEAD") {
     const url = typeof input === "string" ? input : input.url;
     if (inFlightRequests.has(url)) {
-      return inFlightRequests.get(url).then((r) => r.clone());
+      return inFlightRequests.get(url).then((r: Request) => r.clone());
     }
     const promise = fetch(input, { ...options, headers }).finally(() => {
       inFlightRequests.delete(url);
@@ -69,7 +70,8 @@ export async function fetchWithCache(input${T("RequestInfo")}, options${T("Reque
   return fetch(input, { ...options, headers });
 }
 
-export async function fetchWithCacheOrQueue(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; staleWhileRevalidate?: boolean }")}${R("Promise<Response>")}{
+/** Like fetchWithCache but throws when offline — use for optimistic UI that needs to catch offline errors and fall back to queueMutation. */
+export async function fetchWithCacheOrQueue(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; staleWhileRevalidate?: boolean }")})${R("Promise<Response>")}{
   if (!navigator.onLine) {
     if (options.method === "GET" || options.method === "HEAD") {
       const cached = await caches.match(input);

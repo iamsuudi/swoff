@@ -64,7 +64,7 @@ async function waitForController()${R("Promise<void>")}{
     if (navigator.serviceWorker.controller) {
       resolve();
     } else {
-      navigator.serviceWorker.addEventListener("controllerchange", resolve, { once: true });
+      navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true });
     }
   });
 }
@@ -81,6 +81,7 @@ async function doRegisterServiceWorker(version${T("string")})${R("Promise<Servic
   return registration;
 }
 
+/** Register the SW with version checking and update flow. Checks version.json, handles updates, and dispatches sw-ready/sw-error events. */
 export async function initServiceWorker()${R("Promise<void>")}{
   if (!("serviceWorker" in navigator)) {
     console.warn("Service Workers not supported");
@@ -96,7 +97,7 @@ export async function initServiceWorker()${R("Promise<void>")}{
     if (currentVersion === manifest.version) {
       const registration = await navigator.serviceWorker.getRegistration();
       if (registration && registration.active) {
-        window.currentSWVersion = currentVersion;
+        window.currentSWVersion = currentVersion ?? undefined;
         window.dispatchEvent(new CustomEvent("sw-version-detected"));
         await waitForController();
         if (!window.swReady) {
@@ -154,7 +155,9 @@ export async function initServiceWorker()${R("Promise<void>")}{
         }
         return;
       }
-    } catch {}
+    } catch {
+      // Handle the case where no existing active registration is found
+    }
 
     console.error("Service Worker initialization failed:", error);
     window.swError = true;
@@ -162,6 +165,7 @@ export async function initServiceWorker()${R("Promise<void>")}{
   }
 }
 
+/** Accept a pending SW update. Reloads the page once the new SW takes control. */
 export async function handleUpdateApproved(newVersion${T("string")})${R("Promise<void>")}{
   const registration = await navigator.serviceWorker.getRegistration();
   if (registration && registration.waiting) {
@@ -177,6 +181,7 @@ export async function handleUpdateApproved(newVersion${T("string")})${R("Promise
   }
 }
 
+/** Activate a waiting SW without reloading. Useful when you handle the transition yourself. */
 export async function skipWaiting()${R("Promise<void>")}{
   const registration = await navigator.serviceWorker.ready;
   if (registration.waiting) {
@@ -207,11 +212,12 @@ async function waitForController()${R("Promise<void>")}{
     if (navigator.serviceWorker.controller) {
       resolve();
     } else {
-      navigator.serviceWorker.addEventListener("controllerchange", resolve, { once: true });
+      navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true });
     }
   });
 }
 
+/** Register the SW with a fixed URL (non-versioned mode). Dispatches sw-ready/sw-error. */
 export async function initServiceWorker()${R("Promise<void>")}{
   if (!("serviceWorker" in navigator)) {
     console.warn("Service Workers not supported");

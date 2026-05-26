@@ -1,17 +1,17 @@
 import { useState, useEffect } from "react";
-import { getPendingCount } from "../mutation-queue.ts";
+import { getPendingCount } from "../mutation-queue.js";
 
 export function useMutationQueue() {
-  const [state, setState] = useState<{
-    pending: number;
-    lastSync: { succeeded: number; failed: number } | null;
-  }>({ pending: 0, lastSync: null });
+  const [state, setState] = useState({
+    pending: 0,
+    lastSync: null,
+  });
 
   useEffect(() => {
-    getPendingCount().then((count: number) => setState((s) => ({ ...s, pending: count })));
+    getPendingCount().then((count) => setState((s) => ({ ...s, pending: count })));
 
-    const onSync = (e: CustomEvent) => {
-      getPendingCount().then((count: number) => {
+    const onSync = (e) => {
+      getPendingCount().then((count) => {
         setState({
           pending: count,
           lastSync: { succeeded: e.detail.succeeded, failed: e.detail.failed },
@@ -19,7 +19,7 @@ export function useMutationQueue() {
       });
     };
     const onChange = () => {
-      getPendingCount().then((count: number) => setState((s) => ({ ...s, pending: count })));
+      getPendingCount().then((count) => setState((s) => ({ ...s, pending: count })));
     };
 
     window.addEventListener("mutation-sync-complete", onSync);

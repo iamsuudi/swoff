@@ -90,14 +90,14 @@ export async function getCartTotal() {
 ```tsx
 // pages/Cart.tsx
 import { useState, useEffect } from "react";
-import { useOfflineStatus } from "../hooks/useOfflineStatus";
-import { useMutationQueue } from "../hooks/useMutationQueue";
+import { useNetworkStatus } from "./swoff/hooks/useNetworkStatus";
+import { useMutationQueue } from "./swoff/hooks/useMutationQueue";
 import { getCart, getCartTotal } from "../lib/storage/cart";
 
 export function CartPage() {
   const [cart, setCart] = useState([]);
   const [total, setTotal] = useState(0);
-  const { isOnline } = useOfflineStatus();
+  const isOnline = useNetworkStatus();
   const { pendingCount } = useMutationQueue();
 
   useEffect(() => {

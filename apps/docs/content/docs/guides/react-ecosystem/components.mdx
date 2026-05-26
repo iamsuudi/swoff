@@ -11,7 +11,7 @@ These components use the React hooks to provide ready-to-use UI elements. See [C
 ## UpdatePrompt
 
 ```tsx title="@/components/UpdatePrompt.tsx"
-import { usePWAUpdate } from "./hooks";
+import { useSWUpdate } from "./hooks";
 
 export function UpdatePrompt() {
   const {
@@ -22,7 +22,7 @@ export function UpdatePrompt() {
     forceUpdate,
     acceptUpdate,
     dismissUpdate,
-  } = usePWAUpdate();
+  } = useSWUpdate();
   if (updateStatus === "idle") return null;
 
   return (

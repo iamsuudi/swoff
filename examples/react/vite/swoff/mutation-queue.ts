@@ -109,18 +109,18 @@ export async function processMutationQueue(): Promise<void> {
       }
 
       try {
-        let replayBody;
-        let contentType;
+        let replayBody: BodyInit | null = null;
+        let contentType: string | undefined;
         const bt = item.bodyType || "json";
         if (bt === "formdata") {
           replayBody = new FormData();
-          for (const [key, value] of item.body || []) {
+          for (const [key, value] of (item.body || []) as [string, FormDataEntryValue][]) {
             replayBody.append(key, value);
           }
         } else if (bt === "blob") {
-          replayBody = item.body;
+          replayBody = item.body as BodyInit | null;
         } else if (bt === "buffer") {
-          replayBody = item.body instanceof ArrayBuffer ? new Uint8Array(item.body) : item.body;
+          replayBody = item.body instanceof ArrayBuffer ? new Uint8Array(item.body) as BodyInit : item.body as BodyInit;
         } else {
           replayBody = JSON.stringify(item.body);
           contentType = "application/json";

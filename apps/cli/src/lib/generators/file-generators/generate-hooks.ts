@@ -1,6 +1,15 @@
-import { writeFileSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
+import { copyFileSync, existsSync, mkdirSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 import type { GeneratorContext } from "./context.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const templatesDir = join(__dirname, "../../../../templates/hooks");
+
+function copyHook(hooksDir: string, name: string, ext: string) {
+  const src = join(templatesDir, `${name}.${ext}x`);
+  copyFileSync(src, join(hooksDir, `${name}.${ext}x`));
+}
 
 export function generateHooks(ctx: GeneratorContext): void {
   const { config, swoffDir, ext, frameworkName } = ctx;
@@ -11,306 +20,25 @@ export function generateHooks(ctx: GeneratorContext): void {
     mkdirSync(hooksDir, { recursive: true });
   }
 
+  copyHook(hooksDir, "useNetworkStatus", ext);
+  copyHook(hooksDir, "useCachedFetch", ext);
+
   if (config.features.pwa.enabled) {
-    writePWAHooks(hooksDir, ext);
+    copyHook(hooksDir, "useSWUpdate", ext);
   }
   if (config.features.auth.enabled) {
-    writeAuthHook(hooksDir, ext);
+    copyHook(hooksDir, "useAuth", ext);
   }
   if (config.features.mutationQueue) {
-    writeMutationQueueHook(hooksDir, ext);
+    copyHook(hooksDir, "useMutationQueue", ext);
   }
   if (config.features.pushNotifications?.enabled) {
-    writePushSubscriptionHook(hooksDir, ext);
+    copyHook(hooksDir, "usePushSubscription", ext);
   }
-  writeCachedFetchHook(hooksDir, ext, config.features.tagInvalidation);
-}
-
-function writePWAHooks(dir: string, ext: string) {
-  writeFileSync(
-    join(dir, `usePWAUpdate.${ext}x`),
-    `import { useState, useEffect, useCallback } from "react";
-import { handleUpdateApproved } from "../sw/injector.${ext}";
-
-export function usePWAUpdate() {
-  const [state, setState] = useState({
-    updateStatus: "idle",
-    currentVersion: null as string | null,
-    availableVersion: null as string | null,
-    progress: 0,
-    forceUpdate: false,
-    error: null as string | null,
-  });
-
-  useEffect(() => {
-    setState((s) => ({ ...s, currentVersion: (window as any).currentSWVersion || null }));
-
-    const onAvailable = (e: CustomEvent) => setState((s) => ({
-      ...s,
-      updateStatus: "available" as const,
-      availableVersion: e.detail.version,
-      forceUpdate: (window as any).swUpdateRequired || false,
-    }));
-    const onProgress = (e: CustomEvent) => setState((s) => ({
-      ...s,
-      updateStatus: "downloading" as const,
-      progress: e.detail.percent,
-    }));
-    const onReady = () => setState((s) => ({ ...s, updateStatus: "idle" as const, progress: 0 }));
-    const onError = () => setState((s) => ({ ...s, error: "SW registration failed" }));
-
-    window.addEventListener("sw-update-available", onAvailable as EventListener);
-    window.addEventListener("sw-progress", onProgress as EventListener);
-    window.addEventListener("sw-ready", onReady);
-    window.addEventListener("sw-error", onError);
-    return () => {
-      window.removeEventListener("sw-update-available", onAvailable as EventListener);
-      window.removeEventListener("sw-progress", onProgress as EventListener);
-      window.removeEventListener("sw-ready", onReady);
-      window.removeEventListener("sw-error", onError);
-    };
-  }, []);
-
-  const acceptUpdate = useCallback(async () => {
-    if (!state.availableVersion) return;
-    await handleUpdateApproved(state.availableVersion);
-  }, [state.availableVersion]);
-
-  const dismissUpdate = useCallback(() => {
-    sessionStorage.setItem("sw-dismissed-update", "true");
-    setState((s) => ({ ...s, updateStatus: "idle" }));
-  }, []);
-
-  return { ...state, acceptUpdate, dismissUpdate };
-}
-
-export function useSWProgress() {
-  const [state, setState] = useState({
-    status: "idle" as "idle" | "installing",
-    progress: 0,
-  });
-
-  useEffect(() => {
-    const onProgress = (e: CustomEvent) => setState({
-      status: "installing",
-      progress: e.detail.percent,
-    });
-    const onReady = () => setState({ status: "idle", progress: 0 });
-
-    window.addEventListener("sw-progress", onProgress as EventListener);
-    window.addEventListener("sw-ready", onReady);
-    return () => {
-      window.removeEventListener("sw-progress", onProgress as EventListener);
-      window.removeEventListener("sw-ready", onReady);
-    };
-  }, []);
-
-  return state;
-}
-`,
-  );
-
-  // useSWProgress is included in the same file
-}
-
-function writeAuthHook(dir: string, ext: string) {
-  writeFileSync(
-    join(dir, `useAuth.${ext}x`),
-    `import { useState, useEffect } from "react";
-import { getAuthState } from "../auth/state.${ext}";
-
-export function useAuth() {
-  const [state, setState] = useState({
-    authenticated: false,
-    user: null as Record<string, unknown> | null,
-    online: navigator.onLine,
-  });
-
-  useEffect(() => {
-    getAuthState().then(setState);
-
-    const onOnline = () => setState((s) => ({ ...s, online: true }));
-    const onOffline = () => setState((s) => ({ ...s, online: false }));
-    const onAuthChange = () => getAuthState().then(setState);
-
-    window.addEventListener("online", onOnline);
-    window.addEventListener("offline", onOffline);
-    window.addEventListener("sw-auth-state-change", onAuthChange);
-
-    return () => {
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", onOffline);
-      window.removeEventListener("sw-auth-state-change", onAuthChange);
-    };
-  }, []);
-
-  return state;
-}
-`,
-  );
-}
-
-function writePushSubscriptionHook(dir: string, ext: string) {
-  writeFileSync(
-    join(dir, `usePushSubscription.${ext}x`),
-    `import { useState, useEffect, useCallback } from "react";
-import {
-  subscribeToPush,
-  unsubscribeFromPush,
-  isSubscribed,
-  getPushSubscription,
-} from "../push.${ext}";
-
-export function usePushSubscription(vapidPublicKey: string) {
-  const [state, setState] = useState({
-    subscribed: false,
-    subscription: null as PushSubscription | null,
-    permission: Notification.permission,
-    loading: true,
-  });
-
-  useEffect(() => {
-    isSubscribed().then((subscribed) => {
-      if (subscribed) {
-        getPushSubscription().then((sub) => {
-          setState({ subscribed: true, subscription: sub, permission: Notification.permission, loading: false });
-        });
-      } else {
-        setState({ subscribed: false, subscription: null, permission: Notification.permission, loading: false });
-      }
-    });
-
-    const onSubChanged = (e: CustomEvent) => {
-      if (!e.detail.subscribed) {
-        setState({ subscribed: false, subscription: null, permission: Notification.permission, loading: false });
-      } else {
-        getPushSubscription().then((sub) => {
-          setState({ subscribed: true, subscription: sub, permission: Notification.permission, loading: false });
-        });
-      }
-    };
-    const onPermissionChanged = (e: CustomEvent) => {
-      setState((s) => ({ ...s, permission: e.detail.permission }));
-    };
-
-    window.addEventListener("push-subscription-changed", onSubChanged as EventListener);
-    window.addEventListener("push-permission-changed", onPermissionChanged as EventListener);
-    return () => {
-      window.removeEventListener("push-subscription-changed", onSubChanged as EventListener);
-      window.removeEventListener("push-permission-changed", onPermissionChanged as EventListener);
-    };
-  }, []);
-
-  const subscribe = useCallback(async () => {
-    const sub = await subscribeToPush(vapidPublicKey);
-    return sub !== null;
-  }, [vapidPublicKey]);
-
-  const unsubscribe = useCallback(async () => {
-    await unsubscribeFromPush();
-  }, []);
-
-  return { ...state, subscribe, unsubscribe };
-}
-`,
-  );
-}
-
-function writeCachedFetchHook(dir: string, ext: string, tagInvalidation: boolean) {
-  const ts = ext === "ts";
-  const extraEffect = tagInvalidation
-    ? `
-  useEffect(() => {
-    const onInvalidated${ts ? ": EventListener" : ""} = (e${ts ? ": Event" : ""}) => {
-      const detail = (e as CustomEvent).detail;
-      const tags = detail?.tags;
-      if (!tags || !Array.isArray(tags)) return;
-      const urlTags = generateTags(url);
-      if (tags.some((t) => urlTags.includes(t))) {
-        setRefetchCount((c) => c + 1);
-      }
-    };
-    window.addEventListener("cache-invalidated", onInvalidated);
-    return () => window.removeEventListener("cache-invalidated", onInvalidated);
-  }, [url]);`
-    : "";
-
-  const importTags = tagInvalidation
-    ? `import { generateTags } from "../invalidation-tags.${ext}";\n`
-    : "";
-
-  const stringType = ts ? ": string" : "";
-  const respType = ts ? "<Response | null>" : "";
-
-  writeFileSync(
-    join(dir, `useCachedFetch.${ext}x`),
-    `import { useState, useEffect, useCallback } from "react";
-import { fetchWithCache } from "../fetch-wrapper.${ext}";
-${importTags}
-export function useCachedFetch(url${stringType}, options = {}) {
-  const [data, setData] = useState${respType}(null);
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [refetchCount, setRefetchCount] = useState(0);
-
-  const refetch = useCallback(() => setRefetchCount((c) => c + 1), []);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    fetchWithCache(url, options)
-      .then(({ response }) => {
-        if (cancelled) return;
-        setData(response);
-        setError(null);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(err);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [url, refetchCount]);
-${extraEffect}
-  return { data, error, loading, refetch };
-}
-`,
-  );
-}
-
-function writeMutationQueueHook(dir: string, ext: string) {
-  writeFileSync(
-    join(dir, `useMutationQueue.${ext}x`),
-    `import { useState, useEffect } from "react";
-import { getPendingCount } from "../mutation-queue.${ext}";
-
-export function useMutationQueue() {
-  const [state, setState] = useState<{
-    pending: number;
-    lastSync: { succeeded: number; failed: number } | null;
-  }>({ pending: 0, lastSync: null });
-
-  useEffect(() => {
-    getPendingCount().then((count: number) => setState((s) => ({ ...s, pending: count })));
-
-    const onSync = (e: CustomEvent) => setState({
-      pending: 0,
-      lastSync: { succeeded: e.detail.succeeded, failed: e.detail.failed },
-    });
-    const onChange = async () => { const count = await getPendingCount(); setState((s) => ({ ...s, pending: count })); };
-
-    window.addEventListener("mutation-sync-complete", onSync as EventListener);
-    window.addEventListener("mutation-queue-changed", onChange);
-    return () => {
-      window.removeEventListener("mutation-sync-complete", onSync as EventListener);
-      window.removeEventListener("mutation-queue-changed", onChange);
-    };
-  }, []);
-
-  return state;
-}
-`,
-  );
+  if (config.features.backgroundSync) {
+    copyHook(hooksDir, "useBackgroundSync", ext);
+  }
+  if (config.features.tagInvalidation) {
+    copyHook(hooksDir, "useCacheInvalidation", ext);
+  }
 }

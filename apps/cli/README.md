@@ -266,7 +266,10 @@ swoff/
 │   ├── useAuth.tsx        # Reactive auth + connectivity state
 │   ├── useCachedFetch.tsx # Auto-refetch on cache invalidation
 │   ├── useMutationQueue.tsx # Queue status and sync results
-│   └── usePWAUpdate.tsx   # SW update management + download progress
+│   ├── useSWUpdate.tsx    # SW update management (+ useSWProgress in same file)
+│   ├── useNetworkStatus.tsx # Reactive online/offline state
+│   ├── useBackgroundSync.tsx # Background sync state and trigger
+│   └── useCacheInvalidation.tsx # Cache invalidation helpers
 │
 ├── pwa/
 │   └── install.ts         # PWA install prompt handling
@@ -588,11 +591,14 @@ When `features.framework` is `"react"`, generated hooks provide reactive state:
 | Hook | Returns | Description |
 |------|---------|-------------|
 | `useAuth()` | `{ authenticated, user, online }` | Auth + connectivity state. Listens to online/offline/auth changes |
-| `useCachedFetch(url, options?)` | `{ data, error, loading, refetch }` | Fetches data, auto-refetches on tag invalidation events |
+| `useCachedFetch(url, options?)` | `{ data, error, loading, refetch }` | Fetches data (auto-parsed JSON), auto-refetches on tag invalidation events |
 | `useMutationQueue()` | `{ pending, lastSync }` | Queue status (`pending` count) and last sync result (`lastSync.succeeded`, `lastSync.failed`) |
-| `usePWAUpdate()` | `{ updateStatus, progress, forceUpdate, acceptUpdate, dismissUpdate }` | SW update management. `updateStatus` is one of `"idle"`, `"available"`, `"downloading"`, `"ready"` |
+| `useSWUpdate()` | `{ updateStatus, currentVersion, availableVersion, forceUpdate, error, acceptUpdate, dismissUpdate }` | SW update management. `updateStatus` is one of `"idle"`, `"available"`, `"downloading"`, `"ready"` |
 | `useSWProgress()` | `{ status, progress }` | Download progress during SW update. `progress` is `{ percent, downloaded, total }` |
 | `usePushSubscription(vapidPublicKey)` | `{ subscribed, subscription, permission, loading, subscribe, unsubscribe }` | Push subscription state. `subscribe()`/`unsubscribe()` toggle notifications at runtime |
+| `useNetworkStatus()` | `boolean` | Reactive online/offline state |
+| `useBackgroundSync()` | `{ supported, registered, lastSync, triggerSync }` | Background sync support detection and manual sync trigger |
+| `useCacheInvalidation()` | `{ invalidateByTag, invalidateByTags, invalidateUrl }` | Stable callback wrappers around cache invalidation functions |
 
 ```tsx
 import { useCachedFetch } from "./swoff/hooks/useCachedFetch.tsx";

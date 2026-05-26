@@ -4,12 +4,12 @@ import {
   unsubscribeFromPush,
   isSubscribed,
   getPushSubscription,
-} from "../push.ts";
+} from "../push.js";
 
-export function usePushSubscription(vapidPublicKey: string) {
+export function usePushSubscription(vapidPublicKey) {
   const [state, setState] = useState({
     subscribed: false,
-    subscription: null as PushSubscription | null,
+    subscription: null,
     permission: Notification.permission,
     loading: true,
   });
@@ -29,7 +29,7 @@ export function usePushSubscription(vapidPublicKey: string) {
       }
     });
 
-    const onSubChanged = (e: CustomEvent) => {
+    const onSubChanged = (e) => {
       if (cancelled) return;
       if (!e.detail.subscribed) {
         setState({ subscribed: false, subscription: null, permission: Notification.permission, loading: false });
@@ -40,7 +40,7 @@ export function usePushSubscription(vapidPublicKey: string) {
         });
       }
     };
-    const onPermissionChanged = (e: CustomEvent) => {
+    const onPermissionChanged = (e) => {
       if (cancelled) return;
       setState((s) => ({ ...s, permission: e.detail.permission }));
     };

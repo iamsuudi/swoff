@@ -60,13 +60,23 @@ Re-fetches automatically when the SW invalidates related cache tags.
 ```tsx
 import { useCachedFetch } from "./swoff/hooks/useCachedFetch.tsx";
 
-const { data, error, loading, refetch } = useCachedFetch("/api/todos");
+const { data, error, loading, refetch } = useCachedFetch<Todo[]>("/api/todos");
 ```
 
-**Returns** `{ data: Response | null, error, loading, refetch }`
+**Returns** `{ data: T | null, error, loading, refetch }` — `data` is the parsed JSON response.
 
 The hook listens for `cache-invalidated` events (when tag invalidation is enabled) and automatically
 re-fetches if the event's tags match the URL. Call `refetch()` to manually refresh.
+
+### React Hook: `useNetworkStatus`
+Tracks online/offline state reactively.
+```tsx
+import { useNetworkStatus } from "./swoff/hooks/useNetworkStatus.tsx";
+
+const online = useNetworkStatus();
+```
+
+**Returns** `boolean` — `true` when online, `false` when offline.
 
 
 ## 🎯 Cache Strategy Resolution
@@ -142,6 +152,16 @@ await syncWhenPossible({ method: "POST", url: "/api/todos", body: { ... } });
 - `retrySync()` — re-register sync if mutations are still pending (called automatically)
 
 > ⚠️ Background Sync is Chrome/Edge only. Not supported in Firefox or Safari.
+
+### React Hook: `useBackgroundSync`
+Reactive background sync state and trigger.
+```tsx
+import { useBackgroundSync } from "./swoff/hooks/useBackgroundSync.tsx";
+
+const { supported, registered, lastSync, triggerSync } = useBackgroundSync();
+```
+
+**Returns** `{ supported, registered, lastSync, triggerSync }` — `triggerSync()` calls `syncWhenPossible()`.
 
 
 ## 🔐 Auth — token management and authenticated requests
@@ -226,6 +246,7 @@ const { authenticated, user, online } = await getAuthState();
 ### React Hooks
 - `useAuth()` — returns `{ authenticated, user, online }`, listens to online/offline/auth changes
 - `useCachedFetch(url, options?)` — fetches with auto-refetch on tag invalidation, see Fetch Wrapper section
+- `useNetworkStatus()` — returns `boolean`, standalone online/offline tracker, see Fetch Wrapper section
 
 
 ## 🏷️ Tag Invalidation — keep cached data fresh
@@ -265,6 +286,16 @@ await invalidateByTags(["todos", "categories"]);
 **Functions:**
 - `invalidateByTag(tag)` — invalidate a single tag. Dispatches `cache-invalidated` event.
 - `invalidateByTags(tags)` — invalidate multiple tags.
+
+### React Hook: `useCacheInvalidation`
+Reactive wrapper around cache invalidation functions.
+```tsx
+import { useCacheInvalidation } from "./swoff/hooks/useCacheInvalidation.tsx";
+
+const { invalidateByTag, invalidateByTags, invalidateUrl } = useCacheInvalidation();
+```
+
+Returns stable `useCallback`-wrapped versions of each invalidation function.
 
 
 ## 🔄 Cross-tab Sync — keep tabs in sync
@@ -341,7 +372,7 @@ if (isInstallable()) {
 Generated in `swoff/manifest.json`. If you want it exposed at the root, copy it to your `public/` directory.
 
 ### React Hooks
-- `usePWAUpdate()` — returns `{ updateStatus, progress, forceUpdate, acceptUpdate, dismissUpdate }`
+- `useSWUpdate()` — returns `{ updateStatus, currentVersion, availableVersion, forceUpdate, error, acceptUpdate, dismissUpdate }`
 - `useSWProgress()` — returns `{ status, progress }` for download progress during SW update
 - `useCachedFetch(url, options?)` — fetches with auto-refetch on tag invalidation, see Fetch Wrapper section
 

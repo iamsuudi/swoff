@@ -76,21 +76,32 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("**Note:** For authenticated requests, pass `{ auth: true }` — there is no separate auth fetch wrapper.");
   w("");
 
-  if (ctx.frameworkName === "react") {
-    w("### React Hook: `useCachedFetch`");
-    w("Re-fetches automatically when the SW invalidates related cache tags.");
-    w("```tsx");
-    w(`import { useCachedFetch } from "./swoff/hooks/useCachedFetch.${ext}x";`);
-    w("");
-    w('const { data, error, loading, refetch } = useCachedFetch("/api/todos");');
-    w("```");
-    w("");
-    w("**Returns** `{ data: Response | null, error, loading, refetch }`");
-    w("");
-    w("The hook listens for `cache-invalidated` events (when tag invalidation is enabled) and automatically");
-    w("re-fetches if the event's tags match the URL. Call `refetch()` to manually refresh.");
-    w("");
-  }
+    if (ctx.frameworkName === "react") {
+      w("### React Hook: `useCachedFetch`");
+      w("Re-fetches automatically when the SW invalidates related cache tags.");
+      w("```tsx");
+      w(`import { useCachedFetch } from "./swoff/hooks/useCachedFetch.${ext}x";`);
+      w("");
+      w('const { data, error, loading, refetch } = useCachedFetch<Todo[]>("/api/todos");');
+      w("```");
+      w("");
+      w("**Returns** `{ data: T | null, error, loading, refetch }` — `data` is the parsed JSON response.");
+      w("");
+      w("The hook listens for `cache-invalidated` events (when tag invalidation is enabled) and automatically");
+      w("re-fetches if the event's tags match the URL. Call `refetch()` to manually refresh.");
+      w("");
+
+      w("### React Hook: `useNetworkStatus`");
+      w("Tracks online/offline state reactively.");
+      w("```tsx");
+      w(`import { useNetworkStatus } from "./swoff/hooks/useNetworkStatus.${ext}x";`);
+      w("");
+      w("const online = useNetworkStatus();");
+      w("```");
+      w("");
+      w("**Returns** `boolean` — `true` when online, `false` when offline.");
+      w("");
+    }
 
   // ── Cache Strategy Resolution ──
   wb("## 🎯 Cache Strategy Resolution");
@@ -175,6 +186,19 @@ export function generateGuide(ctx: GeneratorContext): void {
 
       w("> ⚠️ Background Sync is Chrome/Edge only. Not supported in Firefox or Safari.");
       w("");
+
+      if (ctx.frameworkName === "react") {
+        w("### React Hook: `useBackgroundSync`");
+        w("Reactive background sync state and trigger.");
+        w("```tsx");
+        w(`import { useBackgroundSync } from "./swoff/hooks/useBackgroundSync.${ext}x";`);
+        w("");
+        w('const { supported, registered, lastSync, triggerSync } = useBackgroundSync();');
+        w("```");
+        w("");
+        w("**Returns** `{ supported, registered, lastSync, triggerSync }` — `triggerSync()` calls `syncWhenPossible()`.");
+        w("");
+      }
     }
 
   }
@@ -279,6 +303,7 @@ export function generateGuide(ctx: GeneratorContext): void {
       w("### React Hooks");
       w("- `useAuth()` — returns `{ authenticated, user, online }`, listens to online/offline/auth changes");
       w("- `useCachedFetch(url, options?)` — fetches with auto-refetch on tag invalidation, see Fetch Wrapper section");
+      w("- `useNetworkStatus()` — returns `boolean`, standalone online/offline tracker, see Fetch Wrapper section");
       w("");
     }
   }
@@ -328,6 +353,19 @@ export function generateGuide(ctx: GeneratorContext): void {
     w("- `invalidateByTag(tag)` — invalidate a single tag. Dispatches `cache-invalidated` event.");
     w("- `invalidateByTags(tags)` — invalidate multiple tags.");
     w("");
+
+    if (ctx.frameworkName === "react") {
+      w("### React Hook: `useCacheInvalidation`");
+      w("Reactive wrapper around cache invalidation functions.");
+      w("```tsx");
+      w(`import { useCacheInvalidation } from "./swoff/hooks/useCacheInvalidation.${ext}x";`);
+      w("");
+      w('const { invalidateByTag, invalidateByTags, invalidateUrl } = useCacheInvalidation();');
+      w("```");
+      w("");
+      w("Returns stable `useCallback`-wrapped versions of each invalidation function.");
+      w("");
+    }
   }
 
   // ── Cross-tab Sync ──
@@ -429,7 +467,7 @@ export function generateGuide(ctx: GeneratorContext): void {
 
     if (ctx.frameworkName === "react") {
       w("### React Hooks");
-      w("- `usePWAUpdate()` — returns `{ updateStatus, progress, forceUpdate, acceptUpdate, dismissUpdate }`");
+      w("- `useSWUpdate()` — returns `{ updateStatus, currentVersion, availableVersion, forceUpdate, error, acceptUpdate, dismissUpdate }`");
       w("- `useSWProgress()` — returns `{ status, progress }` for download progress during SW update");
       w("- `useCachedFetch(url, options?)` — fetches with auto-refetch on tag invalidation, see Fetch Wrapper section");
       w("");

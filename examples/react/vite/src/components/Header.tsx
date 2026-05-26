@@ -15,14 +15,16 @@ export default function Header() {
   useEffect(() => {
     getAuthState().then((s) => {
       setAuthenticated(s.authenticated);
-      setUser(s.user);
-      setUserName(s.user?.name || "");
+      const u = s.user as User | null;
+      setUser(u);
+      setUserName(u?.name || "");
     });
     const onChange = () =>
       getAuthState().then((s) => {
         setAuthenticated(s.authenticated);
-        setUser(s.user);
-        setUserName(s.user?.name || "");
+        const u = s.user as User | null;
+        setUser(u);
+        setUserName(u?.name || "");
       });
     window.addEventListener("sw-auth-state-change", onChange);
     return () => window.removeEventListener("sw-auth-state-change", onChange);
@@ -80,7 +82,7 @@ export default function Header() {
           {authenticated ? (
             <div className="flex items-center gap-3">
               <span className="hidden text-xs text-gray-500 sm:inline dark:text-gray-400">
-                {userName}
+                {user?.name || userName}
               </span>
               <button
                 onClick={handleLogout}

@@ -12,7 +12,7 @@ These components use Vue composables to provide ready-to-use UI elements. See [C
 
 ```vue title="@/components/UpdatePrompt.vue"
 <script setup>
-import { usePWAUpdate } from "../composables/usePWAUpdate";
+import { useSWUpdate } from "../composables/useSWUpdate";
 
 const {
   updateStatus,
@@ -22,7 +22,7 @@ const {
   forceUpdate,
   acceptUpdate,
   dismissUpdate,
-} = usePWAUpdate();
+} = useSWUpdate();
 </script>
 
 <template>

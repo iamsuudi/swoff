@@ -38,7 +38,7 @@ dist/
 Update flow:
 1. App checks `version.json` on load
 2. If new version, fires `sw-update-available` event
-3. `usePWAUpdate` hook shows `UpdatePrompt` component
+3. `useSWUpdate` hook shows `UpdatePrompt` component
 4. User approves → new SW downloads → progress bar shows → reload
 
 ### IndexedDB Storage
@@ -99,7 +99,7 @@ Object Stores:
 
 | File | Purpose |
 |------|---------|
-| `src/hooks/usePWAUpdate.tsx` | Update state management |
+| `src/hooks/useSWUpdate.tsx` | Update state management |
 | `src/components/UpdatePrompt.tsx` | Update UI dialog |
 | `src/components/SWProgressBar.tsx` | Install progress bar |
 
@@ -145,7 +145,7 @@ bun run build
 | SW Template | `src/sw-template.js` |
 | Build Script | `generate-sw.js` |
 | Client Registration | `src/main.tsx` |
-| Update Hook | `src/hooks/usePWAUpdate.tsx` |
+| Update Hook | `src/hooks/useSWUpdate.tsx` |
 | IndexedDB Schema | `src/lib/storage/db.ts` |
 | ID Generation | `src/lib/storage/index.ts` |
 

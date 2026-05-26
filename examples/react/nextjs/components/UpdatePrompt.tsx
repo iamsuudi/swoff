@@ -1,9 +1,9 @@
 "use client";
 
-import { usePWAUpdate } from "@/hooks/usePWAUpdate";
+import { useSWUpdate } from "@/hooks/useSWUpdate";
 
 export default function UpdatePrompt() {
-  const { updateStatus, currentVersion, availableVersion, progress, forceUpdate, acceptUpdate, dismissUpdate } = usePWAUpdate();
+  const { updateStatus, currentVersion, availableVersion, progress, forceUpdate, acceptUpdate, dismissUpdate } = useSWUpdate();
 
   if (updateStatus === "idle") return null;
 

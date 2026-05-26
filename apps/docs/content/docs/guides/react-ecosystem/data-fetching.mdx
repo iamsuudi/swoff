@@ -170,7 +170,7 @@ Show network status combined with query state:
 ```tsx
 function Todos() {
   const { data: todos, fetchStatus, status } = useTodos();
-  const { isOnline } = useOfflineStatus();
+  const isOnline = useNetworkStatus();
 
   if (status === "loading") return <Spinner />;
   if (status === "error") return <ErrorMessage />;

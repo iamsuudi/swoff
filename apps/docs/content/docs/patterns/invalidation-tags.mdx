@@ -153,47 +153,13 @@ No SW changes needed — the SW template's `invalidateByTag` already broadcasts 
 
 ### Framework Adapters
 
-#### React
+Cross-tab invalidation is handled automatically by the generated hooks:
 
-```typescript
-import { useState, useEffect } from "react";
+- **React**: `useCachedFetch` listens for `cache-invalidated` events and auto-refetches when matching tags are found. `useCacheInvalidation` provides `invalidateByTag`, `invalidateByTags`, and `invalidateUrl` for manual invalidation.
 
-export function useCrossTabCache() {
-  const [invalidatedTags, setInvalidatedTags] = useState<string[]>([]);
+- **Vue**: `useCacheInvalidation` provides the same invalidation helpers.
 
-  useEffect(() => {
-    function handleInvalidation(e: CustomEvent) {
-      setInvalidatedTags(e.detail.tags);
-      setTimeout(() => setInvalidatedTags([]), 0);
-    }
-
-    window.addEventListener("cache-invalidated", handleInvalidation as EventListener);
-    return () => window.removeEventListener("cache-invalidated", handleInvalidation as EventListener);
-  }, []);
-
-  return { invalidatedTags };
-}
-```
-
-#### Vue
-
-```typescript
-import { ref, onMounted, onUnmounted } from "vue";
-
-export function useCrossTabCache() {
-  const invalidatedTags = ref<string[]>([]);
-
-  function handleInvalidation(e: Event) {
-    invalidatedTags.value = (e as CustomEvent).detail.tags;
-    setTimeout(() => { invalidatedTags.value = []; }, 0);
-  }
-
-  onMounted(() => window.addEventListener("cache-invalidated", handleInvalidation));
-  onUnmounted(() => window.removeEventListener("cache-invalidated", handleInvalidation));
-
-  return { invalidatedTags };
-}
-```
+The `cache-invalidated` event is dispatched both locally and broadcast to other tabs via the service worker — no additional code needed.
 
 ---
 

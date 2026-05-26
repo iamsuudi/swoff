@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { handleUpdateApproved } from "../client-injector.ts";
+import { handleUpdateApproved } from "../sw/injector.ts";
 
 export function usePWAUpdate() {
   const [state, setState] = useState({

@@ -122,3 +122,69 @@ export function isAuthValid(auth: AuthData | null): boolean {
   if (!auth.expiresAt) return true;
   return Date.now() < auth.expiresAt;
 }
+
+export const AUTH_WITH_CREDENTIALS = false;
+
+/** Inject Bearer token into request headers. */
+export function withAuthHeaders(headers: Headers, auth: AuthData | null): Headers{
+  if (auth?.token) {
+    headers.set("Authorization", `Bearer ${auth.token}`);
+  }
+  return headers;
+}
+/** Check if a URL is an auth endpoint that should bypass the SW cache. */
+export function isAuthUrl(url: string): boolean {
+  const authPaths = [
+    "/login",
+    "/logout",
+    "/register",
+    "/api/login",
+    "/api/logout",
+    "/api/register",
+    "/api/refresh",
+    "/api/me",
+  ];
+  return authPaths.some((path) => url.includes(path));
+}
+/** Refresh the auth token via the refresh endpoint. Uses plain fetch to bypass SW cache. */
+let refreshPromise: Promise<AuthData | null> | null = null;
+
+export async function ensureValidAuth(): Promise<AuthData | null> {
+  const auth = await getAuth();
+  if (!auth) return null;
+  if (!auth.expiresAt || Date.now() < auth.expiresAt) return auth;
+
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const headers = new Headers({ "Content-Type": "application/json" });
+      withAuthHeaders(headers, auth);
+      try {
+        const response = await fetch("/api/refresh", {
+          method: "POST",
+          headers,
+      });
+
+        if (!response.ok) {
+          await clearAuth();
+          window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
+          return null;
+        }
+
+        const data = await response.json();
+        const updated = { ...auth, token: data.token, expiresAt: data.expiresAt };
+        await setAuth(updated);
+        return updated;
+      } catch {
+        await clearAuth();
+        window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
+        return null;
+      }
+    })();
+  }
+
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
+}

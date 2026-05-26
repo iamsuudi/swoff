@@ -12,6 +12,12 @@ export interface SwVersionConfig {
   minSupportedVersion: string;
 }
 
+export interface StrategyEntry {
+  strategy: string;
+  maxCacheEntries?: number;
+  maxCacheAge?: number;
+}
+
 export interface SwoffConfig {
   $schema?: string;
   enabled: boolean;
@@ -26,11 +32,13 @@ export interface SwoffConfig {
       autoUpdate: boolean;
       autoActivate: boolean;
       defaultStrategy: string;
-      strategies: Record<string, string>;
+      strategies: Record<string, string | StrategyEntry>;
+      cacheStrategy?: "all" | "explicit-only";
       maxCacheEntries?: number;
       maxCacheAge?: number;
       runtimeCacheName?: string;
       clearRuntimeOnUpdate: boolean;
+      navigationPreload?: boolean;
       navigationMode: "spa" | "default";
       spaEntry: string;
     };
@@ -39,6 +47,10 @@ export interface SwoffConfig {
     auth: AuthConfig;
     crossTabSync: boolean;
     tagInvalidation: boolean;
+    pushNotifications?: {
+      enabled: boolean;
+      vapidPublicKey?: string;
+    };
   };
   build: {
     outputDir: string;
@@ -52,9 +64,10 @@ export const KNOWN_FEATURES = [
   "auth",
   "crossTabSync",
   "tagInvalidation",
+  "pushNotifications",
 ] as const;
 
-export const OBJECT_FEATURES = ["pwa", "serviceWorker", "auth"] as const;
+export const OBJECT_FEATURES = ["pwa", "serviceWorker", "auth", "pushNotifications"] as const;
 
 export const VALID_STRATEGIES = [
   "cache-first",
@@ -122,7 +135,9 @@ export const defaultConfig: SwoffConfig = {
       autoActivate: false,
       defaultStrategy: "cache-first",
       strategies: {},
+      cacheStrategy: "all",
       clearRuntimeOnUpdate: false,
+      navigationPreload: true,
       navigationMode: "spa",
       spaEntry: "/index.html",
     },
@@ -131,6 +146,7 @@ export const defaultConfig: SwoffConfig = {
     auth: { ...defaultAuth },
     crossTabSync: true,
     tagInvalidation: true,
+    pushNotifications: { enabled: false },
   },
   build: {
     outputDir: "dist",

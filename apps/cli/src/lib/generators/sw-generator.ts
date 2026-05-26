@@ -24,15 +24,6 @@ interface GeneratorOptions {
   onStatus?: (msg: string) => void;
 }
 
-const args = process.argv.slice(2);
-const projectRootArg = args.findIndex((arg) => arg === "--project-root");
-const configPathArg = args.findIndex((arg) => arg === "--config-path");
-
-const passedProjectRoot = projectRootArg !== -1 ? args[projectRootArg + 1] : null;
-const passedConfigPath = configPathArg !== -1 ? args[configPathArg + 1] : null;
-
-const projectRoot = passedProjectRoot || process.cwd();
-
 function resolveVersion(config: { features: { serviceWorker: { version: { source: string; value?: string } } } }, pkgVersion: string): string {
   const v = config.features.serviceWorker.version;
   if (v.source === "manual" && v.value) return v.value;
@@ -40,8 +31,8 @@ function resolveVersion(config: { features: { serviceWorker: { version: { source
 }
 
 export async function generateSW(options: GeneratorOptions = {}): Promise<{ version: string; outputFile: string }> {
-  const optProjectRoot = options.projectRoot || projectRoot;
-  const optConfigPath = options.configPath || passedConfigPath || undefined;
+  const optProjectRoot = options.projectRoot || process.cwd();
+  const optConfigPath = options.configPath;
   const status = options.onStatus || console.log;
 
   const pkgPath = join(optProjectRoot, "package.json");
@@ -103,6 +94,12 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ vers
 }
 
 if (fileURLToPath(import.meta.url) === fileURLToPath(new URL(process.argv[1], "file:"))) {
+  const args = process.argv.slice(2);
+  const projectRootIdx = args.indexOf("--project-root");
+  const configPathIdx = args.indexOf("--config-path");
+  const projectRoot = projectRootIdx !== -1 ? args[projectRootIdx + 1] : undefined;
+  const configPath = configPathIdx !== -1 ? args[configPathIdx + 1] : undefined;
+
   (async () => {
     const ttyStatus = process.stdout.isTTY
       ? (msg: string) => {
@@ -112,7 +109,7 @@ if (fileURLToPath(import.meta.url) === fileURLToPath(new URL(process.argv[1], "f
       : (msg: string) => console.log(`  ${msg}`);
 
     console.log("Generating service worker...");
-    await generateSW({ onStatus: ttyStatus });
+    await generateSW({ projectRoot, configPath, onStatus: ttyStatus });
     process.stdout.write("\n");
   })().catch((err) => {
     console.error(err);

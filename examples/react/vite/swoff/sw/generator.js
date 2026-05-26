@@ -13,7 +13,7 @@ import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const projectRoot = join(__dirname, '../..');
+const projectRoot = process.cwd();
 
 const pkgPath = join(projectRoot, 'package.json');
 const templatePath = join(__dirname, 'template.js');

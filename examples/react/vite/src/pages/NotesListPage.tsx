@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { authenticatedFetch } from "../../swoff/auth/fetch";
+import { fetchWithCache } from "../../swoff/fetch-wrapper";
 import { generateTags, invalidateByMethod } from "../../swoff/invalidation-tags";
 import { queueMutation } from "../../swoff/mutation-queue";
 import NoteCard from "../components/NoteCard";
@@ -16,7 +16,7 @@ export default function NotesListPage() {
   const loadNotes = async () => {
     try {
       setIsLoading(true);
-      const res = await authenticatedFetch("/api/notes", { tags: generateTags("/api/notes") });
+      const { response: res } = await fetchWithCache("/api/notes", { auth: true, tags: generateTags("/api/notes") });
       setNotes(await res.json());
     } catch { setNotes([]); }
     finally { setIsLoading(false); }
@@ -31,7 +31,7 @@ export default function NotesListPage() {
       await queueMutation({ method: "DELETE", url: `/api/notes/${id}`, tags: generateTags(`/api/notes/${id}`) });
       return;
     }
-    await authenticatedFetch(`/api/notes/${id}`, { method: "DELETE" });
+    await fetchWithCache(`/api/notes/${id}`, { method: "DELETE", auth: true });
     await invalidateByMethod("DELETE", `/api/notes/${id}`);
     await loadNotes();
   };

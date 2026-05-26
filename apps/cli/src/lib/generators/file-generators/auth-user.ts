@@ -24,7 +24,7 @@ export function generateAuthUser(ctx: GeneratorContext): void {
  *   await clearCachedUser();            // Clear on logout
  */
 
-import { authenticatedFetch } from "./fetch.${ext}";
+import { fetchWithCache } from "../fetch-wrapper.${ext}";
 
 const DB_NAME = "swoff-auth-user";
 const STORE_NAME = "current-user";
@@ -45,7 +45,7 @@ function openAuthDB()${R("Promise<IDBDatabase>")}{
 
 /** Fetch current user from the user endpoint and cache the result in IndexedDB. */
 export async function fetchCurrentUser()${R("Promise<Record<string, unknown>>")}{
-  const response = await authenticatedFetch("${userEndpoint}");
+  const { response } = await fetchWithCache("${userEndpoint}", { auth: true });
   if (!response.ok) throw new Error("Failed to fetch user");
 
   const user = await response.json();

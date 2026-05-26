@@ -81,8 +81,8 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push('    await setAuth({ token, expiresAt: Date.now() + 3600000 });');
     lines.push("");
     lines.push(`  For authenticated API calls:`);
-    lines.push(`    import { authenticatedFetch } from "./swoff/auth/fetch.${ext}";`);
-    lines.push(`    const data = await authenticatedFetch("/api/me").then(r => r.json());`);
+    lines.push(`    import { fetchWithCache } from "./swoff/fetch-wrapper.${ext}";`);
+    lines.push(`    const data = await fetchWithCache("/api/me", { auth: true }).then(r => r.json());`);
     if (config.features.auth.type === "bearer") {
       lines.push("");
       lines.push("  ⚠️ Bearer token is memory-only, it is never persisted to IndexedDB.");

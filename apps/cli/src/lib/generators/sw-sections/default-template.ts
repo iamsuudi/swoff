@@ -18,34 +18,5 @@ const CACHE_NAME_RUNTIME = "swoff-runtime";
 // [[MESSAGE_HANDLER]]
 // [[FETCH_HANDLER]]
 // [[TAG_MANAGEMENT]]
-
-const SWOFF = {
-  cache: {
-    async get(key) {
-      const cache = await caches.open(CACHE_NAME);
-      return cache.match(key);
-    },
-    async put(request, response) {
-      const cache = await caches.open(CACHE_NAME);
-      await cache.put(request, response);
-    },
-    async delete(request) {
-      const cache = await caches.open(CACHE_NAME);
-      return cache.delete(request);
-    }
-  },
-  network: {
-    async fetch(request, options = {}) {
-      try {
-        return await fetch(request, options);
-      } catch (error) {
-        throw new Error(\`Network request failed: \${error.message}\`);
-      }
-    }
-  }
-};
-
-if (typeof self !== 'undefined') {
-  self.SWOFF = SWOFF;
-}`;
+// [[PUSH_HANDLERS]]`;
 }

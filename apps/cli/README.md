@@ -9,6 +9,7 @@ Swoff generates a **service worker** and **client-side utilities** that give you
 - **Auth** — token management with automatic 401 handling
 - **Cache invalidation** — tag-based cache busting after mutations
 - **PWA** — install prompt and manifest
+- **Push notifications** — subscription management with IndexedDB persistence and VAPID support
 - **Cross-tab sync** — broadcast changes across open tabs
 - **Background Sync API** — process mutations even after tab close
 
@@ -94,6 +95,7 @@ swoff add auth
 swoff add tag-invalidation
 swoff add cross-tab
 swoff add background-sync
+swoff add push-notification
 ```
 
 ### `info`
@@ -145,8 +147,17 @@ This deletes `swoff/`, `swoff.config.json`, `version.json`, and removes the SW g
       "defaultStrategy": "cache-first",
       "strategies": {
         "/api/*": "network-first",
-        "/static/*": "cache-first"
+        "/static/*": {
+          "strategy": "cache-first",
+          "maxCacheEntries": 50,
+          "maxCacheAge": 3600000
+        }
       },
+      "cacheStrategy": "all",
+      "navigationPreload": true,
+      "maxCacheEntries": 100,
+      "maxCacheAge": 86400000,
+      "runtimeCacheName": "swoff-runtime",
       "clearRuntimeOnUpdate": false,
       "navigationMode": "spa",
       "spaEntry": "/index.html"
@@ -160,7 +171,11 @@ This deletes `swoff/`, `swoff.config.json`, `version.json`, and removes the SW g
       "userEndpoint": "/api/me"
     },
     "crossTabSync": true,
-    "tagInvalidation": true
+    "tagInvalidation": true,
+    "pushNotifications": {
+      "enabled": false,
+      "vapidPublicKey": ""
+    }
   }
 }
 ```
@@ -181,7 +196,12 @@ This deletes `swoff/`, `swoff.config.json`, `version.json`, and removes the SW g
 | `features.serviceWorker.autoUpdate` | `boolean` | `true` | Auto-update SW |
 | `features.serviceWorker.autoActivate` | `boolean` | `false` | Auto-activate SW |
 | `features.serviceWorker.defaultStrategy` | `string` | `"cache-first"` | Default cache strategy |
-| `features.serviceWorker.strategies` | `object` | `{}` | Per-route caching strategies |
+| `features.serviceWorker.strategies` | `object` | `{}` | Per-route caching strategies. Each value is a strategy name string, or `{ strategy, maxCacheEntries?, maxCacheAge? }` |
+| `features.serviceWorker.cacheStrategy` | `"all"` \| `"explicit-only"` | `"all"` | When to apply caching strategies. `"all"`: every GET/HEAD; `"explicit-only"`: only if `X-SW-Cache-Strategy` header is present |
+| `features.serviceWorker.navigationPreload` | `boolean` | `true` | Enable Navigation Preload API — reduces SW startup latency for navigation requests |
+| `features.serviceWorker.maxCacheEntries` | `number` | — | Max runtime cache entries (0 = unlimited) |
+| `features.serviceWorker.maxCacheAge` | `number` | — | Max runtime cache age in ms (0 = unlimited) |
+| `features.serviceWorker.runtimeCacheName` | `string` | `"swoff-runtime"` | Runtime cache name |
 | `features.serviceWorker.clearRuntimeOnUpdate` | `boolean` | `false` | Clear runtime cache on update |
 | `features.serviceWorker.navigationMode` | `"spa"` \| `"default"` | `"spa"` | Navigation caching mode |
 | `features.serviceWorker.spaEntry` | `string` | `"/index.html"` | SPA entry for nav fallback |
@@ -193,40 +213,72 @@ This deletes `swoff/`, `swoff.config.json`, `version.json`, and removes the SW g
 | `features.auth.userEndpoint` | `string` | `"/api/me"` | Current user endpoint |
 | `features.crossTabSync` | `boolean` | `false` | Cross-tab broadcast |
 | `features.tagInvalidation` | `boolean` | `false` | Tag-based cache invalidation |
+| `features.pushNotifications.enabled` | `boolean` | `false` | Push notification subscription management |
+| `features.pushNotifications.vapidPublicKey` | `string` | `""` | VAPID public key (can also be passed at runtime) |
 
 ---
 
-## Generated File Structure
+## Generated Files
 
 ```
 swoff/
-├── client-injector.ts     # Single entry point — import and call initServiceWorker()
+├── client-injector.ts     # Orchestrator — wires all features together
+│   Imports: sw/injector, pwa/install, mutation-queue
+│   Exports: initServiceWorker()
+│   Always generated
+│
 ├── fetch-wrapper.ts       # Unified fetch with caching, auth, offline queue
-├── cache.ts               # Low-level cache invalidation (tagInvalidation)
-├── invalidation-tags.ts   # Tag generation helpers (tagInvalidation)
-├── mutation-queue.ts      # Offline write queue (mutationQueue)
-├── background-sync.ts     # Background Sync API (backgroundSync)
-├── swoff.d.ts             # TypeScript declarations
+│   Imports: invalidation-tags, cache, auth/store, mutation-queue (conditional)
+│   Exports: fetchWithCache(input, options?)
+│   Always generated
 │
-├── auth/
-│   ├── store.ts           # Auth token/user persistence
-│   ├── fetch.ts           # Authenticated fetch wrapper
+├── cache.ts               # Low-level cache invalidation
+│   Exports: invalidateByTag(), invalidateByTags()
+│   Generated when: tagInvalidation is true
+│
+├── invalidation-tags.ts   # Tag generation helpers
+│   Exports: generateTags(), invalidateUrl(), invalidateByMethod()
+│   Generated when: tagInvalidation is true
+│
+├── mutation-queue.ts      # Offline write queue
+│   Exports: queueMutation(), processMutationQueue(), flushMutations(), getPendingCount()
+│   Generated when: mutationQueue is true
+│
+├── push.ts                # Push notification subscription management
+│   Exports: subscribeToPush(), unsubscribeFromPush(), isSubscribed(), getPushSubscription(), requestNotificationPermission()
+│   Generated when: pushNotifications.enabled is true
+│
+├── background-sync.ts     # Background Sync API
+│   Exports: syncWhenPossible(), retrySync()
+│   Generated when: backgroundSync is true
+│
+├── swoff.d.ts             # TypeScript declarations for all generated modules
+│
+├── auth/                  # Generated when auth.enabled is true
+│   ├── store.ts           # Token/user persistence (memory + IndexedDB) + auth header helpers
+│   │   Exports: setAuth(), getAuth(), clearAuth(), isAuthValid(), createAuthFromResponse(), ensureValidAuth(), withAuthHeaders()
 │   ├── user.ts            # User data caching
+│   │   Exports: fetchCurrentUser(), getCachedUser(), cacheUser(), clearCachedUser()
 │   └── state.ts           # Online/offline × auth state detection
+│       Exports: getAuthState()
 │
-├── hooks/                 # React hooks (if framework = react)
-│   ├── useAuth.tsx
-│   ├── useCachedFetch.tsx
-│   ├── useMutationQueue.tsx
-│   └── usePWAUpdate.tsx
+├── hooks/                 # Generated when framework is "react"
+│   ├── useAuth.tsx        # Reactive auth + connectivity state
+│   ├── useCachedFetch.tsx # Auto-refetch on cache invalidation
+│   ├── useMutationQueue.tsx # Queue status and sync results
+│   └── usePWAUpdate.tsx   # SW update management + download progress
 │
 ├── pwa/
-│   └── install.ts
+│   └── install.ts         # PWA install prompt handling
+│       Exports: setupPwaInstall(), isInstallable(), promptInstall()
+│       Generated when: pwa.enabled is true
 │
 ├── sw/
-│   ├── template.js        # Service worker source
+│   ├── template.js        # Service worker source (runs in SW scope)
+│   │                      # Implements all 5 caching strategies in the SW
 │   ├── injector.ts        # SW registration logic
-│   └── generator.js       # Build-time SW generator
+│   │                      # Exports: initServiceWorker(), handleUpdateApproved(), skipWaiting()
+│   └── generator.js       # Build-time script — embeds asset hashes into SW
 │
 ├── manifest.json
 ├── GUIDE.md               # Full integration walkthrough
@@ -235,9 +287,187 @@ swoff/
 
 ---
 
-## Feature Deep-Dive
+## Cache Strategies
 
-### Mutation Queue
+The service worker applies a caching strategy to GET/HEAD requests based on `features.serviceWorker.cacheStrategy`:
+
+| Mode | Behavior |
+|------|----------|
+| `"all"` (default) | All GET/HEAD requests go through the strategy system. Plain `fetch()` calls are cached by the SW just like `fetchWithCache()` calls. |
+| `"explicit-only"` | Only requests with a `X-SW-Cache-Strategy` header are processed by the SW strategy system. Plain `fetch()` calls pass through the SW unmodified. `fetchWithCache()` sets this header automatically — use it for all API calls to ensure caching works. |
+
+### Strategy resolution (3 tiers, highest to lowest priority)
+
+1. **Per-request override** — set `strategy` or `staleWhileRevalidate` on any `fetchWithCache(options)`. Sends `X-SW-Strategy` header to the SW.
+2. **URL pattern match** — `features.serviceWorker.strategies` object maps URL prefixes (e.g. `/api/*`) to strategies.
+3. **Default** — `features.serviceWorker.defaultStrategy` (default: `"cache-first"`).
+
+### Available strategies
+
+| Strategy | Behavior | Best for |
+|----------|----------|----------|
+| `cache-first` | Return cached if available, else fetch + cache. Default. | Static assets, images, fonts, rarely-changing data |
+| `network-first` | Try network. On success, cache. On failure, serve cache. | API endpoints, dynamic content where freshness matters |
+| `stale-while-revalidate` | Return cached immediately, refresh cache in background. | Fast UI, non-critical data, content that can be slightly stale |
+| `cache-only` | Serve from cache only. Returns 404 if missing. | Offline-critical assets that must always be available |
+| `network-only` | Always fetch, never cache. | Sensitive or real-time data, payment flows |
+
+### Request dispatch flow
+
+Every GET/HEAD request goes through this flow in the SW:
+
+```
+navigation (SPA fallback) → precache hit? → strategy dispatch → pass-through
+```
+
+- **Navigation requests** (SPA mode): if no cached response is found, the SPA entry (`/index.html` by default) is served as a fallback.
+- **Precache**: build assets cached at install time are checked first.
+- **Strategy**: the resolved strategy (via the 3-tier priority above) determines how the request is cached and served.
+- **Pass-through**: if no strategy matches, the request goes to the network.
+
+---
+
+## fetchWithCache API
+
+A drop-in replacement for `fetch()` that communicates with the service worker about caching, handles offline mode, deduplicates in-flight requests, auto-generates cache tags, and auto-invalidates after mutations.
+
+```js
+import { fetchWithCache } from "./swoff/fetch-wrapper.js";
+
+// Read — cached by the SW for offline access
+const { response, fromCache } = await fetchWithCache("/api/todos");
+const data = await response.json();
+
+// Mutation — passes through, auto-invalidates cache tags
+await fetchWithCache("/api/todos", {
+  method: "POST",
+  body: JSON.stringify({ title: "New task" }),
+});
+
+// POST used as a read (search, GraphQL) — override with type: "read"
+await fetchWithCache("/api/search", {
+  method: "POST",
+  type: "read",
+  body: JSON.stringify({ query: "hello" }),
+});
+
+// With cache tags + stale-while-revalidate
+const { response: staleRes, fromCache } = await fetchWithCache("/api/data", {
+  tags: ["data"],
+  staleWhileRevalidate: true,
+});
+
+// Auth + disable offline queue
+const { response: userRes } = await fetchWithCache("/api/me", {
+  auth: true,
+  queueOffline: false,
+});
+```
+
+### Options
+
+All `RequestInit` fields are supported (`method`, `body`, `headers`, `credentials`, `signal`, etc.), plus:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `tags` | `string[]` | auto-generated | Cache invalidation tags for this request |
+| `staleWhileRevalidate` | `boolean` | `false` | Return cached immediately, refresh in background |
+| `auth` | `boolean` | `false` | Attach auth token (uses `getAuth()`) |
+| `queueOffline` | `boolean` | `true` | When offline, queue writes to IndexedDB for later replay |
+| `invalidate` | `'auto' \| string[] \| false` | `'auto'` | Auto-invalidate cache tags after a successful mutation |
+| `type` | `'read' \| 'mutation'` | auto-detected | Override read/mutation detection |
+| `strategy` | `'cache-first' \| 'network-first' \| 'stale-while-revalidate' \| 'cache-only' \| 'network-only'` | — | Override caching strategy per-request (highest priority, overrides config strategies and default) |
+
+### Behavior
+
+- **Read vs mutation**: GET/HEAD → read (cached). POST/PUT/DELETE/PATCH → mutation (pass through). Override with `type: 'read'` or `type: 'mutation'`.
+- **Offline reads**: returns cached response if available, throws if not cached.
+- **Offline writes**: queues to IndexedDB (when `mutationQueue` enabled). Replays on `online` event. Disable per-request with `queueOffline: false`.
+- **Dedup**: in-flight GETs to the same URL return a single promise (cloned response).
+- **Auto-tags**: when `tagInvalidation` is enabled, tags are derived from the URL for read requests.
+- **Auto-invalidate**: after a successful mutation, matching cache tags are invalidated so the SW re-fetches fresh data.
+- **Auth**: when `auth: true`, attaches auth headers via `withAuthHeaders()` (supports bearer, cookie, and custom). Dispatches `sw-auth-unauthorized` on 401 and clears auth.
+
+### Return value
+
+```
+{ response: Response, fromCache: boolean }
+```
+
+- `response`: the fetch Response (from cache or network)
+- `fromCache`: `true` when the response was served from cache
+
+In TypeScript, use the generic variant for typed responses:
+
+```ts
+const { response } = await fetchWithCache<Todo[]>("/api/todos");
+const data: Todo[] = await response.json();
+// data is typed as Todo[]
+```
+
+---
+
+## Auth API
+
+The auth module is generated when `features.auth.enabled` is `true`. It manages authentication state with a **memory-only token** (never persisted to disk) and optional IndexedDB caching for offline user display.
+
+There is no separate auth fetch wrapper — `fetchWithCache` handles all auth types
+natively. Just pass `{ auth: true }`:
+
+```js
+import { fetchWithCache } from "./swoff/fetch-wrapper.js";
+
+// Attaches auth headers, bypasses SW cache for auth URLs, handles 401
+const { response } = await fetchWithCache("/api/me", { auth: true });
+const user = await response.json();
+
+// Mutations too
+await fetchWithCache("/api/todos", {
+  method: "POST",
+  auth: true,
+  body: JSON.stringify({ title: "New" }),
+});
+```
+
+**What `auth: true` does:**
+
+| Step | What happens |
+|------|-------------|
+| 1 | Calls `getAuth()` to retrieve the stored token/user |
+| 2 | Calls `withAuthHeaders(headers, auth)` — injects Bearer token, cookie, or custom header based on `auth.type` in config |
+| 3 | Marks auth endpoints (`/login`, `/logout`, `/register`, `refreshPath`, `userEndpoint`) as `"mutation"` strategy so the SW never caches them |
+| 4 | For `auth.type: "cookie"`, sets `credentials: "include"` |
+| 5 | On 401 response: calls `clearAuth()`, dispatches `sw-auth-unauthorized` event |
+
+**Returns:** `{ response: Response, fromCache: boolean }` — same as any `fetchWithCache` call
+
+### Auth functions
+
+| Function | Arguments | Returns | Description |
+|----------|-----------|---------|-------------|
+| `setAuth(authData)` | `{ token?, user?, expiresAt? }` | `Promise<void>` | Store auth in memory, persist user to IndexedDB |
+| `getAuth()` | — | `Promise<AuthData \| null>` | Retrieve auth from memory (or IndexedDB fallback after page refresh) |
+| `clearAuth()` | — | `Promise<void>` | Clear memory + IndexedDB. Call on logout/401 |
+| `isAuthValid(auth)` | `AuthData \| null` | `boolean` | Check existence + expiry (`expiresAt`). Returns `true` if no `expiresAt` set |
+| `createAuthFromResponse(response)` | server login response | `AuthData` | **Edit this** to match your backend's login response shape |
+| `ensureValidAuth()` | — | `Promise<AuthData \| null>` | Check expiry, refresh token via `refreshPath` if needed |
+| `fetchCurrentUser()` | — | `Promise<Record<string, unknown> \| null>` | Fetch from `userEndpoint` and cache in IndexedDB |
+| `getCachedUser()` | — | `Promise<Record<string, unknown> \| null>` | Load user from IndexedDB (available offline) |
+| `cacheUser(user)` | user object | `Promise<void>` | Manually persist user data |
+| `clearCachedUser()` | — | `Promise<void>` | Remove user from cache |
+| `getAuthState()` | — | `Promise<{ authenticated, user, online }>` | Detect which of 4 states the app is in |
+
+### Auth types
+
+| `auth.type` | How auth headers are set | Notes |
+|-------------|------------------------|-------|
+| `"bearer"` | `Authorization: Bearer <token>` | Token in memory only. Re-login required after page refresh. Use `refreshPath` for token refresh. |
+| `"cookie"` | No explicit header. `credentials: "include"` is set for all requests. | HttpOnly cookie handled by the server. |
+| `"custom"` | **Edit the `withAuthHeaders` function** in `auth/store.ts` | Full control over header injection. |
+
+---
+
+## Mutation Queue
 
 When the user is offline, write operations (POST/PUT/DELETE) are stored in IndexedDB. They replay automatically when the connection returns.
 
@@ -256,51 +486,18 @@ await queueMutation({
 const count = await getPendingCount();
 ```
 
-The queue processes automatically on the `online` event. Call `flushMutations()` after re-login to retry mutations that failed due to auth expiry.
+| Function | Description |
+|----------|-------------|
+| `queueMutation(mutation)` | Store a write for later sync |
+| `processMutationQueue()` | Replay all queued writes. Runs automatically on `online` event |
+| `flushMutations()` | Same as `processMutationQueue`. Call after re-login (queued mutations may have stale auth) |
+| `getPendingCount()` | Number of mutations waiting to sync |
 
-### Fetch Wrapper
+Generated when `features.mutationQueue` is `true`.
 
-Drop-in replacement for `fetch()` that communicates with the service worker about caching strategy.
+---
 
-```js
-import { fetchWithCache } from "./swoff/fetch-wrapper.js";
-
-// Reads are cached for offline access
-const { response, fromCache } = await fetchWithCache("/api/todos");
-const data = await response.json();
-
-// Writes auto-invalidate related cache tags
-await fetchWithCache("/api/todos", {
-  method: "POST",
-  body: JSON.stringify({ title: "New task" }),
-});
-
-// Auth requests
-const { response: user } = await fetchWithCache("/api/me", { auth: true });
-```
-
-Returns `{ response: Response, fromCache: boolean }`.
-
-### Auth
-
-Token-based authentication with memory-only tokens and automatic 401 handling.
-
-```js
-import { authenticatedFetch } from "./swoff/auth/fetch.js";
-
-// Attaches Bearer token, handles 401
-const user = await authenticatedFetch("/api/me").then((r) => r.json());
-
-// For mutations too — no separate wrapper needed
-await authenticatedFetch("/api/todos", {
-  method: "POST",
-  body: JSON.stringify({ title: "New" }),
-});
-```
-
-Auth endpoints (`/login`, `/logout`, `/register`) automatically bypass the SW cache. On 401, `sw-auth-unauthorized` is dispatched and the token is cleared.
-
-### Cache Invalidation
+## Cache Invalidation
 
 Tag-based invalidation keeps the service worker cache fresh after mutations.
 
@@ -318,7 +515,18 @@ await invalidateUrl("/api/todos/42");
 
 When the SW receives an invalidation, it removes matching cache entries and attempts to background-refetch them. If the refetch fails (network error), the old cached entry is served with a stale-while-revalidate fallback.
 
-### PWA
+| Function | Description |
+|----------|-------------|
+| `generateTags(url)` | Extract tags from URL path. e.g. `/api/todos/42` → `["todos", "todo:42"]` |
+| `invalidateUrl(url)` | Extract tags from URL and invalidate all matching cache entries |
+| `invalidateByTag(tag)` | Invalidate a single tag. Dispatches `cache-invalidated` event |
+| `invalidateByTags(tags)` | Invalidate multiple tags |
+
+Generated when `features.tagInvalidation` is `true`.
+
+---
+
+## PWA
 
 Install prompt handling and manifest generation.
 
@@ -331,30 +539,74 @@ if (isInstallable()) {
 }
 ```
 
-### React Hooks
+| Function | Description |
+|----------|-------------|
+| `setupPwaInstall()` | Listen for `beforeinstallprompt`/`appinstalled` events. Called automatically by `client-injector.ts` |
+| `isInstallable()` | Check if install prompt is available |
+| `promptInstall()` | Show the native install prompt. Returns `{ outcome }` |
 
-When `framework` is `"react"`, generated hooks provide reactive state:
+Generated when `features.pwa.enabled` is `true`.
+
+---
+
+## Push Notifications
+
+Push notification subscription management with IndexedDB persistence.
+
+```js
+import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push.js";
+
+// Subscribe (triggers permission prompt)
+const sub = await subscribeToPush("YOUR_VAPID_PUBLIC_KEY");
+if (sub) {
+  await fetch("/api/push/subscribe", {
+    method: "POST",
+    body: JSON.stringify(sub.toJSON()),
+  });
+}
+
+// Unsubscribe
+await unsubscribeFromPush();
+```
+
+| Function | Description |
+|----------|-------------|
+| `subscribeToPush(vapidPublicKey)` | Request permission and subscribe. Returns `PushSubscription` or `null` if denied |
+| `unsubscribeFromPush()` | Unsubscribe and clear stored subscription from IndexedDB |
+| `isSubscribed()` | Check if currently subscribed |
+| `getPushSubscription()` | Get current `PushSubscription` object, or `null` |
+| `requestNotificationPermission()` | Request notification permission only. Returns `boolean` |
+
+Generated when `features.pushNotifications.enabled` is `true`.
+
+---
+
+## React Hooks
+
+When `features.framework` is `"react"`, generated hooks provide reactive state:
 
 | Hook | Returns | Description |
 |------|---------|-------------|
-| `useAuth()` | `{ authenticated, user, online }` | Auth + connectivity state |
-| `useCachedFetch(url, options?)` | `{ data, error, loading, refetch }` | Auto-refetches on tag invalidation |
-| `useMutationQueue()` | `{ pending, lastSync }` | Queue status and sync results |
-| `usePWAUpdate()` | `{ updateStatus, progress, forceUpdate, acceptUpdate, dismissUpdate }` | SW update management |
-| `useSWProgress()` | `{ status, progress }` | Download progress during SW update |
+| `useAuth()` | `{ authenticated, user, online }` | Auth + connectivity state. Listens to online/offline/auth changes |
+| `useCachedFetch(url, options?)` | `{ data, error, loading, refetch }` | Fetches data, auto-refetches on tag invalidation events |
+| `useMutationQueue()` | `{ pending, lastSync }` | Queue status (`pending` count) and last sync result (`lastSync.succeeded`, `lastSync.failed`) |
+| `usePWAUpdate()` | `{ updateStatus, progress, forceUpdate, acceptUpdate, dismissUpdate }` | SW update management. `updateStatus` is one of `"idle"`, `"available"`, `"downloading"`, `"ready"` |
+| `useSWProgress()` | `{ status, progress }` | Download progress during SW update. `progress` is `{ percent, downloaded, total }` |
+| `usePushSubscription(vapidPublicKey)` | `{ subscribed, subscription, permission, loading, subscribe, unsubscribe }` | Push subscription state. `subscribe()`/`unsubscribe()` toggle notifications at runtime |
 
 ```tsx
 import { useCachedFetch } from "./swoff/hooks/useCachedFetch.tsx";
 
-function TodosList() {
+function Todos() {
   const { data, loading } = useCachedFetch("/api/todos");
-
   if (loading) return <Spinner />;
   return <TodoList data={data} />;
 }
 ```
 
-### Build Script
+---
+
+## Build Script
 
 After `swoff generate`, your `package.json` build script is updated to:
 
@@ -362,22 +614,15 @@ After `swoff generate`, your `package.json` build script is updated to:
 "build": "vite build && node swoff/sw/generator.js"
 ```
 
-The generator learns your build output and precaches all assets in the service worker. Running `swoff clean` removes this suffix.
+The generator (`sw/generator.js`) runs after every build:
 
----
+1. Reads `swoff.config.json` for output dir, version, and strategy config
+2. Reads `sw/template.js` — the service worker source
+3. Collects all built assets from the output directory
+4. Replaces placeholders (`[[CACHE_NAME]]`, `[[ASSETS_LIST]]`, `[[AUTO_SKIP_WAITING]]`) with actual values
+5. Writes the final versioned SW file (e.g. `dist/sw-v1.2.3.js`) and `version.json`
 
-## Service Worker Architecture
-
-The generated service worker (`sw/template.js`) implements:
-
-- **Cache strategies**: network-first for API routes, cache-first for assets
-- **Tag invalidation**: removes stale cache entries and background-refetches
-- **Stale-while-revalidate**: on refetch failure, serves cached content with a stale indicator
-- **Offline fallback**: returns cached responses when the network is unavailable
-- **Cross-tab sync**: forwards invalidation events to all open clients
-- **PWA lifecycle**: skip-waiting, activate, and install event handling
-
-The build-time generator (`sw/generator.js`) collects your built asset files and embeds their hashes into the service worker, so cached assets are versioned and updated when they change.
+Running `swoff clean` removes the generator suffix from your build script.
 
 ---
 

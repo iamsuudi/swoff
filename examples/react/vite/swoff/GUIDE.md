@@ -29,6 +29,10 @@ update-available / ready / error events on the window.
 A drop-in replacement for `fetch()` that communicates with the service worker about caching strategy.
 GET requests are cached by the SW for offline access; POST/PUT/DELETE pass through.
 
+**Important:** Use `fetchWithCache` for all API calls — it sets the `X-SW-Cache-Strategy` header that
+the SW uses to determine whether to apply a caching strategy. Plain `fetch()` works for uncached requests,
+but if `cacheStrategy` is set to `"explicit-only"`, the SW will skip plain `fetch()` calls entirely.
+
 ### `fetch-wrapper.ts`
 ```ts
 import { fetchWithCache } from "./swoff/fetch-wrapper.ts";
@@ -49,7 +53,7 @@ await fetchWithCache("/api/todos", {
 
 **Returns** `{ response: Response, fromCache: boolean }` — `fromCache` lets the UI show stale indicators when a stale-while-revalidate fallback is served.
 
-**Note:** There is no separate `authenticatedMutation` wrapper. For authenticated writes, just use `authenticatedFetch` (see Auth section below).
+**Note:** For authenticated requests, pass `{ auth: true }` — there is no separate auth fetch wrapper.
 
 ### React Hook: `useCachedFetch`
 Re-fetches automatically when the SW invalidates related cache tags.
@@ -63,6 +67,40 @@ const { data, error, loading, refetch } = useCachedFetch("/api/todos");
 
 The hook listens for `cache-invalidated` events (when tag invalidation is enabled) and automatically
 re-fetches if the event's tags match the URL. Call `refetch()` to manually refresh.
+
+
+## 🎯 Cache Strategy Resolution
+The SW uses a 3-tier priority system to determine which caching strategy applies to each request:
+
+1. **Per-request override (highest)** — set `strategy` or `staleWhileRevalidate` on `fetchWithCache()`.
+   Sent as `X-SW-Strategy` header to the SW.
+2. **URL pattern match** — configured in `swoff.config.json` under `features.serviceWorker.strategies`.
+   e.g. `"/api/*": "network-first"` matches all paths starting with `/api/`.
+3. **Default (lowest)** — `features.serviceWorker.defaultStrategy` (default: `"cache-first"`).
+
+### Cache strategy mode
+The `features.serviceWorker.cacheStrategy` option controls when strategies are invoked:
+
+- `"all"` (default): every GET/HEAD request goes through strategy dispatch, including plain `fetch()` calls.
+- `"explicit-only"`: only requests with an `X-SW-Cache-Strategy` header (set automatically by `fetchWithCache()`)
+  are processed by the SW strategy system. Plain `fetch()` calls pass through unmodified.
+
+### Request dispatch flow
+Each GET/HEAD request follows this path through the SW:
+
+```
+navigation (SPA fallback) → precache check → strategy dispatch → network pass-through
+```
+
+### Available strategies
+
+| Strategy | Behavior | Best for |
+|----------|----------|----------|
+| `cache-first` | Return cached if available, else fetch + cache. Default | Static assets, images, fonts |
+| `network-first` | Try network, cache on success, fall back to cache | API endpoints, dynamic content |
+| `stale-while-revalidate` | Return cached immediately, refresh in background | Fast UI, non-critical data |
+| `cache-only` | Serve from cache only (404 if missing) | Offline-critical assets |
+| `network-only` | Always fetch, never cache | Sensitive or real-time data |
 
 
 ## 📝 Mutation Queue — offline writes that sync when back online
@@ -110,7 +148,11 @@ await syncWhenPossible({ method: "POST", url: "/api/todos", body: { ... } });
 Swoff's auth module manages authentication state with a **memory-only token** (never persisted to
 IndexedDB) and optional offline user info caching.
 
-Auth type: **custom**
+Auth type: **bearer**
+
+> ⚠️ The Bearer token lives **in memory only** and is cleared on page refresh.
+> Only `{ user, expiresAt }` is persisted to IndexedDB for offline user display.
+> After a page refresh, re-login is required. Use the `refreshPath` for token refresh.
 
 ### `auth/store.ts` — Token and user persistence
 ```ts
@@ -134,29 +176,31 @@ if (!isAuthValid(auth)) { /* redirect to login */ }
 - `isAuthValid(auth)` — check expiry
 - `createAuthFromResponse(response)` — extract AuthData from login response. **Edit this.**
 
-### `auth/fetch.ts` — Authenticated API calls
-Wraps `fetchWithCache` with automatic auth headers and 401 handling.
-No separate `authenticatedMutation` needed — just use `authenticatedFetch` for both reads and writes.
+### Authenticated API calls with fetchWithCache
+Use `fetchWithCache` with `auth: true` for all authenticated requests — no separate auth fetch needed.
 ```ts
-import { authenticatedFetch, ensureValidAuth } from "./swoff/auth/fetch.ts";
+import { fetchWithCache } from "./swoff/fetch-wrapper.ts";
+import { ensureValidAuth } from "./swoff/auth/store.ts";
 
 // Authenticated GET
-const user = await authenticatedFetch("/api/me").then(r => r.json());
+const { response } = await fetchWithCache("/api/me", { auth: true });
+const user = await response.json();
 
 // Authenticated POST (mutation)
-await authenticatedFetch("/api/todos", {
+await fetchWithCache("/api/todos", {
   method: "POST",
   body: JSON.stringify({ title: "New" }),
+  auth: true,
 });
 ```
 
 **Functions:**
-- `authenticatedFetch(input, options)` — auth-aware fetch. Attaches token, bypasses cache for auth endpoints, dispatches `sw-auth-unauthorized` on 401.
+- `fetchWithCache(input, options)` — pass `{ auth: true }` for auth headers, cache bypass for auth endpoints, and 401 handling.
 - `ensureValidAuth()` — check expiry and refresh token if needed (uses refreshPath from config).
 
 **Where to edit:**
-- The `isAuthUrl` function in `auth/fetch.ts` lists auth endpoints that bypass the SW cache. Edit this list if your backend uses different paths.
-- If your auth type is `custom`, edit the `withAuthHeaders` function.
+- The `isAuthUrl` function in `auth/store.ts` lists auth endpoints that bypass the SW cache. Edit this list if your backend uses different paths.
+- If your auth type is `custom`, edit the `withAuthHeaders` function in `auth/store.ts`.
 
 ### `auth/user.ts` — User data caching
 ```ts
@@ -231,6 +275,47 @@ No separate imports needed — this is handled automatically by `client-injector
 The service worker listens for invalidation events and forwards them to all clients.
 
 
+## 🔔 Push Notifications — subscription management
+Swoff generates a push notification subscription client with IndexedDB persistence
+and the service worker push event handlers.
+
+### `push.ts` — Client-side subscription management
+```ts
+import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push.ts";
+
+// Subscribe (triggers permission prompt)
+const sub = await subscribeToPush("YOUR_VAPID_PUBLIC_KEY");
+if (sub) {
+  await fetch("/api/push/subscribe", {
+    method: "POST",
+    body: JSON.stringify(sub.toJSON()),
+  });
+}
+
+// Unsubscribe
+await unsubscribeFromPush();
+```
+
+**Functions:**
+- `subscribeToPush(vapidPublicKey)` — request permission and subscribe
+- `unsubscribeFromPush()` — unsubscribe and clear stored subscription
+- `isSubscribed()` — check if subscribed
+- `getPushSubscription()` — get current PushSubscription object
+- `requestNotificationPermission()` — request permission only (returns boolean)
+
+### React Hook: `usePushSubscription`
+```tsx
+import { usePushSubscription } from "./swoff/hooks/usePushSubscription.tsx";
+
+const { subscribed, subscription, permission, loading, subscribe, unsubscribe } =
+  usePushSubscription("YOUR_VAPID_PUBLIC_KEY");
+```
+
+**Returns** `{ subscribed, subscription, permission, loading, subscribe, unsubscribe }`
+The hook listens for push-subscription-changed and push-permission-changed events.
+Use `subscribe()` and `unsubscribe()` to toggle push notifications.
+
+
 ## 📱 PWA — installable web app
 Swoff adds a beforeinstallprompt handler and install flow so users can install your app
 on their home screen.
@@ -281,5 +366,8 @@ Re-run `npx @swoff/cli generate` after changing it.
 - `crossTabSync` — broadcast changes across tabs
 - `tagInvalidation` — cache invalidation by tags
 - `pwa.enabled` — PWA install prompt and manifest
+- `serviceWorker.cacheStrategy` — caching strategy mode (`"all"` or `"explicit-only"`)
+- `serviceWorker.defaultStrategy` — default caching strategy
+- `serviceWorker.strategies` — per-route strategy overrides
 
 ---

@@ -24,7 +24,9 @@
         "/api/*": "network-first",
         "/static/*": "cache-first"
       },
+      "cacheStrategy": "all",
       "clearRuntimeOnUpdate": false,
+      "navigationPreload": true,
       "navigationMode": "spa",
       "spaEntry": "/index.html"
     },
@@ -32,11 +34,14 @@
     "backgroundSync": true,
     "auth": {
       "enabled": true,
-      "type": "custom",
+      "type": "bearer",
       "refreshPath": "/api/refresh",
       "userEndpoint": "/api/me"
     },
     "crossTabSync": true,
-    "tagInvalidation": true
+    "tagInvalidation": true,
+    "pushNotifications": {
+      "enabled": true
+    }
   }
 }

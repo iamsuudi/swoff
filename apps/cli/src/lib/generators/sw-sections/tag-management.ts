@@ -7,8 +7,19 @@
 export function generateTagManagement(): string {
   return `
 const staleVersions = new Map();
+const STALE_VERSIONS_MAX = 100;
+const STALE_VERSION_TTL = 30 * 60 * 1000;
 const TAG_DB_NAME = "swoff-cache-tags";
 const TAG_STORE_NAME = "tags";
+
+function cleanStaleVersions() {
+  const now = Date.now();
+  for (const [url, ts] of staleVersions) {
+    if (staleVersions.size > STALE_VERSIONS_MAX || now - ts > STALE_VERSION_TTL) {
+      staleVersions.delete(url);
+    }
+  }
+}
 
 function openTagDB() {
   return new Promise((resolve, reject) => {

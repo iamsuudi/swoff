@@ -23,24 +23,26 @@ self.addEventListener("install", (event) => {
     (async () => {
       const cache = await caches.open(CACHE_NAME);
       let downloaded = 0;
+      let attempted = 0;
       for (const asset of ASSETS_TO_CACHE) {
+        attempted++;
         try {
           const request = new Request(asset.url, asset.options);
           await cache.add(request);
           downloaded++;
-          const percent = Math.round((downloaded / ASSETS_TO_CACHE.length) * 100);
-          const clients = await self.clients.matchAll({ includeUncontrolled: true });
-          clients.forEach((client) => {
-            client.postMessage({
-              type: "SW_PROGRESS",
-              percent,
-              downloaded,
-              total: ASSETS_TO_CACHE.length,
-            });
-          });
         } catch (err) {
           console.error(`Failed to cache ${asset.url}:`, err);
         }
+        const percent = Math.round((attempted / ASSETS_TO_CACHE.length) * 100);
+        const clients = await self.clients.matchAll({ includeUncontrolled: true });
+        clients.forEach((client) => {
+          client.postMessage({
+            type: "SW_PROGRESS",
+            percent,
+            downloaded,
+            total: ASSETS_TO_CACHE.length,
+          });
+        });
       }
       if (AUTO_SKIP_WAITING) self.skipWaiting();
     })(),
@@ -50,11 +52,14 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
+      await self.clients.claim();
+      if (self.registration.navigationPreload) {
+        await self.registration.navigationPreload.enable();
+      }
       const keys = await caches.keys();
       await Promise.all(
         keys.filter((key) => key !== CACHE_NAME && key !== CACHE_NAME_RUNTIME).map((key) => caches.delete(key))
       );
-      await self.clients.claim();
     })()
   );
 });
@@ -75,10 +80,41 @@ self.addEventListener("message", (event) => {
   }
 });
 
+// --- Cache Helpers ---
+
 async function fromPrecache(request) {
   const cache = await caches.open(CACHE_NAME);
-  return cache.match(request);
+  return cache.match(new URL(request.url).pathname);
 }
+
+async function fromRuntime(request) {
+  const cache = await caches.open(CACHE_NAME_RUNTIME);
+  return cache.match(new URL(request.url).href);
+}
+
+async function storeRuntime(request, response) {
+  const cache = await caches.open(CACHE_NAME_RUNTIME);
+  await cache.put(new URL(request.url).href, response.clone());
+}
+
+async function cacheResponse(request, response) {
+  await storeRuntime(request, response);
+  const tagsHeader = request.headers.get("X-SW-Cache-Tags");
+  if (tagsHeader) {
+    const url = new URL(request.url).href;
+    const tags = tagsHeader.split(",").map((t) => t.trim());
+    await cacheTagUrl(url, tags);
+  }
+}
+
+async function fromSpaFallback(request) {
+  if (request.mode === "navigate") {
+    const cache = await caches.open(CACHE_NAME);
+    return cache.match("/index.html");
+  }
+}
+
+// --- Response Helpers ---
 
 function markFromCache(response) {
   const headers = new Headers(response.headers);
@@ -90,54 +126,69 @@ function markFromCache(response) {
   });
 }
 
-function isReadRequest(request) {
-  return request.headers.get("X-SW-Cache-Strategy") === "read";
+// --- Strategy Selection ---
+
+function resolveStrategyEntry(entry) {
+  return typeof entry === "string" ? { strategy: entry } : entry;
 }
 
 function determineCacheStrategy(request, customStrategies, defaultStrategy) {
+  const override = request.headers.get("X-SW-Strategy");
+  if (override) return { strategy: override };
   const path = new URL(request.url).pathname;
-  for (const [pattern, strategy] of Object.entries(customStrategies)) {
-    if (path.startsWith(pattern.replace("*", ""))) return strategy;
+  for (const [pattern, entry] of Object.entries(customStrategies)) {
+    if (path.startsWith(pattern.replace("*", ""))) return resolveStrategyEntry(entry);
   }
-  return defaultStrategy;
+  return { strategy: defaultStrategy };
+}
+
+function applyStrategy(event, request, config) {
+  const { strategy, maxCacheEntries, maxCacheAge } = config;
+  if (strategy === "stale-while-revalidate") {
+    event.respondWith(staleWhileRevalidate(event, request, maxCacheEntries, maxCacheAge));
+  } else if (strategy === "network-first") {
+    event.respondWith(networkFirst(event, request, maxCacheEntries, maxCacheAge));
+  } else if (strategy === "cache-only") {
+    event.respondWith(cacheOnly(event, request, maxCacheEntries, maxCacheAge));
+  } else if (strategy === "network-only") {
+    event.respondWith(networkOnly(event, request));
+  } else {
+    event.respondWith(cacheFirst(event, request, maxCacheEntries, maxCacheAge));
+  }
 }
 
 self.addEventListener("fetch", (event) => {
-  if (!isReadRequest(event.request)) return;
-
-  const strategy = determineCacheStrategy(event.request, {"/api/*":"network-first","/static/*":"cache-first"}, "cache-first");
-
-  if (strategy === "stale-while-revalidate" || event.request.headers.get("X-SW-Stale") === "true") {
-    event.respondWith(staleWhileRevalidate(event, event.request));
-    return;
-  }
-
-  if (strategy === "network-first") {
-    event.respondWith(networkFirst(event, event.request));
-    return;
-  }
-
-  if (strategy === "cache-only") {
-    event.respondWith(cacheOnly(event, event.request));
-    return;
-  }
-
-  if (strategy === "network-only") {
-    event.respondWith(networkOnly(event, event.request));
-    return;
-  }
-
-  // cache-first (default)
-  event.respondWith(cacheFirst(event, event.request));
+  const { request } = event;
+  if (request.method !== "GET" && request.method !== "HEAD") return;
+  
+  applyStrategy(event, request, determineCacheStrategy(event.request, {"/api/*":"network-first","/static/*":"cache-first"}, "cache-first"));
 });
 
-async function cacheFirst(event, request) {
-  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
+// --- Strategies ---
 
-  const cached = await runtimeCache.match(request);
+
+async function fetchWithPreload(event, request) {
+  try {
+    const preload = await event.preloadResponse;
+    if (preload) return preload;
+  } catch {}
+  return fetch(request);
+}
+const _fetch = fetchWithPreload;
+
+const GLOBAL_MAX_ENTRIES = 0;
+const GLOBAL_MAX_AGE = 0;
+
+function _trim(cacheName, maxEntries, maxAge) {
+
+}
+
+async function cacheFirst(event, request, maxEntries, maxAge) {
+  const cached = await fromRuntime(request);
   if (cached) {
+    cleanStaleVersions();
     if (staleVersions.has(request.url)) {
-      event.waitUntil(refreshCache(runtimeCache, request).then(() => staleVersions.delete(request.url)));
+      event.waitUntil(refreshCache(request).then(() => staleVersions.delete(request.url)));
     }
     return markFromCache(cached);
   }
@@ -145,113 +196,87 @@ async function cacheFirst(event, request) {
   const precached = await fromPrecache(request);
   if (precached) return markFromCache(precached);
 
-  if (request.mode === "navigate") {
-    const precache = await caches.open(CACHE_NAME);
-    const entry = await precache.match("/index.html");
-    if (entry) return entry;
-  }
-  const response = await fetch(request);
+  const fallback = await fromSpaFallback(request);
+  if (fallback) return fallback;
+
+  const response = await _fetch(event, request);
   if (response.ok) {
-    const cloned = response.clone();
     event.waitUntil(
       (async () => {
-        await runtimeCache.put(request, cloned);
-          const tagsHeader = event.request.headers.get("X-SW-Cache-Tags");
-          if (tagsHeader) {
-            const url = new URL(event.request.url).href;
-            const tags = tagsHeader.split(",").map((t) => t.trim());
-            await cacheTagUrl(url, tags);
-          }
+        await cacheResponse(request, response);
+        _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
       })(),
     );
   }
   return response;
 }
 
-async function networkFirst(event, request) {
-  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
-
+async function networkFirst(event, request, maxEntries, maxAge) {
   try {
-    const response = await fetch(request);
+    const response = await _fetch(event, request);
     if (response.ok) {
-      const cloned = response.clone();
       event.waitUntil(
         (async () => {
-          await runtimeCache.put(request, cloned);
-          const tagsHeader = event.request.headers.get("X-SW-Cache-Tags");
-          if (tagsHeader) {
-            const url = new URL(event.request.url).href;
-            const tags = tagsHeader.split(",").map((t) => t.trim());
-            await cacheTagUrl(url, tags);
-          }
+          await cacheResponse(request, response);
+          _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
         })(),
       );
     }
     return response;
   } catch {
-    const cached = await runtimeCache.match(request);
+    const cached = await fromRuntime(request);
     if (cached) return cached;
 
     const precached = await fromPrecache(request);
     if (precached) return precached;
 
-  if (request.mode === "navigate") {
-    const precache = await caches.open(CACHE_NAME);
-    const entry = await precache.match("/index.html");
-    if (entry) return entry;
-  }
+    const fallback = await fromSpaFallback(request);
+    if (fallback) return fallback;
+
     throw new Error("Request failed and no cached response available");
   }
 }
 
-async function staleWhileRevalidate(event, request) {
-  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
-  const cached = await runtimeCache.match(request);
-
+async function staleWhileRevalidate(event, request, maxEntries, maxAge) {
+  const cached = await fromRuntime(request);
   if (cached) {
-    event.waitUntil(refreshCache(runtimeCache, request));
+    event.waitUntil(refreshCache(request));
     return markFromCache(cached);
   }
 
   const precached = await fromPrecache(request);
   if (precached) {
-    event.waitUntil(refreshCache(runtimeCache, request));
+    event.waitUntil(refreshCache(request));
     return markFromCache(precached);
   }
 
-  const response = await fetch(request);
+  const response = await _fetch(event, request);
   if (response.ok) {
-    await runtimeCache.put(request, response.clone());
-      const tagsHeader = request.headers.get("X-SW-Cache-Tags");
-      if (tagsHeader) {
-        const url = new URL(request.url).href;
-        const tags = tagsHeader.split(",").map((t) => t.trim());
-        await cacheTagUrl(url, tags);
-      }
+    await cacheResponse(request, response);
+    _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
   }
   return response;
 }
 
-async function refreshCache(cache, request) {
+async function refreshCache(request) {
   try {
     const response = await fetch(request);
     if (response.ok) {
-      await cache.put(request, response.clone());
+      await storeRuntime(request, response);
     }
   } catch {
     // Background refresh failed - stale cache remains usable
   }
 }
 
-async function cacheOnly(event, request) {
-  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
-
-  const byRequest = await runtimeCache.match(request);
-  if (byRequest) {
+async function cacheOnly(event, request, maxEntries, maxAge) {
+  const cached = await fromRuntime(request);
+  if (cached) {
+    cleanStaleVersions();
     if (staleVersions.has(request.url)) {
-      event.waitUntil(refreshCache(runtimeCache, request).then(() => staleVersions.delete(request.url)));
+      event.waitUntil(refreshCache(request).then(() => staleVersions.delete(request.url)));
     }
-    return markFromCache(byRequest);
+    return markFromCache(cached);
   }
 
   const precached = await fromPrecache(request);
@@ -261,12 +286,23 @@ async function cacheOnly(event, request) {
 }
 
 async function networkOnly(event, request) {
-  return fetch(request);
+  return _fetch(event, request);
 }
 
 const staleVersions = new Map();
+const STALE_VERSIONS_MAX = 100;
+const STALE_VERSION_TTL = 30 * 60 * 1000;
 const TAG_DB_NAME = "swoff-cache-tags";
 const TAG_STORE_NAME = "tags";
+
+function cleanStaleVersions() {
+  const now = Date.now();
+  for (const [url, ts] of staleVersions) {
+    if (staleVersions.size > STALE_VERSIONS_MAX || now - ts > STALE_VERSION_TTL) {
+      staleVersions.delete(url);
+    }
+  }
+}
 
 function openTagDB() {
   return new Promise((resolve, reject) => {
@@ -345,35 +381,65 @@ async function invalidateByTag(tag) {
   });
 }
 
-const SWOFF = {
-  cache: {
-    async get(key) {
-      const cache = await caches.open(CACHE_NAME);
-      return cache.match(key);
-    },
-    async put(request, response) {
-      const cache = await caches.open(CACHE_NAME);
-      await cache.put(request, response);
-    },
-    async delete(request) {
-      const cache = await caches.open(CACHE_NAME);
-      return cache.delete(request);
-    }
-  },
-  network: {
-    async fetch(request, options = {}) {
-      try {
-        return await fetch(request, options);
-      } catch (error) {
-        throw new Error(`Network request failed: ${error.message}`);
-      }
-    }
-  }
-};
+// --- Push Notification Handlers ---
 
-if (typeof self !== 'undefined') {
-  self.SWOFF = SWOFF;
-}
+self.addEventListener("push", (event) => {
+  let data;
+
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: "New Update", body: event.data?.text() || "" };
+  }
+
+  const options = {
+    body: data.body || "",
+    icon: data.icon || "/icon-192.png",
+    badge: data.badge || "",
+    image: data.image || undefined,
+    vibrate: data.vibrate || [200, 100, 200],
+    data: {
+      url: data.url || "/",
+      ...(data.data || {}),
+    },
+    actions: data.actions || [],
+    tag: data.tag || undefined,
+    requireInteraction: data.requireInteraction || false,
+  };
+
+  event.waitUntil(self.registration.showNotification(data.title || "Update", options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const url = event.notification.data?.url || "/";
+  const action = event.action;
+
+  event.waitUntil(
+    (async () => {
+      if (action) {
+        // Handle action clicks (e.g., "reply", "dismiss")
+      }
+
+      const clients = await self.clients.matchAll({ type: "window" });
+
+      for (const client of clients) {
+        const clientUrl = new URL(client.url);
+        const targetUrl = new URL(url, self.location.origin);
+
+        if (clientUrl.pathname === targetUrl.pathname && "focus" in client) {
+          return client.focus();
+        }
+      }
+
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+    })(),
+  );
+});
+
 
 
 self.addEventListener("sync", (event) => {
@@ -474,3 +540,5 @@ async function updateInSWQueue(db, item) {
     tx.onerror = () => reject(tx.error);
   });
 }
+// Dev mode fallback
+if (!CACHE_NAME) CACHE_NAME = "sw-dev-cache";

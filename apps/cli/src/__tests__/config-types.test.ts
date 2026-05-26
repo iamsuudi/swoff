@@ -29,7 +29,7 @@ describe("config-types", () => {
     it("has all known features as booleans", () => {
       for (const feature of KNOWN_FEATURES) {
         expect(defaultConfig.features).toHaveProperty(feature);
-        if (feature === "auth") {
+        if (feature === "auth" || feature === "pushNotifications") {
           expect(typeof defaultConfig.features[feature]).toBe("object");
         } else {
           expect(typeof defaultConfig.features[feature]).toBe("boolean");
@@ -79,10 +79,11 @@ describe("config-types", () => {
       expect(KNOWN_FEATURES).not.toContain("autoUpdate");
     });
 
-    it("OBJECT_FEATURES lists pwa, serviceWorker, and auth", () => {
+    it("OBJECT_FEATURES lists pwa, serviceWorker, auth, and pushNotifications", () => {
       expect(OBJECT_FEATURES).toContain("pwa");
       expect(OBJECT_FEATURES).toContain("serviceWorker");
       expect(OBJECT_FEATURES).toContain("auth");
+      expect(OBJECT_FEATURES).toContain("pushNotifications");
     });
 
     it("VALID_STRATEGIES contains all 5 strategies", () => {

@@ -99,21 +99,46 @@
             },
             "strategies": {
               "type": "object",
-              "description": "Custom cache strategies for specific URL patterns",
+              "description": "Custom cache strategies for specific URL patterns. Each value can be a strategy name string, or an object with strategy, maxCacheEntries, and maxCacheAge.",
               "additionalProperties": {
-                "type": "string",
-                "enum": [
-                  "cache-first",
-                  "network-first",
-                  "stale-while-revalidate",
-                  "cache-only",
-                  "network-only"
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "cache-first",
+                      "network-first",
+                      "stale-while-revalidate",
+                      "cache-only",
+                      "network-only"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "strategy": {
+                        "type": "string",
+                        "enum": [
+                          "cache-first",
+                          "network-first",
+                          "stale-while-revalidate",
+                          "cache-only",
+                          "network-only"
+                        ]
+                      },
+                      "maxCacheEntries": {
+                        "type": "integer",
+                        "description": "Maximum entries for this route pattern",
+                        "minimum": 0
+                      },
+                      "maxCacheAge": {
+                        "type": "integer",
+                        "description": "Maximum age in milliseconds for this route pattern",
+                        "minimum": 0
+                      }
+                    },
+                    "required": ["strategy"]
+                  }
                 ]
-              },
-              "patternProperties": {
-                ".*": {
-                  "type": "string"
-                }
               }
             },
             "maxCacheEntries": {
@@ -144,6 +169,17 @@
               "description": "How navigation requests are handled. 'spa' falls back to spaEntry on cache miss. 'default' uses the strategy as-is without special navigation handling.",
               "default": "spa",
               "enum": ["spa", "default"]
+            },
+            "navigationPreload": {
+              "type": "boolean",
+              "description": "Enable Navigation Preload API in the service worker. Reduces startup latency for navigation requests by allowing the SW to fetch while the page boots.",
+              "default": true
+            },
+            "cacheStrategy": {
+              "type": "string",
+              "description": "Controls which requests are processed by the SW cache strategy system. 'all' processes every GET/HEAD request. 'explicit-only' only processes requests with X-SW-Cache-Strategy header (set automatically by fetchWithCache()).",
+              "default": "all",
+              "enum": ["all", "explicit-only"]
             },
             "spaEntry": {
               "type": "string",
@@ -205,6 +241,23 @@
           "type": "boolean",
           "description": "Tag-based cache invalidation",
           "default": true
+        },
+        "pushNotifications": {
+          "type": "object",
+          "description": "Push notification configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable push notification support (generates push.ts client + SW push handlers)",
+              "default": false
+            },
+            "vapidPublicKey": {
+              "type": "string",
+              "description": "VAPID public key for push subscription. Required when enabled. You can also pass it at runtime to subscribeToPush().",
+              "example": "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeghA5N1Fha7J3Ef4sQyKgOoF7m4wA1gPXi6gXqJxYd3o="
+            }
+          },
+          "required": ["enabled"]
         }
       },
       "required": [
@@ -214,7 +267,8 @@
         "backgroundSync",
         "auth",
         "crossTabSync",
-        "tagInvalidation"
+        "tagInvalidation",
+        "pushNotifications"
       ]
     },
     "build": {

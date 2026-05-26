@@ -46,6 +46,10 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("A drop-in replacement for `fetch()` that communicates with the service worker about caching strategy.");
   w("GET requests are cached by the SW for offline access; POST/PUT/DELETE pass through.");
   w("");
+  w("**Important:** Use `fetchWithCache` for all API calls — it sets the `X-SW-Cache-Strategy` header that");
+  w("the SW uses to determine whether to apply a caching strategy. Plain `fetch()` works for uncached requests,");
+  w("but if `cacheStrategy` is set to `\"explicit-only\"`, the SW will skip plain `fetch()` calls entirely.");
+  w("");
 
   w("### `fetch-wrapper.ts`");
   w("```ts");
@@ -69,7 +73,7 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("**Returns** `{ response: Response, fromCache: boolean }` — `fromCache` lets the UI show stale indicators when a stale-while-revalidate fallback is served.");
   w("");
 
-  w("**Note:** There is no separate `authenticatedMutation` wrapper. For authenticated writes, just use `authenticatedFetch` (see Auth section below).");
+  w("**Note:** For authenticated requests, pass `{ auth: true }` — there is no separate auth fetch wrapper.");
   w("");
 
   if (ctx.frameworkName === "react") {
@@ -87,6 +91,41 @@ export function generateGuide(ctx: GeneratorContext): void {
     w("re-fetches if the event's tags match the URL. Call `refetch()` to manually refresh.");
     w("");
   }
+
+  // ── Cache Strategy Resolution ──
+  wb("## 🎯 Cache Strategy Resolution");
+  w("The SW uses a 3-tier priority system to determine which caching strategy applies to each request:");
+  w("");
+  w("1. **Per-request override (highest)** — set `strategy` or `staleWhileRevalidate` on `fetchWithCache()`.");
+  w("   Sent as `X-SW-Strategy` header to the SW.");
+  w("2. **URL pattern match** — configured in `swoff.config.json` under `features.serviceWorker.strategies`.");
+  w("   e.g. `\"/api/*\": \"network-first\"` matches all paths starting with `/api/`.");
+  w("3. **Default (lowest)** — `features.serviceWorker.defaultStrategy` (default: `\"cache-first\"`).");
+  w("");
+  w("### Cache strategy mode");
+  w("The `features.serviceWorker.cacheStrategy` option controls when strategies are invoked:");
+  w("");
+  w("- `\"all\"` (default): every GET/HEAD request goes through strategy dispatch, including plain `fetch()` calls.");
+  w("- `\"explicit-only\"`: only requests with an `X-SW-Cache-Strategy` header (set automatically by `fetchWithCache()`)");
+  w("  are processed by the SW strategy system. Plain `fetch()` calls pass through unmodified.");
+  w("");
+  w("### Request dispatch flow");
+  w("Each GET/HEAD request follows this path through the SW:");
+  w("");
+  w("```");
+  w("navigation (SPA fallback) → precache check → strategy dispatch → network pass-through");
+  w("```");
+  w("");
+  w("### Available strategies");
+  w("");
+  w("| Strategy | Behavior | Best for |");
+  w("|----------|----------|----------|");
+  w("| `cache-first` | Return cached if available, else fetch + cache. Default | Static assets, images, fonts |");
+  w("| `network-first` | Try network, cache on success, fall back to cache | API endpoints, dynamic content |");
+  w("| `stale-while-revalidate` | Return cached immediately, refresh in background | Fast UI, non-critical data |");
+  w("| `cache-only` | Serve from cache only (404 if missing) | Offline-critical assets |");
+  w("| `network-only` | Always fetch, never cache | Sensitive or real-time data |");
+  w("");
 
   // ── Mutation Queue ──
   if (config.features.mutationQueue) {
@@ -185,31 +224,31 @@ export function generateGuide(ctx: GeneratorContext): void {
     w("- `createAuthFromResponse(response)` — extract AuthData from login response. **Edit this.**");
     w("");
 
-    w("### `auth/fetch.ts` — Authenticated API calls");
-    w("Wraps `fetchWithCache` with automatic auth headers and 401 handling.");
-    w("No separate `authenticatedMutation` needed — just use `authenticatedFetch` for both reads and writes.");
+    w("### Authenticated API calls with fetchWithCache");
+    w("Use `fetchWithCache` with `auth: true` for all authenticated requests — no separate auth fetch needed.");
     w("```ts");
-    w(`import { authenticatedFetch, ensureValidAuth } from "./swoff/auth/fetch.${ext}";`);
+    w(`import { fetchWithCache } from "./swoff/fetch-wrapper.${ext}";`);
+    w(`import { ensureValidAuth } from "./swoff/auth/store.${ext}";`);
     w("");
     w("// Authenticated GET");
-    w('const user = await authenticatedFetch("/api/me").then(r => r.json());');
+    w('const { response } = await fetchWithCache("/api/me", { auth: true });');
+    w('const user = await response.json();');
     w("");
     w("// Authenticated POST (mutation)");
-    w("await authenticatedFetch(\"/api/todos\", {");
+    w('await fetchWithCache("/api/todos", {');
     w('  method: "POST",');
     w('  body: JSON.stringify({ title: "New" }),');
+    w('  auth: true,');
     w("});");
     w("```");
     w("");
-
     w("**Functions:**");
-    w("- `authenticatedFetch(input, options)` — auth-aware fetch. Attaches token, bypasses cache for auth endpoints, dispatches `sw-auth-unauthorized` on 401.");
+    w("- `fetchWithCache(input, options)` — pass `{ auth: true }` for auth headers, cache bypass for auth endpoints, and 401 handling.");
     w("- `ensureValidAuth()` — check expiry and refresh token if needed (uses refreshPath from config).");
     w("");
-
     w("**Where to edit:**");
-    w("- The `isAuthUrl` function in `auth/fetch.ts` lists auth endpoints that bypass the SW cache. Edit this list if your backend uses different paths.");
-    w("- If your auth type is `custom`, edit the `withAuthHeaders` function.");
+    w("- The `isAuthUrl` function in `auth/store.ts` lists auth endpoints that bypass the SW cache. Edit this list if your backend uses different paths.");
+    w("- If your auth type is `custom`, edit the `withAuthHeaders` function in `auth/store.ts`.");
     w("");
 
     w("### `auth/user.ts` — User data caching");
@@ -308,6 +347,56 @@ export function generateGuide(ctx: GeneratorContext): void {
     }
   }
 
+  // ── Push Notifications ──
+  if (config.features.pushNotifications?.enabled) {
+    wb("## 🔔 Push Notifications — subscription management");
+    w("Swoff generates a push notification subscription client with IndexedDB persistence");
+    w("and the service worker push event handlers.");
+    w("");
+
+    w("### `push.ts` — Client-side subscription management");
+    w("```ts");
+    w(`import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push.${ext}";`);
+    w("");
+    w("// Subscribe (triggers permission prompt)");
+    w('const sub = await subscribeToPush("YOUR_VAPID_PUBLIC_KEY");');
+    w("if (sub) {");
+    w('  await fetch("/api/push/subscribe", {');
+    w('    method: "POST",');
+    w("    body: JSON.stringify(sub.toJSON()),");
+    w("  });");
+    w("}");
+    w("");
+    w("// Unsubscribe");
+    w("await unsubscribeFromPush();");
+    w("```");
+    w("");
+
+    w("**Functions:**");
+    w("- `subscribeToPush(vapidPublicKey)` — request permission and subscribe");
+    w("- `unsubscribeFromPush()` — unsubscribe and clear stored subscription");
+    w("- `isSubscribed()` — check if subscribed");
+    w("- `getPushSubscription()` — get current PushSubscription object");
+    w("- `requestNotificationPermission()` — request permission only (returns boolean)");
+    w("");
+
+    if (ctx.frameworkName === "react") {
+      w("### React Hook: `usePushSubscription`");
+      w("```tsx");
+      w(`import { usePushSubscription } from "./swoff/hooks/usePushSubscription.${ext}x";`);
+      w("");
+      w('const { subscribed, subscription, permission, loading, subscribe, unsubscribe } =');
+      w('  usePushSubscription("YOUR_VAPID_PUBLIC_KEY");');
+      w("```");
+      w("");
+
+      w("**Returns** `{ subscribed, subscription, permission, loading, subscribe, unsubscribe }`");
+      w("The hook listens for push-subscription-changed and push-permission-changed events.");
+      w("Use `subscribe()` and `unsubscribe()` to toggle push notifications.");
+      w("");
+    }
+  }
+
   // ── PWA ──
   if (config.features.pwa.enabled) {
     wb("## 📱 PWA — installable web app");
@@ -370,6 +459,9 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("- `crossTabSync` — broadcast changes across tabs");
   w("- `tagInvalidation` — cache invalidation by tags");
   w("- `pwa.enabled` — PWA install prompt and manifest");
+  w("- `serviceWorker.cacheStrategy` — caching strategy mode (`\"all\"` or `\"explicit-only\"`)");
+  w("- `serviceWorker.defaultStrategy` — default caching strategy");
+  w("- `serviceWorker.strategies` — per-route strategy overrides");
   w("");
 
   w("---");

@@ -80,11 +80,23 @@ export async function queueMutation(mutation${T("Partial<MutationQueueItem>")})$
   const tx = db.transaction(STORE_NAME, "readwrite");
   const store = tx.objectStore(STORE_NAME);
 
+  let body = mutation.body;
+  let bodyType = "json";
+  if (body instanceof FormData) {
+    bodyType = "formdata";
+    body = [...body.entries()];
+  } else if (body instanceof Blob) {
+    bodyType = "blob";
+  } else if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
+    bodyType = "buffer";
+  }
+
   store.add({
     id: crypto.randomUUID(),
     method: mutation.method,
     url: mutation.url,
-    body: mutation.body,
+    body,
+    bodyType,
     headers: mutation.headers || {},
     timestamp: Date.now(),
     retryCount: 0,
@@ -126,13 +138,29 @@ ${authReplayBlock}    const db = await openQueueDB();
       }
 
       try {
+        let replayBody;
+        let contentType;
+        const bt = item.bodyType || "json";
+        if (bt === "formdata") {
+          replayBody = new FormData();
+          for (const [key, value] of item.body || []) {
+            replayBody.append(key, value);
+          }
+        } else if (bt === "blob") {
+          replayBody = item.body;
+        } else if (bt === "buffer") {
+          replayBody = item.body instanceof ArrayBuffer ? new Uint8Array(item.body) : item.body;
+        } else {
+          replayBody = JSON.stringify(item.body);
+          contentType = "application/json";
+        }
         const response = await fetch(item.url, {
           method: item.method,
           headers: {
-            "Content-Type": "application/json",
+            ...(contentType ? { "Content-Type": contentType } : {}),
 ${authHeadersSpread}            ...item.headers,
           },
-          body: JSON.stringify(item.body),
+          body: replayBody,
         });
 
         if (!response.ok) throw new Error(\`HTTP \${response.status}\`);

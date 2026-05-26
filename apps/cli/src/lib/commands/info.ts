@@ -45,12 +45,12 @@ const FEATURES: Record<string, FeatureInfo> = {
     label: "Auth",
     description:
       "Token-based authentication with memory-only tokens, IndexedDB user caching, and auth-aware fetch with automatic 401 handling.",
-    files: ["auth/store.ts", "auth/fetch.ts", "auth/user.ts", "auth/state.ts"],
+    files: ["auth/store.ts", "auth/user.ts", "auth/state.ts"],
     functions: [
       "setAuth(authData) / getAuth() / clearAuth() — manage auth state",
       "isAuthValid(auth) — check expiry",
       "createAuthFromResponse(response) — extract AuthData from login response (edit this)",
-      "authenticatedFetch(input, options) — auth-aware fetch wrapper",
+      "fetchWithCache(input, { auth: true }) — auth-aware fetch (handles bearer, cookie, custom)",
       "ensureValidAuth() — check expiry and refresh token",
       "fetchCurrentUser() / getCachedUser() / cacheUser(user) / clearCachedUser() — user caching",
       "getAuthState() — detect 4-state matrix (online/offline × authenticated/not)",
@@ -74,6 +74,19 @@ const FEATURES: Record<string, FeatureInfo> = {
       "Broadcasts cache invalidation and auth state changes across all open tabs via the service worker.",
     files: ["client-injector.ts (internal handling)"],
     functions: ["No separate imports needed — handled automatically by client-injector.ts"],
+  },
+  "push-notification": {
+    label: "Push Notifications",
+    description:
+      "Push notification subscription management with IndexedDB persistence, VAPID key support, and service worker push/notificationclick event handlers.",
+    files: ["push.ts"],
+    functions: [
+      "subscribeToPush(vapidPublicKey) — request permission and subscribe",
+      "unsubscribeFromPush() — unsubscribe and clear stored subscription",
+      "isSubscribed() — check subscription status",
+      "getPushSubscription() — get current PushSubscription object",
+      "requestNotificationPermission() — request permission only",
+    ],
   },
   pwa: {
     label: "PWA",
@@ -120,6 +133,7 @@ export async function infoCommand(projectRoot: string, feature?: string) {
   if (config.features.auth.enabled) enabled.push("auth");
   if (config.features.crossTabSync) enabled.push("cross-tab");
   if (config.features.tagInvalidation) enabled.push("tag-invalidation");
+  if (config.features.pushNotifications?.enabled) enabled.push("push-notification");
   if (config.features.pwa.enabled) enabled.push("pwa");
 
   if (enabled.length > 0) {
@@ -136,7 +150,7 @@ export async function infoCommand(projectRoot: string, feature?: string) {
   }
 
   log.help("\n  swoff info <feature>  — detailed info for a feature");
-  log.help("  Features: mutation-queue, background-sync, auth, tag-invalidation, cross-tab, pwa");
+  log.help("  Features: mutation-queue, background-sync, auth, tag-invalidation, cross-tab, push-notification, pwa");
   log.help("  Read swoff/GUIDE.md for the full integration guide");
 }
 
@@ -146,7 +160,7 @@ function showFeatureDetail(feature: string) {
 
   if (!info) {
     log.error(`Unknown feature: ${feature}`);
-    log.info("Available: mutation-queue, background-sync, auth, tag-invalidation, cross-tab, pwa");
+    log.info("Available: mutation-queue, background-sync, auth, tag-invalidation, cross-tab, push-notification, pwa");
     return;
   }
 

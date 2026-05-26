@@ -89,14 +89,26 @@
               "type": "string",
               "description": "Default caching strategy for all requests",
               "default": "cache-first",
-              "enum": ["cache-first", "network-first", "stale-while-revalidate", "cache-only", "network-only"]
+              "enum": [
+                "cache-first",
+                "network-first",
+                "stale-while-revalidate",
+                "cache-only",
+                "network-only"
+              ]
             },
             "strategies": {
               "type": "object",
               "description": "Custom cache strategies for specific URL patterns",
               "additionalProperties": {
                 "type": "string",
-                "enum": ["cache-first", "network-first", "stale-while-revalidate", "cache-only", "network-only"]
+                "enum": [
+                  "cache-first",
+                  "network-first",
+                  "stale-while-revalidate",
+                  "cache-only",
+                  "network-only"
+                ]
               },
               "patternProperties": {
                 ".*": {
@@ -139,7 +151,12 @@
               "default": "/index.html"
             }
           },
-          "required": ["version", "autoUpdate", "autoActivate", "defaultStrategy"]
+          "required": [
+            "version",
+            "autoUpdate",
+            "autoActivate",
+            "defaultStrategy"
+          ]
         },
         "mutationQueue": {
           "type": "boolean",
@@ -188,14 +205,17 @@
           "type": "boolean",
           "description": "Tag-based cache invalidation",
           "default": true
-        },
-        "clientRegistration": {
-          "type": "boolean",
-          "description": "Generate client-side SW registration code (sw-injector)",
-          "default": true
         }
       },
-      "required": ["pwa", "serviceWorker", "mutationQueue", "backgroundSync", "auth", "crossTabSync", "tagInvalidation", "clientRegistration"]
+      "required": [
+        "pwa",
+        "serviceWorker",
+        "mutationQueue",
+        "backgroundSync",
+        "auth",
+        "crossTabSync",
+        "tagInvalidation"
+      ]
     },
     "build": {
       "type": "object",

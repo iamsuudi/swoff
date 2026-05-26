@@ -88,7 +88,7 @@ describe("generateSwTemplate", () => {
 describe("generateSwInjector", () => {
   it("generates JS registration with correct config values", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, clientRegistration: true, serviceWorker: { ...defaultConfig.features.serviceWorker, autoUpdate: true, autoActivate: true } },
+      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, autoUpdate: true, autoActivate: true } },
     });
     generateSwInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "sw", "injector.js"), "utf8");
@@ -111,7 +111,7 @@ describe("generateSwInjector", () => {
 
   it("reflects autoUpdate false", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, clientRegistration: true, serviceWorker: { ...defaultConfig.features.serviceWorker, autoUpdate: false } },
+      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, autoUpdate: false } },
     });
     generateSwInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "sw", "injector.js"), "utf8");
@@ -120,7 +120,7 @@ describe("generateSwInjector", () => {
 
   it("generates simple injector when version is disabled", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, clientRegistration: true, serviceWorker: { ...defaultConfig.features.serviceWorker, version: { ...defaultConfig.features.serviceWorker.version, enabled: false } } },
+      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, version: { ...defaultConfig.features.serviceWorker.version, enabled: false } } },
     });
     generateSwInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "sw", "injector.js"), "utf8");
@@ -134,7 +134,7 @@ describe("generateSwInjector", () => {
 describe("generateClientInjector", () => {
   it("generates orchestrator with PWA setup and SW message listener when pwa enabled", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, clientRegistration: true },
+      features: { ...defaultConfig.features },
     });
     generateClientInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "client-injector.js"), "utf8");
@@ -142,13 +142,11 @@ describe("generateClientInjector", () => {
     expect(content).toContain("setupPwaInstall");
     expect(content).toContain("SW_PROGRESS");
     expect(content).toContain("BACKGROUND_SYNC_COMPLETE");
-    expect(content).toContain("handleUpdateApproved");
-    expect(content).toContain("skipWaiting");
   });
 
   it("includes TAG_INVALIDATED handler when crossTabSync is enabled", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, clientRegistration: true, crossTabSync: true },
+      features: { ...defaultConfig.features, crossTabSync: true },
     });
     generateClientInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "client-injector.js"), "utf8");
@@ -158,7 +156,7 @@ describe("generateClientInjector", () => {
 
   it("includes setupPwaInstall and beforeinstallprompt import when pwa enabled", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, clientRegistration: true },
+      features: { ...defaultConfig.features },
     });
     generateClientInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "client-injector.js"), "utf8");
@@ -166,16 +164,16 @@ describe("generateClientInjector", () => {
     expect(content).toContain("./pwa/install");
   });
 
-  it("generates without sw/injector import when clientRegistration is false", () => {
+  it("always imports sw/injector", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, clientRegistration: false, pwa: { ...defaultConfig.features.pwa, enabled: true } },
+      features: { ...defaultConfig.features, pwa: { ...defaultConfig.features.pwa, enabled: true } },
     });
     generateClientInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "client-injector.js"), "utf8");
-    expect(content).not.toContain("swInit");
-    expect(content).not.toContain("./sw/injector");
+    expect(content).toContain("swInit");
+    expect(content).toContain("./sw/injector");
     expect(content).toContain("setupPwaInstall");
-    expect(content).toContain("No SW registration configured");
+    expect(content).not.toContain("No SW registration configured");
   });
 });
 

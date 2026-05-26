@@ -50,7 +50,7 @@ export function generateAuthFetch(ctx: GeneratorContext): void {
 
   const credentialsLine =
     type === "cookie"
-      ? `  const fetchOptions = { ...options, headers, credentials: "include" };`
+      ? `const fetchOptions = { ...options, headers, credentials: "include" as RequestCredentials };`
       : `  const fetchOptions = { ...options, headers };`;
 
   const code = `/**
@@ -89,8 +89,8 @@ function isAuthUrl(url${T("string")})${R("boolean")}{
   return authPaths.some((path) => url.includes(path));
 }
 
-/** Auth-aware fetch. Delegates to fetchWithCache with auth headers, cache bypass for auth endpoints, and 401 handling. */
-export async function authenticatedFetch(input${T("RequestInfo")}, options${T("RequestInit")} = {})${R("Promise<Response>")}{
+/** Auth-aware fetch. Delegates to fetchWithCache with auth headers, cache bypass for auth endpoints, and 401 handling. Options may include \`type: 'read' | 'mutation'\` to override method-based caching. */
+export async function authenticatedFetch(input${T("RequestInfo")}, options${T("RequestInit & { type?: 'read' | 'mutation' }")} = {})${R("Promise<Response>")}{
   const auth = await getAuth();
   const headers = new Headers(options.headers);
 

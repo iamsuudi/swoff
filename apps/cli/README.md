@@ -94,7 +94,6 @@ swoff add auth
 swoff add tag-invalidation
 swoff add cross-tab
 swoff add background-sync
-swoff add client-registration
 ```
 
 ### `info`
@@ -131,7 +130,6 @@ This deletes `swoff/`, `swoff.config.json`, `version.json`, and removes the SW g
     "backgroundSync": false,
     "crossTabSync": false,
     "tagInvalidation": true,
-    "clientRegistration": true,
     "pwa": {
       "enabled": false
     },
@@ -154,7 +152,6 @@ This deletes `swoff/`, `swoff.config.json`, `version.json`, and removes the SW g
 | `features.backgroundSync` | `boolean` | `false` | Background Sync API |
 | `features.crossTabSync` | `boolean` | `false` | Cross-tab broadcast |
 | `features.tagInvalidation` | `boolean` | `false` | Tag-based cache invalidation |
-| `features.clientRegistration` | `boolean` | `false` | SW registration lifecycle |
 | `features.pwa.enabled` | `boolean` | `false` | PWA install + manifest |
 | `features.auth.enabled` | `boolean` | `false` | Auth module |
 | `features.auth.type` | `"bearer"` \| `"cookie"` \| `"custom"` | — | Auth strategy |

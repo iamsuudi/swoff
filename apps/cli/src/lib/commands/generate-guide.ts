@@ -12,7 +12,7 @@ export function generateGuide(ctx: GuideContext): string[] {
   const ext = lang === "ts" ? "ts" : "js";
 
   const isReact = frameworkName === "react";
-  const hasClientInjector = config.features.clientRegistration || config.features.pwa.enabled || config.features.crossTabSync;
+  const hasClientInjector = true;
 
   lines.push("");
   lines.push("  ── Getting Started ──");

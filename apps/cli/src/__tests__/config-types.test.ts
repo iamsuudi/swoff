@@ -72,7 +72,7 @@ describe("config-types", () => {
       expect(KNOWN_FEATURES).toContain("auth");
       expect(KNOWN_FEATURES).toContain("crossTabSync");
       expect(KNOWN_FEATURES).toContain("tagInvalidation");
-      expect(KNOWN_FEATURES).toContain("clientRegistration");
+      expect(KNOWN_FEATURES).not.toContain("clientRegistration");
       expect(KNOWN_FEATURES).not.toContain("pwa");
       expect(KNOWN_FEATURES).not.toContain("serviceWorker");
       expect(KNOWN_FEATURES).not.toContain("versionedSw");

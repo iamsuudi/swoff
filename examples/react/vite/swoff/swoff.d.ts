@@ -57,6 +57,7 @@ export interface MutationQueueItem {
   method: string;
   url: string;
   body: unknown;
+  bodyType?: "json" | "formdata" | "blob" | "buffer";
   headers: Record<string, string>;
   timestamp: number;
   retryCount: number;

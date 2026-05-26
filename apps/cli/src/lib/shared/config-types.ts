@@ -12,6 +12,12 @@ export interface SwVersionConfig {
   minSupportedVersion: string;
 }
 
+export interface StrategyEntry {
+  strategy: string;
+  maxCacheEntries?: number;
+  maxCacheAge?: number;
+}
+
 export interface SwoffConfig {
   $schema?: string;
   enabled: boolean;
@@ -26,12 +32,13 @@ export interface SwoffConfig {
       autoUpdate: boolean;
       autoActivate: boolean;
       defaultStrategy: string;
-      strategies: Record<string, string>;
+      strategies: Record<string, string | StrategyEntry>;
       cacheStrategy?: "all" | "explicit-only";
       maxCacheEntries?: number;
       maxCacheAge?: number;
       runtimeCacheName?: string;
       clearRuntimeOnUpdate: boolean;
+      navigationPreload?: boolean;
       navigationMode: "spa" | "default";
       spaEntry: string;
     };
@@ -125,6 +132,7 @@ export const defaultConfig: SwoffConfig = {
       strategies: {},
       cacheStrategy: "all",
       clearRuntimeOnUpdate: false,
+      navigationPreload: true,
       navigationMode: "spa",
       spaEntry: "/index.html",
     },

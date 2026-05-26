@@ -53,6 +53,9 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       await self.clients.claim();
+      if (self.registration.navigationPreload) {
+        await self.registration.navigationPreload.enable();
+      }
       const keys = await caches.keys();
       await Promise.all(
         keys.filter((key) => key !== CACHE_NAME && key !== CACHE_NAME_RUNTIME).map((key) => caches.delete(key))
@@ -125,27 +128,32 @@ function markFromCache(response) {
 
 // --- Strategy Selection ---
 
-function determineCacheStrategy(request, customStrategies, defaultStrategy) {
-  const override = request.headers.get("X-SW-Strategy");
-  if (override) return override;
-  const path = new URL(request.url).pathname;
-  for (const [pattern, strategy] of Object.entries(customStrategies)) {
-    if (path.startsWith(pattern.replace("*", ""))) return strategy;
-  }
-  return defaultStrategy;
+function resolveStrategyEntry(entry) {
+  return typeof entry === "string" ? { strategy: entry } : entry;
 }
 
-function applyStrategy(event, request, strategy) {
+function determineCacheStrategy(request, customStrategies, defaultStrategy) {
+  const override = request.headers.get("X-SW-Strategy");
+  if (override) return { strategy: override };
+  const path = new URL(request.url).pathname;
+  for (const [pattern, entry] of Object.entries(customStrategies)) {
+    if (path.startsWith(pattern.replace("*", ""))) return resolveStrategyEntry(entry);
+  }
+  return { strategy: defaultStrategy };
+}
+
+function applyStrategy(event, request, config) {
+  const { strategy, maxCacheEntries, maxCacheAge } = config;
   if (strategy === "stale-while-revalidate") {
-    event.respondWith(staleWhileRevalidate(event, request));
+    event.respondWith(staleWhileRevalidate(event, request, maxCacheEntries, maxCacheAge));
   } else if (strategy === "network-first") {
-    event.respondWith(networkFirst(event, request));
+    event.respondWith(networkFirst(event, request, maxCacheEntries, maxCacheAge));
   } else if (strategy === "cache-only") {
-    event.respondWith(cacheOnly(event, request));
+    event.respondWith(cacheOnly(event, request, maxCacheEntries, maxCacheAge));
   } else if (strategy === "network-only") {
     event.respondWith(networkOnly(event, request));
   } else {
-    event.respondWith(cacheFirst(event, request));
+    event.respondWith(cacheFirst(event, request, maxCacheEntries, maxCacheAge));
   }
 }
 
@@ -158,7 +166,24 @@ self.addEventListener("fetch", (event) => {
 
 // --- Strategies ---
 
-async function cacheFirst(event, request) {
+
+async function fetchWithPreload(event, request) {
+  try {
+    const preload = await event.preloadResponse;
+    if (preload) return preload;
+  } catch {}
+  return fetch(request);
+}
+const _fetch = fetchWithPreload;
+
+const GLOBAL_MAX_ENTRIES = 0;
+const GLOBAL_MAX_AGE = 0;
+
+function _trim(cacheName, maxEntries, maxAge) {
+
+}
+
+async function cacheFirst(event, request, maxEntries, maxAge) {
   const cached = await fromRuntime(request);
   if (cached) {
     cleanStaleVersions();
@@ -174,24 +199,26 @@ async function cacheFirst(event, request) {
   const fallback = await fromSpaFallback(request);
   if (fallback) return fallback;
 
-  const response = await fetch(request);
+  const response = await _fetch(event, request);
   if (response.ok) {
     event.waitUntil(
       (async () => {
         await cacheResponse(request, response);
+        _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
       })(),
     );
   }
   return response;
 }
 
-async function networkFirst(event, request) {
+async function networkFirst(event, request, maxEntries, maxAge) {
   try {
-    const response = await fetch(request);
+    const response = await _fetch(event, request);
     if (response.ok) {
       event.waitUntil(
         (async () => {
           await cacheResponse(request, response);
+          _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
         })(),
       );
     }
@@ -210,7 +237,7 @@ async function networkFirst(event, request) {
   }
 }
 
-async function staleWhileRevalidate(event, request) {
+async function staleWhileRevalidate(event, request, maxEntries, maxAge) {
   const cached = await fromRuntime(request);
   if (cached) {
     event.waitUntil(refreshCache(request));
@@ -223,9 +250,10 @@ async function staleWhileRevalidate(event, request) {
     return markFromCache(precached);
   }
 
-  const response = await fetch(request);
+  const response = await _fetch(event, request);
   if (response.ok) {
     await cacheResponse(request, response);
+    _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
   }
   return response;
 }
@@ -241,7 +269,7 @@ async function refreshCache(request) {
   }
 }
 
-async function cacheOnly(event, request) {
+async function cacheOnly(event, request, maxEntries, maxAge) {
   const cached = await fromRuntime(request);
   if (cached) {
     cleanStaleVersions();
@@ -258,7 +286,7 @@ async function cacheOnly(event, request) {
 }
 
 async function networkOnly(event, request) {
-  return fetch(request);
+  return _fetch(event, request);
 }
 
 const staleVersions = new Map();

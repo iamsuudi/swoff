@@ -16,12 +16,15 @@
  */
 
 export function generateFetchHandler(
-  swConfig: { defaultStrategy: string; strategies: Record<string, string>; cacheStrategy?: "all" | "explicit-only"; maxCacheEntries?: number; maxCacheAge?: number; navigationMode?: string; spaEntry?: string },
+  swConfig: { defaultStrategy: string; strategies: Record<string, string | { strategy: string; maxCacheEntries?: number; maxCacheAge?: number }>; cacheStrategy?: "all" | "explicit-only"; maxCacheEntries?: number; maxCacheAge?: number; navigationPreload?: boolean; navigationMode?: string; spaEntry?: string },
   tagInvalidation: boolean,
 ): string {
-  const { defaultStrategy, strategies, cacheStrategy = "all", maxCacheEntries, maxCacheAge, navigationMode, spaEntry } = swConfig;
+  const { defaultStrategy, strategies, cacheStrategy = "all", maxCacheEntries, maxCacheAge, navigationPreload, navigationMode, spaEntry } = swConfig;
 
-  const hasTrim = (maxCacheEntries ?? 0) > 0 || (maxCacheAge ?? 0) > 0;
+  const hasPerRouteLimits = Object.values(strategies || {}).some(
+    (s) => typeof s === "object" && ((s as { maxCacheEntries?: number }).maxCacheEntries || (s as { maxCacheAge?: number }).maxCacheAge)
+  );
+  const hasTrim = (maxCacheEntries ?? 0) > 0 || (maxCacheAge ?? 0) > 0 || hasPerRouteLimits;
   const navMode = navigationMode ?? "spa";
   const spaPath = spaEntry ?? "/index.html";
 
@@ -116,27 +119,32 @@ function markFromCache(response) {
 
 // --- Strategy Selection ---
 
-function determineCacheStrategy(request, customStrategies, defaultStrategy) {
-  const override = request.headers.get("X-SW-Strategy");
-  if (override) return override;
-  const path = new URL(request.url).pathname;
-  for (const [pattern, strategy] of Object.entries(customStrategies)) {
-    if (path.startsWith(pattern.replace("*", ""))) return strategy;
-  }
-  return defaultStrategy;
+function resolveStrategyEntry(entry) {
+  return typeof entry === "string" ? { strategy: entry } : entry;
 }
 
-function applyStrategy(event, request, strategy) {
+function determineCacheStrategy(request, customStrategies, defaultStrategy) {
+  const override = request.headers.get("X-SW-Strategy");
+  if (override) return { strategy: override };
+  const path = new URL(request.url).pathname;
+  for (const [pattern, entry] of Object.entries(customStrategies)) {
+    if (path.startsWith(pattern.replace("*", ""))) return resolveStrategyEntry(entry);
+  }
+  return { strategy: defaultStrategy };
+}
+
+function applyStrategy(event, request, config) {
+  const { strategy, maxCacheEntries, maxCacheAge } = config;
   if (strategy === "stale-while-revalidate") {
-    event.respondWith(staleWhileRevalidate(event, request));
+    event.respondWith(staleWhileRevalidate(event, request, maxCacheEntries, maxCacheAge));
   } else if (strategy === "network-first") {
-    event.respondWith(networkFirst(event, request));
+    event.respondWith(networkFirst(event, request, maxCacheEntries, maxCacheAge));
   } else if (strategy === "cache-only") {
-    event.respondWith(cacheOnly(event, request));
+    event.respondWith(cacheOnly(event, request, maxCacheEntries, maxCacheAge));
   } else if (strategy === "network-only") {
     event.respondWith(networkOnly(event, request));
   } else {
-    event.respondWith(cacheFirst(event, request));
+    event.respondWith(cacheFirst(event, request, maxCacheEntries, maxCacheAge));
   }
 }
 
@@ -149,7 +157,53 @@ self.addEventListener("fetch", (event) => {
 
 // --- Strategies ---
 
-async function cacheFirst(event, request) {
+${navigationPreload ? `
+async function fetchWithPreload(event, request) {
+  try {
+    const preload = await event.preloadResponse;
+    if (preload) return preload;
+  } catch {}
+  return fetch(request);
+}
+` : ""}const _fetch = ${navigationPreload ? "fetchWithPreload" : `(event, request) => fetch(request)`};
+
+const GLOBAL_MAX_ENTRIES = ${maxCacheEntries ?? 0};
+const GLOBAL_MAX_AGE = ${maxCacheAge ?? 0};
+
+${hasTrim ? `
+async function trimRuntimeCache(cacheName, maxEntries, maxAge) {
+  const _maxEntries = maxEntries ?? GLOBAL_MAX_ENTRIES;
+  const _maxAge = maxAge ?? GLOBAL_MAX_AGE;
+  const cache = await caches.open(cacheName);
+
+  if (_maxEntries > 0) {
+    const keys = await cache.keys();
+    if (keys.length >= _maxEntries) {
+      const toDelete = keys.slice(0, keys.length - _maxEntries + 1);
+      await Promise.all(toDelete.map((key) => cache.delete(key)));
+    }
+  }
+
+  if (_maxAge > 0) {
+    const keys = await cache.keys();
+    const now = Date.now();
+    for (const request of keys) {
+      const response = await cache.match(request);
+      const dateHeader = response?.headers.get("date");
+      if (dateHeader) {
+        const age = now - new Date(dateHeader).getTime();
+        if (age > _maxAge) {
+          await cache.delete(request);
+        }
+      }
+    }
+  }
+}
+` : ""}function _trim(cacheName, maxEntries, maxAge) {
+${hasTrim ? `  trimRuntimeCache(cacheName, maxEntries, maxAge);` : ""}
+}
+
+async function cacheFirst(event, request, maxEntries, maxAge) {
   const cached = await fromRuntime(request);
   if (cached) {${staleVersionCode}
     return markFromCache(cached);
@@ -161,25 +215,27 @@ async function cacheFirst(event, request) {
   const fallback = await fromSpaFallback(request);
   if (fallback) return fallback;
 
-  const response = await fetch(request);
+  const response = await _fetch(event, request);
   if (response.ok) {
     event.waitUntil(
       (async () => {
         await cacheResponse(request, response);
-${trimCode}      })(),
+        _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
+      })(),
     );
   }
   return response;
 }
 
-async function networkFirst(event, request) {
+async function networkFirst(event, request, maxEntries, maxAge) {
   try {
-    const response = await fetch(request);
+    const response = await _fetch(event, request);
     if (response.ok) {
       event.waitUntil(
         (async () => {
           await cacheResponse(request, response);
-${trimCode}        })(),
+          _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
+        })(),
       );
     }
     return response;
@@ -197,7 +253,7 @@ ${trimCode}        })(),
   }
 }
 
-async function staleWhileRevalidate(event, request) {
+async function staleWhileRevalidate(event, request, maxEntries, maxAge) {
   const cached = await fromRuntime(request);
   if (cached) {
     event.waitUntil(refreshCache(request));
@@ -210,10 +266,11 @@ async function staleWhileRevalidate(event, request) {
     return markFromCache(precached);
   }
 
-  const response = await fetch(request);
+  const response = await _fetch(event, request);
   if (response.ok) {
     await cacheResponse(request, response);
-${trimCode}  }
+    _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
+  }
   return response;
 }
 
@@ -228,7 +285,7 @@ async function refreshCache(request) {
   }
 }
 
-async function cacheOnly(event, request) {
+async function cacheOnly(event, request, maxEntries, maxAge) {
   const cached = await fromRuntime(request);
   if (cached) {${staleVersionCode}
     return markFromCache(cached);
@@ -241,6 +298,6 @@ async function cacheOnly(event, request) {
 }
 
 async function networkOnly(event, request) {
-  return fetch(request);
+  return _fetch(event, request);
 }`;
 }

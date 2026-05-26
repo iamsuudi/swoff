@@ -53,8 +53,8 @@ import { invalidateByTags } from "./cache.ts";
 import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, AUTH_WITH_CREDENTIALS } from "./auth/store.ts";
 import { queueMutation } from "./mutation-queue.ts";
 
-export interface FetchWithCacheResult {
-  response: Response;
+export interface FetchWithCacheResult<T = any> {
+  response: Response & { json(): Promise<T> };
   fromCache: boolean;
 }
 
@@ -71,7 +71,7 @@ export interface FetchWithCacheOptions extends RequestInit {
 const inFlightRequests = new Map<string, Promise<Response>>();
 
 /** Fetch with caching, auth, offline queue, auto-invalidation, and per-request strategy override. Returns { response, fromCache }. Use { auth: true } for authenticated requests — works with bearer, cookie, and custom auth types. */
-export async function fetchWithCache(input: RequestInfo, options: RequestInit & { tags?: string[]; staleWhileRevalidate?: boolean; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only' } = {}): Promise<FetchWithCacheResult> {
+export async function fetchWithCache<T = any>(input: RequestInfo, options: RequestInit & { tags?: string[]; staleWhileRevalidate?: boolean; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only' } = {}): Promise<FetchWithCacheResult<T>> {
   const method = (options.method || "GET").toUpperCase();
   const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD"));
   const url = typeof input === "string" ? input : input.url;

@@ -73,7 +73,7 @@ async function persistUserData(authData: AuthData | null): Promise<void> {
 
 async function loadUserData(): Promise<{ user?: Record<string, unknown>; expiresAt?: number } | null> {
   const db = await openAuthDB();
-  return new Promise<any>((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
     const request = store.get("session");

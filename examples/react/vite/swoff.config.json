@@ -1,5 +1,11 @@
 {
+  "$schema": "https://swoff.netlify.app/schema/v1.json",
   "enabled": true,
+  "framework": "react",
+  "build": {
+    "outputDir": "dist",
+    "swFilename": "sw"
+  },
   "features": {
     "pwa": {
       "enabled": true,
@@ -18,7 +24,7 @@
         "/api/*": "network-first",
         "/static/*": "cache-first"
       },
-      "clearRuntimeOnUpdate": true,
+      "clearRuntimeOnUpdate": false,
       "navigationMode": "spa",
       "spaEntry": "/index.html"
     },
@@ -26,18 +32,11 @@
     "backgroundSync": true,
     "auth": {
       "enabled": true,
-      "type": "bearer",
+      "type": "custom",
       "refreshPath": "/api/refresh",
       "userEndpoint": "/api/me"
     },
     "crossTabSync": true,
-    "tagInvalidation": true,
-    "clientRegistration": true
-  },
-  "build": {
-    "outputDir": "dist",
-    "swFilename": "sw"
-  },
-  "$schema": "https://swoff.netlify.app/schema/v1.json",
-  "framework": "react"
+    "tagInvalidation": true
+  }
 }

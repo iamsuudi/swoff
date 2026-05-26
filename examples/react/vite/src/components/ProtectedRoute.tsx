@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
-import { getAuthState } from "../../swoff/auth-state";
+import { getAuthState } from "../../swoff/auth/state";
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<{ loading: boolean; authenticated: boolean }>({ loading: true, authenticated: false });

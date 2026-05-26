@@ -26,11 +26,7 @@
  */
 import { setupPwaInstall } from "./pwa/install.ts";
 import { processMutationQueue } from "./mutation-queue.ts";
-import {
-  initServiceWorker as swInit,
-  handleUpdateApproved,
-  skipWaiting,
-} from "./sw/injector.ts";
+import { initServiceWorker as swInit } from "./sw/injector.ts";
 
 setupPwaInstall();
 
@@ -76,5 +72,3 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 export async function initServiceWorker(): Promise<void>{
   await swInit();
 }
-export { handleUpdateApproved, skipWaiting };
-

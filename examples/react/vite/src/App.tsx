@@ -9,10 +9,6 @@ import NotesListPage from "./pages/NotesListPage";
 import NotesDetailPage from "./pages/NotesDetailPage";
 import NotesCreatePage from "./pages/NotesCreatePage";
 import NotesEditPage from "./pages/NotesEditPage";
-import TodosListPage from "./pages/TodosListPage";
-import TodosDetailPage from "./pages/TodosDetailPage";
-import TodosCreatePage from "./pages/TodosCreatePage";
-import TodosEditPage from "./pages/TodosEditPage";
 import AboutPage from "./pages/AboutPage";
 
 export default function App() {
@@ -29,10 +25,6 @@ export default function App() {
           <Route path="/notes/new" element={<ProtectedRoute><NotesCreatePage /></ProtectedRoute>} />
           <Route path="/notes/:id" element={<ProtectedRoute><NotesDetailPage /></ProtectedRoute>} />
           <Route path="/notes/:id/edit" element={<ProtectedRoute><NotesEditPage /></ProtectedRoute>} />
-          <Route path="/todos" element={<ProtectedRoute><TodosListPage /></ProtectedRoute>} />
-          <Route path="/todos/new" element={<ProtectedRoute><TodosCreatePage /></ProtectedRoute>} />
-          <Route path="/todos/:id" element={<ProtectedRoute><TodosDetailPage /></ProtectedRoute>} />
-          <Route path="/todos/:id/edit" element={<ProtectedRoute><TodosEditPage /></ProtectedRoute>} />
           <Route path="/about" element={<AboutPage />} />
         </Routes>
       </main>

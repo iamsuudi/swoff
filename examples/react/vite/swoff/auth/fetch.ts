@@ -15,9 +15,11 @@ import { fetchWithCache } from "../fetch-wrapper.ts";
 import { getAuth, setAuth, clearAuth, type AuthData } from "./store.ts";
 
 function withAuthHeaders(headers: Headers, auth: AuthData | null): Headers{
-  if (auth?.token) {
-    headers.set("Authorization", `Bearer ${auth.token}`);
-  }
+  // --- EDIT THIS BLOCK FOR YOUR BACKEND ---
+  // if (auth?.token) {
+  //   headers.set("X-Auth-Token", auth.token);
+  // }
+  // --- END OF EDITABLE BLOCK ---
   return headers;
 }
 
@@ -39,8 +41,8 @@ function isAuthUrl(url: string): boolean {
   return authPaths.some((path) => url.includes(path));
 }
 
-/** Auth-aware fetch. Delegates to fetchWithCache with auth headers, cache bypass for auth endpoints, and 401 handling. */
-export async function authenticatedFetch(input: RequestInfo, options: RequestInit = {}): Promise<Response> {
+/** Auth-aware fetch. Delegates to fetchWithCache with auth headers, cache bypass for auth endpoints, and 401 handling. Options may include `type: 'read' | 'mutation'` to override method-based caching. */
+export async function authenticatedFetch(input: RequestInfo, options: RequestInit & { type?: 'read' | 'mutation' } = {}): Promise<Response> {
   const auth = await getAuth();
   const headers = new Headers(options.headers);
 

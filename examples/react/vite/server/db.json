@@ -1,0 +1,41 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "email": "demo@swoff.dev",
+      "name": "Demo User",
+      "password": "password123"
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "title": "Welcome to Swoff Notes",
+      "description": "This is a sample note. Edit or delete it, or create new ones!",
+      "priority": "low",
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z",
+      "userId": 1
+    },
+    {
+      "id": 2,
+      "title": "Auth is working",
+      "description": "JWT auth with Swoff's auth-store, auth-fetch, auth-user pattern.",
+      "priority": "medium",
+      "createdAt": "2026-05-23T14:06:30.262Z",
+      "updatedAt": "2026-05-23T14:06:30.262Z",
+      "userId": 1
+    },
+    {
+      "id": 3,
+      "title": "Hey",
+      "description": "Can you hear me?",
+      "priority": "high",
+      "createdAt": "2026-05-26T07:21:52.938Z",
+      "updatedAt": "2026-05-26T07:21:52.938Z",
+      "userId": 1
+    }
+  ],
+  "nextNoteId": 4,
+  "sessions": []
+}

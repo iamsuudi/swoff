@@ -110,11 +110,7 @@ await syncWhenPossible({ method: "POST", url: "/api/todos", body: { ... } });
 Swoff's auth module manages authentication state with a **memory-only token** (never persisted to
 IndexedDB) and optional offline user info caching.
 
-Auth type: **bearer**
-
-> ⚠️ The Bearer token lives **in memory only** and is cleared on page refresh.
-> Only `{ user, expiresAt }` is persisted to IndexedDB for offline user display.
-> After a page refresh, re-login is required. Use the `refreshPath` for token refresh.
+Auth type: **custom**
 
 ### `auth/store.ts` — Token and user persistence
 ```ts
@@ -284,7 +280,6 @@ Re-run `npx @swoff/cli generate` after changing it.
 - `auth.enabled` — auth module (bearer/cookie/custom)
 - `crossTabSync` — broadcast changes across tabs
 - `tagInvalidation` — cache invalidation by tags
-- `clientRegistration` — SW registration with version management
 - `pwa.enabled` — PWA install prompt and manifest
 
 ---

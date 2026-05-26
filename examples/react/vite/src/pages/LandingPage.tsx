@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { getAuthState } from "../../swoff/auth-state";
+import { getAuthState } from "../../swoff/auth/state";
 
 export default function LandingPage() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -20,7 +20,7 @@ export default function LandingPage() {
         </h1>
         <p className="mx-auto mb-10 max-w-2xl text-lg text-gray-500 dark:text-gray-400">
           A demonstration of offline-first PWA patterns with React, Vite, and Swoff.
-          Browse notes and todos, make changes offline, and watch them sync automatically.
+          Browse notes, make changes offline, and watch them sync automatically.
         </p>
         <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
           {authenticated ? (
@@ -28,10 +28,6 @@ export default function LandingPage() {
               <Link to="/notes"
                 className="inline-flex w-48 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-teal-500/25 transition hover:shadow-xl hover:-translate-y-0.5">
                 Browse Notes
-              </Link>
-              <Link to="/todos"
-                className="inline-flex w-48 items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                Browse Todos
               </Link>
             </>
           ) : (

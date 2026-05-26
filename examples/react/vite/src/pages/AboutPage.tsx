@@ -10,7 +10,7 @@ export default function AboutPage() {
           and offline mutation queuing.
         </p>
         <p className="mb-6 text-gray-600 dark:text-gray-400 leading-relaxed">
-          Browse Notes and Todos, create and edit them, then go offline — your changes are queued and
+          Browse Notes, create and edit them, then go offline — your changes are queued and
           sync automatically when the connection returns. The service worker caches API responses using
           <strong className="text-gray-900 dark:text-white"> network-first</strong> and purges stale entries
           via tag-based invalidation after every mutation.

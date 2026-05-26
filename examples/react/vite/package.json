@@ -9,10 +9,13 @@
     "build": "vite build && node swoff/sw/generator.js",
     "lint": "eslint .",
     "preview": "vite preview",
-    "serve:api": "node server.js",
+    "server:bearer": "node server/bearer.js",
+    "server:cookies": "node server/cookies.js",
+    "server:session": "node server/session.js",
     "pwa:local": "bun run build && bun run preview"
   },
   "dependencies": {
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",

@@ -36,7 +36,7 @@ function semverCompare(a: string, b: string): number {
 }
 
 async function checkForUpdate() {
-  const response = await fetch("/version.json");
+  const response = await fetch("/version.json?t=" + Date.now());
   if (!response.ok) {
     throw new Error("Failed to fetch version.json");
   }

@@ -29,6 +29,10 @@ update-available / ready / error events on the window.
 A drop-in replacement for `fetch()` that communicates with the service worker about caching strategy.
 GET requests are cached by the SW for offline access; POST/PUT/DELETE pass through.
 
+**Important:** Use `fetchWithCache` for all API calls — it sets the `X-SW-Cache-Strategy` header that
+the SW uses to determine whether to apply a caching strategy. Plain `fetch()` works for uncached requests,
+but if `cacheStrategy` is set to `"explicit-only"`, the SW will skip plain `fetch()` calls entirely.
+
 ### `fetch-wrapper.ts`
 ```ts
 import { fetchWithCache } from "./swoff/fetch-wrapper.ts";
@@ -63,6 +67,40 @@ const { data, error, loading, refetch } = useCachedFetch("/api/todos");
 
 The hook listens for `cache-invalidated` events (when tag invalidation is enabled) and automatically
 re-fetches if the event's tags match the URL. Call `refetch()` to manually refresh.
+
+
+## 🎯 Cache Strategy Resolution
+The SW uses a 3-tier priority system to determine which caching strategy applies to each request:
+
+1. **Per-request override (highest)** — set `strategy` or `staleWhileRevalidate` on `fetchWithCache()`.
+   Sent as `X-SW-Strategy` header to the SW.
+2. **URL pattern match** — configured in `swoff.config.json` under `features.serviceWorker.strategies`.
+   e.g. `"/api/*": "network-first"` matches all paths starting with `/api/`.
+3. **Default (lowest)** — `features.serviceWorker.defaultStrategy` (default: `"cache-first"`).
+
+### Cache strategy mode
+The `features.serviceWorker.cacheStrategy` option controls when strategies are invoked:
+
+- `"all"` (default): every GET/HEAD request goes through strategy dispatch, including plain `fetch()` calls.
+- `"explicit-only"`: only requests with an `X-SW-Cache-Strategy` header (set automatically by `fetchWithCache()`)
+  are processed by the SW strategy system. Plain `fetch()` calls pass through unmodified.
+
+### Request dispatch flow
+Each GET/HEAD request follows this path through the SW:
+
+```
+navigation (SPA fallback) → precache check → strategy dispatch → network pass-through
+```
+
+### Available strategies
+
+| Strategy | Behavior | Best for |
+|----------|----------|----------|
+| `cache-first` | Return cached if available, else fetch + cache. Default | Static assets, images, fonts |
+| `network-first` | Try network, cache on success, fall back to cache | API endpoints, dynamic content |
+| `stale-while-revalidate` | Return cached immediately, refresh in background | Fast UI, non-critical data |
+| `cache-only` | Serve from cache only (404 if missing) | Offline-critical assets |
+| `network-only` | Always fetch, never cache | Sensitive or real-time data |
 
 
 ## 📝 Mutation Queue — offline writes that sync when back online
@@ -283,5 +321,8 @@ Re-run `npx @swoff/cli generate` after changing it.
 - `crossTabSync` — broadcast changes across tabs
 - `tagInvalidation` — cache invalidation by tags
 - `pwa.enabled` — PWA install prompt and manifest
+- `serviceWorker.cacheStrategy` — caching strategy mode (`"all"` or `"explicit-only"`)
+- `serviceWorker.defaultStrategy` — default caching strategy
+- `serviceWorker.strategies` — per-route strategy overrides
 
 ---

@@ -37,9 +37,7 @@ export async function invalidateByTag(tag${T("string")})${R("Promise<void>")}{
 
 /** Invalidate all cached responses matching any of the given tags. */
 export async function invalidateByTags(tags${T("string[]")})${R("Promise<void>")}{
-  for (const tag of tags) {
-    await invalidateByTag(tag);
-  }
+  await Promise.all(tags.map((tag) => invalidateByTag(tag)));
 }
 `;
 

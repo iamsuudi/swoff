@@ -26,6 +26,7 @@ export function generateFetchHandler(
   const spaPath = spaEntry ?? "/index.html";
 
   const staleVersionCode = tagInvalidation ? `
+    cleanStaleVersions();
     if (staleVersions.has(request.url)) {
       event.waitUntil(refreshCache(request).then(() => staleVersions.delete(request.url)));
     }` : "";

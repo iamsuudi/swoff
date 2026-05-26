@@ -9,6 +9,8 @@ initServiceWorker();
 ```
 
 ## API calls (use for all fetch requests)
+Use `fetchWithCache` instead of `fetch()` — it sets caching headers the SW needs.
+Plain `fetch()` skips SW caching when `cacheStrategy` is `"explicit-only"`.
 ```ts
 import { fetchWithCache } from "./swoff/fetch-wrapper.ts";
 const data = await fetchWithCache("/api/data").then(r => r.json());

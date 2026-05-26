@@ -46,19 +46,6 @@ declare global {
   }
 }
 
-export interface SWOFFCache {
-  get(key: Request | string): Promise<Response | undefined>;
-  put(request: Request | string, response: Response): Promise<void>;
-  delete(request: Request | string): Promise<boolean>;
-}
-
-export interface SWOFF {
-  cache: SWOFFCache;
-  network: {
-    fetch(request: Request | string, options?: RequestInit): Promise<Response>;
-  };
-}
-
 export interface FetchWithCacheOptions extends RequestInit {
   strategy?: "read" | "mutation";
   tags?: string[];

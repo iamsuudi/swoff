@@ -3,7 +3,7 @@ export async function checkForUpdate(): Promise<{
   minSupportedVersion?: string;
 } | null> {
   try {
-    const response = await fetch("/version.json");
+    const response = await fetch("/version.json?t=" + Date.now());
     const manifest = await response.json();
     return manifest;
   } catch {

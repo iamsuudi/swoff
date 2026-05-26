@@ -23,24 +23,26 @@ self.addEventListener("install", (event) => {
     (async () => {
       const cache = await caches.open(CACHE_NAME);
       let downloaded = 0;
+      let attempted = 0;
       for (const asset of ASSETS_TO_CACHE) {
+        attempted++;
         try {
           const request = new Request(asset.url, asset.options);
           await cache.add(request);
           downloaded++;
-          const percent = Math.round((downloaded / ASSETS_TO_CACHE.length) * 100);
-          const clients = await self.clients.matchAll({ includeUncontrolled: true });
-          clients.forEach((client) => {
-            client.postMessage({
-              type: "SW_PROGRESS",
-              percent,
-              downloaded,
-              total: ASSETS_TO_CACHE.length,
-            });
-          });
         } catch (err) {
           console.error(`Failed to cache ${asset.url}:`, err);
         }
+        const percent = Math.round((attempted / ASSETS_TO_CACHE.length) * 100);
+        const clients = await self.clients.matchAll({ includeUncontrolled: true });
+        clients.forEach((client) => {
+          client.postMessage({
+            type: "SW_PROGRESS",
+            percent,
+            downloaded,
+            total: ASSETS_TO_CACHE.length,
+          });
+        });
       }
       if (AUTO_SKIP_WAITING) self.skipWaiting();
     })(),
@@ -150,6 +152,7 @@ function applyStrategy(event, request, strategy) {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET" && request.method !== "HEAD") return;
+  
   applyStrategy(event, request, determineCacheStrategy(event.request, {"/api/*":"network-first","/static/*":"cache-first"}, "cache-first"));
 });
 
@@ -158,6 +161,7 @@ self.addEventListener("fetch", (event) => {
 async function cacheFirst(event, request) {
   const cached = await fromRuntime(request);
   if (cached) {
+    cleanStaleVersions();
     if (staleVersions.has(request.url)) {
       event.waitUntil(refreshCache(request).then(() => staleVersions.delete(request.url)));
     }
@@ -240,6 +244,7 @@ async function refreshCache(request) {
 async function cacheOnly(event, request) {
   const cached = await fromRuntime(request);
   if (cached) {
+    cleanStaleVersions();
     if (staleVersions.has(request.url)) {
       event.waitUntil(refreshCache(request).then(() => staleVersions.delete(request.url)));
     }
@@ -257,8 +262,19 @@ async function networkOnly(event, request) {
 }
 
 const staleVersions = new Map();
+const STALE_VERSIONS_MAX = 100;
+const STALE_VERSION_TTL = 30 * 60 * 1000;
 const TAG_DB_NAME = "swoff-cache-tags";
 const TAG_STORE_NAME = "tags";
+
+function cleanStaleVersions() {
+  const now = Date.now();
+  for (const [url, ts] of staleVersions) {
+    if (staleVersions.size > STALE_VERSIONS_MAX || now - ts > STALE_VERSION_TTL) {
+      staleVersions.delete(url);
+    }
+  }
+}
 
 function openTagDB() {
   return new Promise((resolve, reject) => {
@@ -335,39 +351,6 @@ async function invalidateByTag(tag) {
   clients.forEach((client) => {
     client.postMessage({ type: "TAG_INVALIDATED", tag });
   });
-}
-
-const SWOFF = {
-  cache: {
-    async get(key) {
-      const cache = await caches.open(CACHE_NAME);
-      const cacheKey = typeof key === "string" ? key : new URL(key.url).pathname;
-      return cache.match(cacheKey);
-    },
-    async put(request, response) {
-      const cache = await caches.open(CACHE_NAME);
-      const cacheKey = typeof request === "string" ? request : new URL(request.url).pathname;
-      await cache.put(cacheKey, response);
-    },
-    async delete(request) {
-      const cache = await caches.open(CACHE_NAME);
-      const cacheKey = typeof request === "string" ? request : new URL(request.url).pathname;
-      return cache.delete(cacheKey);
-    }
-  },
-  network: {
-    async fetch(request, options = {}) {
-      try {
-        return await fetch(request, options);
-      } catch (error) {
-        throw new Error(`Network request failed: ${error.message}`);
-      }
-    }
-  }
-};
-
-if (typeof self !== 'undefined') {
-  self.SWOFF = SWOFF;
 }
 
 

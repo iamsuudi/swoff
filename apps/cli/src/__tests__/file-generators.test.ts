@@ -61,15 +61,7 @@ describe("generateSwTemplate", () => {
     expect(content).toContain("// [[AUTO_SKIP_WAITING]]");
     expect(content).toContain("CACHE_NAME_RUNTIME");
     expect(content).toContain("self.addEventListener");
-    expect(content).toContain("SWOFF");
-  });
-
-  it("includes SWOFF.network matching default-template.ts", () => {
-    const ctx = makeContext();
-    generateSwTemplate(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw", "template.js"), "utf8");
-    expect(content).toContain("network: {");
-    expect(content).toContain("Network request failed");
+    expect(content).toContain("fromPrecache");
   });
 
   it("includes config-driven strategy code", () => {
@@ -247,8 +239,6 @@ describe("generateTypeDefinitions", () => {
     generateTypeDefinitions(ctx);
     const content = readFileSync(join(ctx.swoffDir, "swoff.d.ts"), "utf8");
     expect(content).toContain("BeforeInstallPromptEvent");
-    expect(content).toContain("SWOFFCache");
-    expect(content).toContain("SWOFF");
     expect(content).toContain("FetchWithCacheOptions");
     expect(content).toContain("MutationQueueItem");
     expect(content).toContain("MutationQueueResult");

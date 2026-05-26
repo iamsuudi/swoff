@@ -32,7 +32,6 @@ describe("loadConfig", () => {
         mutationQueue: true,
         backgroundSync: false, pwa: { enabled: true, preventDefaultInstall: true }, auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
         crossTabSync: true, tagInvalidation: true,
-        clientRegistration: true,
       },
       build: { outputDir: "build", swFilename: "service-worker" },
     };

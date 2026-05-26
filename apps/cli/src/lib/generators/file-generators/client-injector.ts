@@ -10,7 +10,6 @@ export function generateClientInjector(ctx: GeneratorContext): void {
   const pwaEnabled = ctx.config.features.pwa.enabled;
   const mutationQueueEnabled = ctx.config.features.mutationQueue;
   const crossTabSync = ctx.config.features.crossTabSync;
-  const clientRegistration = ctx.config.features.clientRegistration;
 
   const pwaImport = pwaEnabled
     ? `import { setupPwaInstall } from "./pwa/install.${ext}";
@@ -43,20 +42,8 @@ window.addEventListener("online", processMutationQueue);
 `
     : "";
 
-  const swImport = clientRegistration
-    ? `import {
-  initServiceWorker as swInit,
-  handleUpdateApproved,
-  skipWaiting,
-} from "./sw/injector.${ext}";
-`
-    : "";
-
-  const swExports = clientRegistration
-    ? `
-export { handleUpdateApproved, skipWaiting };
-`
-    : "";
+  const swImport = `import { initServiceWorker as swInit } from "./sw/injector.${ext}";
+`;
 
   const code = `/**
  * Swoff Client Injector
@@ -115,8 +102,8 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 
 /** Initialize SW registration and all client-side features (PWA install, mutation queue, cross-tab sync). Call once at app startup. */
 export async function initServiceWorker()${ts ? ": Promise<void>" : " "}{
-${clientRegistration ? "  await swInit();" : "  // No SW registration configured"}
-}${swExports}
+  await swInit();
+}
 `;
 
   writeFile(ctx, `client-injector.${ext}`, code);

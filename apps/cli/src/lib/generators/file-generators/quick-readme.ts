@@ -15,7 +15,7 @@ export function generateReadme(ctx: GeneratorContext): void {
   w("For the full guide with explanations, read **[GUIDE.md](./GUIDE.md)**.");
   w("");
 
-  const hasClientInjector = config.features.clientRegistration || config.features.pwa.enabled || config.features.crossTabSync;
+  const hasClientInjector = true;
 
   if (hasClientInjector) {
     w("## Entry point");

@@ -22,7 +22,6 @@ describe("validateConfig", () => {
       auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
       crossTabSync: true,
       tagInvalidation: true,
-      clientRegistration: true,
     },
     build: { outputDir: "dist", swFilename: "sw" },
   };

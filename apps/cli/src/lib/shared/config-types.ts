@@ -39,7 +39,6 @@ export interface SwoffConfig {
     auth: AuthConfig;
     crossTabSync: boolean;
     tagInvalidation: boolean;
-    clientRegistration: boolean;
   };
   build: {
     outputDir: string;
@@ -53,7 +52,6 @@ export const KNOWN_FEATURES = [
   "auth",
   "crossTabSync",
   "tagInvalidation",
-  "clientRegistration",
 ] as const;
 
 export const OBJECT_FEATURES = ["pwa", "serviceWorker", "auth"] as const;
@@ -133,7 +131,6 @@ export const defaultConfig: SwoffConfig = {
     auth: { ...defaultAuth },
     crossTabSync: true,
     tagInvalidation: true,
-    clientRegistration: true,
   },
   build: {
     outputDir: "dist",

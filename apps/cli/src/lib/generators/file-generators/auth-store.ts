@@ -18,7 +18,8 @@ export function generateAuthStore(ctx: GeneratorContext): void {
   const PT = (type: string) => (ts ? `<${type}>` : "");
   const AS = (type: string) => (ts ? ` as ${type}` : "");
 
-  const authDataInterface = ts ? `export interface AuthData {
+  const authDataInterface = ts
+    ? `export interface AuthData {
   token?: string;
   user?: Record<string, unknown>;
   expiresAt?: number;
@@ -31,7 +32,8 @@ export interface AuthResponse extends Record<string, unknown> {
   // expiresAt?: number;
 }
 
-` : "";
+`
+    : "";
 
   const createAuthFromResponseBlock = ts
     ? `/** Extract AuthData from your backend's login response. Edit this function to match your backend's response shape. */
@@ -109,7 +111,7 @@ async function persistUserData(authData${T("AuthData | null")})${R("Promise<void
 
 async function loadUserData()${R("Promise<{ user?: Record<string, unknown>; expiresAt?: number } | null>")}{
   const db = await openAuthDB();
-  return new Promise${PT("any")}((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
     const request = store.get("session");

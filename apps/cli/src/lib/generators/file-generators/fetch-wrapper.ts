@@ -48,6 +48,7 @@ export interface FetchWithCacheOptions extends RequestInit {
   auth?: boolean;
   queueOffline?: boolean;
   invalidate?: 'auto' | string[] | false;
+  type?: 'read' | 'mutation';
 }
 `
     : "";
@@ -161,6 +162,14 @@ export interface FetchWithCacheOptions extends RequestInit {
  *     staleWhileRevalidate: true,
  *   });
  *
+ *   // Override method-based caching with explicit type
+ *   // Use type: "mutation" for POST-based reads (search, GraphQL)
+ *   await fetchWithCache("/api/search", {
+ *     method: "POST",
+ *     type: "read",
+ *     body: JSON.stringify({ query: "hello" }),
+ *   });
+ *
  *   // Offline: auto-queues writes (disable with queueOffline: false)
  *   await fetchWithCache("/api/todos", {
  *     method: "POST",
@@ -174,9 +183,9 @@ ${interfaceBlock}${optionsInterface}
 const inFlightRequests = new Map${G("string, Promise<Response>")}();
 
 /** Fetch with caching, auth, offline queue, and auto-invalidation. Returns { response, fromCache }. */
-export async function fetchWithCache(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; staleWhileRevalidate?: boolean; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false }")} = {})${R("Promise<FetchWithCacheResult>")}{
+export async function fetchWithCache(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; staleWhileRevalidate?: boolean; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation' }")} = {})${R("Promise<FetchWithCacheResult>")}{
   const method = (options.method || "GET").toUpperCase();
-  const isRead = method === "GET" || method === "HEAD";
+  const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD"));
   const url = typeof input === "string" ? input : input.url;
 
   const headers = new Headers(options.headers);

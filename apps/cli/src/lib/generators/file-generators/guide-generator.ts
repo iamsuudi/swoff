@@ -22,29 +22,24 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("The service worker handles caching, offline support, background sync, and PWA installability.");
   w("");
 
-  const hasSW = config.features.clientRegistration || config.features.pwa.enabled || config.features.crossTabSync;
-  if (hasSW) {
-    w("### `client-injector.ts` — Single entry point");
-    w("This is the **only file you need to import** at app startup to enable all Swoff features.");
-    w("```ts");
-    w(`import { initServiceWorker } from "./swoff/client-injector.${ext}";`);
-    w("initServiceWorker();");
-    w("```");
-    w("It wires together: SW registration, PWA install prompt, mutation queue online listener, and cross-tab sync.");
-    w("");
+  w("### `client-injector.ts` — Single entry point");
+  w("This is the **only file you need to import** at app startup to enable all Swoff features.");
+  w("```ts");
+  w(`import { initServiceWorker } from "./swoff/client-injector.${ext}";`);
+  w("initServiceWorker();");
+  w("```");
+  w("It wires together: SW registration, PWA install prompt, mutation queue online listener, and cross-tab sync.");
+  w("");
 
-    if (config.features.clientRegistration) {
-      w("### `sw/injector.ts` — SW registration logic");
-      w("Handles registering the service worker, checking for updates via version.json, and dispatching");
-      w("update-available / ready / error events on the window.");
-      w("");
-      w("**Functions:**");
-      w("- `initServiceWorker()` — registers the SW and checks for updates");
-      w("- `handleUpdateApproved(version)` — accepts a pending update and reloads on activation");
-      w("- `skipWaiting()` — activates a waiting SW without reloading");
-      w("");
-    }
-  }
+  w("### `sw/injector.ts` — SW registration logic");
+  w("Handles registering the service worker, checking for updates via version.json, and dispatching");
+  w("update-available / ready / error events on the window.");
+  w("");
+  w("**Functions:**");
+  w("- `initServiceWorker()` — registers the SW and checks for updates");
+  w("- `handleUpdateApproved(version)` — accepts a pending update and reloads on activation");
+  w("- `skipWaiting()` — activates a waiting SW without reloading");
+  w("");
 
   // ── Fetch Wrapper ──
   wb("## 🌐 fetchWithCache — API calls with caching");
@@ -374,7 +369,6 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("- `auth.enabled` — auth module (bearer/cookie/custom)");
   w("- `crossTabSync` — broadcast changes across tabs");
   w("- `tagInvalidation` — cache invalidation by tags");
-  w("- `clientRegistration` — SW registration with version management");
   w("- `pwa.enabled` — PWA install prompt and manifest");
   w("");
 

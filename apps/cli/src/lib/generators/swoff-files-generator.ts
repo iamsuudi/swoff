@@ -47,8 +47,8 @@ interface Step {
 export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => void): string[] {
   const steps: Step[] = [
     { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
-    { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: ctx.config.features.clientRegistration },
-    { name: "client-injector", gen: () => generateClientInjector(ctx), enabled: ctx.config.features.clientRegistration || ctx.config.features.pwa.enabled || ctx.config.features.crossTabSync },
+    { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: true },
+    { name: "client-injector", gen: () => generateClientInjector(ctx), enabled: true },
     { name: "fetch-wrapper", gen: () => generateFetchWrapper(ctx), enabled: true },
     { name: "cache", gen: () => generateCache(ctx), enabled: ctx.config.features.tagInvalidation },
 

@@ -9,6 +9,7 @@ Swoff generates a **service worker** and **client-side utilities** that give you
 - **Auth** — token management with automatic 401 handling
 - **Cache invalidation** — tag-based cache busting after mutations
 - **PWA** — install prompt and manifest
+- **Push notifications** — subscription management with IndexedDB persistence and VAPID support
 - **Cross-tab sync** — broadcast changes across open tabs
 - **Background Sync API** — process mutations even after tab close
 
@@ -94,6 +95,7 @@ swoff add auth
 swoff add tag-invalidation
 swoff add cross-tab
 swoff add background-sync
+swoff add push-notification
 ```
 
 ### `info`
@@ -145,9 +147,14 @@ This deletes `swoff/`, `swoff.config.json`, `version.json`, and removes the SW g
       "defaultStrategy": "cache-first",
       "strategies": {
         "/api/*": "network-first",
-        "/static/*": "cache-first"
+        "/static/*": {
+          "strategy": "cache-first",
+          "maxCacheEntries": 50,
+          "maxCacheAge": 3600000
+        }
       },
       "cacheStrategy": "all",
+      "navigationPreload": true,
       "maxCacheEntries": 100,
       "maxCacheAge": 86400000,
       "runtimeCacheName": "swoff-runtime",
@@ -164,7 +171,11 @@ This deletes `swoff/`, `swoff.config.json`, `version.json`, and removes the SW g
       "userEndpoint": "/api/me"
     },
     "crossTabSync": true,
-    "tagInvalidation": true
+    "tagInvalidation": true,
+    "pushNotifications": {
+      "enabled": false,
+      "vapidPublicKey": ""
+    }
   }
 }
 ```
@@ -185,8 +196,9 @@ This deletes `swoff/`, `swoff.config.json`, `version.json`, and removes the SW g
 | `features.serviceWorker.autoUpdate` | `boolean` | `true` | Auto-update SW |
 | `features.serviceWorker.autoActivate` | `boolean` | `false` | Auto-activate SW |
 | `features.serviceWorker.defaultStrategy` | `string` | `"cache-first"` | Default cache strategy |
-| `features.serviceWorker.strategies` | `object` | `{}` | Per-route caching strategies |
+| `features.serviceWorker.strategies` | `object` | `{}` | Per-route caching strategies. Each value is a strategy name string, or `{ strategy, maxCacheEntries?, maxCacheAge? }` |
 | `features.serviceWorker.cacheStrategy` | `"all"` \| `"explicit-only"` | `"all"` | When to apply caching strategies. `"all"`: every GET/HEAD; `"explicit-only"`: only if `X-SW-Cache-Strategy` header is present |
+| `features.serviceWorker.navigationPreload` | `boolean` | `true` | Enable Navigation Preload API — reduces SW startup latency for navigation requests |
 | `features.serviceWorker.maxCacheEntries` | `number` | — | Max runtime cache entries (0 = unlimited) |
 | `features.serviceWorker.maxCacheAge` | `number` | — | Max runtime cache age in ms (0 = unlimited) |
 | `features.serviceWorker.runtimeCacheName` | `string` | `"swoff-runtime"` | Runtime cache name |
@@ -201,6 +213,8 @@ This deletes `swoff/`, `swoff.config.json`, `version.json`, and removes the SW g
 | `features.auth.userEndpoint` | `string` | `"/api/me"` | Current user endpoint |
 | `features.crossTabSync` | `boolean` | `false` | Cross-tab broadcast |
 | `features.tagInvalidation` | `boolean` | `false` | Tag-based cache invalidation |
+| `features.pushNotifications.enabled` | `boolean` | `false` | Push notification subscription management |
+| `features.pushNotifications.vapidPublicKey` | `string` | `""` | VAPID public key (can also be passed at runtime) |
 
 ---
 
@@ -229,6 +243,10 @@ swoff/
 ├── mutation-queue.ts      # Offline write queue
 │   Exports: queueMutation(), processMutationQueue(), flushMutations(), getPendingCount()
 │   Generated when: mutationQueue is true
+│
+├── push.ts                # Push notification subscription management
+│   Exports: subscribeToPush(), unsubscribeFromPush(), isSubscribed(), getPushSubscription(), requestNotificationPermission()
+│   Generated when: pushNotifications.enabled is true
 │
 ├── background-sync.ts     # Background Sync API
 │   Exports: syncWhenPossible(), retrySync()
@@ -379,6 +397,14 @@ All `RequestInit` fields are supported (`method`, `body`, `headers`, `credential
 - `response`: the fetch Response (from cache or network)
 - `fromCache`: `true` when the response was served from cache
 
+In TypeScript, use the generic variant for typed responses:
+
+```ts
+const { response } = await fetchWithCache<Todo[]>("/api/todos");
+const data: Todo[] = await response.json();
+// data is typed as Todo[]
+```
+
 ---
 
 ## Auth API
@@ -523,6 +549,38 @@ Generated when `features.pwa.enabled` is `true`.
 
 ---
 
+## Push Notifications
+
+Push notification subscription management with IndexedDB persistence.
+
+```js
+import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push.js";
+
+// Subscribe (triggers permission prompt)
+const sub = await subscribeToPush("YOUR_VAPID_PUBLIC_KEY");
+if (sub) {
+  await fetch("/api/push/subscribe", {
+    method: "POST",
+    body: JSON.stringify(sub.toJSON()),
+  });
+}
+
+// Unsubscribe
+await unsubscribeFromPush();
+```
+
+| Function | Description |
+|----------|-------------|
+| `subscribeToPush(vapidPublicKey)` | Request permission and subscribe. Returns `PushSubscription` or `null` if denied |
+| `unsubscribeFromPush()` | Unsubscribe and clear stored subscription from IndexedDB |
+| `isSubscribed()` | Check if currently subscribed |
+| `getPushSubscription()` | Get current `PushSubscription` object, or `null` |
+| `requestNotificationPermission()` | Request notification permission only. Returns `boolean` |
+
+Generated when `features.pushNotifications.enabled` is `true`.
+
+---
+
 ## React Hooks
 
 When `features.framework` is `"react"`, generated hooks provide reactive state:
@@ -534,6 +592,7 @@ When `features.framework` is `"react"`, generated hooks provide reactive state:
 | `useMutationQueue()` | `{ pending, lastSync }` | Queue status (`pending` count) and last sync result (`lastSync.succeeded`, `lastSync.failed`) |
 | `usePWAUpdate()` | `{ updateStatus, progress, forceUpdate, acceptUpdate, dismissUpdate }` | SW update management. `updateStatus` is one of `"idle"`, `"available"`, `"downloading"`, `"ready"` |
 | `useSWProgress()` | `{ status, progress }` | Download progress during SW update. `progress` is `{ percent, downloaded, total }` |
+| `usePushSubscription(vapidPublicKey)` | `{ subscribed, subscription, permission, loading, subscribe, unsubscribe }` | Push subscription state. `subscribe()`/`unsubscribe()` toggle notifications at runtime |
 
 ```tsx
 import { useCachedFetch } from "./swoff/hooks/useCachedFetch.tsx";

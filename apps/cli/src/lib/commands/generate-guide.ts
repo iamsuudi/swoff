@@ -25,6 +25,12 @@ export function generateGuide(ctx: GuideContext): string[] {
   lines.push("  Fetch wrapper for API calls:");
   lines.push(`    import { fetchWithCache } from "./swoff/fetch-wrapper.${ext}";`);
   lines.push(`    const data = await fetchWithCache("/api/data").then(r => r.json());`);
+  if (isReact) {
+    lines.push("");
+    lines.push("  React hook for reactive network state:");
+    lines.push(`    import { useNetworkStatus } from "../swoff/hooks/useNetworkStatus.${ext}x";`);
+    lines.push("    const online = useNetworkStatus();");
+  }
   lines.push("");
   lines.push("  Add to package.json build script:");
   lines.push('    "build": "your-build && node swoff/sw/generator.js"');
@@ -40,11 +46,11 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push(`    <link rel="manifest" href="/manifest.json">`);
     if (isReact) {
       lines.push("");
-      lines.push("  React hooks generated in swoff/hooks/usePWAUpdate.tsx:");
-      lines.push(`    import { usePWAUpdate, useSWProgress } from "../swoff/hooks/usePWAUpdate.${ext}x";`);
+      lines.push("  React hooks generated in swoff/hooks/useSWUpdate.tsx:");
+      lines.push(`    import { useSWUpdate, useSWProgress } from "../swoff/hooks/useSWUpdate.${ext}x";`);
       lines.push("");
       lines.push("    function App() {");
-      lines.push("      const { updateStatus, progress, acceptUpdate, dismissUpdate } = usePWAUpdate();");
+      lines.push("      const { updateStatus, progress, acceptUpdate, dismissUpdate } = useSWUpdate();");
       lines.push("      const { status } = useSWProgress();");
       lines.push("      if (updateStatus === 'available') return <UpdatePrompt ... />;");
       lines.push("      if (status === 'installing') return <SWProgressBar progress={progress} />;");
@@ -116,6 +122,17 @@ export function generateGuide(ctx: GuideContext): string[] {
       lines.push("  ❌ Requires mutationQueue to be enabled.");
       lines.push('     Run: npx @swoff/cli add mutation-queue');
     }
+    if (isReact) {
+      lines.push("");
+      lines.push("  React hook generated in swoff/hooks/useBackgroundSync.tsx:");
+      lines.push(`    import { useBackgroundSync } from "../swoff/hooks/useBackgroundSync.${ext}x";`);
+      lines.push("");
+      lines.push("    function SyncPanel() {");
+      lines.push("      const { supported, triggerSync } = useBackgroundSync();");
+      lines.push("      if (!supported) return <p>Background sync not available</p>;");
+      lines.push("      return <button onClick={triggerSync}>Trigger Sync</button>;");
+      lines.push("    }");
+    }
   }
 
   if (config.features.tagInvalidation) {
@@ -129,6 +146,16 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push("");
     lines.push(`    // Invalidate after mutations`);
     lines.push('    await invalidateUrl("/api/todos/42");');
+    if (isReact) {
+      lines.push("");
+      lines.push("  React hook generated in swoff/hooks/useCacheInvalidation.tsx:");
+      lines.push(`    import { useCacheInvalidation } from "../swoff/hooks/useCacheInvalidation.${ext}x";`);
+      lines.push("");
+      lines.push("    function InvalidateButton() {");
+      lines.push('      const { invalidateUrl } = useCacheInvalidation();');
+      lines.push('      return <button onClick={() => invalidateUrl("/api/todos")}>Refresh</button>;');
+      lines.push("    }");
+    }
   }
 
   if (!config.features.tagInvalidation && config.features.crossTabSync) {

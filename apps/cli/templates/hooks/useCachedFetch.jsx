@@ -1,25 +1,14 @@
-import {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  startTransition,
-} from "react";
-import { fetchWithCache } from "../fetch-wrapper.ts";
-import { generateTags } from "../invalidation-tags.ts";
+import { useState, useEffect, useCallback, useRef, startTransition } from "react";
+import { fetchWithCache } from "../fetch-wrapper.js";
+import { generateTags } from "../invalidation-tags.js";
 
-export function useCachedFetch<T>(
-  url: string,
-  options: Parameters<typeof fetchWithCache>[1] = {},
-) {
-  const [data, setData] = useState<T | null>(null);
-  const [error, setError] = useState<Error | null>(null);
+export function useCachedFetch(url, options = {}) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refetchCount, setRefetchCount] = useState(0);
   const optionsRef = useRef(options);
-  useEffect(() => {
-    optionsRef.current = options;
-  }, [options]);
+  useEffect(() => { optionsRef.current = options; }, [options]);
 
   const refetch = useCallback(() => setRefetchCount((c) => c + 1), []);
 
@@ -38,26 +27,23 @@ export function useCachedFetch<T>(
         }
         if (!cancelled) setError(null);
       } catch (err) {
-        if (!cancelled)
-          setError(err instanceof Error ? err : new Error(String(err)));
+        if (!cancelled) setError(err instanceof Error ? err : new Error(String(err)));
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
 
     doFetch();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [url, refetchCount]);
 
   useEffect(() => {
-    const onInvalidated = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
+    const onInvalidated = (e) => {
+      const detail = e.detail;
       const tags = detail?.tags;
       if (!tags || !Array.isArray(tags)) return;
       const urlTags = generateTags(url);
-      if (tags.some((t: string) => urlTags.includes(t))) {
+      if (tags.some((t) => urlTags.includes(t))) {
         setRefetchCount((c) => c + 1);
       }
     };

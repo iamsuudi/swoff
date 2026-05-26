@@ -31,6 +31,18 @@ declare global {
 
   interface WindowEventMap {
     beforeinstallprompt: BeforeInstallPromptEvent;
+    "sw-update-available": CustomEvent<{ version: string }>;
+    "sw-progress": CustomEvent<{ percent: number; downloaded: number; total: number }>;
+    "sw-ready": CustomEvent;
+    "sw-error": CustomEvent;
+    "sw-version-detected": CustomEvent;
+    "sw-auth-state-change": CustomEvent;
+    "mutation-sync-complete": CustomEvent<{ succeeded: number; failed: number }>;
+    "mutation-queue-changed": CustomEvent;
+    "cache-invalidated": CustomEvent<{ tags?: string[] }>;
+    "background-sync-complete": CustomEvent<{ succeeded: number; failed: number }>;
+    "push-subscription-changed": CustomEvent<{ subscribed: boolean }>;
+    "push-permission-changed": CustomEvent<{ permission: NotificationPermission }>;
   }
 
   interface Window {

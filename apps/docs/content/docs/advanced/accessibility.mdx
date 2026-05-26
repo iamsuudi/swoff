@@ -115,7 +115,7 @@ Use `aria-live` regions for dynamic updates:
 
 ```tsx
 function OfflineBanner() {
-  const { isOnline } = useOfflineStatus();
+  const isOnline = useNetworkStatus();
 
   return (
     <div

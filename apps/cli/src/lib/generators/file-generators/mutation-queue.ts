@@ -138,18 +138,18 @@ ${authReplayBlock}    const db = await openQueueDB();
       }
 
       try {
-        let replayBody;
-        let contentType;
+        let replayBody${T("BodyInit | null")}${ts ? " = null" : ""};
+        let contentType${T("string | undefined")};
         const bt = item.bodyType || "json";
         if (bt === "formdata") {
           replayBody = new FormData();
-          for (const [key, value] of item.body || []) {
+          for (const [key, value] of (item.body || [])${AS("[string, FormDataEntryValue][]")}) {
             replayBody.append(key, value);
           }
         } else if (bt === "blob") {
-          replayBody = item.body;
+          replayBody = item.body${AS("BodyInit | null")};
         } else if (bt === "buffer") {
-          replayBody = item.body instanceof ArrayBuffer ? new Uint8Array(item.body) : item.body;
+          replayBody = item.body instanceof ArrayBuffer ? new Uint8Array(item.body)${AS("BodyInit")} : item.body${AS("BodyInit")};
         } else {
           replayBody = JSON.stringify(item.body);
           contentType = "application/json";

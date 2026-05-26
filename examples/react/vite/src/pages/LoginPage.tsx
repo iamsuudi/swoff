@@ -3,7 +3,6 @@ import { useNavigate, Link } from "react-router-dom";
 import { setAuth } from "../../swoff/auth/store";
 import { fetchCurrentUser } from "../../swoff/auth/user";
 import { flushMutations } from "../../swoff/mutation-queue";
-import type { User } from "../types";
 
 export default function LoginPage() {
   const navigate = useNavigate();

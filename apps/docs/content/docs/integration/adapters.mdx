@@ -19,33 +19,45 @@ window.addEventListener('sw-update-available', ...)
 window.addEventListener('sw-progress', ...)
 window.addEventListener('sw-ready', ...)
 window.addEventListener('sw-error', ...)
+window.addEventListener('sw-auth-state-change', ...)
+window.addEventListener('cache-invalidated', ...)
+window.addEventListener('background-sync-complete', ...)
+window.addEventListener('mutation-sync-complete', ...)
+window.addEventListener('mutation-queue-changed', ...)
+window.addEventListener('push-subscription-changed', ...)
+window.addEventListener('push-permission-changed', ...)
      ↓
 Adapter (framework-specific)
      ↓ exposes
-usePWAUpdate() / useSWProgress() / usePWAVersion()  — React
-usePWAUpdate() / useSWProgress() / usePWAVersion()  — Vue composables
-pwaUpdate / swProgress / pwaVersion                  — Svelte stores
-...                                                   — Solid signals, Angular services
+useSWUpdate() / useSWProgress() / useCachedFetch() / useMutationQueue() / useAuth() / usePushSubscription() / useNetworkStatus() / useBackgroundSync() / useCacheInvalidation()  — React
+useSWUpdate() / useSWProgress() / useNetworkStatus() / useBackgroundSync() / useCacheInvalidation()  — Vue composables
+...                                                                       — Svelte stores, Solid signals, Angular services
 ```
 
 ## Events to Listen To
 
-| Event                 | Detail                      | When                    |
-| --------------------- | --------------------------- | ----------------------- |
-| `sw-update-available` | `{ version: string }`       | New version detected    |
-| `sw-progress`         | `{ percent: number }`       | During SW download      |
-| `sw-ready`            | none                        | SW is active            |
-| `sw-error`            | none                        | Registration failed     |
-| `sw-version-detected` | none                        | Version info on window  |
+| Event | Detail | When |
+|-------|--------|------|
+| `sw-update-available` | `{ version: string }` | New SW version detected |
+| `sw-progress` | `{ percent: number }` | During SW download |
+| `sw-ready` | none | SW activated and ready |
+| `sw-error` | none | SW registration failed |
+| `sw-auth-state-change` | none | Auth state changed (login/logout/refresh) |
+| `cache-invalidated` | `{ tags: string[] }` | Cache tags invalidated (by this tab or another) |
+| `mutation-sync-complete` | `{ succeeded: number, failed: number }` | Queue sync finished |
+| `mutation-queue-changed` | none | Queue contents changed (added/processed) |
+| `background-sync-complete` | `{ succeeded: number, failed: number }` | Background sync finished |
+| `push-subscription-changed` | `{ subscribed: boolean }` | Push subscription added/removed |
+| `push-permission-changed` | `{ permission: NotificationPermission }` | Permission granted/denied |
 
 ## Window Properties
 
-| Property                | Type    | Purpose                    |
-| ----------------------- | ------- | -------------------------- |
-| `latestSWVersion`       | string  | Server version             |
-| `currentSWVersion`      | string  | Active SW version          |
-| `swMinSupportedVersion` | string  | Minimum required version   |
-| `swUpdateRequired`      | boolean | Forced update flag         |
+| Property | Type | Purpose |
+|----------|------|---------|
+| `currentSWVersion` | `string \| undefined` | Active SW version |
+| `latestSWVersion` | `string \| undefined` | Server-side version |
+| `swMinSupportedVersion` | `string \| undefined` | Minimum version that can still serve |
+| `swUpdateRequired` | `boolean \| undefined` | Whether update is enforced |
 
 ## Adapter Responsibility
 
@@ -56,6 +68,7 @@ Your adapter should:
 3. Provide `acceptUpdate()` — registers new SW via `registerServiceWorker()`
 4. Provide `dismissUpdate()` — sets `sessionStorage['sw-dismissed-update']`
 5. Provide `checkForUpdates()` — manually fetches `version.json`
+6. Listen to `cache-invalidated` / `mutation-sync-complete` / `background-sync-complete` / `push-subscription-changed` and expose reactive state for each feature
 
 ## React Implementation
 

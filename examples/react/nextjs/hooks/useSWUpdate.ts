@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-export function usePWAUpdate() {
+export function useSWUpdate() {
   const [updateStatus, setUpdateStatus] = useState<"idle" | "available" | "downloading">("idle");
   const [currentVersion, setCurrentVersion] = useState<string | null>(null);
   const [availableVersion, setAvailableVersion] = useState<string | null>(null);

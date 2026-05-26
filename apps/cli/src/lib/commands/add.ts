@@ -9,7 +9,7 @@ import { loadConfigAsync } from "../config/loader.js";
 import { defaultConfig, mergeConfigs, type SwoffConfig } from "../shared/config-types.js";
 import { generateCommand } from "./generate.js";
 
-const KNOWN_FEATURES = ["mutation-queue", "mutationqueue", "pwa", "cross-tab", "crosstab", "auth", "tag-invalidation", "taginvalidation", "background-sync", "backgroundsync"];
+const KNOWN_FEATURES = ["mutation-queue", "mutationqueue", "pwa", "cross-tab", "crosstab", "auth", "tag-invalidation", "taginvalidation", "background-sync", "backgroundsync", "push-notification", "pushnotification"];
 
 const featureMap: Record<string, Record<string, unknown>> = {
   "mutation-queue": { mutationQueue: true },
@@ -22,6 +22,8 @@ const featureMap: Record<string, Record<string, unknown>> = {
   taginvalidation: { tagInvalidation: true },
   "background-sync": { backgroundSync: true },
   backgroundsync: { backgroundSync: true },
+  "push-notification": { pushNotifications: { enabled: true, vapidPublicKey: "" } },
+  pushnotification: { pushNotifications: { enabled: true, vapidPublicKey: "" } },
 };
 
 export async function addCommand(projectRoot: string, feature: string) {
@@ -31,7 +33,7 @@ export async function addCommand(projectRoot: string, feature: string) {
 
   if (!configUpdate) {
     log.error(`Unknown feature: ${feature}`);
-    log.info("Available features: mutation-queue, pwa, cross-tab, auth, tag-invalidation, background-sync");
+    log.info("Available features: mutation-queue, pwa, cross-tab, auth, tag-invalidation, background-sync, push-notification");
     return;
   }
 

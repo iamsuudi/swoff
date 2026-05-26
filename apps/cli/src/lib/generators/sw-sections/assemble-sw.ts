@@ -15,6 +15,7 @@ import { generateMessageHandler } from "./message-handler.js";
 import { generateFetchHandler } from "./fetch-handler.js";
 import { generateTagManagement } from "./tag-management.js";
 import { generateBackgroundSyncHandler } from "./background-sync-handler.js";
+import { generateSwPushHandlers } from "../file-generators/sw-push.js";
 
 function collectAssets(dir: string, baseDir: string): string[] {
   if (!existsSync(dir)) return [];
@@ -50,6 +51,10 @@ function applyReplacements(sw: string, config: SwoffConfig, assetsToCache: { url
   sw = features.tagInvalidation
     ? sw.replace("// [[TAG_MANAGEMENT]]", generateTagManagement())
     : sw.replace("// [[TAG_MANAGEMENT]]", "");
+
+  sw = features.pushNotifications?.enabled
+    ? sw.replace("// [[PUSH_HANDLERS]]", generateSwPushHandlers())
+    : sw.replace("// [[PUSH_HANDLERS]]", "");
 
   return sw;
 }

@@ -62,6 +62,15 @@ export function generateReadme(ctx: GeneratorContext): void {
     }
   }
 
+  if (config.features.pushNotifications?.enabled) {
+    w("## Push notifications");
+    w("```ts");
+    w(`import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push.${ext}";`);
+    w('const sub = await subscribeToPush("YOUR_VAPID_PUBLIC_KEY");');
+    w("```");
+    w("");
+  }
+
   if (config.features.tagInvalidation) {
     w("## Cache invalidation");
     w("```ts");

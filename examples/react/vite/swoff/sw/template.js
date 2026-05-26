@@ -381,6 +381,66 @@ async function invalidateByTag(tag) {
   });
 }
 
+// --- Push Notification Handlers ---
+
+self.addEventListener("push", (event) => {
+  let data;
+
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: "New Update", body: event.data?.text() || "" };
+  }
+
+  const options = {
+    body: data.body || "",
+    icon: data.icon || "/icon-192.png",
+    badge: data.badge || "",
+    image: data.image || undefined,
+    vibrate: data.vibrate || [200, 100, 200],
+    data: {
+      url: data.url || "/",
+      ...(data.data || {}),
+    },
+    actions: data.actions || [],
+    tag: data.tag || undefined,
+    requireInteraction: data.requireInteraction || false,
+  };
+
+  event.waitUntil(self.registration.showNotification(data.title || "Update", options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const url = event.notification.data?.url || "/";
+  const action = event.action;
+
+  event.waitUntil(
+    (async () => {
+      if (action) {
+        // Handle action clicks (e.g., "reply", "dismiss")
+      }
+
+      const clients = await self.clients.matchAll({ type: "window" });
+
+      for (const client of clients) {
+        const clientUrl = new URL(client.url);
+        const targetUrl = new URL(url, self.location.origin);
+
+        if (clientUrl.pathname === targetUrl.pathname && "focus" in client) {
+          return client.focus();
+        }
+      }
+
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+    })(),
+  );
+});
+
+
 
 self.addEventListener("sync", (event) => {
   if (event.tag === "sync-mutations") {
@@ -431,7 +491,7 @@ async function processMutationQueueInSW() {
           method: item.method,
           headers: { "Content-Type": "application/json", ...item.headers },
           body: JSON.stringify(item.body),
-          credentials: "same-origin",        });
+        });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         if (item.tags) {

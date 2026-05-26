@@ -47,6 +47,10 @@ export interface SwoffConfig {
     auth: AuthConfig;
     crossTabSync: boolean;
     tagInvalidation: boolean;
+    pushNotifications?: {
+      enabled: boolean;
+      vapidPublicKey?: string;
+    };
   };
   build: {
     outputDir: string;
@@ -60,9 +64,10 @@ export const KNOWN_FEATURES = [
   "auth",
   "crossTabSync",
   "tagInvalidation",
+  "pushNotifications",
 ] as const;
 
-export const OBJECT_FEATURES = ["pwa", "serviceWorker", "auth"] as const;
+export const OBJECT_FEATURES = ["pwa", "serviceWorker", "auth", "pushNotifications"] as const;
 
 export const VALID_STRATEGIES = [
   "cache-first",
@@ -141,6 +146,7 @@ export const defaultConfig: SwoffConfig = {
     auth: { ...defaultAuth },
     crossTabSync: true,
     tagInvalidation: true,
+    pushNotifications: { enabled: false },
   },
   build: {
     outputDir: "dist",

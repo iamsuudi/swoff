@@ -148,7 +148,11 @@ await syncWhenPossible({ method: "POST", url: "/api/todos", body: { ... } });
 Swoff's auth module manages authentication state with a **memory-only token** (never persisted to
 IndexedDB) and optional offline user info caching.
 
-Auth type: **cookie**
+Auth type: **bearer**
+
+> ⚠️ The Bearer token lives **in memory only** and is cleared on page refresh.
+> Only `{ user, expiresAt }` is persisted to IndexedDB for offline user display.
+> After a page refresh, re-login is required. Use the `refreshPath` for token refresh.
 
 ### `auth/store.ts` — Token and user persistence
 ```ts
@@ -269,6 +273,47 @@ are broadcast to all other tabs via the service worker.
 
 No separate imports needed — this is handled automatically by `client-injector.ts`.
 The service worker listens for invalidation events and forwards them to all clients.
+
+
+## 🔔 Push Notifications — subscription management
+Swoff generates a push notification subscription client with IndexedDB persistence
+and the service worker push event handlers.
+
+### `push.ts` — Client-side subscription management
+```ts
+import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push.ts";
+
+// Subscribe (triggers permission prompt)
+const sub = await subscribeToPush("YOUR_VAPID_PUBLIC_KEY");
+if (sub) {
+  await fetch("/api/push/subscribe", {
+    method: "POST",
+    body: JSON.stringify(sub.toJSON()),
+  });
+}
+
+// Unsubscribe
+await unsubscribeFromPush();
+```
+
+**Functions:**
+- `subscribeToPush(vapidPublicKey)` — request permission and subscribe
+- `unsubscribeFromPush()` — unsubscribe and clear stored subscription
+- `isSubscribed()` — check if subscribed
+- `getPushSubscription()` — get current PushSubscription object
+- `requestNotificationPermission()` — request permission only (returns boolean)
+
+### React Hook: `usePushSubscription`
+```tsx
+import { usePushSubscription } from "./swoff/hooks/usePushSubscription.tsx";
+
+const { subscribed, subscription, permission, loading, subscribe, unsubscribe } =
+  usePushSubscription("YOUR_VAPID_PUBLIC_KEY");
+```
+
+**Returns** `{ subscribed, subscription, permission, loading, subscribe, unsubscribe }`
+The hook listens for push-subscription-changed and push-permission-changed events.
+Use `subscribe()` and `unsubscribe()` to toggle push notifications.
 
 
 ## 📱 PWA — installable web app

@@ -347,6 +347,56 @@ export function generateGuide(ctx: GeneratorContext): void {
     }
   }
 
+  // ── Push Notifications ──
+  if (config.features.pushNotifications?.enabled) {
+    wb("## 🔔 Push Notifications — subscription management");
+    w("Swoff generates a push notification subscription client with IndexedDB persistence");
+    w("and the service worker push event handlers.");
+    w("");
+
+    w("### `push.ts` — Client-side subscription management");
+    w("```ts");
+    w(`import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push.${ext}";`);
+    w("");
+    w("// Subscribe (triggers permission prompt)");
+    w('const sub = await subscribeToPush("YOUR_VAPID_PUBLIC_KEY");');
+    w("if (sub) {");
+    w('  await fetch("/api/push/subscribe", {');
+    w('    method: "POST",');
+    w("    body: JSON.stringify(sub.toJSON()),");
+    w("  });");
+    w("}");
+    w("");
+    w("// Unsubscribe");
+    w("await unsubscribeFromPush();");
+    w("```");
+    w("");
+
+    w("**Functions:**");
+    w("- `subscribeToPush(vapidPublicKey)` — request permission and subscribe");
+    w("- `unsubscribeFromPush()` — unsubscribe and clear stored subscription");
+    w("- `isSubscribed()` — check if subscribed");
+    w("- `getPushSubscription()` — get current PushSubscription object");
+    w("- `requestNotificationPermission()` — request permission only (returns boolean)");
+    w("");
+
+    if (ctx.frameworkName === "react") {
+      w("### React Hook: `usePushSubscription`");
+      w("```tsx");
+      w(`import { usePushSubscription } from "./swoff/hooks/usePushSubscription.${ext}x";`);
+      w("");
+      w('const { subscribed, subscription, permission, loading, subscribe, unsubscribe } =');
+      w('  usePushSubscription("YOUR_VAPID_PUBLIC_KEY");');
+      w("```");
+      w("");
+
+      w("**Returns** `{ subscribed, subscription, permission, loading, subscribe, unsubscribe }`");
+      w("The hook listens for push-subscription-changed and push-permission-changed events.");
+      w("Use `subscribe()` and `unsubscribe()` to toggle push notifications.");
+      w("");
+    }
+  }
+
   // ── PWA ──
   if (config.features.pwa.enabled) {
     wb("## 📱 PWA — installable web app");

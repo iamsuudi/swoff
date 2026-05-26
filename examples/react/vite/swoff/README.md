@@ -34,6 +34,12 @@ import { flushMutations } from "./swoff/mutation-queue.ts";
 await flushMutations();
 ```
 
+## Push notifications
+```ts
+import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push.ts";
+const sub = await subscribeToPush("YOUR_VAPID_PUBLIC_KEY");
+```
+
 ## Cache invalidation
 ```ts
 import { generateTags, invalidateUrl } from "./swoff/invalidation-tags.ts";

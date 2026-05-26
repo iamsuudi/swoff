@@ -17,5 +17,6 @@ const CACHE_NAME_RUNTIME = "swoff-runtime";
 // [[ACTIVATE_HANDLER]]
 // [[MESSAGE_HANDLER]]
 // [[FETCH_HANDLER]]
-// [[TAG_MANAGEMENT]]`;
+// [[TAG_MANAGEMENT]]
+// [[PUSH_HANDLERS]]`;
 }

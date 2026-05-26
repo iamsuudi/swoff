@@ -22,9 +22,13 @@ export async function initCommand(projectRoot: string, framework?: string) {
     return;
   }
 
-  const config: SwoffConfig = {
-    ...defaultInitConfig,
-    framework: (framework || detectFramework(projectRoot)) as SwoffConfig["framework"],
+  const detected = framework || detectFramework(projectRoot);
+  const config = {
+    $schema: defaultInitConfig.$schema,
+    enabled: defaultInitConfig.enabled,
+    framework: detected as SwoffConfig["framework"],
+    build: defaultInitConfig.build,
+    features: defaultInitConfig.features,
   };
 
   const configPath = join(projectRoot, "swoff.config.json");

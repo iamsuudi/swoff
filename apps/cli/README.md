@@ -122,41 +122,77 @@ This deletes `swoff/`, `swoff.config.json`, `version.json`, and removes the SW g
 
 ```json
 {
+  "$schema": "https://swoff.netlify.app/schema/v1.json",
+  "enabled": true,
   "framework": "react",
-  "language": "ts",
-  "buildCommand": "vite build",
+  "build": {
+    "outputDir": "dist",
+    "swFilename": "sw"
+  },
   "features": {
-    "mutationQueue": true,
-    "backgroundSync": false,
-    "crossTabSync": false,
-    "tagInvalidation": true,
     "pwa": {
-      "enabled": false
-    },
-    "auth": {
       "enabled": true,
+      "preventDefaultInstall": false
+    },
+    "serviceWorker": {
+      "version": {
+        "enabled": true,
+        "source": "from-package",
+        "minSupportedVersion": "1.0.0"
+      },
+      "autoUpdate": true,
+      "autoActivate": false,
+      "defaultStrategy": "cache-first",
+      "strategies": {
+        "/api/*": "network-first",
+        "/static/*": "cache-first"
+      },
+      "clearRuntimeOnUpdate": false,
+      "navigationMode": "spa",
+      "spaEntry": "/index.html"
+    },
+    "mutationQueue": false,
+    "backgroundSync": false,
+    "auth": {
+      "enabled": false,
       "type": "bearer",
       "refreshPath": "/api/refresh",
       "userEndpoint": "/api/me"
-    }
+    },
+    "crossTabSync": true,
+    "tagInvalidation": true
   }
 }
 ```
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `$schema` | `string` | — | JSON Schema URL |
+| `enabled` | `boolean` | `true` | Enable Swoff |
 | `framework` | `"react"` \| `"vue"` \| `"svelte"` \| `"vanilla"` | auto | Your UI framework |
-| `language` | `"ts"` \| `"js"` | auto | TypeScript or JavaScript output |
-| `buildCommand` | `string` | auto | Your build command (detected from `package.json`) |
+| `build.outputDir` | `string` | `"dist"` | Build output directory |
+| `build.swFilename` | `string` | `"sw"` | Service worker filename prefix |
+| `features.pwa.enabled` | `boolean` | `true` | PWA install + manifest |
+| `features.pwa.preventDefaultInstall` | `boolean` | `false` | Prevent default install prompt |
+| `features.serviceWorker.version.enabled` | `boolean` | `true` | Enable versioned SW |
+| `features.serviceWorker.version.source` | `"from-package"` \| `"manual"` | `"from-package"` | Version source |
+| `features.serviceWorker.version.value` | `string` | — | Manual version (required if source is `"manual"`) |
+| `features.serviceWorker.version.minSupportedVersion` | `string` | `"0.0.0"` | Min supported SW version |
+| `features.serviceWorker.autoUpdate` | `boolean` | `true` | Auto-update SW |
+| `features.serviceWorker.autoActivate` | `boolean` | `false` | Auto-activate SW |
+| `features.serviceWorker.defaultStrategy` | `string` | `"cache-first"` | Default cache strategy |
+| `features.serviceWorker.strategies` | `object` | `{}` | Per-route caching strategies |
+| `features.serviceWorker.clearRuntimeOnUpdate` | `boolean` | `false` | Clear runtime cache on update |
+| `features.serviceWorker.navigationMode` | `"spa"` \| `"default"` | `"spa"` | Navigation caching mode |
+| `features.serviceWorker.spaEntry` | `string` | `"/index.html"` | SPA entry for nav fallback |
 | `features.mutationQueue` | `boolean` | `false` | Offline write queue |
 | `features.backgroundSync` | `boolean` | `false` | Background Sync API |
-| `features.crossTabSync` | `boolean` | `false` | Cross-tab broadcast |
-| `features.tagInvalidation` | `boolean` | `false` | Tag-based cache invalidation |
-| `features.pwa.enabled` | `boolean` | `false` | PWA install + manifest |
 | `features.auth.enabled` | `boolean` | `false` | Auth module |
-| `features.auth.type` | `"bearer"` \| `"cookie"` \| `"custom"` | — | Auth strategy |
+| `features.auth.type` | `"bearer"` \| `"cookie"` \| `"custom"` | `"bearer"` | Auth strategy |
 | `features.auth.refreshPath` | `string` | `"/api/refresh"` | Token refresh endpoint |
 | `features.auth.userEndpoint` | `string` | `"/api/me"` | Current user endpoint |
+| `features.crossTabSync` | `boolean` | `false` | Cross-tab broadcast |
+| `features.tagInvalidation` | `boolean` | `false` | Tag-based cache invalidation |
 
 ---
 

@@ -147,6 +147,10 @@ This deletes `swoff/`, `swoff.config.json`, `version.json`, and removes the SW g
         "/api/*": "network-first",
         "/static/*": "cache-first"
       },
+      "cacheStrategy": "all",
+      "maxCacheEntries": 100,
+      "maxCacheAge": 86400000,
+      "runtimeCacheName": "swoff-runtime",
       "clearRuntimeOnUpdate": false,
       "navigationMode": "spa",
       "spaEntry": "/index.html"
@@ -182,6 +186,10 @@ This deletes `swoff/`, `swoff.config.json`, `version.json`, and removes the SW g
 | `features.serviceWorker.autoActivate` | `boolean` | `false` | Auto-activate SW |
 | `features.serviceWorker.defaultStrategy` | `string` | `"cache-first"` | Default cache strategy |
 | `features.serviceWorker.strategies` | `object` | `{}` | Per-route caching strategies |
+| `features.serviceWorker.cacheStrategy` | `"all"` \| `"explicit-only"` | `"all"` | When to apply caching strategies. `"all"`: every GET/HEAD; `"explicit-only"`: only if `X-SW-Cache-Strategy` header is present |
+| `features.serviceWorker.maxCacheEntries` | `number` | — | Max runtime cache entries (0 = unlimited) |
+| `features.serviceWorker.maxCacheAge` | `number` | — | Max runtime cache age in ms (0 = unlimited) |
+| `features.serviceWorker.runtimeCacheName` | `string` | `"swoff-runtime"` | Runtime cache name |
 | `features.serviceWorker.clearRuntimeOnUpdate` | `boolean` | `false` | Clear runtime cache on update |
 | `features.serviceWorker.navigationMode` | `"spa"` \| `"default"` | `"spa"` | Navigation caching mode |
 | `features.serviceWorker.spaEntry` | `string` | `"/index.html"` | SPA entry for nav fallback |
@@ -229,10 +237,8 @@ swoff/
 ├── swoff.d.ts             # TypeScript declarations for all generated modules
 │
 ├── auth/                  # Generated when auth.enabled is true
-│   ├── store.ts           # Token/user persistence (memory + IndexedDB)
-│   │   Exports: setAuth(), getAuth(), clearAuth(), isAuthValid(), createAuthFromResponse()
-│   ├── fetch.ts           # Auth-aware fetch wrapper — wraps fetchWithCache
-│   │   Exports: authenticatedFetch(), ensureValidAuth()
+│   ├── store.ts           # Token/user persistence (memory + IndexedDB) + auth header helpers
+│   │   Exports: setAuth(), getAuth(), clearAuth(), isAuthValid(), createAuthFromResponse(), ensureValidAuth(), withAuthHeaders()
 │   ├── user.ts            # User data caching
 │   │   Exports: fetchCurrentUser(), getCachedUser(), cacheUser(), clearCachedUser()
 │   └── state.ts           # Online/offline × auth state detection
@@ -265,10 +271,20 @@ swoff/
 
 ## Cache Strategies
 
-The service worker applies a caching strategy to every read request (GET, HEAD, or requests with `type: "read"`). Strategy resolution:
+The service worker applies a caching strategy to GET/HEAD requests based on `features.serviceWorker.cacheStrategy`:
 
-1. Check `features.serviceWorker.strategies` in `swoff.config.json` for matching URL pattern
-2. Fall back to `features.serviceWorker.defaultStrategy` (default: `"cache-first"`)
+| Mode | Behavior |
+|------|----------|
+| `"all"` (default) | All GET/HEAD requests go through the strategy system. Plain `fetch()` calls are cached by the SW just like `fetchWithCache()` calls. |
+| `"explicit-only"` | Only requests with a `X-SW-Cache-Strategy` header are processed by the SW strategy system. Plain `fetch()` calls pass through the SW unmodified. `fetchWithCache()` sets this header automatically — use it for all API calls to ensure caching works. |
+
+### Strategy resolution (3 tiers, highest to lowest priority)
+
+1. **Per-request override** — set `strategy` or `staleWhileRevalidate` on any `fetchWithCache(options)`. Sends `X-SW-Strategy` header to the SW.
+2. **URL pattern match** — `features.serviceWorker.strategies` object maps URL prefixes (e.g. `/api/*`) to strategies.
+3. **Default** — `features.serviceWorker.defaultStrategy` (default: `"cache-first"`).
+
+### Available strategies
 
 | Strategy | Behavior | Best for |
 |----------|----------|----------|
@@ -278,7 +294,18 @@ The service worker applies a caching strategy to every read request (GET, HEAD, 
 | `cache-only` | Serve from cache only. Returns 404 if missing. | Offline-critical assets that must always be available |
 | `network-only` | Always fetch, never cache. | Sensitive or real-time data, payment flows |
 
-Per-request override: set `staleWhileRevalidate: true` on any `fetchWithCache(options)` to use stale-while-revalidate for that request regardless of the configured strategy.
+### Request dispatch flow
+
+Every GET/HEAD request goes through this flow in the SW:
+
+```
+navigation (SPA fallback) → precache hit? → strategy dispatch → pass-through
+```
+
+- **Navigation requests** (SPA mode): if no cached response is found, the SPA entry (`/index.html` by default) is served as a fallback.
+- **Precache**: build assets cached at install time are checked first.
+- **Strategy**: the resolved strategy (via the 3-tier priority above) determines how the request is cached and served.
+- **Pass-through**: if no strategy matches, the request goes to the network.
 
 ---
 
@@ -331,6 +358,7 @@ All `RequestInit` fields are supported (`method`, `body`, `headers`, `credential
 | `queueOffline` | `boolean` | `true` | When offline, queue writes to IndexedDB for later replay |
 | `invalidate` | `'auto' \| string[] \| false` | `'auto'` | Auto-invalidate cache tags after a successful mutation |
 | `type` | `'read' \| 'mutation'` | auto-detected | Override read/mutation detection |
+| `strategy` | `'cache-first' \| 'network-first' \| 'stale-while-revalidate' \| 'cache-only' \| 'network-only'` | — | Override caching strategy per-request (highest priority, overrides config strategies and default) |
 
 ### Behavior
 
@@ -340,7 +368,7 @@ All `RequestInit` fields are supported (`method`, `body`, `headers`, `credential
 - **Dedup**: in-flight GETs to the same URL return a single promise (cloned response).
 - **Auto-tags**: when `tagInvalidation` is enabled, tags are derived from the URL for read requests.
 - **Auto-invalidate**: after a successful mutation, matching cache tags are invalidated so the SW re-fetches fresh data.
-- **Auth**: when `auth: true`, attaches Bearer token via `getAuth()`. Dispatches `sw-auth-unauthorized` on 401 and clears auth.
+- **Auth**: when `auth: true`, attaches auth headers via `withAuthHeaders()` (supports bearer, cookie, and custom). Dispatches `sw-auth-unauthorized` on 401 and clears auth.
 
 ### Return value
 
@@ -357,24 +385,25 @@ All `RequestInit` fields are supported (`method`, `body`, `headers`, `credential
 
 The auth module is generated when `features.auth.enabled` is `true`. It manages authentication state with a **memory-only token** (never persisted to disk) and optional IndexedDB caching for offline user display.
 
-### authenticatedFetch(input, options?)
-
-An auth-aware wrapper around `fetchWithCache`. Use for all authenticated requests.
+There is no separate auth fetch wrapper — `fetchWithCache` handles all auth types
+natively. Just pass `{ auth: true }`:
 
 ```js
-import { authenticatedFetch } from "./swoff/auth/fetch.js";
+import { fetchWithCache } from "./swoff/fetch-wrapper.js";
 
 // Attaches auth headers, bypasses SW cache for auth URLs, handles 401
-const user = await authenticatedFetch("/api/me").then((r) => r.json());
+const { response } = await fetchWithCache("/api/me", { auth: true });
+const user = await response.json();
 
-// Mutations too — no separate wrapper needed
-await authenticatedFetch("/api/todos", {
+// Mutations too
+await fetchWithCache("/api/todos", {
   method: "POST",
+  auth: true,
   body: JSON.stringify({ title: "New" }),
 });
 ```
 
-**What it adds over fetchWithCache:**
+**What `auth: true` does:**
 
 | Step | What happens |
 |------|-------------|
@@ -382,12 +411,9 @@ await authenticatedFetch("/api/todos", {
 | 2 | Calls `withAuthHeaders(headers, auth)` — injects Bearer token, cookie, or custom header based on `auth.type` in config |
 | 3 | Marks auth endpoints (`/login`, `/logout`, `/register`, `refreshPath`, `userEndpoint`) as `"mutation"` strategy so the SW never caches them |
 | 4 | For `auth.type: "cookie"`, sets `credentials: "include"` |
-| 5 | Delegates to `fetchWithCache(input, options)` |
-| 6 | On 401 response: calls `clearAuth()`, dispatches `sw-auth-unauthorized` event |
+| 5 | On 401 response: calls `clearAuth()`, dispatches `sw-auth-unauthorized` event |
 
-**Parameters:** `input: RequestInfo` + all `fetchWithCache` options + `type?: 'read' | 'mutation'`
-
-**Returns:** `Promise<Response>` (unwrapped — no `fromCache` property)
+**Returns:** `{ response: Response, fromCache: boolean }` — same as any `fetchWithCache` call
 
 ### Auth functions
 
@@ -411,7 +437,7 @@ await authenticatedFetch("/api/todos", {
 |-------------|------------------------|-------|
 | `"bearer"` | `Authorization: Bearer <token>` | Token in memory only. Re-login required after page refresh. Use `refreshPath` for token refresh. |
 | `"cookie"` | No explicit header. `credentials: "include"` is set for all requests. | HttpOnly cookie handled by the server. |
-| `"custom"` | **Edit the `withAuthHeaders` function** in `auth/fetch.ts` | Full control over header injection. |
+| `"custom"` | **Edit the `withAuthHeaders` function** in `auth/store.ts` | Full control over header injection. |
 
 ---
 

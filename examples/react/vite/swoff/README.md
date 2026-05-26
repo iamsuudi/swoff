@@ -16,8 +16,8 @@ const data = await fetchWithCache("/api/data").then(r => r.json());
 
 ## Authenticated API calls
 ```ts
-import { authenticatedFetch } from "./swoff/auth/fetch.ts";
-const data = await authenticatedFetch("/api/me").then(r => r.json());
+import { fetchWithCache } from "./swoff/fetch-wrapper.ts";
+const data = await fetchWithCache("/api/me", { auth: true }).then(r => r.json());
 ```
 
 ## Offline mutations (queue writes when offline)

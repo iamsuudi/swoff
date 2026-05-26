@@ -27,5 +27,8 @@ export function generateSwTemplate(ctx: GeneratorContext): void {
     "// [[AUTO_SKIP_WAITING]]",
   );
 
+  // Dev mode fallback — if placeholders weren't replaced, use a dev cache name
+  code += `\n// Dev mode fallback\nif (!CACHE_NAME) CACHE_NAME = "sw-dev-cache";\n`;
+
   writeFile(ctx, "sw/template.js", code);
 }

@@ -23,15 +23,18 @@ const SWOFF = {
   cache: {
     async get(key) {
       const cache = await caches.open(CACHE_NAME);
-      return cache.match(key);
+      const cacheKey = typeof key === "string" ? key : new URL(key.url).pathname;
+      return cache.match(cacheKey);
     },
     async put(request, response) {
       const cache = await caches.open(CACHE_NAME);
-      await cache.put(request, response);
+      const cacheKey = typeof request === "string" ? request : new URL(request.url).pathname;
+      await cache.put(cacheKey, response);
     },
     async delete(request) {
       const cache = await caches.open(CACHE_NAME);
-      return cache.delete(request);
+      const cacheKey = typeof request === "string" ? request : new URL(request.url).pathname;
+      return cache.delete(cacheKey);
     }
   },
   network: {

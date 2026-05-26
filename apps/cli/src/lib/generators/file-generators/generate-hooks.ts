@@ -27,7 +27,7 @@ function writePWAHooks(dir: string, ext: string) {
   writeFileSync(
     join(dir, `usePWAUpdate.${ext}x`),
     `import { useState, useEffect, useCallback } from "react";
-import { handleUpdateApproved } from "../client-injector.${ext}";
+import { handleUpdateApproved } from "../sw/injector.${ext}";
 
 export function usePWAUpdate() {
   const [state, setState] = useState({

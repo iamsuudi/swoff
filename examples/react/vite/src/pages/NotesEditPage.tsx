@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { authenticatedFetch } from "../../swoff/auth/fetch";
+import { fetchWithCache } from "../../swoff/fetch-wrapper";
 import { generateTags, invalidateByMethod } from "../../swoff/invalidation-tags";
 import { queueMutation } from "../../swoff/mutation-queue";
 import NoteForm from "../components/NoteForm";
@@ -16,7 +16,7 @@ export default function NotesEditPage() {
     (async () => {
       try {
         setIsLoading(true);
-        const res = await authenticatedFetch(`/api/notes/${id}`, { tags: generateTags(`/api/notes/${id}`) });
+        const { response: res } = await fetchWithCache(`/api/notes/${id}`, { auth: true, tags: generateTags(`/api/notes/${id}`) });
         setNote(await res.json());
       } catch { setNote(null); }
       finally { setIsLoading(false); }
@@ -32,8 +32,9 @@ export default function NotesEditPage() {
       return;
     }
 
-    await authenticatedFetch(`/api/notes/${id}`, {
+    await fetchWithCache(`/api/notes/${id}`, {
       method: "PUT",
+      auth: true,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });

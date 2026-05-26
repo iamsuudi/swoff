@@ -27,6 +27,7 @@ export interface SwoffConfig {
       autoActivate: boolean;
       defaultStrategy: string;
       strategies: Record<string, string>;
+      cacheStrategy?: "all" | "explicit-only";
       maxCacheEntries?: number;
       maxCacheAge?: number;
       runtimeCacheName?: string;
@@ -122,6 +123,7 @@ export const defaultConfig: SwoffConfig = {
       autoActivate: false,
       defaultStrategy: "cache-first",
       strategies: {},
+      cacheStrategy: "all",
       clearRuntimeOnUpdate: false,
       navigationMode: "spa",
       spaEntry: "/index.html",

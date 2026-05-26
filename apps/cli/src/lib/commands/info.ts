@@ -45,12 +45,12 @@ const FEATURES: Record<string, FeatureInfo> = {
     label: "Auth",
     description:
       "Token-based authentication with memory-only tokens, IndexedDB user caching, and auth-aware fetch with automatic 401 handling.",
-    files: ["auth/store.ts", "auth/fetch.ts", "auth/user.ts", "auth/state.ts"],
+    files: ["auth/store.ts", "auth/user.ts", "auth/state.ts"],
     functions: [
       "setAuth(authData) / getAuth() / clearAuth() — manage auth state",
       "isAuthValid(auth) — check expiry",
       "createAuthFromResponse(response) — extract AuthData from login response (edit this)",
-      "authenticatedFetch(input, options) — auth-aware fetch wrapper",
+      "fetchWithCache(input, { auth: true }) — auth-aware fetch (handles bearer, cookie, custom)",
       "ensureValidAuth() — check expiry and refresh token",
       "fetchCurrentUser() / getCachedUser() / cacheUser(user) / clearCachedUser() — user caching",
       "getAuthState() — detect 4-state matrix (online/offline × authenticated/not)",

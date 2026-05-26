@@ -1,6 +1,7 @@
 /**
- * Generates auth-store.ts/js — token storage with memory-only for token,
- * IndexedDB for offline user info only (no token persisted).
+ * Generates auth-store.ts/js — token storage, auth headers, auth URL detection,
+ * and token refresh. All auth logic lives here so fetch-wrapper can import it
+ * without circular dependencies.
  *
  * Security: the Bearer token lives in memory only and is cleared on page
  * refresh. Only { user, expiresAt } is persisted to IndexedDB for offline
@@ -8,6 +9,107 @@
  */
 
 import { GeneratorContext, writeFile } from "./context.js";
+
+function generateWithAuthHeaders(authType: string, ts: boolean, R: (t: string) => string, T: (t: string) => string): string {
+  const a = T("AuthData | null");
+  const h = T("Headers");
+  const hd = T("Headers");
+  switch (authType) {
+    case "cookie":
+      return `/** Inject auth headers. For cookie auth, credentials are handled via AUTH_WITH_CREDENTIALS. */
+export function withAuthHeaders(headers${hd}, _auth${a})${h}{
+  return headers;
+}`;
+    case "bearer":
+      return `/** Inject Bearer token into request headers. */
+export function withAuthHeaders(headers${hd}, auth${a})${h}{
+  if (auth?.token) {
+    headers.set("Authorization", \`Bearer \${auth.token}\`);
+  }
+  return headers;
+}`;
+    case "custom":
+      return `/** Inject custom auth headers. Edit this function to match your backend. */
+export function withAuthHeaders(headers${hd}, auth${a})${h}{
+  // --- EDIT THIS BLOCK FOR YOUR BACKEND ---
+  // if (auth?.token) {
+  //   headers.set("X-Auth-Token", auth.token);
+  // }
+  // --- END OF EDITABLE BLOCK ---
+  return headers;
+}`;
+    default:
+      return `export function withAuthHeaders(headers${hd}, auth${a})${h}{
+  if (auth?.token) {
+    headers.set("Authorization", \`Bearer \${auth.token}\`);
+  }
+  return headers;
+}`;
+  }
+}
+
+function generateIsAuthUrl(refreshPath: string, userEndpoint: string, ts: boolean, R: (t: string) => string, T: (t: string) => string): string {
+  return `/** Check if a URL is an auth endpoint that should bypass the SW cache. */
+export function isAuthUrl(url${T("string")})${R("boolean")}{
+  const authPaths = [
+    "/login",
+    "/logout",
+    "/register",
+    "/api/login",
+    "/api/logout",
+    "/api/register",
+    "${refreshPath}",
+    "${userEndpoint}",
+  ];
+  return authPaths.some((path) => url.includes(path));
+}`;
+}
+
+function generateEnsureValidAuth(cookieAuth: boolean, ts: boolean, R: (t: string) => string, T: (t: string) => string, PT: (t: string) => string, refreshPath: string, ext: string): string {
+  const cr = cookieAuth ? `  credentials: "include" as RequestCredentials,` : "";
+  return `/** Refresh the auth token via the refresh endpoint. Uses plain fetch to bypass SW cache. */
+let refreshPromise${T("Promise<AuthData | null> | null")} = null;
+
+export async function ensureValidAuth()${R("Promise<AuthData | null>")}{
+  const auth = await getAuth();
+  if (!auth) return null;
+  if (!auth.expiresAt || Date.now() < auth.expiresAt) return auth;
+
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const headers = new Headers({ "Content-Type": "application/json" });
+      withAuthHeaders(headers, auth);
+      try {
+        const response = await fetch("${refreshPath}", {
+          method: "POST",
+          headers,
+${cr}      });
+
+        if (!response.ok) {
+          await clearAuth();
+          window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
+          return null;
+        }
+
+        const data = await response.json();
+        const updated = { ...auth, token: data.token, expiresAt: data.expiresAt };
+        await setAuth(updated);
+        return updated;
+      } catch {
+        await clearAuth();
+        window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
+        return null;
+      }
+    })();
+  }
+
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
+}`;
+}
 
 export function generateAuthStore(ctx: GeneratorContext): void {
   const ext = ctx.ext;
@@ -17,6 +119,9 @@ export function generateAuthStore(ctx: GeneratorContext): void {
   const R = (type: string) => (ts ? `: ${type} ` : " ");
   const PT = (type: string) => (ts ? `<${type}>` : "");
   const AS = (type: string) => (ts ? ` as ${type}` : "");
+
+  const authConfig = ctx.config.features.auth;
+  const { refreshPath, userEndpoint, type } = authConfig;
 
   const authDataInterface = ts
     ? `export interface AuthData {
@@ -160,6 +265,12 @@ export function isAuthValid(auth${T("AuthData | null")})${R("boolean")}{
   if (!auth.expiresAt) return true;
   return Date.now() < auth.expiresAt;
 }
+
+${type === "cookie" ? `export const AUTH_WITH_CREDENTIALS = true;` : `export const AUTH_WITH_CREDENTIALS = false;`}
+
+${generateWithAuthHeaders(type, ts, R, T)}
+${generateIsAuthUrl(refreshPath, userEndpoint, ts, R, T)}
+${generateEnsureValidAuth(type === "cookie", ts, R, T, PT, refreshPath, ext)}
 `;
 
   writeFile(ctx, `auth/store.${ext}`, code);

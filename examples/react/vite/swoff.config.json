@@ -32,7 +32,7 @@
     "backgroundSync": true,
     "auth": {
       "enabled": true,
-      "type": "custom",
+      "type": "cookie",
       "refreshPath": "/api/refresh",
       "userEndpoint": "/api/me"
     },

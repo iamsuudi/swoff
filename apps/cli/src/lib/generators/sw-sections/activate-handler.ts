@@ -7,11 +7,11 @@ export function generateActivateHandler(clearRuntimeOnUpdate?: boolean): string 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
+      await self.clients.claim();
       const keys = await caches.keys();
       await Promise.all(
         ${cacheCleanup}.map((key) => caches.delete(key))
       );
-      await self.clients.claim();
     })()
   );
 });`;

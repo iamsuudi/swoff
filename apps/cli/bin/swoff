@@ -1,24 +1,18 @@
 #!/usr/bin/env node
 
-import { spawn } from 'child_process';
-import { existsSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const binDir = dirname(fileURLToPath(import.meta.url));
-const distDir = join(binDir, '..', 'dist');
-const entryPoint = join(distDir, 'index.js');
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const entryPoint = join(__dirname, '..', 'dist', 'index.js');
 
 if (!existsSync(entryPoint)) {
   console.error('Error: CLI not built. Run: npm run build');
   process.exit(1);
 }
 
-const proc = spawn('node', [entryPoint, ...process.argv.slice(2)], {
-  stdio: 'inherit',
-  cwd: process.cwd(),
-});
-
-proc.on('exit', (code) => {
-  process.exit(code || 0);
+import(entryPoint).catch((err) => {
+  console.error('Error:', err instanceof Error ? err.message : String(err));
+  process.exit(1);
 });

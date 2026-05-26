@@ -37,5 +37,16 @@
     }
   ],
   "nextNoteId": 4,
-  "sessions": []
+  "sessions": [
+    {
+      "id": "23d7f737-d325-4a0d-826b-5ce939ce9964",
+      "userId": 1,
+      "createdAt": "2026-05-26T10:54:03.169Z"
+    },
+    {
+      "id": "23f2074e-018d-49bc-b280-58f84fb51a66",
+      "userId": 1,
+      "createdAt": "2026-05-26T10:56:19.501Z"
+    }
+  ]
 }

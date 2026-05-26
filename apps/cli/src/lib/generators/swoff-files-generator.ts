@@ -29,7 +29,6 @@ import { generatePwaInstall } from "./file-generators/pwa-install.js";
 import { generateManifest } from "./file-generators/manifest.js";
 import { generateInvalidationTags } from "./file-generators/invalidation-tags.js";
 import { generateAuthStore } from "./file-generators/auth-store.js";
-import { generateAuthFetch } from "./file-generators/auth-fetch.js";
 import { generateAuthUser } from "./file-generators/auth-user.js";
 import { generateAuthState } from "./file-generators/auth-state.js";
 import { generateSwGeneratorBuild } from "./file-generators/sw-generator-build.js";
@@ -55,7 +54,6 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
     { name: "mutation-queue", gen: () => generateMutationQueue(ctx), enabled: ctx.config.features.mutationQueue },
     { name: "background-sync", gen: () => generateBackgroundSync(ctx), enabled: ctx.config.features.backgroundSync },
     { name: "auth-store", gen: () => generateAuthStore(ctx), enabled: ctx.config.features.auth.enabled },
-    { name: "auth-fetch", gen: () => generateAuthFetch(ctx), enabled: ctx.config.features.auth.enabled },
     { name: "auth-user", gen: () => generateAuthUser(ctx), enabled: ctx.config.features.auth.enabled },
     { name: "auth-state", gen: () => generateAuthState(ctx), enabled: ctx.config.features.auth.enabled },
     { name: "sw-generator", gen: () => generateSwGeneratorBuild(ctx), enabled: true },
@@ -78,14 +76,13 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
 }
 
 // --- CLI entry point ---
-const args = process.argv.slice(2);
-
-function getArg(name: string): string | null {
-  const idx = args.findIndex((arg) => arg === `--${name}`);
-  return idx !== -1 ? args[idx + 1] : null;
-}
-
 if (fileURLToPath(import.meta.url) === fileURLToPath(new URL(process.argv[1], "file:"))) {
+  const args = process.argv.slice(2);
+  const getArg = (name: string): string | null => {
+    const idx = args.indexOf(`--${name}`);
+    return idx !== -1 ? args[idx + 1] : null;
+  };
+
   const projectRoot = getArg("project-root") || process.cwd();
   const language = getArg("language") || "ts";
   const configPath = getArg("config-path") || join(projectRoot, "swoff.config.json");

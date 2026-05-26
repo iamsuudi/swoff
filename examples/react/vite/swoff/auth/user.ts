@@ -9,7 +9,7 @@
  *   await clearCachedUser();            // Clear on logout
  */
 
-import { authenticatedFetch } from "./fetch.ts";
+import { fetchWithCache } from "../fetch-wrapper.ts";
 
 const DB_NAME = "swoff-auth-user";
 const STORE_NAME = "current-user";
@@ -30,7 +30,7 @@ function openAuthDB(): Promise<IDBDatabase> {
 
 /** Fetch current user from the user endpoint and cache the result in IndexedDB. */
 export async function fetchCurrentUser(): Promise<Record<string, unknown>> {
-  const response = await authenticatedFetch("/api/me");
+  const { response } = await fetchWithCache("/api/me", { auth: true });
   if (!response.ok) throw new Error("Failed to fetch user");
 
   const user = await response.json();

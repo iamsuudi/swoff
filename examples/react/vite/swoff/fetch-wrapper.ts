@@ -1,6 +1,7 @@
 /**
  * Swoff Fetch Wrapper
- * Unified fetch with caching, auth, offline queue, and auto-invalidation.
+ * Unified fetch with caching, auth, offline queue, auto-invalidation, and
+ * per-request strategy override.
  *
  * Usage:
  *   import { fetchWithCache } from './swoff/fetch-wrapper.ts';
@@ -15,13 +16,20 @@
  *     body: JSON.stringify({ title: "New task" }),
  *   });
  *
- *   // Authenticated request
+ *   // Authenticated request (works with bearer, cookie, custom)
  *   const { response: userRes } = await fetchWithCache("/api/me", { auth: true });
  *
  *   // Custom tags + stale-while-revalidate
  *   const { response: staleRes, fromCache } = await fetchWithCache("/api/data", {
  *     tags: ["data"],
  *     staleWhileRevalidate: true,
+ *   });
+ *
+ *   // Override caching strategy per-request (highest priority)
+ *   await fetchWithCache("/api/checkout", {
+ *     method: "POST",
+ *     type: "read",
+ *     strategy: "network-only",
  *   });
  *
  *   // Override method-based caching with explicit type
@@ -42,7 +50,7 @@
 
 import { generateTags } from "./invalidation-tags.ts";
 import { invalidateByTags } from "./cache.ts";
-import { getAuth, clearAuth } from "./auth/store.ts";
+import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, AUTH_WITH_CREDENTIALS } from "./auth/store.ts";
 import { queueMutation } from "./mutation-queue.ts";
 
 export interface FetchWithCacheResult {
@@ -57,12 +65,13 @@ export interface FetchWithCacheOptions extends RequestInit {
   queueOffline?: boolean;
   invalidate?: 'auto' | string[] | false;
   type?: 'read' | 'mutation';
+  strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only';
 }
 
 const inFlightRequests = new Map<string, Promise<Response>>();
 
-/** Fetch with caching, auth, offline queue, and auto-invalidation. Returns { response, fromCache }. */
-export async function fetchWithCache(input: RequestInfo, options: RequestInit & { tags?: string[]; staleWhileRevalidate?: boolean; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation' } = {}): Promise<FetchWithCacheResult> {
+/** Fetch with caching, auth, offline queue, auto-invalidation, and per-request strategy override. Returns { response, fromCache }. Use { auth: true } for authenticated requests — works with bearer, cookie, and custom auth types. */
+export async function fetchWithCache(input: RequestInfo, options: RequestInit & { tags?: string[]; staleWhileRevalidate?: boolean; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only' } = {}): Promise<FetchWithCacheResult> {
   const method = (options.method || "GET").toUpperCase();
   const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD"));
   const url = typeof input === "string" ? input : input.url;
@@ -86,22 +95,26 @@ export async function fetchWithCache(input: RequestInfo, options: RequestInit & 
     headers.set("X-SW-Cache-Tags", options.tags.join(","));
   }
 
-  if (options.staleWhileRevalidate) {
-    headers.set("X-SW-Stale", "true");
+  if (options.staleWhileRevalidate && !options.strategy) {
+    headers.set("X-SW-Strategy", "stale-while-revalidate");
+  }
+  if (options.strategy) {
+    headers.set("X-SW-Strategy", options.strategy);
   }
 
   if (options.auth) {
     const auth = await getAuth();
-    if (auth?.token) {
-      headers.set("Authorization", `Bearer ${auth.token}`);
-    }
+    withAuthHeaders(headers, auth);
   }
   // Auth endpoints bypass SW cache
-  const authPaths = ["/login", "/logout", "/register"];
-  if (options.auth && authPaths.some((p) => url.includes(p)) && !headers.has("X-SW-Cache-Strategy")) {
+  if (options.auth && isAuthUrl(url) && !headers.has("X-SW-Cache-Strategy")) {
     headers.set("X-SW-Cache-Strategy", "mutation");
   }
   const fetchOptions: RequestInit = { ...options, headers };
+
+  if (AUTH_WITH_CREDENTIALS) {
+    fetchOptions.credentials = "include";
+  }
 
   // Offline handling
   if (!navigator.onLine) {

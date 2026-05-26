@@ -49,7 +49,7 @@ await fetchWithCache("/api/todos", {
 
 **Returns** `{ response: Response, fromCache: boolean }` — `fromCache` lets the UI show stale indicators when a stale-while-revalidate fallback is served.
 
-**Note:** There is no separate `authenticatedMutation` wrapper. For authenticated writes, just use `authenticatedFetch` (see Auth section below).
+**Note:** For authenticated requests, pass `{ auth: true }` — there is no separate auth fetch wrapper.
 
 ### React Hook: `useCachedFetch`
 Re-fetches automatically when the SW invalidates related cache tags.
@@ -110,7 +110,7 @@ await syncWhenPossible({ method: "POST", url: "/api/todos", body: { ... } });
 Swoff's auth module manages authentication state with a **memory-only token** (never persisted to
 IndexedDB) and optional offline user info caching.
 
-Auth type: **custom**
+Auth type: **cookie**
 
 ### `auth/store.ts` — Token and user persistence
 ```ts
@@ -134,29 +134,31 @@ if (!isAuthValid(auth)) { /* redirect to login */ }
 - `isAuthValid(auth)` — check expiry
 - `createAuthFromResponse(response)` — extract AuthData from login response. **Edit this.**
 
-### `auth/fetch.ts` — Authenticated API calls
-Wraps `fetchWithCache` with automatic auth headers and 401 handling.
-No separate `authenticatedMutation` needed — just use `authenticatedFetch` for both reads and writes.
+### Authenticated API calls with fetchWithCache
+Use `fetchWithCache` with `auth: true` for all authenticated requests — no separate auth fetch needed.
 ```ts
-import { authenticatedFetch, ensureValidAuth } from "./swoff/auth/fetch.ts";
+import { fetchWithCache } from "./swoff/fetch-wrapper.ts";
+import { ensureValidAuth } from "./swoff/auth/store.ts";
 
 // Authenticated GET
-const user = await authenticatedFetch("/api/me").then(r => r.json());
+const { response } = await fetchWithCache("/api/me", { auth: true });
+const user = await response.json();
 
 // Authenticated POST (mutation)
-await authenticatedFetch("/api/todos", {
+await fetchWithCache("/api/todos", {
   method: "POST",
   body: JSON.stringify({ title: "New" }),
+  auth: true,
 });
 ```
 
 **Functions:**
-- `authenticatedFetch(input, options)` — auth-aware fetch. Attaches token, bypasses cache for auth endpoints, dispatches `sw-auth-unauthorized` on 401.
+- `fetchWithCache(input, options)` — pass `{ auth: true }` for auth headers, cache bypass for auth endpoints, and 401 handling.
 - `ensureValidAuth()` — check expiry and refresh token if needed (uses refreshPath from config).
 
 **Where to edit:**
-- The `isAuthUrl` function in `auth/fetch.ts` lists auth endpoints that bypass the SW cache. Edit this list if your backend uses different paths.
-- If your auth type is `custom`, edit the `withAuthHeaders` function.
+- The `isAuthUrl` function in `auth/store.ts` lists auth endpoints that bypass the SW cache. Edit this list if your backend uses different paths.
+- If your auth type is `custom`, edit the `withAuthHeaders` function in `auth/store.ts`.
 
 ### `auth/user.ts` — User data caching
 ```ts

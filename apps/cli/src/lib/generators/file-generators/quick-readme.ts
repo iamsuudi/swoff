@@ -27,6 +27,8 @@ export function generateReadme(ctx: GeneratorContext): void {
   }
 
   w("## API calls (use for all fetch requests)");
+  w("Use `fetchWithCache` instead of `fetch()` — it sets caching headers the SW needs.");
+  w("Plain `fetch()` skips SW caching when `cacheStrategy` is `\"explicit-only\"`.");
   w("```ts");
   w(`import { fetchWithCache } from "./swoff/fetch-wrapper.${ext}";`);
   w('const data = await fetchWithCache("/api/data").then(r => r.json());');
@@ -36,8 +38,8 @@ export function generateReadme(ctx: GeneratorContext): void {
   if (config.features.auth.enabled) {
     w("## Authenticated API calls");
     w("```ts");
-    w(`import { authenticatedFetch } from "./swoff/auth/fetch.${ext}";`);
-    w('const data = await authenticatedFetch("/api/me").then(r => r.json());');
+    w(`import { fetchWithCache } from "./swoff/fetch-wrapper.${ext}";`);
+    w('const data = await fetchWithCache("/api/me", { auth: true }).then(r => r.json());');
     w("```");
     w("");
   }

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { authenticatedFetch } from "../../swoff/auth/fetch";
+import { fetchWithCache } from "../../swoff/fetch-wrapper";
 import { queueMutation } from "../../swoff/mutation-queue";
 import { generateTags, invalidateByMethod } from "../../swoff/invalidation-tags";
 import NoteForm from "../components/NoteForm";
@@ -16,8 +16,9 @@ export default function NotesCreatePage() {
       return;
     }
 
-    const res = await authenticatedFetch("/api/notes", {
+    const { response: res } = await fetchWithCache("/api/notes", {
       method: "POST",
+      auth: true,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });

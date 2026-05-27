@@ -1,6 +1,7 @@
 /**
  * Swoff Mutation Queue
  * Queue offline writes and sync when connection returns.
+ * Supports configurable batch size, rate limiting, and exponential backoff.
  *
  * Usage:
  *   import { queueMutation, processMutationQueue, flushMutations, getPendingCount } from './swoff/mutation-queue.ts';
@@ -17,6 +18,12 @@
  *   await flushMutations();
  *
  *   // Auto-processes on online event
+ *
+ * Config:
+ *   batchSize: 5      — mutations per progress event
+ *   batchDelayMs: 1000 — delay between mutations (rate limiting)
+ *   maxRetries: 3      — max retries before dropping
+ *   retryBackoffMs: 2000 — exponential backoff base
  */
 
 import { getAuth } from "./auth/store.ts";
@@ -24,7 +31,14 @@ import { invalidateByTags } from "./cache.ts";
 import type { MutationQueueItem } from "./swoff.d.ts";
 const DB_NAME = "swoff-queue";
 const STORE_NAME = "mutations";
-const MAX_RETRIES = 5;
+const BATCH_SIZE = 5;
+const BATCH_DELAY_MS = 1000;
+const MAX_RETRIES = 3;
+const RETRY_BACKOFF_MS = 2000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 function openQueueDB(): Promise<IDBDatabase> {
   return new Promise<IDBDatabase>((resolve, reject) => {
@@ -44,7 +58,9 @@ function openQueueDB(): Promise<IDBDatabase> {
 let isSyncing = false;
 
 /** Store a write operation in IndexedDB for later sync. Works offline — use it for POST/PUT/PATCH/DELETE when the user might be offline. */
-export async function queueMutation(mutation: Partial<MutationQueueItem>): Promise<void> {
+export async function queueMutation(
+  mutation: Partial<MutationQueueItem>,
+): Promise<void> {
   const db = await openQueueDB();
   const tx = db.transaction(STORE_NAME, "readwrite");
   const store = tx.objectStore(STORE_NAME);
@@ -69,6 +85,7 @@ export async function queueMutation(mutation: Partial<MutationQueueItem>): Promi
     headers: mutation.headers || {},
     timestamp: Date.now(),
     retryCount: 0,
+    nextRetryAt: 0,
     tags: mutation.tags || [],
   });
 
@@ -80,26 +97,83 @@ export async function queueMutation(mutation: Partial<MutationQueueItem>): Promi
   window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
 }
 
-/** Process all queued mutations in order. Sends them to the server. Runs automatically on the online event. */
+/** Replay a single queued mutation. Returns true on success, false on failure. */
+async function replayMutation(item: MutationQueueItem): Promise<boolean> {
+  try {
+    const auth = await getAuth();
+    const authHeader: Record<string, string> = auth?.token
+      ? { Authorization: `Bearer ${auth.token}` }
+      : {};
+    let replayBody: BodyInit | null = null;
+    let contentType: string | undefined;
+    const bt = item.bodyType || "json";
+    if (bt === "formdata") {
+      replayBody = new FormData();
+      for (const [key, value] of (item.body || []) as [
+        string,
+        FormDataEntryValue,
+      ][]) {
+        replayBody.append(key, value);
+      }
+    } else if (bt === "blob") {
+      replayBody = item.body as BodyInit | null;
+    } else if (bt === "buffer") {
+      replayBody =
+        item.body instanceof ArrayBuffer
+          ? (new Uint8Array(item.body) as BodyInit)
+          : (item.body as BodyInit);
+    } else {
+      replayBody = JSON.stringify(item.body);
+      contentType = "application/json";
+    }
+    const response = await fetch(item.url, {
+      method: item.method,
+      headers: {
+        ...(contentType ? { "Content-Type": contentType } : {}),
+        ...authHeader,
+        ...item.headers,
+      },
+      body: replayBody,
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    if (item.tags && item.tags.length > 0) {
+      await invalidateByTags(item.tags);
+    }
+
+    await removeFromQueue(item.id);
+    return true;
+  } catch {
+    item.retryCount++;
+    item.nextRetryAt =
+      Date.now() + RETRY_BACKOFF_MS * Math.pow(2, item.retryCount - 1);
+    await updateInQueue(item);
+    return false;
+  }
+}
+
+/** Process all queued mutations in order. Sends them to the server. Runs automatically on the online event. Respects batchSize for progress reporting and batchDelayMs for rate limiting. */
 export async function processMutationQueue(): Promise<void> {
   if (!navigator.onLine || isSyncing) return;
   isSyncing = true;
 
   try {
-  const auth = await getAuth();
-  const authHeader: Record<string, string> = auth?.token ? { Authorization: `Bearer ${auth.token}` } : {};
     const db = await openQueueDB();
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
     const index = store.index("by-timestamp");
-    const queue: MutationQueueItem[] = await new Promise<MutationQueueItem[]>((resolve, reject) => {
-      const request = index.getAll();
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
+    const queue: MutationQueueItem[] = await new Promise<MutationQueueItem[]>(
+      (resolve, reject) => {
+        const request = index.getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      },
+    );
 
     let succeeded = 0;
     let failed = 0;
+    const total = queue.length;
 
     for (const item of queue) {
       if (item.retryCount >= MAX_RETRIES) {
@@ -108,51 +182,40 @@ export async function processMutationQueue(): Promise<void> {
         continue;
       }
 
-      try {
-        let replayBody: BodyInit | null = null;
-        let contentType: string | undefined;
-        const bt = item.bodyType || "json";
-        if (bt === "formdata") {
-          replayBody = new FormData();
-          for (const [key, value] of (item.body || []) as [string, FormDataEntryValue][]) {
-            replayBody.append(key, value);
-          }
-        } else if (bt === "blob") {
-          replayBody = item.body as BodyInit | null;
-        } else if (bt === "buffer") {
-          replayBody = item.body instanceof ArrayBuffer ? new Uint8Array(item.body) as BodyInit : item.body as BodyInit;
-        } else {
-          replayBody = JSON.stringify(item.body);
-          contentType = "application/json";
-        }
-        const response = await fetch(item.url, {
-          method: item.method,
-          headers: {
-            ...(contentType ? { "Content-Type": contentType } : {}),
-            ...authHeader,            ...item.headers,
-          },
-          body: replayBody,
-        });
+      // Skip items whose backoff delay hasn't elapsed yet
+      if (item.nextRetryAt && Date.now() < item.nextRetryAt) {
+        continue;
+      }
 
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        if (item.tags && item.tags.length > 0) {
-          await invalidateByTags(item.tags);
-        }
-
-        await removeFromQueue(item.id);
+      const ok = await replayMutation(item);
+      if (ok) {
         succeeded++;
-      } catch {
-        item.retryCount++;
-        await updateInQueue(item);
+      } else {
         failed++;
+      }
+
+      // Rate limiting delay between mutations
+      if (BATCH_DELAY_MS > 0 && succeeded + (failed - succeeded) < total) {
+        await sleep(BATCH_DELAY_MS);
+      }
+
+      // Emit progress after every BATCH_SIZE mutations
+      if (
+        (succeeded + failed) % BATCH_SIZE === 0 ||
+        succeeded + failed === total
+      ) {
+        window.dispatchEvent(
+          new CustomEvent("mutation-sync-complete", {
+            detail: { succeeded, failed, total, current: succeeded + failed },
+          }),
+        );
       }
     }
 
     window.dispatchEvent(
       new CustomEvent("mutation-sync-complete", {
-        detail: { succeeded, failed },
-      })
+        detail: { succeeded, failed, total },
+      }),
     );
   } finally {
     isSyncing = false;

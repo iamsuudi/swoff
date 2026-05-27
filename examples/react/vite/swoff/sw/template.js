@@ -80,6 +80,14 @@ self.addEventListener("message", (event) => {
   }
 });
 
+// --- Cache Key ---
+
+function cacheKey(request) {
+  const key = request.headers.get("X-SW-Cache-Key");
+  if (key) return new URL("/__swc/" + key, self.location.origin).href;
+  return new URL(request.url).href;
+}
+
 // --- Cache Helpers ---
 
 async function fromPrecache(request) {
@@ -89,21 +97,22 @@ async function fromPrecache(request) {
 
 async function fromRuntime(request) {
   const cache = await caches.open(CACHE_NAME_RUNTIME);
-  return cache.match(new URL(request.url).href);
+  return cache.match(cacheKey(request));
 }
 
 async function storeRuntime(request, response) {
   const cache = await caches.open(CACHE_NAME_RUNTIME);
-  await cache.put(new URL(request.url).href, response.clone());
+  await cache.put(cacheKey(request), response.clone());
 }
 
 async function cacheResponse(request, response) {
   await storeRuntime(request, response);
   const tagsHeader = request.headers.get("X-SW-Cache-Tags");
   if (tagsHeader) {
-    const url = new URL(request.url).href;
+    const cacheKeyUrl = cacheKey(request);
+    const actualUrl = new URL(request.url).href;
     const tags = tagsHeader.split(",").map((t) => t.trim());
-    await cacheTagUrl(url, tags);
+    await cacheTagUrl(cacheKeyUrl, actualUrl, tags);
   }
 }
 
@@ -159,7 +168,10 @@ function applyStrategy(event, request, config) {
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-  if (request.method !== "GET" && request.method !== "HEAD") return;
+  // Allow non-GET/HEAD when a cache key is explicitly provided (e.g. GraphQL)
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    if (!request.headers.get("X-SW-Cache-Key")) return;
+  }
   
   applyStrategy(event, request, determineCacheStrategy(event.request, {"/api/*":"network-first","/static/*":"cache-first"}, "cache-first"));
 });
@@ -187,8 +199,8 @@ async function cacheFirst(event, request, maxEntries, maxAge) {
   const cached = await fromRuntime(request);
   if (cached) {
     cleanStaleVersions();
-    if (staleVersions.has(request.url)) {
-      event.waitUntil(refreshCache(request).then(() => staleVersions.delete(request.url)));
+    if (staleVersions.has(cacheKey(request))) {
+      event.waitUntil(refreshCache(request).then(() => staleVersions.delete(cacheKey(request))));
     }
     return markFromCache(cached);
   }
@@ -260,7 +272,9 @@ async function staleWhileRevalidate(event, request, maxEntries, maxAge) {
 
 async function refreshCache(request) {
   try {
-    const response = await fetch(request);
+    const key = request.headers.get("X-SW-Cache-Key");
+    const fetchRequest = key ? new Request(new URL(request.url).href, { method: request.method, headers: request.headers, body: request.method !== "GET" ? request.body : undefined }) : request;
+    const response = await fetch(fetchRequest);
     if (response.ok) {
       await storeRuntime(request, response);
     }
@@ -273,8 +287,8 @@ async function cacheOnly(event, request, maxEntries, maxAge) {
   const cached = await fromRuntime(request);
   if (cached) {
     cleanStaleVersions();
-    if (staleVersions.has(request.url)) {
-      event.waitUntil(refreshCache(request).then(() => staleVersions.delete(request.url)));
+    if (staleVersions.has(cacheKey(request))) {
+      event.waitUntil(refreshCache(request).then(() => staleVersions.delete(cacheKey(request))));
     }
     return markFromCache(cached);
   }
@@ -319,20 +333,21 @@ function openTagDB() {
   });
 }
 
-async function cacheTagUrl(url, tags) {
+async function cacheTagUrl(url, actualUrl, tags) {
   const db = await openTagDB();
   const tx = db.transaction(TAG_STORE_NAME, "readwrite");
   const store = tx.objectStore(TAG_STORE_NAME);
-  store.put({ url, tags });
+  store.put({ url, actualUrl, tags });
   await new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
 }
 
-async function refetchAfterInvalidation(url) {
+async function refetchAfterInvalidation(url, actualUrl) {
+  const fetchUrl = actualUrl || url;
   try {
-    const response = await fetch(url);
+    const response = await fetch(fetchUrl);
     if (response.ok) {
       const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
       await runtimeCache.put(url, response);
@@ -372,7 +387,7 @@ async function invalidateByTag(tag) {
 
   // Background refetch each deleted URL; keep stale on failure
   for (const entry of entries) {
-    refetchAfterInvalidation(entry.url);
+    refetchAfterInvalidation(entry.url, entry.actualUrl);
   }
 
   const clients = await self.clients.matchAll();
@@ -448,9 +463,14 @@ self.addEventListener("sync", (event) => {
   }
 });
 
-const SW_DB_NAME = "swoff-queue";
-const SW_STORE_NAME = "mutations";
-const SW_MAX_RETRIES = 5;
+const SW_BATCH_SIZE = 5;
+const SW_BATCH_DELAY_MS = 1000;
+const SW_MAX_RETRIES = 3;
+const SW_RETRY_BACKOFF_MS = 2000;
+
+function swSleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 async function processMutationQueueInSW() {
   let succeeded = 0;
@@ -480,12 +500,19 @@ async function processMutationQueueInSW() {
       request.onerror = () => reject(request.error);
     });
 
+    const total = queue.length;
     for (const item of queue) {
       if (item.retryCount >= SW_MAX_RETRIES) {
         await removeFromSWQueue(db, item.id);
         failed++;
         continue;
       }
+
+      // Skip items whose backoff delay hasn't elapsed yet
+      if (item.nextRetryAt && Date.now() < item.nextRetryAt) {
+        continue;
+      }
+
       try {
         const response = await fetch(item.url, {
           method: item.method,
@@ -502,8 +529,14 @@ async function processMutationQueueInSW() {
         succeeded++;
       } catch {
         item.retryCount++;
+        item.nextRetryAt = Date.now() + SW_RETRY_BACKOFF_MS * Math.pow(2, item.retryCount - 1);
         await updateInSWQueue(db, item);
         failed++;
+      }
+
+      // Rate limiting delay between mutations
+      if (SW_BATCH_DELAY_MS > 0 && succeeded + failed < total) {
+        await swSleep(SW_BATCH_DELAY_MS);
       }
     }
   } catch (err) {

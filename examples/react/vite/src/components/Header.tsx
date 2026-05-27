@@ -5,6 +5,7 @@ import { clearAuth } from "../../swoff/auth/store";
 import { clearCachedUser } from "../../swoff/auth/user";
 import type { User } from "../types";
 import InstallButton from "./InstallButton";
+import PushSubscribeButton from "./PushSubscribeButton";
 
 export default function Header() {
   const navigate = useNavigate();
@@ -79,6 +80,7 @@ export default function Header() {
             About
           </Link>
           <InstallButton />
+          {authenticated && <PushSubscribeButton />}
           {authenticated ? (
             <div className="flex items-center gap-3">
               <span className="hidden text-xs text-gray-500 sm:inline dark:text-gray-400">

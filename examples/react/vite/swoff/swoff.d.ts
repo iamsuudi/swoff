@@ -64,6 +64,20 @@ export interface FetchWithCacheOptions extends RequestInit {
   staleWhileRevalidate?: boolean;
 }
 
+export interface GqlOptions {
+  variables?: Record<string, unknown>;
+  tags?: string[];
+  staleWhileRevalidate?: boolean;
+  auth?: boolean;
+  queueOffline?: boolean;
+  invalidate?: 'auto' | string[] | false;
+}
+
+export interface GqlResult<T> {
+  data: T;
+  fromCache: boolean;
+}
+
 export interface MutationQueueItem {
   id: string;
   method: string;
@@ -73,12 +87,14 @@ export interface MutationQueueItem {
   headers: Record<string, string>;
   timestamp: number;
   retryCount: number;
+  nextRetryAt?: number;
   tags: string[];
 }
 
 export interface MutationQueueResult {
   succeeded: number;
   failed: number;
+  total?: number;
 }
 
 export {};

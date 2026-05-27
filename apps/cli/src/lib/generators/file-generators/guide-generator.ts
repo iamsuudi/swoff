@@ -41,6 +41,71 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("- `skipWaiting()` — activates a waiting SW without reloading");
   w("");
 
+  // ── Stale Time & Auto-Refresh ──
+  wb("## ⏱️ Stale Time — fresh vs stale data");
+  w("`staleTime` controls how long cached data is considered **fresh** before it becomes **stale**.");
+  w("When data is fresh, the SW serves it immediately from cache — no network request.");
+  w("When data is stale, the SW serves the cached copy but triggers a **background refresh**,");
+  w("so the next read returns fresh data.");
+  w("");
+  w("This is different from `maxCacheAge` (which **evicts** old entries entirely). StaleTime keeps the");
+  w("entry usable while silently refreshing it — the user never sees a loading spinner.");
+  w("");
+  w("**3-tier staleTime resolution (like strategies):**");
+  w("1. **Per-request** — `fetchWithCache(url, { staleTime: 30 })` overrides everything");
+  w("2. **Route pattern** — `\"/api/*\": { staleTime: 60 }` in `swoff.config.json`");
+  w("3. **Global default** — `features.serviceWorker.staleTime`");
+  w("");
+  w("**How staleTime changes each strategy:**");
+  w("| Strategy | Fresh data (within staleTime) | Stale data (past staleTime) |");
+  w("|----------|------------------------------|----------------------------|");
+  w("| `cache-first` | Serve from cache, no network | Serve from cache + background refresh |");
+  w("| `network-first` | Serve from cache, skip network | Try network first, fall back to cache |");
+  w("| `stale-while-revalidate` | Serve from cache, no refresh | Serve + background refresh (was always-refresh) |");
+  w("| `cache-only` | Serve from cache | Serve from cache + best-effort refresh |");
+  w("| `network-only` | No effect | No effect |");
+  w("");
+
+  // ── Auto-refetch (Window Focus / Reconnect / Interval) ──
+  wb("## 🔄 Auto-refetch — keep data fresh automatically");
+  w("Three events can trigger an automatic refetch at the hook level:");
+  w("");
+  w("- **refetchOnWindowFocus**: When the user returns to the tab, re-fetch stale data");
+  w("- **refetchOnReconnect**: When the browser comes back online, re-fetch stale data");
+  w("- **refetchInterval**: Poll the server every N seconds for fresh data");
+  w("");
+  w("These are configured at 3 tiers too:");
+  w("- Global: `features.serviceWorker.refetchOnWindowFocus: true`");
+  w("- Per-route: `\"/api/*\": { refetchOnWindowFocus: false }`");
+  w("- Per-request: `useCachedFetch(url, { refetchOnWindowFocus: true })`");
+  w("");
+
+  if (ctx.frameworkName === "react") {
+    w("### React Hook: `useMutation`");
+    w("Track mutation state (loading, error, success) per-operation.");
+    w("```tsx");
+    w(`import { useMutation } from "./swoff/hooks/useMutation.${ext}x";`);
+    w("");
+    w('const { mutate, isLoading, isError, isSuccess, data, error, reset } = useMutation({');
+    w("  onSuccess: (data) => console.log('done', data),");
+    w("  onError: (err) => console.error('failed', err),");
+    w("});");
+    w("");
+    w('mutate("/api/todos", { method: "POST", body: JSON.stringify({ title: "New" }) });');
+    w("```");
+    w("");
+
+    w("### React Hook: `usePrefetch`");
+    w("Warm the cache proactively, e.g., on link hover.");
+    w("```tsx");
+    w(`import { usePrefetch } from "./swoff/hooks/usePrefetch.${ext}x";`);
+    w("");
+    w("const prefetch = usePrefetch();");
+    w('return <a onMouseEnter={() => prefetch("/api/todos")} href="/todos">Todos</a>;');
+    w("```");
+    w("");
+  }
+
   // ── Fetch Wrapper ──
   wb("## 🌐 fetchWithCache — API calls with caching");
   w("A drop-in replacement for `fetch()` that communicates with the service worker about caching strategy.");
@@ -129,13 +194,13 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("");
   w("### Available strategies");
   w("");
-  w("| Strategy | Behavior | Best for |");
-  w("|----------|----------|----------|");
-  w("| `cache-first` | Return cached if available, else fetch + cache. Default | Static assets, images, fonts |");
-  w("| `network-first` | Try network, cache on success, fall back to cache | API endpoints, dynamic content |");
-  w("| `stale-while-revalidate` | Return cached immediately, refresh in background | Fast UI, non-critical data |");
-  w("| `cache-only` | Serve from cache only (404 if missing) | Offline-critical assets |");
-  w("| `network-only` | Always fetch, never cache | Sensitive or real-time data |");
+  w("| Strategy | Behavior (without staleTime) | Behavior (with staleTime) | Best for |");
+  w("|----------|------------------------------|---------------------------|----------|");
+  w("| `cache-first` | Return cached if available, else fetch + cache. Default | Fresh: pure cache. Stale: cache + bg refresh | Static assets, images, fonts |");
+  w("| `network-first` | Try network, cache on success, fall back to cache | Fresh: pure cache (skip network!). Stale: try network | API endpoints, dynamic content |");
+  w("| `stale-while-revalidate` | Return cached immediately, refresh in background | Fresh: pure cache (no refresh). Stale: cache + bg refresh | Fast UI, non-critical data |");
+  w("| `cache-only` | Serve from cache only (404 if missing) | Fresh: pure cache. Stale: cache + best-effort refresh | Offline-critical assets |");
+  w("| `network-only` | Always fetch, never cache | No effect | Sensitive or real-time data |");
   w("");
 
   // ── GraphQL ──
@@ -564,6 +629,12 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("- `serviceWorker.cacheStrategy` — caching strategy mode (`\"all\"` or `\"explicit-only\"`)");
   w("- `serviceWorker.defaultStrategy` — default caching strategy");
   w("- `serviceWorker.strategies` — per-route strategy overrides");
+  w("- `serviceWorker.staleTime` — global stale time in seconds (data considered fresh for N seconds)");
+  w("- `serviceWorker.refetchOnWindowFocus` — auto-refetch on tab focus (hook-level)");
+  w("- `serviceWorker.refetchOnReconnect` — auto-refetch on reconnect");
+  w("- `serviceWorker.refetchInterval` — auto-refetch every N seconds");
+  w("- `serviceWorker.maxCacheEntries` — max entries in runtime cache (oldest evicted)");
+  w("- `serviceWorker.maxCacheAge` — max age of cache entries in ms");
   w("");
 
   w("---");

@@ -21,14 +21,20 @@
       "autoActivate": true,
       "defaultStrategy": "cache-first",
       "strategies": {
-        "/api/*": "network-first",
+        "/api/*": {
+          "strategy": "network-first",
+          "staleTime": 30
+        },
         "/static/*": "cache-first"
       },
+      "staleTime": 60,
       "cacheStrategy": "all",
       "clearRuntimeOnUpdate": false,
       "navigationPreload": true,
       "navigationMode": "spa",
-      "spaEntry": "/index.html"
+      "spaEntry": "/index.html",
+      "refetchOnWindowFocus": true,
+      "refetchOnReconnect": true
     },
     "mutationQueue": {
       "enabled": true,

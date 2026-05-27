@@ -176,8 +176,8 @@ describe("assembleSW", () => {
     };
     const sw = assembleSW(configWithTrim, "1.0.0");
     expect(sw).toContain("trimRuntimeCache");
-    expect(sw).toContain("MAX_CACHE_ENTRIES = 100");
-    expect(sw).toContain("MAX_CACHE_AGE = 0");
+    expect(sw).toContain("GLOBAL_MAX_ENTRIES = 100");
+    expect(sw).toContain("GLOBAL_MAX_AGE = 0");
   });
 
   it("includes trimRuntimeCache when maxCacheAge is set", () => {
@@ -193,8 +193,8 @@ describe("assembleSW", () => {
     };
     const sw = assembleSW(configWithTrim, "1.0.0");
     expect(sw).toContain("trimRuntimeCache");
-    expect(sw).toContain("MAX_CACHE_AGE = 86400000");
-    expect(sw).toContain("MAX_CACHE_ENTRIES = 0");
+    expect(sw).toContain("GLOBAL_MAX_AGE = 86400000");
+    expect(sw).toContain("GLOBAL_MAX_ENTRIES = 0");
   });
 
   it("excludes trimRuntimeCache when no trimming configured", () => {

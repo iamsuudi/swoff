@@ -84,21 +84,32 @@ export function generateReadme(ctx: GeneratorContext): void {
     w("");
   }
 
+  if (ctx.frameworkName === "react") {
+    w("## React hooks");
+    w("```tsx");
+    w(`import { useCachedFetch } from "./swoff/hooks/useCachedFetch.${ext}x";`);
+    w(`import { useMutation } from "./swoff/hooks/useMutation.${ext}x";`);
+    w(`import { usePrefetch } from "./swoff/hooks/usePrefetch.${ext}x";`);
+    w("");
+    w('const { data, error, loading, refetch } = useCachedFetch("/api/todos", {');
+    w('  refetchOnWindowFocus: true,');
+    w('});');
+    w("");
+    w('const { mutate } = useMutation({ onSuccess: (data) => console.log(data) });');
+    w('mutate("/api/todos", { method: "POST", body: JSON.stringify({ title: "New" }) });');
+    w("");
+    w('const prefetch = usePrefetch();');
+    w('prefetch("/api/todos");');
+    w("```");
+    w("");
+  }
+
   if (config.features.tagInvalidation) {
     w("## Cache invalidation");
     w("```ts");
     w(`import { generateTags, invalidateUrl } from "./swoff/invalidation-tags.${ext}";`);
     w('const data = await fetchWithCache("/api/todos", { tags: generateTags("/api/todos") });');
     w('await invalidateUrl("/api/todos/42"); // after mutation');
-    w("```");
-    w("");
-  }
-
-  if (ctx.frameworkName === "react") {
-    w("## React hook — auto-refetch on cache invalidation");
-    w("```tsx");
-    w(`import { useCachedFetch } from "./swoff/hooks/useCachedFetch.${ext}x";`);
-    w('const { data, error, loading, refetch } = useCachedFetch("/api/todos");');
     w("```");
     w("");
   }

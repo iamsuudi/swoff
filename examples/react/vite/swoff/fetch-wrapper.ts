@@ -1,10 +1,10 @@
 /**
  * Swoff Fetch Wrapper
- * Unified fetch with caching, auth, offline queue, auto-invalidation, and
+ * Unified fetch with caching, auth, offline queue, auto-invalidation, staleTime, prefetching, and
  * per-request strategy override.
  *
  * Usage:
- *   import { fetchWithCache } from './swoff/fetch-wrapper.ts';
+ *   import { fetchWithCache, prefetchCache } from './swoff/fetch-wrapper.ts';
  *
  *   // GET — cached with auto-generated tags
  *   const { response } = await fetchWithCache("/api/todos");
@@ -25,6 +25,12 @@
  *     staleWhileRevalidate: true,
  *   });
  *
+ *   // Set staleTime per-request (overrides config — SW handles bg refresh)
+ *   await fetchWithCache("/api/todos", { staleTime: 30 });
+ *
+ *   // Prefetch (fire-and-forget warm the cache)
+ *   prefetchCache("/api/todos");
+ *
  *   // Override caching strategy per-request (highest priority)
  *   await fetchWithCache("/api/checkout", {
  *     method: "POST",
@@ -32,13 +38,10 @@
  *     strategy: "network-only",
  *   });
  *
- *   // Override method-based caching with explicit type
- *   // Use type: "mutation" for POST-based reads (search, GraphQL)
- *   await fetchWithCache("/api/search", {
- *     method: "POST",
- *     type: "read",
- *     body: JSON.stringify({ query: "hello" }),
- *   });
+ *   // Support AbortController for cancellation
+ *   const controller = new AbortController();
+ *   setTimeout(() => controller.abort(), 5000);
+ *   const { response } = await fetchWithCache("/api/todos", { signal: controller.signal });
  *
  *   // Offline: auto-queues writes (disable with queueOffline: false)
  *   await fetchWithCache("/api/todos", {
@@ -58,6 +61,13 @@ export interface FetchWithCacheResult<T> {
   fromCache: boolean;
 }
 
+export interface ResolvedFetchConfig {
+  staleTime: number;
+  refetchOnWindowFocus: boolean;
+  refetchOnReconnect: boolean;
+  refetchInterval: number;
+}
+
 export interface FetchWithCacheOptions extends RequestInit {
   tags?: string[];
   staleWhileRevalidate?: boolean;
@@ -66,12 +76,13 @@ export interface FetchWithCacheOptions extends RequestInit {
   invalidate?: 'auto' | string[] | false;
   type?: 'read' | 'mutation';
   strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only';
+  staleTime?: number;
 }
 
 const inFlightRequests = new Map<string, Promise<Response>>();
 
 /** Fetch with caching, auth, offline queue, auto-invalidation, and per-request strategy override. Returns { response, fromCache }. Use { auth: true } for authenticated requests — works with bearer, cookie, and custom auth types. */
-export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit & { tags?: string[]; staleWhileRevalidate?: boolean; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only' } = {}): Promise<FetchWithCacheResult<T>> {
+export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit & { tags?: string[]; staleWhileRevalidate?: boolean; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only'; staleTime?: number } = {}): Promise<FetchWithCacheResult<T>> {
   const method = (options.method || "GET").toUpperCase();
   const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD"));
   const url = typeof input === "string" ? input : input.url;
@@ -100,6 +111,10 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
   }
   if (options.strategy) {
     headers.set("X-SW-Strategy", options.strategy);
+  }
+  // Pass staleTime to SW if set at per-request level
+  if (options.staleTime !== undefined) {
+    headers.set("X-SW-Stale-Time", String(options.staleTime));
   }
 
   if (options.auth) {
@@ -176,4 +191,11 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
   }
   const fromCache = response.headers.get("X-SW-From-Cache") === "true";
   return { response, fromCache };
+}
+
+/** Fire-and-forget prefetch: warms the cache for a URL without blocking. Useful for route prefetching or link hover prefetching. */
+export function prefetchCache(input: RequestInfo, options: RequestInit & { tags?: string[]; staleWhileRevalidate?: boolean; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only'; staleTime?: number } = {}): void {
+  fetchWithCache(input, { ...options }).catch(() => {
+    // Prefetch failures are intentionally silent
+  });
 }

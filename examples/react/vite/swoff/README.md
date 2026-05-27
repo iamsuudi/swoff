@@ -50,17 +50,28 @@ import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push
 const sub = await subscribeToPush("YOUR_VAPID_PUBLIC_KEY");
 ```
 
+## React hooks
+```tsx
+import { useCachedFetch } from "./swoff/hooks/useCachedFetch.tsx";
+import { useMutation } from "./swoff/hooks/useMutation.tsx";
+import { usePrefetch } from "./swoff/hooks/usePrefetch.tsx";
+
+const { data, error, loading, refetch } = useCachedFetch("/api/todos", {
+  refetchOnWindowFocus: true,
+});
+
+const { mutate } = useMutation({ onSuccess: (data) => console.log(data) });
+mutate("/api/todos", { method: "POST", body: JSON.stringify({ title: "New" }) });
+
+const prefetch = usePrefetch();
+prefetch("/api/todos");
+```
+
 ## Cache invalidation
 ```ts
 import { generateTags, invalidateUrl } from "./swoff/invalidation-tags.ts";
 const data = await fetchWithCache("/api/todos", { tags: generateTags("/api/todos") });
 await invalidateUrl("/api/todos/42"); // after mutation
-```
-
-## React hook — auto-refetch on cache invalidation
-```tsx
-import { useCachedFetch } from "./swoff/hooks/useCachedFetch.tsx";
-const { data, error, loading, refetch } = useCachedFetch("/api/todos");
 ```
 
 ## Build script

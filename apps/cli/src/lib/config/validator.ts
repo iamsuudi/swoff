@@ -75,14 +75,46 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         );
       }
       if (sw.strategies && typeof sw.strategies === "object") {
-        const strategies = sw.strategies as Record<string, string>;
-        for (const [pattern, strategy] of Object.entries(strategies)) {
-          if (!VALID_STRATEGIES.includes(strategy as (typeof VALID_STRATEGIES)[number])) {
-            errors.push(
-              `Invalid strategy "${strategy}" for pattern "${pattern}". Must be one of: ${VALID_STRATEGIES.join(", ")}`,
-            );
+        const strategies = sw.strategies as Record<string, unknown>;
+        for (const [pattern, entry] of Object.entries(strategies)) {
+          if (typeof entry === "string") {
+            if (!VALID_STRATEGIES.includes(entry as (typeof VALID_STRATEGIES)[number])) {
+              errors.push(
+                `Invalid strategy "${entry}" for pattern "${pattern}". Must be one of: ${VALID_STRATEGIES.join(", ")}`,
+              );
+            }
+          } else if (typeof entry === "object" && entry !== null) {
+            const obj = entry as Record<string, unknown>;
+            if (obj.strategy && !VALID_STRATEGIES.includes(obj.strategy as (typeof VALID_STRATEGIES)[number])) {
+              errors.push(
+                `Invalid strategy "${obj.strategy}" for pattern "${pattern}". Must be one of: ${VALID_STRATEGIES.join(", ")}`,
+              );
+            }
+            if (obj.staleTime !== undefined && (typeof obj.staleTime !== "number" || obj.staleTime < 0)) {
+              errors.push(`features.serviceWorker.strategies["${pattern}"].staleTime must be a non-negative number`);
+            }
+            if (obj.maxCacheEntries !== undefined && (typeof obj.maxCacheEntries !== "number" || obj.maxCacheEntries < 1 || !Number.isInteger(obj.maxCacheEntries))) {
+              errors.push(`features.serviceWorker.strategies["${pattern}"].maxCacheEntries must be a positive integer`);
+            }
+            if (obj.maxCacheAge !== undefined && (typeof obj.maxCacheAge !== "number" || obj.maxCacheAge < 0)) {
+              errors.push(`features.serviceWorker.strategies["${pattern}"].maxCacheAge must be a non-negative number`);
+            }
+          } else {
+            errors.push(`features.serviceWorker.strategies["${pattern}"] must be a string or an object`);
           }
         }
+      }
+      if (sw.staleTime !== undefined && (typeof sw.staleTime !== "number" || sw.staleTime < 0)) {
+        errors.push("features.serviceWorker.staleTime must be a non-negative number");
+      }
+      if (sw.refetchOnWindowFocus !== undefined && typeof sw.refetchOnWindowFocus !== "boolean") {
+        errors.push("features.serviceWorker.refetchOnWindowFocus must be a boolean");
+      }
+      if (sw.refetchOnReconnect !== undefined && typeof sw.refetchOnReconnect !== "boolean") {
+        errors.push("features.serviceWorker.refetchOnReconnect must be a boolean");
+      }
+      if (sw.refetchInterval !== undefined && (typeof sw.refetchInterval !== "number" || sw.refetchInterval < 0 || !Number.isInteger(sw.refetchInterval))) {
+        errors.push("features.serviceWorker.refetchInterval must be a non-negative integer");
       }
       if (sw.clearRuntimeOnUpdate !== undefined && typeof sw.clearRuntimeOnUpdate !== "boolean") {
         errors.push("features.serviceWorker.clearRuntimeOnUpdate must be a boolean");

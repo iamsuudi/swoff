@@ -40,6 +40,7 @@ declare global {
     "mutation-sync-complete": CustomEvent<{ succeeded: number; failed: number }>;
     "mutation-queue-changed": CustomEvent;
     "cache-invalidated": CustomEvent<{ tags?: string[] }>;
+    "mutation-state-changed": CustomEvent<{ id: string; status: string; error?: Error; data?: unknown }>;
     "background-sync-complete": CustomEvent<{ succeeded: number; failed: number }>;
     "push-subscription-changed": CustomEvent<{ subscribed: boolean }>;
     "push-permission-changed": CustomEvent<{ permission: NotificationPermission }>;
@@ -71,6 +72,17 @@ export interface FetchWithCacheOptions extends RequestInit {
   strategy?: "read" | "mutation";
   tags?: string[];
   staleWhileRevalidate?: boolean;
+  staleTime?: number;
+}
+
+export type MutationStatus = "idle" | "pending" | "success" | "error";
+
+export interface MutationState {
+  id: string;
+  status: MutationStatus;
+  error: Error | null;
+  data: unknown;
+  timestamp: number;
 }
 
 export interface GqlOptions {

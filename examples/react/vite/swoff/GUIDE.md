@@ -25,6 +25,65 @@ update-available / ready / error events on the window.
 - `skipWaiting()` — activates a waiting SW without reloading
 
 
+## ⏱️ Stale Time — fresh vs stale data
+`staleTime` controls how long cached data is considered **fresh** before it becomes **stale**.
+When data is fresh, the SW serves it immediately from cache — no network request.
+When data is stale, the SW serves the cached copy but triggers a **background refresh**,
+so the next read returns fresh data.
+
+This is different from `maxCacheAge` (which **evicts** old entries entirely). StaleTime keeps the
+entry usable while silently refreshing it — the user never sees a loading spinner.
+
+**3-tier staleTime resolution (like strategies):**
+1. **Per-request** — `fetchWithCache(url, { staleTime: 30 })` overrides everything
+2. **Route pattern** — `"/api/*": { staleTime: 60 }` in `swoff.config.json`
+3. **Global default** — `features.serviceWorker.staleTime`
+
+**How staleTime changes each strategy:**
+| Strategy | Fresh data (within staleTime) | Stale data (past staleTime) |
+|----------|------------------------------|----------------------------|
+| `cache-first` | Serve from cache, no network | Serve from cache + background refresh |
+| `network-first` | Serve from cache, skip network | Try network first, fall back to cache |
+| `stale-while-revalidate` | Serve from cache, no refresh | Serve + background refresh (was always-refresh) |
+| `cache-only` | Serve from cache | Serve from cache + best-effort refresh |
+| `network-only` | No effect | No effect |
+
+
+## 🔄 Auto-refetch — keep data fresh automatically
+Three events can trigger an automatic refetch at the hook level:
+
+- **refetchOnWindowFocus**: When the user returns to the tab, re-fetch stale data
+- **refetchOnReconnect**: When the browser comes back online, re-fetch stale data
+- **refetchInterval**: Poll the server every N seconds for fresh data
+
+These are configured at 3 tiers too:
+- Global: `features.serviceWorker.refetchOnWindowFocus: true`
+- Per-route: `"/api/*": { refetchOnWindowFocus: false }`
+- Per-request: `useCachedFetch(url, { refetchOnWindowFocus: true })`
+
+### React Hook: `useMutation`
+Track mutation state (loading, error, success) per-operation.
+```tsx
+import { useMutation } from "./swoff/hooks/useMutation.tsx";
+
+const { mutate, isLoading, isError, isSuccess, data, error, reset } = useMutation({
+  onSuccess: (data) => console.log('done', data),
+  onError: (err) => console.error('failed', err),
+});
+
+mutate("/api/todos", { method: "POST", body: JSON.stringify({ title: "New" }) });
+```
+
+### React Hook: `usePrefetch`
+Warm the cache proactively, e.g., on link hover.
+```tsx
+import { usePrefetch } from "./swoff/hooks/usePrefetch.tsx";
+
+const prefetch = usePrefetch();
+return <a onMouseEnter={() => prefetch("/api/todos")} href="/todos">Todos</a>;
+```
+
+
 ## 🌐 fetchWithCache — API calls with caching
 A drop-in replacement for `fetch()` that communicates with the service worker about caching strategy.
 GET requests are cached by the SW for offline access; POST/PUT/DELETE pass through.
@@ -104,13 +163,13 @@ navigation (SPA fallback) → precache check → strategy dispatch → network p
 
 ### Available strategies
 
-| Strategy | Behavior | Best for |
-|----------|----------|----------|
-| `cache-first` | Return cached if available, else fetch + cache. Default | Static assets, images, fonts |
-| `network-first` | Try network, cache on success, fall back to cache | API endpoints, dynamic content |
-| `stale-while-revalidate` | Return cached immediately, refresh in background | Fast UI, non-critical data |
-| `cache-only` | Serve from cache only (404 if missing) | Offline-critical assets |
-| `network-only` | Always fetch, never cache | Sensitive or real-time data |
+| Strategy | Behavior (without staleTime) | Behavior (with staleTime) | Best for |
+|----------|------------------------------|---------------------------|----------|
+| `cache-first` | Return cached if available, else fetch + cache. Default | Fresh: pure cache. Stale: cache + bg refresh | Static assets, images, fonts |
+| `network-first` | Try network, cache on success, fall back to cache | Fresh: pure cache (skip network!). Stale: try network | API endpoints, dynamic content |
+| `stale-while-revalidate` | Return cached immediately, refresh in background | Fresh: pure cache (no refresh). Stale: cache + bg refresh | Fast UI, non-critical data |
+| `cache-only` | Serve from cache only (404 if missing) | Fresh: pure cache. Stale: cache + best-effort refresh | Offline-critical assets |
+| `network-only` | Always fetch, never cache | No effect | Sensitive or real-time data |
 
 
 ## ⚡ GraphQL
@@ -457,5 +516,11 @@ Re-run `npx @swoff/cli generate` after changing it.
 - `serviceWorker.cacheStrategy` — caching strategy mode (`"all"` or `"explicit-only"`)
 - `serviceWorker.defaultStrategy` — default caching strategy
 - `serviceWorker.strategies` — per-route strategy overrides
+- `serviceWorker.staleTime` — global stale time in seconds (data considered fresh for N seconds)
+- `serviceWorker.refetchOnWindowFocus` — auto-refetch on tab focus (hook-level)
+- `serviceWorker.refetchOnReconnect` — auto-refetch on reconnect
+- `serviceWorker.refetchInterval` — auto-refetch every N seconds
+- `serviceWorker.maxCacheEntries` — max entries in runtime cache (oldest evicted)
+- `serviceWorker.maxCacheAge` — max age of cache entries in ms
 
 ---

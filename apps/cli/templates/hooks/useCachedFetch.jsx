@@ -14,11 +14,15 @@ export function useCachedFetch(url, options = {}) {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     startTransition(() => setLoading(true));
 
     const doFetch = async () => {
       try {
-        const { response } = await fetchWithCache(url, optionsRef.current);
+        const { response } = await fetchWithCache(url, {
+          ...optionsRef.current,
+          signal: controller.signal,
+        });
         if (cancelled) return;
         if (response) {
           setData(await response.json());
@@ -27,6 +31,7 @@ export function useCachedFetch(url, options = {}) {
         }
         if (!cancelled) setError(null);
       } catch (err) {
+        if (!cancelled && err instanceof DOMException && err.name === "AbortError") return;
         if (!cancelled) setError(err instanceof Error ? err : new Error(String(err)));
       } finally {
         if (!cancelled) setLoading(false);
@@ -34,9 +39,13 @@ export function useCachedFetch(url, options = {}) {
     };
 
     doFetch();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [url, refetchCount]);
 
+  // Auto-refetch on cache invalidation
   useEffect(() => {
     const onInvalidated = (e) => {
       const detail = e.detail;
@@ -50,6 +59,29 @@ export function useCachedFetch(url, options = {}) {
     window.addEventListener("cache-invalidated", onInvalidated);
     return () => window.removeEventListener("cache-invalidated", onInvalidated);
   }, [url]);
+
+  // Auto-refetch on window focus
+  useEffect(() => {
+    if (!options.refetchOnWindowFocus) return;
+    const onFocus = () => refetch();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [options.refetchOnWindowFocus, refetch]);
+
+  // Auto-refetch on reconnect
+  useEffect(() => {
+    if (!options.refetchOnReconnect) return;
+    const onOnline = () => refetch();
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [options.refetchOnReconnect, refetch]);
+
+  // Auto-refetch on interval
+  useEffect(() => {
+    if (!options.refetchInterval || options.refetchInterval <= 0) return;
+    const id = setInterval(refetch, options.refetchInterval * 1000);
+    return () => clearInterval(id);
+  }, [options.refetchInterval, refetch]);
 
   return { data, error, loading, refetch };
 }

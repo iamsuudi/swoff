@@ -29,6 +29,7 @@ export interface StrategyEntry {
   strategy: string;
   maxCacheEntries?: number;
   maxCacheAge?: number;
+  staleTime?: number;
 }
 
 export interface SwoffConfig {
@@ -47,6 +48,7 @@ export interface SwoffConfig {
       defaultStrategy: string;
       strategies: Record<string, string | StrategyEntry>;
       cacheStrategy?: "all" | "explicit-only";
+      staleTime?: number;
       maxCacheEntries?: number;
       maxCacheAge?: number;
       runtimeCacheName?: string;
@@ -54,6 +56,9 @@ export interface SwoffConfig {
       navigationPreload?: boolean;
       navigationMode: "spa" | "default";
       spaEntry: string;
+      refetchOnWindowFocus?: boolean;
+      refetchOnReconnect?: boolean;
+      refetchInterval?: number;
     };
     mutationQueue: MutationQueueConfig;
     backgroundSync: boolean;

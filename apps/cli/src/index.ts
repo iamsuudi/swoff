@@ -72,7 +72,7 @@ async function main() {
       if (!feature) {
         log.error("Please specify a feature to add");
         log.info("Usage: swoff add <feature>");
-        log.info("Features: mutation-queue, pwa, cross-tab, auth, tag-invalidation, background-sync");
+        log.info("Features: mutation-queue, pwa, cross-tab, auth, tag-invalidation, background-sync, graphql, push-notification");
         process.exit(1);
       }
       await addCommand(projectRoot, feature);

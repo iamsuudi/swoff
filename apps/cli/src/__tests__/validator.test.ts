@@ -22,6 +22,7 @@ describe("validateConfig", () => {
       auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
       crossTabSync: true,
       tagInvalidation: true,
+      graphql: { enabled: false, endpoint: "/graphql" },
     },
     build: { outputDir: "dist", swFilename: "sw" },
   };
@@ -156,13 +157,67 @@ describe("validateConfig", () => {
       expect(errors).toContain("crossTabSync requires tagInvalidation to be enabled");
     });
 
-    it("rejects backgroundSync without mutationQueue", () => {
+    it("rejects backgroundSync without mutationQueue enabled", () => {
       const config = {
         ...validConfig,
         features: { ...validConfig.features, backgroundSync: true, mutationQueue: false },
       };
       const errors = validateConfig(config);
       expect(errors).toContain("backgroundSync requires mutationQueue to be enabled");
+    });
+
+    it("rejects backgroundSync with mutationQueue object enabled: false", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, backgroundSync: true, mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 } },
+      };
+      const errors = validateConfig(config);
+      expect(errors).toContain("backgroundSync requires mutationQueue to be enabled");
+    });
+
+    it("passes backgroundSync with mutationQueue object enabled: true", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, backgroundSync: true, mutationQueue: { enabled: true, batchSize: 5, batchDelayMs: 500, maxRetries: 3, retryBackoffMs: 2000 } },
+      };
+      const errors = validateConfig(config);
+      expect(errors).toEqual([]);
+    });
+
+    it("validates mutationQueue.batchSize must be a positive integer", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, mutationQueue: { enabled: true, batchSize: 0 } },
+      };
+      const errors = validateConfig(config);
+      expect(errors).toContain("features.mutationQueue.batchSize must be a positive integer");
+    });
+
+    it("validates mutationQueue.maxRetries must be a positive integer", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, mutationQueue: { enabled: true, maxRetries: -1 } },
+      };
+      const errors = validateConfig(config);
+      expect(errors).toContain("features.mutationQueue.maxRetries must be a positive integer");
+    });
+
+    it("validates mutationQueue.batchDelayMs must be non-negative integer", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, mutationQueue: { enabled: true, batchDelayMs: -5 } },
+      };
+      const errors = validateConfig(config);
+      expect(errors).toContain("features.mutationQueue.batchDelayMs must be a non-negative integer");
+    });
+
+    it("validates mutationQueue.retryBackoffMs must be non-negative", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, mutationQueue: { enabled: true, retryBackoffMs: -1 } },
+      };
+      const errors = validateConfig(config);
+      expect(errors).toContain("features.mutationQueue.retryBackoffMs must be a non-negative number");
     });
 
     it("validates auth.enabled is boolean", () => {

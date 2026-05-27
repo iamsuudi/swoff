@@ -10,6 +10,7 @@ Swoff generates a **service worker** and **client-side utilities** that give you
 - **Cache invalidation** — tag-based cache busting after mutations
 - **PWA** — install prompt and manifest
 - **Push notifications** — subscription management with IndexedDB persistence and VAPID support
+- **GraphQL wrapper** — `queryGql()` / `mutateGql()` backed by the same caching, auth, and offline queue as REST
 - **Cross-tab sync** — broadcast changes across open tabs
 - **Background Sync API** — process mutations even after tab close
 
@@ -96,6 +97,7 @@ swoff add tag-invalidation
 swoff add cross-tab
 swoff add background-sync
 swoff add push-notification
+swoff add gql-wrapper
 ```
 
 ### `info`
@@ -162,13 +164,23 @@ This deletes `swoff/`, `swoff.config.json`, `version.json`, and removes the SW g
       "navigationMode": "spa",
       "spaEntry": "/index.html"
     },
-    "mutationQueue": false,
+    "mutationQueue": {
+      "enabled": false,
+      "batchSize": 5,
+      "batchDelayMs": 1000,
+      "maxRetries": 3,
+      "retryBackoffMs": 2000
+    },
     "backgroundSync": false,
     "auth": {
       "enabled": false,
       "type": "bearer",
       "refreshPath": "/api/refresh",
       "userEndpoint": "/api/me"
+    },
+    "graphql": {
+      "enabled": false,
+      "endpoint": "/graphql"
     },
     "crossTabSync": true,
     "tagInvalidation": true,
@@ -205,7 +217,11 @@ This deletes `swoff/`, `swoff.config.json`, `version.json`, and removes the SW g
 | `features.serviceWorker.clearRuntimeOnUpdate` | `boolean` | `false` | Clear runtime cache on update |
 | `features.serviceWorker.navigationMode` | `"spa"` \| `"default"` | `"spa"` | Navigation caching mode |
 | `features.serviceWorker.spaEntry` | `string` | `"/index.html"` | SPA entry for nav fallback |
-| `features.mutationQueue` | `boolean` | `false` | Offline write queue |
+| `features.mutationQueue.enabled` | `boolean` | `false` | Enable offline write queue |
+| `features.mutationQueue.batchSize` | `number` | `5` | Mutations per progress event |
+| `features.mutationQueue.batchDelayMs` | `number` | `1000` | Delay between mutations (rate limiting) |
+| `features.mutationQueue.maxRetries` | `number` | `3` | Max retries before dropping a mutation |
+| `features.mutationQueue.retryBackoffMs` | `number` | `2000` | Exponential backoff base (ms) |
 | `features.backgroundSync` | `boolean` | `false` | Background Sync API |
 | `features.auth.enabled` | `boolean` | `false` | Auth module |
 | `features.auth.type` | `"bearer"` \| `"cookie"` \| `"custom"` | `"bearer"` | Auth strategy |
@@ -213,6 +229,8 @@ This deletes `swoff/`, `swoff.config.json`, `version.json`, and removes the SW g
 | `features.auth.userEndpoint` | `string` | `"/api/me"` | Current user endpoint |
 | `features.crossTabSync` | `boolean` | `false` | Cross-tab broadcast |
 | `features.tagInvalidation` | `boolean` | `false` | Tag-based cache invalidation |
+| `features.graphql.enabled` | `boolean` | `false` | Generate GraphQL wrapper (`queryGql` / `mutateGql`) |
+| `features.graphql.endpoint` | `string` | `"/graphql"` | GraphQL endpoint URL |
 | `features.pushNotifications.enabled` | `boolean` | `false` | Push notification subscription management |
 | `features.pushNotifications.vapidPublicKey` | `string` | `""` | VAPID public key (can also be passed at runtime) |
 
@@ -242,7 +260,14 @@ swoff/
 │
 ├── mutation-queue.ts      # Offline write queue
 │   Exports: queueMutation(), processMutationQueue(), flushMutations(), getPendingCount()
-│   Generated when: mutationQueue is true
+│   Generated when: mutationQueue.enabled is true
+│   Config: batchSize, batchDelayMs, maxRetries, retryBackoffMs
+│
+├── gql-wrapper.ts         # GraphQL client with cache-key hashing
+│   Exports: fetchWithGql(), queryGql(), mutateGql()
+│   Generated when: graphql.enabled is true
+│   Hashes query + variables for deterministic SW cache keys, auto-generates
+│   invalidation tags from operation names
 │
 ├── push.ts                # Push notification subscription management
 │   Exports: subscribeToPush(), unsubscribeFromPush(), isSubscribed(), getPushSubscription(), requestNotificationPermission()
@@ -496,7 +521,59 @@ const count = await getPendingCount();
 | `flushMutations()` | Same as `processMutationQueue`. Call after re-login (queued mutations may have stale auth) |
 | `getPendingCount()` | Number of mutations waiting to sync |
 
-Generated when `features.mutationQueue` is `true`.
+Generated when `features.mutationQueue.enabled` is `true`.
+
+---
+
+## GraphQL Wrapper
+
+A drop-in wrapper that brings Swoff's caching, auth, offline queue, and tag-based invalidation to GraphQL APIs. Query bodies are SHA-256 hashed for deterministic cache keys; operation names auto-generate invalidation tags.
+
+```js
+import { queryGql, mutateGql } from "./swoff/gql-wrapper.js";
+
+// Query — cached by the SW with body-hash key
+const { data } = await queryGql("{ todos { id title } }");
+
+// Mutation — auto-invalidates related cache tags
+const { data } = await mutateGql(
+  "mutation CreateTodo($title: String!) { createTodo(title: $title) { id } }",
+  { title: "New task" },
+);
+
+// Authenticated
+const { data } = await queryGql("query Me { me { name } }", {}, { auth: true });
+```
+
+### Functions
+
+| Function | Description |
+|----------|-------------|
+| `fetchWithGql<T>(query, options?)` | Core function — hashes query + variables, sets `X-SW-Cache-Key` header, delegates to `fetchWithCache` |
+| `queryGql<T>(query, variables?, options?)` | Shorthand for reads — sets `type: "read"` so the SW caches the response |
+| `mutateGql<T>(mutation, variables?, options?)` | Shorthand for writes — sets `type: "mutation"`, auto-invalidates related tags |
+
+### How it works
+
+1. **Body hashing**: `query` + `variables` are JSON-stringified and SHA-256 hashed via `crypto.subtle.digest()`. The first 16 hex chars become the cache key.
+2. **Virtual cache URL**: The hash is sent as `X-SW-Cache-Key: gql:<hash>`. The SW treats this as the cache key (instead of the actual URL), so different queries to the same endpoint don't collide.
+3. **Auto-tags**: Operation names like `getTodos` generate tags `["todos"]`; `createTodo` generates `["todos", "todo"]`. Override with `options.tags`.
+4. **Offline queue**: Mutations are queued when offline (respects `mutationQueue` config). Reads return cached data.
+
+### Options
+
+All `fetchWithCache` options are available via `GqlOptions`, plus:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `variables` | `Record<string, unknown>` | `undefined` | GraphQL variables |
+| `tags` | `string[]` | auto-generated | Override cache invalidation tags |
+| `staleWhileRevalidate` | `boolean` | `false` | Return cached immediately, refresh in background |
+| `auth` | `boolean` | `false` | Attach auth token |
+| `queueOffline` | `boolean` | `true` | Queue mutations when offline |
+| `invalidate` | `'auto' \| string[] \| false` | `'auto'` | Auto-invalidate after mutation |
+
+Generated when `features.graphql.enabled` is `true`.
 
 ---
 
@@ -554,7 +631,7 @@ Generated when `features.pwa.enabled` is `true`.
 
 ## Push Notifications
 
-Push notification subscription management with IndexedDB persistence.
+Push notification subscription management with IndexedDB persistence. Integrates with the browser Push API for subscribing/unsubscribing and stores subscription state across page loads.
 
 ```js
 import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push.js";
@@ -562,6 +639,7 @@ import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push
 // Subscribe (triggers permission prompt)
 const sub = await subscribeToPush("YOUR_VAPID_PUBLIC_KEY");
 if (sub) {
+  // Send the subscription object to your server
   await fetch("/api/push/subscribe", {
     method: "POST",
     body: JSON.stringify(sub.toJSON()),
@@ -572,6 +650,24 @@ if (sub) {
 await unsubscribeFromPush();
 ```
 
+When using React, a ready-to-use hook provides reactive state:
+
+```tsx
+import { usePushSubscription } from "./swoff/hooks/usePushSubscription.tsx";
+
+function PushToggle() {
+  const { subscribed, loading, subscribe, unsubscribe } =
+    usePushSubscription("YOUR_VAPID_PUBLIC_KEY");
+
+  if (loading) return null;
+  return (
+    <button onClick={subscribed ? unsubscribe : subscribe}>
+      {subscribed ? "Disable" : "Enable"} push notifications
+    </button>
+  );
+}
+```
+
 | Function | Description |
 |----------|-------------|
 | `subscribeToPush(vapidPublicKey)` | Request permission and subscribe. Returns `PushSubscription` or `null` if denied |
@@ -579,6 +675,9 @@ await unsubscribeFromPush();
 | `isSubscribed()` | Check if currently subscribed |
 | `getPushSubscription()` | Get current `PushSubscription` object, or `null` |
 | `requestNotificationPermission()` | Request notification permission only. Returns `boolean` |
+| `usePushSubscription(vapidPublicKey)` (React) | Returns `{ subscribed, subscription, permission, loading, subscribe, unsubscribe }` |
+
+**Note:** The generated code handles the browser-side subscription only. You need a server endpoint to store subscriptions (e.g. `POST /api/push/subscribe`) and a mechanism to send notifications (e.g. via `web-push` on Node.js). See the [Vite example](https://github.com/iamsuudi/swoff/tree/main/examples/react/vite) for a full end-to-end implementation.
 
 Generated when `features.pushNotifications.enabled` is `true`.
 

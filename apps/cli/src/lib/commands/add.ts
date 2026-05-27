@@ -9,11 +9,11 @@ import { loadConfigAsync } from "../config/loader.js";
 import { defaultConfig, mergeConfigs, type SwoffConfig } from "../shared/config-types.js";
 import { generateCommand } from "./generate.js";
 
-const KNOWN_FEATURES = ["mutation-queue", "mutationqueue", "pwa", "cross-tab", "crosstab", "auth", "tag-invalidation", "taginvalidation", "background-sync", "backgroundsync", "push-notification", "pushnotification"];
+const KNOWN_FEATURES = ["mutation-queue", "mutationqueue", "pwa", "cross-tab", "crosstab", "auth", "tag-invalidation", "taginvalidation", "background-sync", "backgroundsync", "graphql", "push-notification", "pushnotification"];
 
 const featureMap: Record<string, Record<string, unknown>> = {
-  "mutation-queue": { mutationQueue: true },
-  mutationqueue: { mutationQueue: true },
+  "mutation-queue": { mutationQueue: { enabled: true, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 } },
+  mutationqueue: { mutationQueue: { enabled: true, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 } },
   pwa: { pwa: { enabled: true } },
   "cross-tab": { crossTabSync: true, tagInvalidation: true },
   crosstab: { crossTabSync: true, tagInvalidation: true },
@@ -22,6 +22,7 @@ const featureMap: Record<string, Record<string, unknown>> = {
   taginvalidation: { tagInvalidation: true },
   "background-sync": { backgroundSync: true },
   backgroundsync: { backgroundSync: true },
+  graphql: { graphql: { enabled: true, endpoint: "/graphql" } },
   "push-notification": { pushNotifications: { enabled: true, vapidPublicKey: "" } },
   pushnotification: { pushNotifications: { enabled: true, vapidPublicKey: "" } },
 };
@@ -33,7 +34,7 @@ export async function addCommand(projectRoot: string, feature: string) {
 
   if (!configUpdate) {
     log.error(`Unknown feature: ${feature}`);
-    log.info("Available features: mutation-queue, pwa, cross-tab, auth, tag-invalidation, background-sync, push-notification");
+    log.info("Available features: mutation-queue, pwa, cross-tab, auth, tag-invalidation, background-sync, graphql, push-notification");
     return;
   }
 

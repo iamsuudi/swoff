@@ -29,7 +29,7 @@ export function generateHooks(ctx: GeneratorContext): void {
   if (config.features.auth.enabled) {
     copyHook(hooksDir, "useAuth", ext);
   }
-  if (config.features.mutationQueue) {
+  if (config.features.mutationQueue.enabled) {
     copyHook(hooksDir, "useMutationQueue", ext);
   }
   if (config.features.pushNotifications?.enabled) {

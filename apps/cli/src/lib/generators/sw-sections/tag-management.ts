@@ -36,20 +36,21 @@ function openTagDB() {
   });
 }
 
-async function cacheTagUrl(url, tags) {
+async function cacheTagUrl(url, actualUrl, tags) {
   const db = await openTagDB();
   const tx = db.transaction(TAG_STORE_NAME, "readwrite");
   const store = tx.objectStore(TAG_STORE_NAME);
-  store.put({ url, tags });
+  store.put({ url, actualUrl, tags });
   await new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
 }
 
-async function refetchAfterInvalidation(url) {
+async function refetchAfterInvalidation(url, actualUrl) {
+  const fetchUrl = actualUrl || url;
   try {
-    const response = await fetch(url);
+    const response = await fetch(fetchUrl);
     if (response.ok) {
       const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
       await runtimeCache.put(url, response);
@@ -89,7 +90,7 @@ async function invalidateByTag(tag) {
 
   // Background refetch each deleted URL; keep stale on failure
   for (const entry of entries) {
-    refetchAfterInvalidation(entry.url);
+    refetchAfterInvalidation(entry.url, entry.actualUrl);
   }
 
   const clients = await self.clients.matchAll();

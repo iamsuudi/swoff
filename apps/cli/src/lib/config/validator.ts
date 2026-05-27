@@ -20,6 +20,29 @@ export function validateConfig(config: Record<string, unknown>): string[] {
           errors.push(`Feature "${key}" must be an object`);
           continue;
         }
+      } else if (key === "mutationQueue") {
+        if (typeof value !== "boolean" && (typeof value !== "object" || value === null)) {
+          errors.push('Feature "mutationQueue" must be a boolean or an object');
+          continue;
+        }
+        if (typeof value === "object") {
+          const mq = value as Record<string, unknown>;
+          if (mq.enabled !== undefined && typeof mq.enabled !== "boolean") {
+            errors.push("features.mutationQueue.enabled must be a boolean");
+          }
+          if (mq.batchSize !== undefined && (typeof mq.batchSize !== "number" || mq.batchSize < 1 || !Number.isInteger(mq.batchSize))) {
+            errors.push("features.mutationQueue.batchSize must be a positive integer");
+          }
+          if (mq.batchDelayMs !== undefined && (typeof mq.batchDelayMs !== "number" || mq.batchDelayMs < 0 || !Number.isInteger(mq.batchDelayMs))) {
+            errors.push("features.mutationQueue.batchDelayMs must be a non-negative integer");
+          }
+          if (mq.maxRetries !== undefined && (typeof mq.maxRetries !== "number" || mq.maxRetries < 1 || !Number.isInteger(mq.maxRetries))) {
+            errors.push("features.mutationQueue.maxRetries must be a positive integer");
+          }
+          if (mq.retryBackoffMs !== undefined && (typeof mq.retryBackoffMs !== "number" || mq.retryBackoffMs < 0)) {
+            errors.push("features.mutationQueue.retryBackoffMs must be a non-negative number");
+          }
+        }
       } else if (!KNOWN_FEATURES.includes(key as (typeof KNOWN_FEATURES)[number])) {
         errors.push(`Unknown feature "${key}"`);
         continue;
@@ -105,7 +128,8 @@ export function validateConfig(config: Record<string, unknown>): string[] {
 
     const backgroundSyncVal = features.backgroundSync;
     const mutationQueueVal = features.mutationQueue;
-    if (backgroundSyncVal === true && mutationQueueVal !== true) {
+    const mqEnabled = typeof mutationQueueVal === "boolean" ? mutationQueueVal : (mutationQueueVal as Record<string, unknown>)?.enabled === true;
+    if (backgroundSyncVal === true && !mqEnabled) {
       errors.push("backgroundSync requires mutationQueue to be enabled");
     }
 
@@ -122,6 +146,16 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       }
       if (auth.userEndpoint !== undefined && typeof auth.userEndpoint !== "string") {
         errors.push("features.auth.userEndpoint must be a string");
+      }
+    }
+
+    const graphql = features.graphql as Record<string, unknown> | undefined;
+    if (graphql && typeof graphql === "object") {
+      if (graphql.enabled !== undefined && typeof graphql.enabled !== "boolean") {
+        errors.push("features.graphql.enabled must be a boolean");
+      }
+      if (graphql.endpoint !== undefined && typeof graphql.endpoint !== "string") {
+        errors.push("features.graphql.endpoint must be a string");
       }
     }
   }

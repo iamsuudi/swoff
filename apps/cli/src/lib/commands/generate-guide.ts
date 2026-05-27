@@ -59,7 +59,7 @@ export function generateGuide(ctx: GuideContext): string[] {
     }
   }
 
-  if (config.features.mutationQueue) {
+  if (config.features.mutationQueue.enabled) {
     lines.push("");
     lines.push("  ── Mutation Queue ──");
     lines.push(`  Import in mutation handlers:`);
@@ -104,7 +104,7 @@ export function generateGuide(ctx: GuideContext): string[] {
       lines.push("      if (!authenticated) return <LoginPage />;");
       lines.push("      return <div>Welcome {user?.name} {!online && '(offline)'}</div>;");
       lines.push("    }");
-      if (config.features.mutationQueue) {
+      if (config.features.mutationQueue.enabled) {
         lines.push("");
         lines.push("  ⚠️ After auth re-login, drain queued mutations:");
         lines.push(`    import { flushMutations } from "../swoff/mutation-queue.${ext}";`);
@@ -118,7 +118,7 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push("");
     lines.push("  ── Background Sync ──");
     lines.push("  ⚠️ Chrome/Edge only (not supported in Firefox or Safari).");
-    if (!config.features.mutationQueue) {
+    if (!config.features.mutationQueue.enabled) {
       lines.push("  ❌ Requires mutationQueue to be enabled.");
       lines.push('     Run: npx @swoff/cli add mutation-queue');
     }

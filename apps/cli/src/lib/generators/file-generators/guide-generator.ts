@@ -138,11 +138,74 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("| `network-only` | Always fetch, never cache | Sensitive or real-time data |");
   w("");
 
+  // ── GraphQL ──
+  if (config.features.graphql.enabled) {
+    wb("## ⚡ GraphQL");
+    w("Swoff brings caching, offline queue, auth, and tag-based invalidation to GraphQL APIs via `fetchWithGql`. It hashes");
+    w("the query + variables into a deterministic cache key (`X-SW-Cache-Key`) for SW-level caching, and auto-generates");
+    w("tags from operation names for automatic cache invalidation after mutations.");
+    w("");
+
+    w("### `gql-wrapper.ts`");
+    w("```ts");
+    w(`import { queryGql, mutateGql } from "./swoff/gql-wrapper.${ext}";`);
+    w("");
+    w("// Query — cached with body-hash key");
+    w('const { data } = await queryGql("{ todos { id title } }");');
+    w("");
+    w("// Query with variables");
+    w('const { data: todo } = await queryGql(');
+    w('  "query GetTodo($id: ID!) { todo(id: $id) { id title } }",');
+    w('  { id: "42" },');
+    w(");");
+    w("");
+    w("// Mutation — auto-invalidates 'todos' cache");
+    w('const { data: created } = await mutateGql(');
+    w('  "mutation CreateTodo($title: String!) { createTodo(title: $title) { id } }",');
+    w('  { title: "New task" },');
+    w(");");
+    w("");
+    w("// With auth, stale-while-revalidate, and custom tags");
+    w('const { data, fromCache } = await queryGql(');
+    w('  "query Me { me { name } }",');
+    w("  {},");
+    w('  { auth: true, staleWhileRevalidate: true, tags: ["users"] },');
+    w(");");
+    w("```");
+    w("");
+
+    w("**How it works:**");
+    w("- Queries are POSTed as `type: \"read\"` with `X-SW-Cache-Key: gql:<sha256-hash>`");
+    w("- The SW caches responses under a virtual URL (`/__swc/gql:<hash>`) so different queries never collide");
+    w("- Mutations are POSTed as `type: \"mutation\"` — auto-invalidate tags from operation name");
+    w("- Offline mutations are queued via the mutation queue (if enabled)");
+    w("- Auth, strategy override, and custom tags work the same as `fetchWithCache`");
+    w("");
+
+    w("**Functions:**");
+    w("- `fetchWithGql<T>(query, options?)` — core GQL fetch with all Swoff features");
+    w("- `queryGql<T>(query, variables?, options?)` — shorthand for queries");
+    w("- `mutateGql<T>(mutation, variables?, options?)` — shorthand for mutations");
+    w("");
+
+    w("**Config:**");
+    w("```json");
+    w('"graphql": { "enabled": true, "endpoint": "/graphql" }');
+    w("```");
+    w("");
+  }
+
   // ── Mutation Queue ──
-  if (config.features.mutationQueue) {
+  if (config.features.mutationQueue.enabled) {
     wb("## 📝 Mutation Queue — offline writes that sync when back online");
     w("When the user is offline and performs a write (POST/PUT/PATCH/DELETE), `queueMutation` stores it");
     w("in IndexedDB. When the connection returns, `processMutationQueue` replays them in order.");
+    w("");
+    w("**Configurable batching:** set `batchSize`, `batchDelayMs`, `maxRetries`, and `retryBackoffMs` in `swoff.config.json` under `features.mutationQueue`.");
+    w("- `batchSize` (default 1) — mutations per progress event");
+    w("- `batchDelayMs` (default 0) — delay between mutations (rate limiting)");
+    w("- `maxRetries` (default 5) — max attempts before dropping");
+    w("- `retryBackoffMs` (default 1000) — exponential backoff base (nextRetry = backoff × 2^retryCount)");
     w("");
 
     w("### `mutation-queue.ts`");
@@ -164,7 +227,7 @@ export function generateGuide(ctx: GeneratorContext): void {
 
     w("**Functions:**");
     w("- `queueMutation(mutation)` — store a write for later sync");
-    w("- `processMutationQueue()` — replay all queued writes. Runs automatically on `online` event.");
+    w("- `processMutationQueue()` — replay all queued writes. Respects batchDelayMs, maxRetries, retryBackoffMs.");
     w("- `flushMutations()` — same as processMutationQueue. Call after re-login.");
     w("- `getPendingCount()` — number of mutations waiting to sync.");
     w("");
@@ -491,11 +554,12 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("");
 
   w("### Features you can toggle:");
-  w("- `mutationQueue` — offline write queue with IndexedDB");
+  w("- `mutationQueue.enabled` — offline write queue with IndexedDB. Object: `{ enabled, batchSize, batchDelayMs, maxRetries, retryBackoffMs }`");
   w("- `backgroundSync` — Background Sync API (Chrome/Edge only)");
   w("- `auth.enabled` — auth module (bearer/cookie/custom)");
   w("- `crossTabSync` — broadcast changes across tabs");
   w("- `tagInvalidation` — cache invalidation by tags");
+  w("- `graphql.enabled` — GraphQL wrapper with body-hash caching. Object: `{ enabled, endpoint }`");
   w("- `pwa.enabled` — PWA install prompt and manifest");
   w("- `serviceWorker.cacheStrategy` — caching strategy mode (`\"all\"` or `\"explicit-only\"`)");
   w("- `serviceWorker.defaultStrategy` — default caching strategy");

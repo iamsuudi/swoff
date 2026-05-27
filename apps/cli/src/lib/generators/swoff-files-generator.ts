@@ -33,6 +33,7 @@ import { generateAuthStore } from "./file-generators/auth-store.js";
 import { generateAuthUser } from "./file-generators/auth-user.js";
 import { generateAuthState } from "./file-generators/auth-state.js";
 import { generateSwGeneratorBuild } from "./file-generators/sw-generator-build.js";
+import { generateGqlWrapper } from "./file-generators/gql-wrapper.js";
 import { generateTypeDefinitions } from "./file-generators/type-definitions.js";
 import { generateHooks } from "./file-generators/generate-hooks.js";
 import { generateGuide } from "./file-generators/guide-generator.js";
@@ -52,7 +53,7 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
     { name: "fetch-wrapper", gen: () => generateFetchWrapper(ctx), enabled: true },
     { name: "cache", gen: () => generateCache(ctx), enabled: ctx.config.features.tagInvalidation },
 
-    { name: "mutation-queue", gen: () => generateMutationQueue(ctx), enabled: ctx.config.features.mutationQueue },
+    { name: "mutation-queue", gen: () => generateMutationQueue(ctx), enabled: ctx.config.features.mutationQueue.enabled },
     { name: "background-sync", gen: () => generateBackgroundSync(ctx), enabled: ctx.config.features.backgroundSync },
     { name: "auth-store", gen: () => generateAuthStore(ctx), enabled: ctx.config.features.auth.enabled },
     { name: "auth-user", gen: () => generateAuthUser(ctx), enabled: ctx.config.features.auth.enabled },
@@ -62,6 +63,7 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
     { name: "pwa-install", gen: () => generatePwaInstall(ctx), enabled: ctx.config.features.pwa.enabled },
     { name: "manifest.json", gen: () => generateManifest(ctx), enabled: ctx.config.features.pwa.enabled },
     { name: "invalidation-tags", gen: () => generateInvalidationTags(ctx), enabled: ctx.config.features.tagInvalidation },
+    { name: "gql-wrapper", gen: () => generateGqlWrapper(ctx), enabled: ctx.config.features.graphql.enabled },
     { name: "push", gen: () => generatePush(ctx), enabled: ctx.config.features.pushNotifications?.enabled ?? false },
     { name: "hooks", gen: () => generateHooks(ctx), enabled: ctx.config.framework === "react" },
     { name: "GUIDE.md", gen: () => generateGuide(ctx), enabled: true },

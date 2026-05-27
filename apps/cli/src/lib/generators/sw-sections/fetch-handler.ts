@@ -30,16 +30,17 @@ export function generateFetchHandler(
 
   const staleVersionCode = tagInvalidation ? `
     cleanStaleVersions();
-    if (staleVersions.has(request.url)) {
-      event.waitUntil(refreshCache(request).then(() => staleVersions.delete(request.url)));
+    if (staleVersions.has(cacheKey(request))) {
+      event.waitUntil(refreshCache(request).then(() => staleVersions.delete(cacheKey(request))));
     }` : "";
 
   const tagCode = tagInvalidation ? `
   const tagsHeader = request.headers.get("X-SW-Cache-Tags");
   if (tagsHeader) {
-    const url = new URL(request.url).href;
+    const cacheKeyUrl = cacheKey(request);
+    const actualUrl = new URL(request.url).href;
     const tags = tagsHeader.split(",").map((t) => t.trim());
-    await cacheTagUrl(url, tags);
+    await cacheTagUrl(cacheKeyUrl, actualUrl, tags);
   }` : "";
 
   const trimCode = hasTrim ? `  await trimRuntimeCache(CACHE_NAME_RUNTIME);\n` : "";
@@ -77,6 +78,14 @@ async function trimRuntimeCache(cacheName) {
 ` : "";
 
   return `${trimFunction}
+// --- Cache Key ---
+
+function cacheKey(request) {
+  const key = request.headers.get("X-SW-Cache-Key");
+  if (key) return new URL("/__swc/" + key, self.location.origin).href;
+  return new URL(request.url).href;
+}
+
 // --- Cache Helpers ---
 
 async function fromPrecache(request) {
@@ -86,12 +95,12 @@ async function fromPrecache(request) {
 
 async function fromRuntime(request) {
   const cache = await caches.open(CACHE_NAME_RUNTIME);
-  return cache.match(new URL(request.url).href);
+  return cache.match(cacheKey(request));
 }
 
 async function storeRuntime(request, response) {
   const cache = await caches.open(CACHE_NAME_RUNTIME);
-  await cache.put(new URL(request.url).href, response.clone());
+  await cache.put(cacheKey(request), response.clone());
 }
 
 async function cacheResponse(request, response) {
@@ -150,7 +159,10 @@ function applyStrategy(event, request, config) {
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-  if (request.method !== "GET" && request.method !== "HEAD") return;
+  // Allow non-GET/HEAD when a cache key is explicitly provided (e.g. GraphQL)
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    if (!request.headers.get("X-SW-Cache-Key")) return;
+  }
   ${cacheStrategy === "explicit-only" ? `if (!request.headers.get("X-SW-Cache-Strategy")) return;` : ""}
   applyStrategy(event, request, determineCacheStrategy(event.request, ${JSON.stringify(strategies)}, "${defaultStrategy}"));
 });
@@ -276,7 +288,9 @@ async function staleWhileRevalidate(event, request, maxEntries, maxAge) {
 
 async function refreshCache(request) {
   try {
-    const response = await fetch(request);
+    const key = request.headers.get("X-SW-Cache-Key");
+    const fetchRequest = key ? new Request(new URL(request.url).href, { method: request.method, headers: request.headers, body: request.method !== "GET" ? request.body : undefined }) : request;
+    const response = await fetch(fetchRequest);
     if (response.ok) {
       await storeRuntime(request, response);
     }

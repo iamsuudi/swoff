@@ -26,10 +26,10 @@ describe("config-types", () => {
       expect(defaultConfig.features.pwa.preventDefaultInstall).toBe(false);
     });
 
-    it("has all known features as booleans", () => {
+    it("has all known features with correct types", () => {
       for (const feature of KNOWN_FEATURES) {
         expect(defaultConfig.features).toHaveProperty(feature);
-        if (feature === "auth" || feature === "pushNotifications") {
+        if (feature === "auth" || feature === "pushNotifications" || feature === "mutationQueue" || feature === "graphql") {
           expect(typeof defaultConfig.features[feature]).toBe("object");
         } else {
           expect(typeof defaultConfig.features[feature]).toBe("boolean");
@@ -66,12 +66,14 @@ describe("config-types", () => {
   });
 
   describe("constants", () => {
-    it("KNOWN_FEATURES contains only boolean features", () => {
+    it("KNOWN_FEATURES lists all known features", () => {
       expect(KNOWN_FEATURES).toContain("mutationQueue");
       expect(KNOWN_FEATURES).toContain("backgroundSync");
       expect(KNOWN_FEATURES).toContain("auth");
       expect(KNOWN_FEATURES).toContain("crossTabSync");
       expect(KNOWN_FEATURES).toContain("tagInvalidation");
+      expect(KNOWN_FEATURES).toContain("graphql");
+      expect(KNOWN_FEATURES).toContain("pushNotifications");
       expect(KNOWN_FEATURES).not.toContain("clientRegistration");
       expect(KNOWN_FEATURES).not.toContain("pwa");
       expect(KNOWN_FEATURES).not.toContain("serviceWorker");
@@ -79,11 +81,12 @@ describe("config-types", () => {
       expect(KNOWN_FEATURES).not.toContain("autoUpdate");
     });
 
-    it("OBJECT_FEATURES lists pwa, serviceWorker, auth, and pushNotifications", () => {
+    it("OBJECT_FEATURES lists object-typed features", () => {
       expect(OBJECT_FEATURES).toContain("pwa");
       expect(OBJECT_FEATURES).toContain("serviceWorker");
       expect(OBJECT_FEATURES).toContain("auth");
       expect(OBJECT_FEATURES).toContain("pushNotifications");
+      expect(OBJECT_FEATURES).toContain("graphql");
     });
 
     it("VALID_STRATEGIES contains all 5 strategies", () => {

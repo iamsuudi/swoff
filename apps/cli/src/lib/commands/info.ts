@@ -22,11 +22,11 @@ const FEATURES: Record<string, FeatureInfo> = {
   "mutation-queue": {
     label: "Mutation Queue",
     description:
-      "Queues offline write operations in IndexedDB and replays them when the connection returns. Uses the Background Sync API or the online event listener.",
+      "Queues offline write operations in IndexedDB and replays them when the connection returns. Supports configurable batch size, rate limiting between mutations, and exponential backoff on retry. Uses the Background Sync API or the online event listener.",
     files: ["mutation-queue.ts"],
     functions: [
       "queueMutation(mutation) — store a write for later sync",
-      "processMutationQueue() — replay all queued writes",
+      "processMutationQueue() — replay all queued writes (respects batchSize, batchDelayMs, maxRetries, retryBackoffMs)",
       "flushMutations() — same as processMutationQueue, call after re-login",
       "getPendingCount() — number of mutations waiting to sync",
     ],
@@ -74,6 +74,17 @@ const FEATURES: Record<string, FeatureInfo> = {
       "Broadcasts cache invalidation and auth state changes across all open tabs via the service worker.",
     files: ["client-injector.ts (internal handling)"],
     functions: ["No separate imports needed — handled automatically by client-injector.ts"],
+  },
+  graphql: {
+    label: "GraphQL",
+    description:
+      "A fetchWithGql wrapper that brings Swoff's caching, offline queue, and tag-based invalidation to GraphQL APIs. Hashes query + variables for deterministic cache keys, auto-detects queries vs mutations, and generates tags from operation names.",
+    files: ["gql-wrapper.ts"],
+    functions: [
+      "fetchWithGql<T>(query, options?) — unified GQL fetch with caching, auth, offline queue, auto-invalidation",
+      "queryGql<T>(query, variables?, options?) — shorthand for GQL queries (type: 'read')",
+      "mutateGql<T>(mutation, variables?, options?) — shorthand for GQL mutations (type: 'mutation')",
+    ],
   },
   "push-notification": {
     label: "Push Notifications",
@@ -128,11 +139,12 @@ export async function infoCommand(projectRoot: string, feature?: string) {
 
   // Show enabled features
   const enabled: string[] = [];
-  if (config.features.mutationQueue) enabled.push("mutation-queue");
+  if (config.features.mutationQueue.enabled) enabled.push("mutation-queue");
   if (config.features.backgroundSync) enabled.push("background-sync");
   if (config.features.auth.enabled) enabled.push("auth");
   if (config.features.crossTabSync) enabled.push("cross-tab");
   if (config.features.tagInvalidation) enabled.push("tag-invalidation");
+  if (config.features.graphql.enabled) enabled.push("graphql");
   if (config.features.pushNotifications?.enabled) enabled.push("push-notification");
   if (config.features.pwa.enabled) enabled.push("pwa");
 
@@ -150,7 +162,7 @@ export async function infoCommand(projectRoot: string, feature?: string) {
   }
 
   log.help("\n  swoff info <feature>  — detailed info for a feature");
-  log.help("  Features: mutation-queue, background-sync, auth, tag-invalidation, cross-tab, push-notification, pwa");
+  log.help("  Features: mutation-queue, background-sync, auth, tag-invalidation, cross-tab, graphql, push-notification, pwa");
   log.help("  Read swoff/GUIDE.md for the full integration guide");
 }
 
@@ -160,7 +172,7 @@ function showFeatureDetail(feature: string) {
 
   if (!info) {
     log.error(`Unknown feature: ${feature}`);
-    log.info("Available: mutation-queue, background-sync, auth, tag-invalidation, cross-tab, push-notification, pwa");
+    log.info("Available: mutation-queue, background-sync, auth, tag-invalidation, cross-tab, graphql, push-notification, pwa");
     return;
   }
 

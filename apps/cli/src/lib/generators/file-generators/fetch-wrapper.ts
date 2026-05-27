@@ -12,7 +12,7 @@ export function generateFetchWrapper(ctx: GeneratorContext): void {
   const G = (type: string) => (ts ? `<${type}>` : "");
   const tagInvalidation = ctx.config.features.tagInvalidation;
   const authEnabled = ctx.config.features.auth.enabled;
-  const mutationQueue = ctx.config.features.mutationQueue;
+  const mutationQueue = ctx.config.features.mutationQueue.enabled;
 
   const importLines = [
     tagInvalidation

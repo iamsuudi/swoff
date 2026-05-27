@@ -1,3 +1,8 @@
+export interface GqlConfig {
+  enabled: boolean;
+  endpoint: string;
+}
+
 export interface AuthConfig {
   enabled: boolean;
   type: "cookie" | "bearer" | "custom";
@@ -10,6 +15,14 @@ export interface SwVersionConfig {
   source: "from-package" | "manual";
   value?: string;
   minSupportedVersion: string;
+}
+
+export interface MutationQueueConfig {
+  enabled: boolean;
+  batchSize: number;
+  batchDelayMs: number;
+  maxRetries: number;
+  retryBackoffMs: number;
 }
 
 export interface StrategyEntry {
@@ -42,11 +55,12 @@ export interface SwoffConfig {
       navigationMode: "spa" | "default";
       spaEntry: string;
     };
-    mutationQueue: boolean;
+    mutationQueue: MutationQueueConfig;
     backgroundSync: boolean;
     auth: AuthConfig;
     crossTabSync: boolean;
     tagInvalidation: boolean;
+    graphql: GqlConfig;
     pushNotifications?: {
       enabled: boolean;
       vapidPublicKey?: string;
@@ -64,10 +78,11 @@ export const KNOWN_FEATURES = [
   "auth",
   "crossTabSync",
   "tagInvalidation",
+  "graphql",
   "pushNotifications",
 ] as const;
 
-export const OBJECT_FEATURES = ["pwa", "serviceWorker", "auth", "pushNotifications"] as const;
+export const OBJECT_FEATURES = ["pwa", "serviceWorker", "auth", "pushNotifications", "graphql"] as const;
 
 export const VALID_STRATEGIES = [
   "cache-first",
@@ -90,6 +105,18 @@ function normalizeSwVersion(ver: unknown): SwVersionConfig {
   return defaultVersionConfig;
 }
 
+function normalizeGql(val: unknown): GqlConfig {
+  if (typeof val === "boolean") return { ...defaultGql, enabled: val };
+  if (val && typeof val === "object") return { ...defaultGql, ...(val as Partial<GqlConfig>) };
+  return defaultGql;
+}
+
+function normalizeMutationQueue(val: unknown): MutationQueueConfig {
+  if (typeof val === "boolean") return { ...defaultMutationQueue, enabled: val };
+  if (val && typeof val === "object") return { ...defaultMutationQueue, ...(val as Partial<MutationQueueConfig>) };
+  return defaultMutationQueue;
+}
+
 export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>): SwoffConfig {
   return {
     ...base,
@@ -104,6 +131,8 @@ export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>):
         version: normalizeSwVersion(override.features?.serviceWorker?.version),
       },
       auth: normalizeAuth(override.features?.auth),
+      mutationQueue: normalizeMutationQueue(override.features?.mutationQueue),
+      graphql: normalizeGql(override.features?.graphql),
     },
     build: { ...base.build, ...override.build },
   };
@@ -120,6 +149,19 @@ export const defaultVersionConfig: SwVersionConfig = {
   enabled: true,
   source: "from-package",
   minSupportedVersion: "0.0.0",
+};
+
+export const defaultGql: GqlConfig = {
+  enabled: false,
+  endpoint: "/graphql",
+};
+
+export const defaultMutationQueue: MutationQueueConfig = {
+  enabled: false,
+  batchSize: 1,
+  batchDelayMs: 0,
+  maxRetries: 5,
+  retryBackoffMs: 1000,
 };
 
 export const defaultConfig: SwoffConfig = {
@@ -141,11 +183,12 @@ export const defaultConfig: SwoffConfig = {
       navigationMode: "spa",
       spaEntry: "/index.html",
     },
-    mutationQueue: false,
+    mutationQueue: { ...defaultMutationQueue },
     backgroundSync: false,
     auth: { ...defaultAuth },
     crossTabSync: true,
     tagInvalidation: true,
+    graphql: { ...defaultGql },
     pushNotifications: { enabled: false },
   },
   build: {

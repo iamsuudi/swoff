@@ -1,9 +1,4 @@
-/**
- * Generates Background Sync event handler for the SW.
- * Processes mutation queue when browser sync fires.
- */
-
-export function generateBackgroundSyncHandler(authType?: string): string {
+export function generateBackgroundSyncHandler(authType: string | undefined, batchSize: number, batchDelayMs: number, maxRetries: number, retryBackoffMs: number): string {
   const credentialsLine = authType === "cookie"
     ? `          credentials: "same-origin",`
     : "";
@@ -15,9 +10,14 @@ self.addEventListener("sync", (event) => {
   }
 });
 
-const SW_DB_NAME = "swoff-queue";
-const SW_STORE_NAME = "mutations";
-const SW_MAX_RETRIES = 5;
+const SW_BATCH_SIZE = ${batchSize};
+const SW_BATCH_DELAY_MS = ${batchDelayMs};
+const SW_MAX_RETRIES = ${maxRetries};
+const SW_RETRY_BACKOFF_MS = ${retryBackoffMs};
+
+function swSleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 async function processMutationQueueInSW() {
   let succeeded = 0;
@@ -47,12 +47,19 @@ async function processMutationQueueInSW() {
       request.onerror = () => reject(request.error);
     });
 
+    const total = queue.length;
     for (const item of queue) {
       if (item.retryCount >= SW_MAX_RETRIES) {
         await removeFromSWQueue(db, item.id);
         failed++;
         continue;
       }
+
+      // Skip items whose backoff delay hasn't elapsed yet
+      if (item.nextRetryAt && Date.now() < item.nextRetryAt) {
+        continue;
+      }
+
       try {
         const response = await fetch(item.url, {
           method: item.method,
@@ -69,8 +76,14 @@ ${credentialsLine}        });
         succeeded++;
       } catch {
         item.retryCount++;
+        item.nextRetryAt = Date.now() + SW_RETRY_BACKOFF_MS * Math.pow(2, item.retryCount - 1);
         await updateInSWQueue(db, item);
         failed++;
+      }
+
+      // Rate limiting delay between mutations
+      if (SW_BATCH_DELAY_MS > 0 && succeeded + failed < total) {
+        await swSleep(SW_BATCH_DELAY_MS);
       }
     }
   } catch (err) {

@@ -44,7 +44,7 @@ export function generateReadme(ctx: GeneratorContext): void {
     w("");
   }
 
-  if (config.features.mutationQueue) {
+  if (config.features.mutationQueue.enabled) {
     w("## Offline mutations (queue writes when offline)");
     w("```ts");
     w(`import { queueMutation, getPendingCount } from "./swoff/mutation-queue.${ext}";`);
@@ -60,6 +60,19 @@ export function generateReadme(ctx: GeneratorContext): void {
       w("```");
       w("");
     }
+  }
+
+  if (config.features.graphql.enabled) {
+    w("## GraphQL (cached queries with body-hash)");
+    w("```ts");
+    w(`import { queryGql, mutateGql } from "./swoff/gql-wrapper.${ext}";`);
+    w('const { data } = await queryGql("{ todos { id title } }");');
+    w('const { data: created } = await mutateGql(');
+    w('  "mutation CreateTodo($t: String!) { createTodo(title: $t) { id } }",');
+    w('  { t: "New task" },');
+    w(");");
+    w("```");
+    w("");
   }
 
   if (config.features.pushNotifications?.enabled) {

@@ -8,7 +8,7 @@ export function generateClientInjector(ctx: GeneratorContext): void {
   const ext = ctx.ext;
   const ts = ext === "ts";
   const pwaEnabled = ctx.config.features.pwa.enabled;
-  const mutationQueueEnabled = ctx.config.features.mutationQueue;
+  const mutationQueueEnabled = ctx.config.features.mutationQueue.enabled;
   const crossTabSync = ctx.config.features.crossTabSync;
 
   const pwaImport = pwaEnabled

@@ -36,7 +36,7 @@
       "userId": 1
     }
   ],
-  "nextNoteId": 4,
+  "nextNoteId": 5,
   "sessions": [
     {
       "id": "23d7f737-d325-4a0d-826b-5ce939ce9964",
@@ -48,5 +48,6 @@
       "userId": 1,
       "createdAt": "2026-05-26T10:56:19.501Z"
     }
-  ]
+  ],
+  "pushSubscriptions": []
 }

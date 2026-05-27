@@ -34,6 +34,16 @@ import { flushMutations } from "./swoff/mutation-queue.ts";
 await flushMutations();
 ```
 
+## GraphQL (cached queries with body-hash)
+```ts
+import { queryGql, mutateGql } from "./swoff/gql-wrapper.ts";
+const { data } = await queryGql("{ todos { id title } }");
+const { data: created } = await mutateGql(
+  "mutation CreateTodo($t: String!) { createTodo(title: $t) { id } }",
+  { t: "New task" },
+);
+```
+
 ## Push notifications
 ```ts
 import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push.ts";

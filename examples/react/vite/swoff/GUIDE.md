@@ -113,9 +113,65 @@ navigation (SPA fallback) → precache check → strategy dispatch → network p
 | `network-only` | Always fetch, never cache | Sensitive or real-time data |
 
 
+## ⚡ GraphQL
+Swoff brings caching, offline queue, auth, and tag-based invalidation to GraphQL APIs via `fetchWithGql`. It hashes
+the query + variables into a deterministic cache key (`X-SW-Cache-Key`) for SW-level caching, and auto-generates
+tags from operation names for automatic cache invalidation after mutations.
+
+### `gql-wrapper.ts`
+```ts
+import { queryGql, mutateGql } from "./swoff/gql-wrapper.ts";
+
+// Query — cached with body-hash key
+const { data } = await queryGql("{ todos { id title } }");
+
+// Query with variables
+const { data: todo } = await queryGql(
+  "query GetTodo($id: ID!) { todo(id: $id) { id title } }",
+  { id: "42" },
+);
+
+// Mutation — auto-invalidates 'todos' cache
+const { data: created } = await mutateGql(
+  "mutation CreateTodo($title: String!) { createTodo(title: $title) { id } }",
+  { title: "New task" },
+);
+
+// With auth, stale-while-revalidate, and custom tags
+const { data, fromCache } = await queryGql(
+  "query Me { me { name } }",
+  {},
+  { auth: true, staleWhileRevalidate: true, tags: ["users"] },
+);
+```
+
+**How it works:**
+- Queries are POSTed as `type: "read"` with `X-SW-Cache-Key: gql:<sha256-hash>`
+- The SW caches responses under a virtual URL (`/__swc/gql:<hash>`) so different queries never collide
+- Mutations are POSTed as `type: "mutation"` — auto-invalidate tags from operation name
+- Offline mutations are queued via the mutation queue (if enabled)
+- Auth, strategy override, and custom tags work the same as `fetchWithCache`
+
+**Functions:**
+- `fetchWithGql<T>(query, options?)` — core GQL fetch with all Swoff features
+- `queryGql<T>(query, variables?, options?)` — shorthand for queries
+- `mutateGql<T>(mutation, variables?, options?)` — shorthand for mutations
+
+**Config:**
+```json
+"graphql": { "enabled": true, "endpoint": "/graphql" }
+```
+
+
 ## 📝 Mutation Queue — offline writes that sync when back online
 When the user is offline and performs a write (POST/PUT/PATCH/DELETE), `queueMutation` stores it
 in IndexedDB. When the connection returns, `processMutationQueue` replays them in order.
+
+**Configurable batching:** set `batchSize`, `batchDelayMs`, `maxRetries`, and `retryBackoffMs` in `swoff.config.json` under `features.mutationQueue`.
+- `batchSize` (default 1) — mutations per progress event
+- `batchDelayMs` (default 0) — delay between mutations (rate limiting)
+- `maxRetries` (default 5) — max attempts before dropping
+- `retryBackoffMs` (default 1000) — exponential backoff base (nextRetry = backoff × 2^retryCount)
 
 ### `mutation-queue.ts`
 ```ts
@@ -135,7 +191,7 @@ await flushMutations();
 
 **Functions:**
 - `queueMutation(mutation)` — store a write for later sync
-- `processMutationQueue()` — replay all queued writes. Runs automatically on `online` event.
+- `processMutationQueue()` — replay all queued writes. Respects batchDelayMs, maxRetries, retryBackoffMs.
 - `flushMutations()` — same as processMutationQueue. Call after re-login.
 - `getPendingCount()` — number of mutations waiting to sync.
 
@@ -391,11 +447,12 @@ This is the configuration file that controls which features are enabled and how 
 Re-run `npx @swoff/cli generate` after changing it.
 
 ### Features you can toggle:
-- `mutationQueue` — offline write queue with IndexedDB
+- `mutationQueue.enabled` — offline write queue with IndexedDB. Object: `{ enabled, batchSize, batchDelayMs, maxRetries, retryBackoffMs }`
 - `backgroundSync` — Background Sync API (Chrome/Edge only)
 - `auth.enabled` — auth module (bearer/cookie/custom)
 - `crossTabSync` — broadcast changes across tabs
 - `tagInvalidation` — cache invalidation by tags
+- `graphql.enabled` — GraphQL wrapper with body-hash caching. Object: `{ enabled, endpoint }`
 - `pwa.enabled` — PWA install prompt and manifest
 - `serviceWorker.cacheStrategy` — caching strategy mode (`"all"` or `"explicit-only"`)
 - `serviceWorker.defaultStrategy` — default caching strategy

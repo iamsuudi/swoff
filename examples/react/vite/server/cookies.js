@@ -5,6 +5,9 @@ import cookieParser from "cookie-parser";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import webPush from "web-push";
+import { setupPush, triggerPushNotification } from "./push.js";
+import { setupGraphql } from "./graphql.js";
 
 const app = express();
 const JWT_SECRET = "swoff-demo-secret-key-2026";
@@ -105,6 +108,7 @@ app.post("/api/notes", authenticate, (req, res) => {
   const note = { id: db.nextNoteId++, title, description, priority, createdAt: now, updatedAt: now, userId: req.user.id };
   db.notes.push(note);
   writeDb(db);
+  triggerPushNotification(readDb, writeDb, webPush, { title: "Note created", body: `"${title}" added` }).catch(() => {});
   res.status(201).json(note);
 });
 
@@ -114,8 +118,10 @@ app.put("/api/notes/:id", authenticate, (req, res) => {
   if (idx === -1) return res.status(404).json({ error: "Note not found" });
   const { title, description, priority } = req.body;
   db.notes[idx] = { ...db.notes[idx], ...(title && { title }), ...(description && { description }), ...(priority && { priority }), updatedAt: new Date().toISOString() };
+  const updated = db.notes[idx];
   writeDb(db);
-  res.json(db.notes[idx]);
+  triggerPushNotification(readDb, writeDb, webPush, { title: "Note updated", body: `"${updated.title}" updated` }).catch(() => {});
+  res.json(updated);
 });
 
 app.delete("/api/notes/:id", authenticate, (req, res) => {
@@ -124,7 +130,13 @@ app.delete("/api/notes/:id", authenticate, (req, res) => {
   if (idx === -1) return res.status(404).json({ error: "Note not found" });
   db.notes.splice(idx, 1);
   writeDb(db);
+  triggerPushNotification(readDb, writeDb, webPush, { title: "Note deleted", body: `Note #${req.params.id} removed` }).catch(() => {});
   res.status(204).end();
+});
+
+setupPush(app, readDb, writeDb, webPush);
+setupGraphql(app, readDb, writeDb, authenticate, (payload) => {
+  triggerPushNotification(readDb, writeDb, webPush, payload).catch(() => {});
 });
 
 const distPath = join(__dirname, "..", "dist");

@@ -30,7 +30,13 @@
       "navigationMode": "spa",
       "spaEntry": "/index.html"
     },
-    "mutationQueue": true,
+    "mutationQueue": {
+      "enabled": true,
+      "batchSize": 5,
+      "batchDelayMs": 1000,
+      "maxRetries": 3,
+      "retryBackoffMs": 2000
+    },
     "backgroundSync": true,
     "auth": {
       "enabled": true,
@@ -40,6 +46,10 @@
     },
     "crossTabSync": true,
     "tagInvalidation": true,
+    "graphql": {
+      "enabled": true,
+      "endpoint": "/graphql"
+    },
     "pushNotifications": {
       "enabled": true
     }

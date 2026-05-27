@@ -30,6 +30,7 @@ import { generateManifest } from "./file-generators/manifest.js";
 import { generateInvalidationTags } from "./file-generators/invalidation-tags.js";
 import { generatePush } from "./file-generators/push.js";
 import { generateMutationState } from "./file-generators/mutation-state.js";
+import { generateServerPush } from "./file-generators/server-push.js";
 import { generateAuthStore } from "./file-generators/auth-store.js";
 import { generateAuthUser } from "./file-generators/auth-user.js";
 import { generateAuthState } from "./file-generators/auth-state.js";
@@ -67,6 +68,7 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
     { name: "invalidation-tags", gen: () => generateInvalidationTags(ctx), enabled: ctx.config.features.tagInvalidation },
     { name: "gql-wrapper", gen: () => generateGqlWrapper(ctx), enabled: ctx.config.features.graphql.enabled },
     { name: "push", gen: () => generatePush(ctx), enabled: ctx.config.features.pushNotifications?.enabled ?? false },
+    { name: "server-push", gen: () => generateServerPush(ctx), enabled: ctx.config.features.serverPush.enabled },
     { name: "hooks", gen: () => generateHooks(ctx), enabled: ctx.config.framework === "react" },
     { name: "GUIDE.md", gen: () => generateGuide(ctx), enabled: true },
     { name: "README.md", gen: () => generateReadme(ctx), enabled: true },

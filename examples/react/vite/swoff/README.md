@@ -44,6 +44,12 @@ const { data: created } = await mutateGql(
 );
 ```
 
+## Server push events (real-time cache invalidation)
+```ts
+import { startPushEvents } from "./swoff/server-push.ts";
+startPushEvents();
+```
+
 ## Push notifications
 ```ts
 import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push.ts";
@@ -55,16 +61,33 @@ const sub = await subscribeToPush("YOUR_VAPID_PUBLIC_KEY");
 import { useCachedFetch } from "./swoff/hooks/useCachedFetch.tsx";
 import { useMutation } from "./swoff/hooks/useMutation.tsx";
 import { usePrefetch } from "./swoff/hooks/usePrefetch.tsx";
+import { useMutationState } from "./swoff/hooks/useMutationState.tsx";
 
 const { data, error, loading, refetch } = useCachedFetch("/api/todos", {
   refetchOnWindowFocus: true,
 });
+
+// Dependent query — skip until user is loaded
+const { data: posts } = useCachedFetch("/api/posts", { enabled: !!user });
 
 const { mutate } = useMutation({ onSuccess: (data) => console.log(data) });
 mutate("/api/todos", { method: "POST", body: JSON.stringify({ title: "New" }) });
 
 const prefetch = usePrefetch();
 prefetch("/api/todos");
+
+// Track a specific mutation by its returned id
+const mutation = useMutationState(mutationId);
+```
+
+## Mutation queue hooks
+```tsx
+import { useMutationQueue } from "./swoff/hooks/useMutationQueue.tsx";
+import { useMutationState } from "./swoff/hooks/useMutationState.tsx";
+
+const { pending, items, lastSync } = useMutationQueue();
+// items: MutationQueueItem[] — each with id, url, method, status, retryCount
+// lastSync: { succeeded, failed } | null — result of the last sync attempt
 ```
 
 ## Cache invalidation

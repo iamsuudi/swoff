@@ -293,6 +293,35 @@
             }
           ]
         },
+        "serverPush": {
+          "type": "object",
+          "description": "Server push event configuration (SSE or WebSocket). The service worker connects to a push endpoint and invalidates cache tags when the server signals data changes.",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable server push event connection for real-time cache invalidation",
+              "default": false
+            },
+            "type": {
+              "type": "string",
+              "description": "Transport type: 'sse' (Server-Sent Events via fetch stream) or 'websocket'",
+              "default": "sse",
+              "enum": ["sse", "websocket"]
+            },
+            "endpoint": {
+              "type": "string",
+              "description": "Push event endpoint URL (e.g., /api/events for SSE, wss://example.com/events for WebSocket)",
+              "example": "/api/events"
+            },
+            "reconnectDelayMs": {
+              "type": "integer",
+              "description": "Delay in ms before reconnecting after connection loss",
+              "default": 5000,
+              "minimum": 1000
+            }
+          },
+          "required": ["enabled", "type", "endpoint"]
+        },
         "pushNotifications": {
           "type": "object",
           "description": "Push notification configuration",
@@ -320,7 +349,8 @@
         "crossTabSync",
         "tagInvalidation",
         "pushNotifications",
-        "graphql"
+        "graphql",
+        "serverPush"
       ]
     },
     "build": {

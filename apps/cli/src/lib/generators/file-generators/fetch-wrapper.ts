@@ -93,6 +93,7 @@ export interface FetchWithCacheOptions extends RequestInit {
     : "";
 
   const offlineReadBlock = `    if (isRead) {
+      if (options.signal?.aborted) throw new DOMException("The operation was aborted", "AbortError");
       const cached = await caches.match(input);
       if (cached) return { response: cached, fromCache: true };
       throw new Error("Offline: no cached data available");
@@ -245,14 +246,31 @@ ${offlineReadBlock}
 ${offlineWriteBlock}
   }
 
+  // Check for abort before proceeding
+  if (options.signal?.aborted) {
+    throw new DOMException("The operation was aborted", "AbortError");
+  }
+
   // Deduplicate in-flight GET requests
   let responsePromise${T("Promise<Response>")};
   if (isRead && inFlightRequests.has(url)) {
     responsePromise = inFlightRequests.get(url)!.then((r) => r.clone());
   } else {
+    const abortHandler = () => {
+      inFlightRequests.delete(url);
+    };
+    if (options.signal) {
+      options.signal.addEventListener("abort", abortHandler, { once: true });
+    }
     responsePromise = fetch(input, fetchOptions);
     if (isRead) {
-      inFlightRequests.set(url, responsePromise.finally(() => inFlightRequests.delete(url)));
+      const cleanup = () => {
+        inFlightRequests.delete(url);
+        if (options.signal) {
+          options.signal.removeEventListener("abort", abortHandler);
+        }
+      };
+      inFlightRequests.set(url, responsePromise.finally(cleanup));
     }
   }
 

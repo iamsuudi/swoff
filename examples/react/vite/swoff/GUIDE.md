@@ -127,6 +127,27 @@ const { data, error, loading, refetch } = useCachedFetch<Todo[]>("/api/todos");
 The hook listens for `cache-invalidated` events (when tag invalidation is enabled) and automatically
 re-fetches if the event's tags match the URL. Call `refetch()` to manually refresh.
 
+### Dependent queries
+Use `enabled: false` or pass a nullable URL to skip fetching until a condition is met.
+When `enabled` becomes `true` or the URL becomes non-null, the query automatically starts fetching.
+```tsx
+const { data: user } = useCachedFetch<User>("/api/me");
+const { data: posts } = useCachedFetch<Post[]>(user ? "/api/posts" : null);
+// or
+const { data: posts2 } = useCachedFetch<Post[]>("/api/posts", { enabled: !!user });
+```
+
+### Query cancellation (AbortController)
+`fetchWithCache` integrates with the dedup map so duplicate requests are automatically deduplicated.
+Pass an AbortSignal to cancel an in-flight request:
+```tsx
+useEffect(() => {
+  const ctrl = new AbortController();
+  fetchWithCache("/api/search", { signal: ctrl.signal });
+  return () => ctrl.abort();
+}, [query]);
+```
+
 ### React Hook: `useNetworkStatus`
 Tracks online/offline state reactively.
 ```tsx
@@ -421,6 +442,46 @@ No separate imports needed — this is handled automatically by `client-injector
 The service worker listens for invalidation events and forwards them to all clients.
 
 
+## 📡 Server Push Events — real-time cache invalidation
+Instead of polling, the service worker maintains an SSE or WebSocket connection to your push endpoint.
+When the server signals that data has changed (via an `invalidate` event), the SW automatically
+calls `invalidateByTag()` so the next read gets fresh data.
+
+### Transport: **SSE**
+The SW establishes an `EventSource` connection. The server sends events with event name `invalidate`
+and a JSON payload: `{ tags: string[] }`. On receiving it, the SW calls `invalidateByTags(tags)`.
+
+**Server format (SSE):**
+```
+event: invalidate
+data: {"tags":["todos","categories"]}
+
+```
+
+### `server-push.ts` — Client-side connection manager
+```ts
+import { startPushEvents, stopPushEvents, isPushConnected } from "./swoff/server-push.ts";
+
+// Start listening for push events
+startPushEvents();
+
+// Check connection
+if (isPushConnected()) {
+  console.log("Connected to push endpoint");
+}
+```
+
+**Functions:**
+- `startPushEvents()` — connect to the push endpoint and begin listening for invalidation events
+- `stopPushEvents()` — disconnect from the push endpoint
+- `isPushConnected()` — check if the connection is active
+
+> ⚠️ The service worker directly manages the SSE/WS connection for reliability across page navigations.
+> The client-side `server-push.ts` is a fallback that starts the connection when the SW is not yet active.
+
+### React Hook: `useServerPush()` (coming in a future release)
+
+
 ## 🔔 Push Notifications — subscription management
 Swoff generates a push notification subscription client with IndexedDB persistence
 and the service worker push event handlers.
@@ -513,6 +574,7 @@ Re-run `npx @swoff/cli generate` after changing it.
 - `tagInvalidation` — cache invalidation by tags
 - `graphql.enabled` — GraphQL wrapper with body-hash caching. Object: `{ enabled, endpoint }`
 - `pwa.enabled` — PWA install prompt and manifest
+- `serverPush.enabled` — real-time cache invalidation via SSE/WebSocket. Object: `{ enabled, type, endpoint, reconnectDelayMs }`
 - `serviceWorker.cacheStrategy` — caching strategy mode (`"all"` or `"explicit-only"`)
 - `serviceWorker.defaultStrategy` — default caching strategy
 - `serviceWorker.strategies` — per-route strategy overrides

@@ -75,6 +75,15 @@ export function generateReadme(ctx: GeneratorContext): void {
     w("");
   }
 
+  if (config.features.serverPush.enabled) {
+    w("## Server push events (real-time cache invalidation)");
+    w("```ts");
+    w(`import { startPushEvents } from "./swoff/server-push.${ext}";`);
+    w("startPushEvents();");
+    w("```");
+    w("");
+  }
+
   if (config.features.pushNotifications?.enabled) {
     w("## Push notifications");
     w("```ts");
@@ -90,18 +99,38 @@ export function generateReadme(ctx: GeneratorContext): void {
     w(`import { useCachedFetch } from "./swoff/hooks/useCachedFetch.${ext}x";`);
     w(`import { useMutation } from "./swoff/hooks/useMutation.${ext}x";`);
     w(`import { usePrefetch } from "./swoff/hooks/usePrefetch.${ext}x";`);
+    w(`import { useMutationState } from "./swoff/hooks/useMutationState.${ext}x";`);
     w("");
     w('const { data, error, loading, refetch } = useCachedFetch("/api/todos", {');
     w('  refetchOnWindowFocus: true,');
     w('});');
+    w("");
+    w('// Dependent query — skip until user is loaded');
+    w('const { data: posts } = useCachedFetch("/api/posts", { enabled: !!user });');
     w("");
     w('const { mutate } = useMutation({ onSuccess: (data) => console.log(data) });');
     w('mutate("/api/todos", { method: "POST", body: JSON.stringify({ title: "New" }) });');
     w("");
     w('const prefetch = usePrefetch();');
     w('prefetch("/api/todos");');
+    w("");
+    w('// Track a specific mutation by its returned id');
+    w('const mutation = useMutationState(mutationId);');
     w("```");
     w("");
+
+    if (config.features.mutationQueue.enabled) {
+      w("## Mutation queue hooks");
+      w("```tsx");
+      w(`import { useMutationQueue } from "./swoff/hooks/useMutationQueue.${ext}x";`);
+      w(`import { useMutationState } from "./swoff/hooks/useMutationState.${ext}x";`);
+      w("");
+      w('const { pending, items, lastSync } = useMutationQueue();');
+      w("// items: MutationQueueItem[] — each with id, url, method, status, retryCount");
+      w("// lastSync: { succeeded, failed } | null — result of the last sync attempt");
+      w("```");
+      w("");
+    }
   }
 
   if (config.features.tagInvalidation) {

@@ -100,6 +100,17 @@ const FEATURES: Record<string, FeatureInfo> = {
       "requestNotificationPermission() — request permission only",
     ],
   },
+  "server-push": {
+    label: "Server Push Events",
+    description:
+      "Real-time cache invalidation via SSE or WebSocket. The service worker connects to a push endpoint and invalidates cache tags when the server signals data changes — no polling needed.",
+    files: ["server-push.ts"],
+    functions: [
+      "startPushEvents() — connect to push endpoint and listen for invalidate events",
+      "stopPushEvents() — disconnect from push endpoint",
+      "isPushConnected() — check connection status",
+    ],
+  },
   pwa: {
     label: "PWA",
     description:

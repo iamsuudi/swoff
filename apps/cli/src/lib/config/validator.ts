@@ -190,6 +190,22 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         errors.push("features.graphql.endpoint must be a string");
       }
     }
+
+    const serverPush = features.serverPush as Record<string, unknown> | undefined;
+    if (serverPush && typeof serverPush === "object") {
+      if (serverPush.enabled !== undefined && typeof serverPush.enabled !== "boolean") {
+        errors.push("features.serverPush.enabled must be a boolean");
+      }
+      if (serverPush.type !== undefined && !["sse", "websocket"].includes(serverPush.type as string)) {
+        errors.push('features.serverPush.type must be "sse" or "websocket"');
+      }
+      if (serverPush.endpoint !== undefined && typeof serverPush.endpoint !== "string") {
+        errors.push("features.serverPush.endpoint must be a string");
+      }
+      if (serverPush.reconnectDelayMs !== undefined && (typeof serverPush.reconnectDelayMs !== "number" || serverPush.reconnectDelayMs < 0)) {
+        errors.push("features.serverPush.reconnectDelayMs must be a non-negative number");
+      }
+    }
   }
 
   const fw = config.framework;

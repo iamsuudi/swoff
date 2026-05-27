@@ -70,6 +70,12 @@ export interface SwoffConfig {
       enabled: boolean;
       vapidPublicKey?: string;
     };
+    serverPush: {
+      enabled: boolean;
+      type: "sse" | "websocket";
+      endpoint: string;
+      reconnectDelayMs: number;
+    };
   };
   build: {
     outputDir: string;
@@ -85,9 +91,10 @@ export const KNOWN_FEATURES = [
   "tagInvalidation",
   "graphql",
   "pushNotifications",
+  "serverPush",
 ] as const;
 
-export const OBJECT_FEATURES = ["pwa", "serviceWorker", "auth", "pushNotifications", "graphql"] as const;
+export const OBJECT_FEATURES = ["pwa", "serviceWorker", "auth", "pushNotifications", "graphql", "serverPush"] as const;
 
 export const VALID_STRATEGIES = [
   "cache-first",
@@ -138,6 +145,7 @@ export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>):
       auth: normalizeAuth(override.features?.auth),
       mutationQueue: normalizeMutationQueue(override.features?.mutationQueue),
       graphql: normalizeGql(override.features?.graphql),
+      serverPush: { ...defaultServerPush, ...override.features?.serverPush },
     },
     build: { ...base.build, ...override.build },
   };
@@ -169,6 +177,13 @@ export const defaultMutationQueue: MutationQueueConfig = {
   retryBackoffMs: 1000,
 };
 
+export const defaultServerPush = {
+  enabled: false,
+  type: "sse" as const,
+  endpoint: "/api/events",
+  reconnectDelayMs: 5000,
+};
+
 export const defaultConfig: SwoffConfig = {
   enabled: true,
   features: {
@@ -195,6 +210,7 @@ export const defaultConfig: SwoffConfig = {
     tagInvalidation: true,
     graphql: { ...defaultGql },
     pushNotifications: { enabled: false },
+    serverPush: { ...defaultServerPush },
   },
   build: {
     outputDir: "dist",

@@ -25,6 +25,7 @@ export function generateHooks(ctx: GeneratorContext): void {
   copyHook(hooksDir, "useCachedFetch", ext);
   copyHook(hooksDir, "useMutation", ext);
   copyHook(hooksDir, "usePrefetch", ext);
+  copyHook(hooksDir, "useMutationState", ext);
 
   if (config.features.pwa.enabled) {
     copyHook(hooksDir, "useSWUpdate", ext);

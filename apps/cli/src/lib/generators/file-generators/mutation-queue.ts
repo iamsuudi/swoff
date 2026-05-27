@@ -276,6 +276,25 @@ export async function getPendingCount()${R("Promise<number>")}{
     request.onerror = () => reject((request${AS("IDBRequest")}).error);
   });
 }
+
+/** Get the position of a mutation in the queue (0-based). Returns -1 if not found. */
+export async function getQueuePosition(id${T("string")})${R("Promise<number>")}{
+  const items = await getQueueItems();
+  return items.findIndex((item) => item.id === id);
+}
+
+/** Get all pending queue items with their details. */
+export async function getQueueItems()${R("Promise<MutationQueueItem[]>")}{
+  const db = await openQueueDB();
+  const tx = db.transaction(STORE_NAME, "readonly");
+  const store = tx.objectStore(STORE_NAME);
+  const index = store.index("by-timestamp");
+  return new Promise${PT("MutationQueueItem[]")}((resolve, reject) => {
+    const request = index.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
 `;
 
   writeFile(ctx, `mutation-queue.${ext}`, code + helpers);

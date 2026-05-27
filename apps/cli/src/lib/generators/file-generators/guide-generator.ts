@@ -156,6 +156,29 @@ export function generateGuide(ctx: GeneratorContext): void {
       w("re-fetches if the event's tags match the URL. Call `refetch()` to manually refresh.");
       w("");
 
+      w("### Dependent queries");
+      w("Use `enabled: false` or pass a nullable URL to skip fetching until a condition is met.");
+      w("When `enabled` becomes `true` or the URL becomes non-null, the query automatically starts fetching.");
+      w("```tsx");
+      w('const { data: user } = useCachedFetch<User>("/api/me");');
+      w('const { data: posts } = useCachedFetch<Post[]>(user ? "/api/posts" : null);');
+      w("// or");
+      w('const { data: posts2 } = useCachedFetch<Post[]>("/api/posts", { enabled: !!user });');
+      w("```");
+      w("");
+
+      w("### Query cancellation (AbortController)");
+      w("`fetchWithCache` integrates with the dedup map so duplicate requests are automatically deduplicated.");
+      w("Pass an AbortSignal to cancel an in-flight request:");
+      w("```tsx");
+      w("useEffect(() => {");
+      w("  const ctrl = new AbortController();");
+      w('  fetchWithCache("/api/search", { signal: ctrl.signal });');
+      w("  return () => ctrl.abort();");
+      w("}, [query]);");
+      w("```");
+      w("");
+
       w("### React Hook: `useNetworkStatus`");
       w("Tracks online/offline state reactively.");
       w("```tsx");
@@ -513,6 +536,67 @@ export function generateGuide(ctx: GeneratorContext): void {
     }
   }
 
+  // ── Server Push ──
+  if (config.features.serverPush.enabled) {
+    wb("## 📡 Server Push Events — real-time cache invalidation");
+    w("Instead of polling, the service worker maintains an SSE or WebSocket connection to your push endpoint.");
+    w("When the server signals that data has changed (via an `invalidate` event), the SW automatically");
+    w("calls `invalidateByTag()` so the next read gets fresh data.");
+    w("");
+
+    const pushType = config.features.serverPush.type;
+    w(`### Transport: **${pushType.toUpperCase()}**`);
+    if (pushType === "sse") {
+      w("The SW establishes an `EventSource` connection. The server sends events with event name `invalidate`");
+      w("and a JSON payload: `{ tags: string[] }`. On receiving it, the SW calls `invalidateByTags(tags)`.");
+      w("");
+      w("**Server format (SSE):**");
+      w("```");
+      w("event: invalidate");
+      w("data: {\"tags\":[\"todos\",\"categories\"]}");
+      w("");
+      w("```");
+    } else {
+      w("The SW establishes a WebSocket connection. The server sends text frames with JSON payload:");
+      w('`{ "event": "invalidate", "tags": string[] }`. On receiving it, the SW calls `invalidateByTags(tags)`.');
+      w("");
+      w("**Server format (WebSocket):**");
+      w("```json");
+      w('{ "event": "invalidate", "tags": ["todos", "categories"] }');
+      w("```");
+    }
+    w("");
+
+    w("### `server-push.ts` — Client-side connection manager");
+    w("```ts");
+    w(`import { startPushEvents, stopPushEvents, isPushConnected } from "./swoff/server-push.${ext}";`);
+    w("");
+    w("// Start listening for push events");
+    w("startPushEvents();");
+    w("");
+    w("// Check connection");
+    w('if (isPushConnected()) {');
+    w('  console.log("Connected to push endpoint");');
+    w("}");
+    w("```");
+    w("");
+
+    w("**Functions:**");
+    w("- `startPushEvents()` — connect to the push endpoint and begin listening for invalidation events");
+    w("- `stopPushEvents()` — disconnect from the push endpoint");
+    w("- `isPushConnected()` — check if the connection is active");
+    w("");
+
+    w("> ⚠️ The service worker directly manages the SSE/WS connection for reliability across page navigations.");
+    w("> The client-side `server-push.ts` is a fallback that starts the connection when the SW is not yet active.");
+    w("");
+
+    if (ctx.frameworkName === "react") {
+      w("### React Hook: `useServerPush()` (coming in a future release)");
+      w("");
+    }
+  }
+
   // ── Push Notifications ──
   if (config.features.pushNotifications?.enabled) {
     wb("## 🔔 Push Notifications — subscription management");
@@ -626,6 +710,7 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("- `tagInvalidation` — cache invalidation by tags");
   w("- `graphql.enabled` — GraphQL wrapper with body-hash caching. Object: `{ enabled, endpoint }`");
   w("- `pwa.enabled` — PWA install prompt and manifest");
+  w("- `serverPush.enabled` — real-time cache invalidation via SSE/WebSocket. Object: `{ enabled, type, endpoint, reconnectDelayMs }`");
   w("- `serviceWorker.cacheStrategy` — caching strategy mode (`\"all\"` or `\"explicit-only\"`)");
   w("- `serviceWorker.defaultStrategy` — default caching strategy");
   w("- `serviceWorker.strategies` — per-route strategy overrides");

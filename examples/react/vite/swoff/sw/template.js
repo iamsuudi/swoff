@@ -507,6 +507,71 @@ self.addEventListener("notificationclick", (event) => {
 });
 
 
+// --- Server Push Events (SSE) ---
+
+let pushReconnectTimer = null;
+let pushAbortController = null;
+
+async function connectPushEvents() {
+  try {
+    pushAbortController = new AbortController();
+    const response = await fetch("/api/events", {
+      headers: { Accept: "text/event-stream" },
+      signal: pushAbortController.signal,
+    });
+    if (!response.ok || !response.body) {
+      scheduleReconnect();
+      return;
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let eventType = "";
+    let dataStr = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (line.startsWith("event: ")) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith("data: ")) {
+          dataStr = line.slice(6);
+        } else if (line === "") {
+          if (eventType === "invalidate" && dataStr) {
+            try {
+              const parsed = JSON.parse(dataStr);
+              if (parsed.tags) {
+                parsed.tags.forEach((tag) => invalidateByTag(tag));
+              }
+            } catch {}
+          }
+          eventType = "";
+          dataStr = "";
+        }
+      }
+    }
+  } catch {
+    // Connection lost or aborted
+  }
+  scheduleReconnect();
+}
+
+function scheduleReconnect() {
+  if (pushReconnectTimer) clearTimeout(pushReconnectTimer);
+  pushReconnectTimer = setTimeout(connectPushEvents, 5000);
+}
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(connectPushEvents());
+});
+
+
 
 self.addEventListener("sync", (event) => {
   if (event.tag === "sync-mutations") {

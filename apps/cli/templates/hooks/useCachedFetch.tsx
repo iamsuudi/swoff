@@ -10,11 +10,12 @@ import { generateTags } from "../invalidation-tags.ts";
 import type { FetchWithCacheOptions } from "../fetch-wrapper.ts";
 
 export function useCachedFetch<T>(
-  url: string,
+  url: string | null,
   options: FetchWithCacheOptions & {
     refetchOnWindowFocus?: boolean;
     refetchOnReconnect?: boolean;
     refetchInterval?: number;
+    enabled?: boolean;
   } = {},
 ) {
   const [data, setData] = useState<T | null>(null);
@@ -28,7 +29,13 @@ export function useCachedFetch<T>(
 
   const refetch = useCallback(() => setRefetchCount((c) => c + 1), []);
 
+  const isEnabled = options.enabled !== false && url != null;
+
   useEffect(() => {
+    if (!isEnabled) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     const controller = new AbortController();
     startTransition(() => setLoading(true));
@@ -60,45 +67,46 @@ export function useCachedFetch<T>(
       cancelled = true;
       controller.abort();
     };
-  }, [url, refetchCount]);
+  }, [url, refetchCount, isEnabled]);
 
   // Auto-refetch on cache invalidation
   useEffect(() => {
+    if (!isEnabled) return;
     const onInvalidated = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       const tags = detail?.tags;
       if (!tags || !Array.isArray(tags)) return;
-      const urlTags = generateTags(url);
+      const urlTags = generateTags(url!);
       if (tags.some((t: string) => urlTags.includes(t))) {
         setRefetchCount((c) => c + 1);
       }
     };
     window.addEventListener("cache-invalidated", onInvalidated);
     return () => window.removeEventListener("cache-invalidated", onInvalidated);
-  }, [url]);
+  }, [url, isEnabled]);
 
   // Auto-refetch on window focus
   useEffect(() => {
-    if (!options.refetchOnWindowFocus) return;
+    if (!options.refetchOnWindowFocus || !isEnabled) return;
     const onFocus = () => refetch();
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [options.refetchOnWindowFocus, refetch]);
+  }, [options.refetchOnWindowFocus, refetch, isEnabled]);
 
   // Auto-refetch on reconnect
   useEffect(() => {
-    if (!options.refetchOnReconnect) return;
+    if (!options.refetchOnReconnect || !isEnabled) return;
     const onOnline = () => refetch();
     window.addEventListener("online", onOnline);
     return () => window.removeEventListener("online", onOnline);
-  }, [options.refetchOnReconnect, refetch]);
+  }, [options.refetchOnReconnect, refetch, isEnabled]);
 
   // Auto-refetch on interval
   useEffect(() => {
-    if (!options.refetchInterval || options.refetchInterval <= 0) return;
+    if (!options.refetchInterval || options.refetchInterval <= 0 || !isEnabled) return;
     const id = setInterval(refetch, options.refetchInterval * 1000);
     return () => clearInterval(id);
-  }, [options.refetchInterval, refetch]);
+  }, [options.refetchInterval, refetch, isEnabled]);
 
   return { data, error, loading, refetch };
 }

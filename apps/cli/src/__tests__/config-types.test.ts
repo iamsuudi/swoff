@@ -29,7 +29,7 @@ describe("config-types", () => {
     it("has all known features with correct types", () => {
       for (const feature of KNOWN_FEATURES) {
         expect(defaultConfig.features).toHaveProperty(feature);
-        if (feature === "auth" || feature === "pushNotifications" || feature === "mutationQueue" || feature === "graphql") {
+        if (feature === "auth" || feature === "pushNotifications" || feature === "mutationQueue" || feature === "graphql" || feature === "serverPush") {
           expect(typeof defaultConfig.features[feature]).toBe("object");
         } else {
           expect(typeof defaultConfig.features[feature]).toBe("boolean");

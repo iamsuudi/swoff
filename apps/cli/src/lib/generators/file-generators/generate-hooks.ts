@@ -20,8 +20,12 @@ export function generateHooks(ctx: GeneratorContext): void {
     mkdirSync(hooksDir, { recursive: true });
   }
 
+  // Always generated hooks
   copyHook(hooksDir, "useNetworkStatus", ext);
   copyHook(hooksDir, "useCachedFetch", ext);
+  copyHook(hooksDir, "useMutation", ext);
+  copyHook(hooksDir, "usePrefetch", ext);
+  copyHook(hooksDir, "useMutationState", ext);
 
   if (config.features.pwa.enabled) {
     copyHook(hooksDir, "useSWUpdate", ext);

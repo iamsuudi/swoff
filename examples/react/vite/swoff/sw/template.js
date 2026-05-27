@@ -79,7 +79,9 @@ self.addEventListener("message", (event) => {
     );
   }
 });
-
+const GLOBAL_MAX_ENTRIES = 0;
+const GLOBAL_MAX_AGE = 0;
+const GLOBAL_STALE_TIME = 60;
 // --- Cache Key ---
 
 function cacheKey(request) {
@@ -102,7 +104,14 @@ async function fromRuntime(request) {
 
 async function storeRuntime(request, response) {
   const cache = await caches.open(CACHE_NAME_RUNTIME);
-  await cache.put(cacheKey(request), response.clone());
+  const headers = new Headers(response.headers);
+  headers.set("X-SW-Cached-At", String(Date.now()));
+  const cloned = new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+  await cache.put(cacheKey(request), cloned);
 }
 
 async function cacheResponse(request, response) {
@@ -135,45 +144,71 @@ function markFromCache(response) {
   });
 }
 
-// --- Strategy Selection ---
+function isStale(response, staleTimeSeconds) {
+  if (!staleTimeSeconds || staleTimeSeconds <= 0) return false;
+  const cachedAt = response.headers.get("X-SW-Cached-At");
+  if (!cachedAt) return false;
+  return Date.now() - Number(cachedAt) > staleTimeSeconds * 1000;
+}
+
+// --- Strategy Selection (3-tier config resolution) ---
 
 function resolveStrategyEntry(entry) {
   return typeof entry === "string" ? { strategy: entry } : entry;
 }
 
-function determineCacheStrategy(request, customStrategies, defaultStrategy) {
+function determineCacheStrategy(request, customStrategies, globalDefaults) {
   const override = request.headers.get("X-SW-Strategy");
-  if (override) return { strategy: override };
+  if (override) {
+    return {
+      strategy: override,
+      staleTime: Number(request.headers.get("X-SW-Stale-Time")) || globalDefaults.staleTime,
+      maxCacheEntries: Number(request.headers.get("X-SW-Max-Entries")) || globalDefaults.maxCacheEntries,
+      maxCacheAge: Number(request.headers.get("X-SW-Max-Age")) || globalDefaults.maxCacheAge,
+    };
+  }
   const path = new URL(request.url).pathname;
   for (const [pattern, entry] of Object.entries(customStrategies)) {
-    if (path.startsWith(pattern.replace("*", ""))) return resolveStrategyEntry(entry);
+    if (path.startsWith(pattern.replace("*", ""))) {
+      const resolved = resolveStrategyEntry(entry);
+      return {
+        strategy: resolved.strategy,
+        staleTime: resolved.staleTime ?? globalDefaults.staleTime,
+        maxCacheEntries: resolved.maxCacheEntries ?? globalDefaults.maxCacheEntries,
+        maxCacheAge: resolved.maxCacheAge ?? globalDefaults.maxCacheAge,
+      };
+    }
   }
-  return { strategy: defaultStrategy };
+  return {
+    strategy: globalDefaults.defaultStrategy,
+    staleTime: globalDefaults.staleTime,
+    maxCacheEntries: globalDefaults.maxCacheEntries,
+    maxCacheAge: globalDefaults.maxCacheAge,
+  };
 }
 
 function applyStrategy(event, request, config) {
-  const { strategy, maxCacheEntries, maxCacheAge } = config;
+  const { strategy, staleTime, maxCacheEntries, maxCacheAge } = config;
   if (strategy === "stale-while-revalidate") {
-    event.respondWith(staleWhileRevalidate(event, request, maxCacheEntries, maxCacheAge));
+    event.respondWith(staleWhileRevalidate(event, request, staleTime, maxCacheEntries, maxCacheAge));
   } else if (strategy === "network-first") {
-    event.respondWith(networkFirst(event, request, maxCacheEntries, maxCacheAge));
+    event.respondWith(networkFirst(event, request, staleTime, maxCacheEntries, maxCacheAge));
   } else if (strategy === "cache-only") {
-    event.respondWith(cacheOnly(event, request, maxCacheEntries, maxCacheAge));
+    event.respondWith(cacheOnly(event, request, staleTime, maxCacheEntries, maxCacheAge));
   } else if (strategy === "network-only") {
     event.respondWith(networkOnly(event, request));
   } else {
-    event.respondWith(cacheFirst(event, request, maxCacheEntries, maxCacheAge));
+    event.respondWith(cacheFirst(event, request, staleTime, maxCacheEntries, maxCacheAge));
   }
 }
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-  // Allow non-GET/HEAD when a cache key is explicitly provided (e.g. GraphQL)
   if (request.method !== "GET" && request.method !== "HEAD") {
     if (!request.headers.get("X-SW-Cache-Key")) return;
   }
   
-  applyStrategy(event, request, determineCacheStrategy(event.request, {"/api/*":"network-first","/static/*":"cache-first"}, "cache-first"));
+  applyStrategy(event, request, determineCacheStrategy(event.request, {"/api/*":{"strategy":"network-first","staleTime":30},"/static/*":"cache-first"}, { defaultStrategy: "cache-first", staleTime: GLOBAL_STALE_TIME, maxCacheEntries: GLOBAL_MAX_ENTRIES, maxCacheAge: GLOBAL_MAX_AGE }));
 });
 
 // --- Strategies ---
@@ -188,19 +223,20 @@ async function fetchWithPreload(event, request) {
 }
 const _fetch = fetchWithPreload;
 
-const GLOBAL_MAX_ENTRIES = 0;
-const GLOBAL_MAX_AGE = 0;
 
 function _trim(cacheName, maxEntries, maxAge) {
 
 }
 
-async function cacheFirst(event, request, maxEntries, maxAge) {
+async function cacheFirst(event, request, staleTime, maxEntries, maxAge) {
   const cached = await fromRuntime(request);
   if (cached) {
     cleanStaleVersions();
     if (staleVersions.has(cacheKey(request))) {
       event.waitUntil(refreshCache(request).then(() => staleVersions.delete(cacheKey(request))));
+    }
+    if (isStale(cached, staleTime)) {
+      event.waitUntil(refreshCache(request));
     }
     return markFromCache(cached);
   }
@@ -223,7 +259,15 @@ async function cacheFirst(event, request, maxEntries, maxAge) {
   return response;
 }
 
-async function networkFirst(event, request, maxEntries, maxAge) {
+async function networkFirst(event, request, staleTime, maxEntries, maxAge) {
+  // If cached and fresh (within staleTime), skip network entirely
+  if (staleTime > 0) {
+    const cached = await fromRuntime(request);
+    if (cached && !isStale(cached, staleTime)) {
+      return markFromCache(cached);
+    }
+  }
+
   try {
     const response = await _fetch(event, request);
     if (response.ok) {
@@ -249,9 +293,13 @@ async function networkFirst(event, request, maxEntries, maxAge) {
   }
 }
 
-async function staleWhileRevalidate(event, request, maxEntries, maxAge) {
+async function staleWhileRevalidate(event, request, staleTime, maxEntries, maxAge) {
   const cached = await fromRuntime(request);
   if (cached) {
+    // Skip background refresh if still fresh
+    if (!isStale(cached, staleTime)) {
+      return markFromCache(cached);
+    }
     event.waitUntil(refreshCache(request));
     return markFromCache(cached);
   }
@@ -283,12 +331,15 @@ async function refreshCache(request) {
   }
 }
 
-async function cacheOnly(event, request, maxEntries, maxAge) {
+async function cacheOnly(event, request, staleTime, maxEntries, maxAge) {
   const cached = await fromRuntime(request);
   if (cached) {
     cleanStaleVersions();
     if (staleVersions.has(cacheKey(request))) {
       event.waitUntil(refreshCache(request).then(() => staleVersions.delete(cacheKey(request))));
+    }
+    if (isStale(cached, staleTime)) {
+      event.waitUntil(refreshCache(request));
     }
     return markFromCache(cached);
   }
@@ -453,6 +504,71 @@ self.addEventListener("notificationclick", (event) => {
       }
     })(),
   );
+});
+
+
+// --- Server Push Events (SSE) ---
+
+let pushReconnectTimer = null;
+let pushAbortController = null;
+
+async function connectPushEvents() {
+  try {
+    pushAbortController = new AbortController();
+    const response = await fetch("/api/events", {
+      headers: { Accept: "text/event-stream" },
+      signal: pushAbortController.signal,
+    });
+    if (!response.ok || !response.body) {
+      scheduleReconnect();
+      return;
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let eventType = "";
+    let dataStr = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (line.startsWith("event: ")) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith("data: ")) {
+          dataStr = line.slice(6);
+        } else if (line === "") {
+          if (eventType === "invalidate" && dataStr) {
+            try {
+              const parsed = JSON.parse(dataStr);
+              if (parsed.tags) {
+                parsed.tags.forEach((tag) => invalidateByTag(tag));
+              }
+            } catch {}
+          }
+          eventType = "";
+          dataStr = "";
+        }
+      }
+    }
+  } catch {
+    // Connection lost or aborted
+  }
+  scheduleReconnect();
+}
+
+function scheduleReconnect() {
+  if (pushReconnectTimer) clearTimeout(pushReconnectTimer);
+  pushReconnectTimer = setTimeout(connectPushEvents, 5000);
+}
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(connectPushEvents());
 });
 
 

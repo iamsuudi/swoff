@@ -58,9 +58,7 @@ function openQueueDB(): Promise<IDBDatabase> {
 let isSyncing = false;
 
 /** Store a write operation in IndexedDB for later sync. Works offline — use it for POST/PUT/PATCH/DELETE when the user might be offline. */
-export async function queueMutation(
-  mutation: Partial<MutationQueueItem>,
-): Promise<void> {
+export async function queueMutation(mutation: Partial<MutationQueueItem>): Promise<void> {
   const db = await openQueueDB();
   const tx = db.transaction(STORE_NAME, "readwrite");
   const store = tx.objectStore(STORE_NAME);
@@ -100,28 +98,20 @@ export async function queueMutation(
 /** Replay a single queued mutation. Returns true on success, false on failure. */
 async function replayMutation(item: MutationQueueItem): Promise<boolean> {
   try {
-    const auth = await getAuth();
-    const authHeader: Record<string, string> = auth?.token
-      ? { Authorization: `Bearer ${auth.token}` }
-      : {};
+  const auth = await getAuth();
+  const authHeader: Record<string, string> = auth?.token ? { Authorization: `Bearer ${auth.token}` } : {};
     let replayBody: BodyInit | null = null;
     let contentType: string | undefined;
     const bt = item.bodyType || "json";
     if (bt === "formdata") {
       replayBody = new FormData();
-      for (const [key, value] of (item.body || []) as [
-        string,
-        FormDataEntryValue,
-      ][]) {
+      for (const [key, value] of (item.body || []) as [string, FormDataEntryValue][]) {
         replayBody.append(key, value);
       }
     } else if (bt === "blob") {
       replayBody = item.body as BodyInit | null;
     } else if (bt === "buffer") {
-      replayBody =
-        item.body instanceof ArrayBuffer
-          ? (new Uint8Array(item.body) as BodyInit)
-          : (item.body as BodyInit);
+      replayBody = item.body instanceof ArrayBuffer ? new Uint8Array(item.body) as BodyInit : item.body as BodyInit;
     } else {
       replayBody = JSON.stringify(item.body);
       contentType = "application/json";
@@ -130,7 +120,7 @@ async function replayMutation(item: MutationQueueItem): Promise<boolean> {
       method: item.method,
       headers: {
         ...(contentType ? { "Content-Type": contentType } : {}),
-        ...authHeader,
+            ...authHeader,
         ...item.headers,
       },
       body: replayBody,
@@ -146,8 +136,7 @@ async function replayMutation(item: MutationQueueItem): Promise<boolean> {
     return true;
   } catch {
     item.retryCount++;
-    item.nextRetryAt =
-      Date.now() + RETRY_BACKOFF_MS * Math.pow(2, item.retryCount - 1);
+    item.nextRetryAt = Date.now() + RETRY_BACKOFF_MS * Math.pow(2, item.retryCount - 1);
     await updateInQueue(item);
     return false;
   }
@@ -163,13 +152,11 @@ export async function processMutationQueue(): Promise<void> {
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
     const index = store.index("by-timestamp");
-    const queue: MutationQueueItem[] = await new Promise<MutationQueueItem[]>(
-      (resolve, reject) => {
-        const request = index.getAll();
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      },
-    );
+    const queue: MutationQueueItem[] = await new Promise<MutationQueueItem[]>((resolve, reject) => {
+      const request = index.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
 
     let succeeded = 0;
     let failed = 0;
@@ -200,14 +187,11 @@ export async function processMutationQueue(): Promise<void> {
       }
 
       // Emit progress after every BATCH_SIZE mutations
-      if (
-        (succeeded + failed) % BATCH_SIZE === 0 ||
-        succeeded + failed === total
-      ) {
+      if ((succeeded + failed) % BATCH_SIZE === 0 || succeeded + failed === total) {
         window.dispatchEvent(
           new CustomEvent("mutation-sync-complete", {
             detail: { succeeded, failed, total, current: succeeded + failed },
-          }),
+          })
         );
       }
     }
@@ -215,7 +199,7 @@ export async function processMutationQueue(): Promise<void> {
     window.dispatchEvent(
       new CustomEvent("mutation-sync-complete", {
         detail: { succeeded, failed, total },
-      }),
+      })
     );
   } finally {
     isSyncing = false;
@@ -256,5 +240,24 @@ export async function getPendingCount(): Promise<number> {
     const request = tx.objectStore(STORE_NAME).count();
     request.onsuccess = () => resolve((request as IDBRequest<number>).result);
     request.onerror = () => reject((request as IDBRequest).error);
+  });
+}
+
+/** Get the position of a mutation in the queue (0-based). Returns -1 if not found. */
+export async function getQueuePosition(id: string): Promise<number> {
+  const items = await getQueueItems();
+  return items.findIndex((item) => item.id === id);
+}
+
+/** Get all pending queue items with their details. */
+export async function getQueueItems(): Promise<MutationQueueItem[]> {
+  const db = await openQueueDB();
+  const tx = db.transaction(STORE_NAME, "readonly");
+  const store = tx.objectStore(STORE_NAME);
+  const index = store.index("by-timestamp");
+  return new Promise<MutationQueueItem[]>((resolve, reject) => {
+    const request = index.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
   });
 }

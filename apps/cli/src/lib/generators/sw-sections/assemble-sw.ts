@@ -16,6 +16,7 @@ import { generateFetchHandler } from "./fetch-handler.js";
 import { generateTagManagement } from "./tag-management.js";
 import { generateBackgroundSyncHandler } from "./background-sync-handler.js";
 import { generateSwPushHandlers } from "../file-generators/sw-push.js";
+import { generateServerPushHandler } from "./server-push-handler.js";
 
 function collectAssets(dir: string, baseDir: string): string[] {
   if (!existsSync(dir)) return [];
@@ -55,6 +56,10 @@ function applyReplacements(sw: string, config: SwoffConfig, assetsToCache: { url
   sw = features.pushNotifications?.enabled
     ? sw.replace("// [[PUSH_HANDLERS]]", generateSwPushHandlers())
     : sw.replace("// [[PUSH_HANDLERS]]", "");
+
+  sw = features.serverPush?.enabled
+    ? sw.replace("// [[SERVER_PUSH_HANDLER]]", generateServerPushHandler(features.serverPush.type, features.serverPush.endpoint, features.serverPush.reconnectDelayMs))
+    : sw.replace("// [[SERVER_PUSH_HANDLER]]", "");
 
   return sw;
 }

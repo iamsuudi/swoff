@@ -23,12 +23,13 @@ const FEATURES: Record<string, FeatureInfo> = {
     label: "Mutation Queue",
     description:
       "Queues offline write operations in IndexedDB and replays them when the connection returns. Supports configurable batch size, rate limiting between mutations, and exponential backoff on retry. Uses the Background Sync API or the online event listener.",
-    files: ["mutation-queue.ts"],
+    files: ["mutation-queue.ts", "mutation-state.ts"],
     functions: [
       "queueMutation(mutation) — store a write for later sync",
       "processMutationQueue() — replay all queued writes (respects batchSize, batchDelayMs, maxRetries, retryBackoffMs)",
       "flushMutations() — same as processMutationQueue, call after re-login",
       "getPendingCount() — number of mutations waiting to sync",
+      "trackMutation(id, status) / getMutationState(id) / clearMutationState(id) — per-mutation state tracking",
     ],
   },
   "background-sync": {
@@ -99,6 +100,17 @@ const FEATURES: Record<string, FeatureInfo> = {
       "requestNotificationPermission() — request permission only",
     ],
   },
+  "server-push": {
+    label: "Server Push Events",
+    description:
+      "Real-time cache invalidation via SSE or WebSocket. The service worker connects to a push endpoint and invalidates cache tags when the server signals data changes — no polling needed.",
+    files: ["server-push.ts"],
+    functions: [
+      "startPushEvents() — connect to push endpoint and listen for invalidate events",
+      "stopPushEvents() — disconnect from push endpoint",
+      "isPushConnected() — check connection status",
+    ],
+  },
   pwa: {
     label: "PWA",
     description:
@@ -162,7 +174,7 @@ export async function infoCommand(projectRoot: string, feature?: string) {
   }
 
   log.help("\n  swoff info <feature>  — detailed info for a feature");
-  log.help("  Features: mutation-queue, background-sync, auth, tag-invalidation, cross-tab, graphql, push-notification, pwa");
+  log.help("  Features: mutation-queue, background-sync, auth, tag-invalidation, cross-tab, graphql, push-notification, pwa, stale-time, auto-refetch, mutation-state, prefetch");
   log.help("  Read swoff/GUIDE.md for the full integration guide");
 }
 

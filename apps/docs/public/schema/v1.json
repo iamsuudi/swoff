@@ -97,9 +97,15 @@
                 "network-only"
               ]
             },
+            "staleTime": {
+              "type": "integer",
+              "description": "Default stale time in seconds. Cached data is considered fresh for this duration. After expiry, the SW serves the cached copy but triggers a background refresh. 0 = always stale, undefined = never auto-stale.",
+              "default": 0,
+              "minimum": 0
+            },
             "strategies": {
               "type": "object",
-              "description": "Custom cache strategies for specific URL patterns. Each value can be a strategy name string, or an object with strategy, maxCacheEntries, and maxCacheAge.",
+              "description": "Custom cache strategies for specific URL patterns. Each value can be a strategy name string, or an object with strategy, staleTime, maxCacheEntries, and maxCacheAge. staleTime overrides the global staleTime for matching routes.",
               "additionalProperties": {
                 "oneOf": [
                   {
@@ -124,6 +130,11 @@
                           "cache-only",
                           "network-only"
                         ]
+                      },
+                      "staleTime": {
+                        "type": "integer",
+                        "description": "Per-route stale time in seconds. Overrides global staleTime for this pattern.",
+                        "minimum": 0
                       },
                       "maxCacheEntries": {
                         "type": "integer",
@@ -150,6 +161,22 @@
             "maxCacheAge": {
               "type": "integer",
               "description": "Maximum age of cached entries in milliseconds (0 disables trimming)",
+              "default": 0,
+              "minimum": 0
+            },
+            "refetchOnWindowFocus": {
+              "type": "boolean",
+              "description": "Automatically refetch stale data when the browser tab gains focus. Configurable per-request in useCachedFetch.",
+              "default": false
+            },
+            "refetchOnReconnect": {
+              "type": "boolean",
+              "description": "Automatically refetch stale data when the browser comes back online. Configurable per-request in useCachedFetch.",
+              "default": false
+            },
+            "refetchInterval": {
+              "type": "integer",
+              "description": "Automatically refetch stale data every N seconds (0 disables). Configurable per-request in useCachedFetch.",
               "default": 0,
               "minimum": 0
             },
@@ -195,9 +222,20 @@
           ]
         },
         "mutationQueue": {
-          "type": "boolean",
-          "description": "Queue offline writes and sync when back online",
-          "default": false
+          "oneOf": [
+            { "type": "boolean", "description": "Enable offline mutation queue" },
+            {
+              "type": "object",
+              "description": "Offline mutation queue configuration",
+              "properties": {
+                "enabled": { "type": "boolean", "description": "Enable offline mutation queue", "default": false },
+                "batchSize": { "type": "integer", "description": "Mutations per progress event", "default": 1, "minimum": 1 },
+                "batchDelayMs": { "type": "integer", "description": "Delay between mutations (rate limiting)", "default": 0, "minimum": 0 },
+                "maxRetries": { "type": "integer", "description": "Max retries before dropping", "default": 5, "minimum": 1 },
+                "retryBackoffMs": { "type": "integer", "description": "Exponential backoff base in ms", "default": 1000, "minimum": 0 }
+              }
+            }
+          ]
         },
         "backgroundSync": {
           "type": "boolean",
@@ -242,6 +280,48 @@
           "description": "Tag-based cache invalidation",
           "default": true
         },
+        "graphql": {
+          "oneOf": [
+            { "type": "boolean", "description": "Enable GraphQL wrapper with body-hash caching" },
+            {
+              "type": "object",
+              "description": "GraphQL client wrapper configuration",
+              "properties": {
+                "enabled": { "type": "boolean", "description": "Enable GraphQL wrapper", "default": false },
+                "endpoint": { "type": "string", "description": "GraphQL API endpoint", "example": "/graphql" }
+              }
+            }
+          ]
+        },
+        "serverPush": {
+          "type": "object",
+          "description": "Server push event configuration (SSE or WebSocket). The service worker connects to a push endpoint and invalidates cache tags when the server signals data changes.",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable server push event connection for real-time cache invalidation",
+              "default": false
+            },
+            "type": {
+              "type": "string",
+              "description": "Transport type: 'sse' (Server-Sent Events via fetch stream) or 'websocket'",
+              "default": "sse",
+              "enum": ["sse", "websocket"]
+            },
+            "endpoint": {
+              "type": "string",
+              "description": "Push event endpoint URL (e.g., /api/events for SSE, wss://example.com/events for WebSocket)",
+              "example": "/api/events"
+            },
+            "reconnectDelayMs": {
+              "type": "integer",
+              "description": "Delay in ms before reconnecting after connection loss",
+              "default": 5000,
+              "minimum": 1000
+            }
+          },
+          "required": ["enabled", "type", "endpoint"]
+        },
         "pushNotifications": {
           "type": "object",
           "description": "Push notification configuration",
@@ -268,7 +348,9 @@
         "auth",
         "crossTabSync",
         "tagInvalidation",
-        "pushNotifications"
+        "pushNotifications",
+        "graphql",
+        "serverPush"
       ]
     },
     "build": {

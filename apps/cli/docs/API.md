@@ -38,7 +38,7 @@ All `RequestInit` fields are supported (`method`, `body`, `headers`, `credential
 | `queueOffline`         | `boolean`                                                                                        | `true`                  | When offline, queue writes to IndexedDB                  |
 | `invalidate`           | `'auto' \| string[] \| false`                                                                    | `'auto'`                | Auto-invalidate cache tags after successful mutation     |
 | `type`                 | `'read' \| 'mutation'`                                                                           | auto-detected           | Override read/mutation detection                         |
-| `strategy`             | `'cache-first' \| 'network-first' \| 'stale-while-revalidate' \| 'cache-only' \| 'network-only'` | —                       | Override caching strategy per-request (highest priority) |
+| `strategy`             | `'cache-first' \| 'network-first' \| 'stale-while-revalidate' \| 'cache-only' \| 'network-only' \| 'reactive'` | —                       | Override caching strategy per-request (highest priority) |
 | `signal`               | `AbortSignal`                                                                                    | —                       | AbortController signal for cancellation                  |
 
 ### Behavior
@@ -54,7 +54,7 @@ All `RequestInit` fields are supported (`method`, `body`, `headers`, `credential
 - **Auto-tags**: when `tagInvalidation` enabled, tags derived from URL path for read requests.
 - **Auto-invalidate**: after a successful mutation, matching cache tags are invalidated.
 - **Auth**: when `auth: true`, attaches auth headers. Dispatches `sw-auth-unauthorized` on 401.
-- **StaleTime**: configured via route patterns or global default. Applies to cache-first and network-first strategies.
+- **StaleTime**: configured per-route in strategies entries with `strategy: "reactive"`. Controls the fresh window before a background refresh is triggered.
 
 ### `prefetchCache(input, options?)`
 
@@ -428,7 +428,7 @@ Returns `{ data: T \| null, error: unknown, loading: boolean, refetch: () => voi
 
 - Auto-refetches on `cache-invalidated` events matching the URL
 - **Dependent queries**: pass `enabled: false` or a nullable URL to skip until a condition is met
-- Stale data is automatically refreshed in the background by the SW (batched & rate-limited). On `online` event, stale cache entries are recovered.
+- Stale data is automatically refreshed in the background by the SW (batched & rate-limited) when using the `reactive` strategy. On `online` event, reactive entries with `refetchOnReconnect` are recovered.
 
 ### `useMutation()`
 

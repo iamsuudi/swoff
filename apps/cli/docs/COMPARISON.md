@@ -37,7 +37,7 @@ need to assemble yourself.
 | SW code generation                    | ✅ Full source | 🟡 Partial runtime | 🟡 Partial (WB) | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌          | ❌    | ❌             | ❌ Fixed script |
 | Precaching from build                 | ✅             | ✅                 | ✅              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌          | ❌    | 🟡 fetch cache | ❌              |
 | Runtime caching (pattern)             | ✅             | ✅                 | ✅              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌          | ❌    | ❌             | ❌              |
-| Caching strategies                    | ✅ 5           | ✅ 5               | ✅ 5            | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌          | ❌    | ❌             | ✅ 3            |
+| Caching strategies                    | ✅ 6          | ✅ 5               | ✅ 5            | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌          | ❌    | ❌             | ✅ 3            |
 | Offline read fallback                 | ✅ SW cache    | ✅ SW cache        | ✅ SW cache     | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ✅ local DB | ❌    | ❌             | ✅ basic        |
 | 3-tier config resolution              | ✅             | 🟡 route-only      | 🟡 route-only   | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌          | ❌    | ❌             | ❌              |
 | Navigation preload                    | ✅             | ✅                 | ✅              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌          | ❌    | ❌             | ❌              |
@@ -48,10 +48,10 @@ need to assemble yourself.
 | Feature                                | Swoff           | Workbox     | vite-plugin-pwa | TanStack Query | SWR        | RTK Query  | Apollo Client | Relay | urql | RxDB | Remix | Next.js  | TanStack DB |
 | -------------------------------------- | --------------- | ----------- | --------------- | -------------- | ---------- | ---------- | ------------- | ----- | ---- | ---- | ----- | -------- | ---- |
 | Stale-while-revalidate                 | ✅              | ✅ SW-level | ✅ SW-level     | ✅             | ✅         | ✅         | ✅            | ✅    | ✅   | ❌   | ❌    | ✅ fetch | ❌   |
-| Stale-time config                      | ✅ 3-tier       | ✅ SW-level | ✅ SW-level     | ✅             | ❌         | 🟡         | ✅            | ✅    | 🟡   | ❌   | ❌    | ✅ fetch | ❌   |
-| Refetch on window focus                | ✅ 3-tier       | ❌          | ❌              | ✅             | ✅         | ✅         | ✅            | ❌    | ✅   | ❌   | ❌    | ❌       | ❌   |
-| Refetch on reconnect                   | ✅ 3-tier       | ❌          | ❌              | ✅             | ✅         | ✅         | ✅            | ❌    | ✅   | ❌   | ❌    | ❌       | ❌   |
-| Refetch interval / polling             | ✅ 3-tier       | ❌          | ❌              | ✅             | ✅         | ✅         | ✅            | ✅    | ✅   | ❌   | ❌    | ✅ fetch | ❌   |
+| Stale-time config                      | ✅ 2-tier       | ✅ SW-level | ✅ SW-level     | ✅             | ❌         | 🟡         | ✅            | ✅    | 🟡   | ❌   | ❌    | ✅ fetch | ❌   |
+| Refetch on window focus                | ✅ reactive-only | ❌          | ❌              | ✅             | ✅         | ✅         | ✅            | ❌    | ✅   | ❌   | ❌    | ❌       | ❌   |
+| Refetch on reconnect                   | ✅ reactive-only | ❌          | ❌              | ✅             | ✅         | ✅         | ✅            | ❌    | ✅   | ❌   | ❌    | ❌       | ❌   |
+| Refetch interval / polling             | ✅ reactive-only | ❌          | ❌              | ✅             | ✅         | ✅         | ✅            | ✅    | ✅   | ❌   | ❌    | ✅ fetch | ❌   |
 | Cache deduplication                    | ✅ in-flight    | ❌          | ❌              | ✅             | ✅         | ✅         | ✅            | ✅    | ✅   | ❌   | ❌    | ❌       | ❌   |
 | Request cancellation (AbortController) | ✅              | ❌          | ❌              | ✅             | 🟡 limited | 🟡 limited | ✅            | ✅    | ✅   | ❌   | ❌    | ❌       | ❌   |
 | Dependent queries                      | ✅ enabled/null | ❌          | ❌              | ✅             | ✅         | ✅         | ✅            | ✅    | ✅   | ❌   | ❌    | ❌       | ❌   |
@@ -154,10 +154,10 @@ modules — you control behavior through APIs but cannot read the generated code
 inherits the same opacity from Workbox. TanStack DB is the newest library in the ecosystem,
 offering a reactive offline-first database with sync capabilities.
 
-Swoff is the only SW toolkit that provides **3-tier config resolution**: per-request overrides
-(tier 1, highest priority), URL pattern matches (tier 2), and global defaults (tier 3). This
-same priority chain applies to strategy, staleTime, and all refetch settings — a single
-consistent pattern across the entire system.
+Swoff is the only SW toolkit that provides **3-tier config resolution** for strategy selection:
+per-request overrides (tier 1, highest priority), URL pattern matches (tier 2), and global
+defaults (tier 3). Reactive-only fields (staleTime, refetch triggers) use a 2-tier resolution
+(per-request or route pattern) since they are scoped to the reactive strategy.
 
 ### Data Fetching & Reactivity
 
@@ -169,9 +169,10 @@ mutation state) but does not yet offer infinite queries or optimistic updates �
 expected in a future release. Apollo/Relay/urql provide these features within their GraphQL
 ecosystem but not for REST.
 
-**Key differentiator:** Swoff's refetch settings (focus, reconnect, interval) are configurable
-at all 3 tiers (per-request → route pattern → global default). TanStack Query only supports
-per-query and global configuration.
+**Key differentiator:** Swoff's reactive strategy bundles staleTime + refetch triggers (focus,
+reconnect, interval) into a single coherent strategy with no cross-cutting flags. TanStack
+Query scatters these as per-query options that overlap with its staleTime, creating a
+complex flag interaction surface.
 
 ### Offline Persistence
 
@@ -292,5 +293,6 @@ Swoff does not attempt to replicate.
   mutation queue (re-fetches auth at replay time), and the SW.
 - **Generated auditable code**: every line of the SW, cache logic, auth, and hooks is visible
   in `swoff/`. You can read it, edit it, and commit it.
-- **Config-driven 3-tier resolution**: a single JSON file controls SW caching, staleTime,
-  refetch behavior, strategies, and all features — with the same priority model everywhere.
+- **Config-driven resolution**: a single JSON file controls SW caching strategies, staleTime,
+  refetch behavior, and all features — with a consistent priority model (3-tier for strategy,
+  2-tier for reactive-only fields).

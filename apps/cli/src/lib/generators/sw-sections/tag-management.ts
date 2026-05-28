@@ -47,13 +47,16 @@ async function cacheTagUrl(url, actualUrl, tags) {
   });
 }
 
-async function refetchAfterInvalidation(url, actualUrl) {
+async function refetchAfterInvalidation(url, actualUrl, tags) {
   const fetchUrl = actualUrl || url;
   try {
     const response = await fetch(fetchUrl);
     if (response.ok) {
-      const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
-      await runtimeCache.put(url, response);
+      const request = new Request(url);
+      await storeRuntime(request, response);
+      if (tags && tags.length > 0) {
+        await cacheTagUrl(url, actualUrl, tags);
+      }
       staleVersions.delete(url);
       return true;
     }
@@ -76,7 +79,7 @@ async function invalidateByTag(tag) {
   });
   await db.close();
 
-  // Remove from tag index
+  // Remove from tag index and runtime cache
   const writeDb = await openTagDB();
   const writeTx = writeDb.transaction(TAG_STORE_NAME, "readwrite");
   const writeStore = writeTx.objectStore(TAG_STORE_NAME);
@@ -87,10 +90,16 @@ async function invalidateByTag(tag) {
     writeTx.oncomplete = () => resolve();
     writeTx.onerror = () => reject(writeTx.error);
   });
+  writeDb.close();
+
+  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
+  for (const entry of entries) {
+    await runtimeCache.delete(entry.url);
+  }
 
   // Background refetch each deleted URL; keep stale on failure
   for (const entry of entries) {
-    refetchAfterInvalidation(entry.url, entry.actualUrl);
+    refetchAfterInvalidation(entry.url, entry.actualUrl, entry.tags);
   }
 
   const clients = await self.clients.matchAll();

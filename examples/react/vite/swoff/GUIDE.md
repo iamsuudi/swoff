@@ -304,11 +304,7 @@ const { supported, registered, lastSync, triggerSync } = useBackgroundSync();
 Swoff's auth module manages authentication state with a **memory-only token** (never persisted to
 IndexedDB) and optional offline user info caching.
 
-Auth type: **bearer**
-
-> ⚠️ The Bearer token lives **in memory only** and is cleared on page refresh.
-> Only `{ user, expiresAt }` is persisted to IndexedDB for offline user display.
-> After a page refresh, re-login is required. Use the `refreshPath` for token refresh.
+Auth type: **cookie**
 
 ### `auth/store.ts` — Token and user persistence
 ```ts
@@ -440,46 +436,6 @@ are broadcast to all other tabs via the service worker.
 
 No separate imports needed — this is handled automatically by `client-injector.ts`.
 The service worker listens for invalidation events and forwards them to all clients.
-
-
-## 📡 Server Push Events — real-time cache invalidation
-Instead of polling, the service worker maintains an SSE or WebSocket connection to your push endpoint.
-When the server signals that data has changed (via an `invalidate` event), the SW automatically
-calls `invalidateByTag()` so the next read gets fresh data.
-
-### Transport: **SSE**
-The SW establishes an `EventSource` connection. The server sends events with event name `invalidate`
-and a JSON payload: `{ tags: string[] }`. On receiving it, the SW calls `invalidateByTags(tags)`.
-
-**Server format (SSE):**
-```
-event: invalidate
-data: {"tags":["todos","categories"]}
-
-```
-
-### `server-push.ts` — Client-side connection manager
-```ts
-import { startPushEvents, stopPushEvents, isPushConnected } from "./swoff/server-push.ts";
-
-// Start listening for push events
-startPushEvents();
-
-// Check connection
-if (isPushConnected()) {
-  console.log("Connected to push endpoint");
-}
-```
-
-**Functions:**
-- `startPushEvents()` — connect to the push endpoint and begin listening for invalidation events
-- `stopPushEvents()` — disconnect from the push endpoint
-- `isPushConnected()` — check if the connection is active
-
-> ⚠️ The service worker directly manages the SSE/WS connection for reliability across page navigations.
-> The client-side `server-push.ts` is a fallback that starts the connection when the SW is not yet active.
-
-### React Hook: `useServerPush()` (coming in a future release)
 
 
 ## 🔔 Push Notifications — subscription management

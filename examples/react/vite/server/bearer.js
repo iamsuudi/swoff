@@ -7,6 +7,7 @@ import { dirname, join } from "path";
 import webPush from "web-push";
 import { setupPush, triggerPushNotification } from "./push.js";
 import { setupGraphql } from "./graphql.js";
+import { setupLogger } from "./logger.js";
 
 const app = express();
 const JWT_SECRET = "swoff-demo-secret-key-2026";
@@ -26,6 +27,7 @@ function writeDb(data) {
 
 app.use(cors());
 app.use(express.json());
+setupLogger(app);
 
 function generateToken(user) {
   return jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: "1h" });

@@ -44,12 +44,6 @@ const { data: created } = await mutateGql(
 );
 ```
 
-## Server push events (real-time cache invalidation)
-```ts
-import { startPushEvents } from "./swoff/server-push.ts";
-startPushEvents();
-```
-
 ## Push notifications
 ```ts
 import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push.ts";

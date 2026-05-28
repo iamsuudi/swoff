@@ -202,9 +202,10 @@ async function cacheFirst(event, request, staleTime, maxEntries, maxAge) {
 
   const response = await _fetch(event, request);
   if (response.ok) {
+    const responseToCache = response.clone();
     event.waitUntil(
       (async () => {
-        await cacheResponse(request, response);
+        await cacheResponse(request, responseToCache);
         _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
       })(),
     );
@@ -224,9 +225,10 @@ async function networkFirst(event, request, staleTime, maxEntries, maxAge) {
   try {
     const response = await _fetch(event, request);
     if (response.ok) {
+      const responseToCache = response.clone();
       event.waitUntil(
         (async () => {
-          await cacheResponse(request, response);
+          await cacheResponse(request, responseToCache);
           _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
         })(),
       );
@@ -265,7 +267,8 @@ async function staleWhileRevalidate(event, request, staleTime, maxEntries, maxAg
 
   const response = await _fetch(event, request);
   if (response.ok) {
-    await cacheResponse(request, response);
+    const responseToCache = response.clone();
+    await cacheResponse(request, responseToCache);
     _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
   }
   return response;

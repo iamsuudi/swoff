@@ -46,7 +46,7 @@
     "backgroundSync": true,
     "auth": {
       "enabled": true,
-      "type": "bearer",
+      "type": "cookie",
       "refreshPath": "/api/refresh",
       "userEndpoint": "/api/me"
     },
@@ -60,7 +60,7 @@
       "enabled": true
     },
     "serverPush": {
-      "enabled": true,
+      "enabled": false,
       "type": "sse",
       "endpoint": "/api/events",
       "reconnectDelayMs": 5000

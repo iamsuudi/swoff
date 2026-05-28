@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { fetchWithCache } from "../../swoff/fetch-wrapper";
-import { generateTags, invalidateByMethod } from "../../swoff/invalidation-tags";
+import { generateTags, invalidateUrl } from "../../swoff/invalidation-tags";
 import { queueMutation } from "../../swoff/mutation-queue";
 import NoteForm from "../components/NoteForm";
 
@@ -38,7 +38,7 @@ export default function NotesEditPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    await invalidateByMethod("PUT", `/api/notes/${id}`);
+    await invalidateUrl(`/api/notes/${id}`);
     navigate(`/notes/${id}`);
   };
 

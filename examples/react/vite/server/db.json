@@ -25,18 +25,9 @@
       "createdAt": "2026-05-23T14:06:30.262Z",
       "updatedAt": "2026-05-23T14:06:30.262Z",
       "userId": 1
-    },
-    {
-      "id": 3,
-      "title": "Hey",
-      "description": "Can you hear me?",
-      "priority": "high",
-      "createdAt": "2026-05-26T07:21:52.938Z",
-      "updatedAt": "2026-05-26T07:21:52.938Z",
-      "userId": 1
     }
   ],
-  "nextNoteId": 5,
+  "nextNoteId": 16,
   "sessions": [
     {
       "id": "23d7f737-d325-4a0d-826b-5ce939ce9964",

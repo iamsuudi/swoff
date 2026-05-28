@@ -123,13 +123,10 @@ export function isAuthValid(auth: AuthData | null): boolean {
   return Date.now() < auth.expiresAt;
 }
 
-export const AUTH_WITH_CREDENTIALS = false;
+export const AUTH_WITH_CREDENTIALS = true;
 
-/** Inject Bearer token into request headers. */
-export function withAuthHeaders(headers: Headers, auth: AuthData | null): Headers{
-  if (auth?.token) {
-    headers.set("Authorization", `Bearer ${auth.token}`);
-  }
+/** Inject auth headers. For cookie auth, credentials are handled via AUTH_WITH_CREDENTIALS. */
+export function withAuthHeaders(headers: Headers, _auth: AuthData | null): Headers{
   return headers;
 }
 /** Check if a URL is an auth endpoint that should bypass the SW cache. */
@@ -162,7 +159,7 @@ export async function ensureValidAuth(): Promise<AuthData | null> {
         const response = await fetch("/api/refresh", {
           method: "POST",
           headers,
-      });
+  credentials: "include" as RequestCredentials,      });
 
         if (!response.ok) {
           await clearAuth();

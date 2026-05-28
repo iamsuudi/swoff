@@ -249,9 +249,10 @@ async function cacheFirst(event, request, staleTime, maxEntries, maxAge) {
 
   const response = await _fetch(event, request);
   if (response.ok) {
+    const responseToCache = response.clone();
     event.waitUntil(
       (async () => {
-        await cacheResponse(request, response);
+        await cacheResponse(request, responseToCache);
         _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
       })(),
     );
@@ -271,9 +272,10 @@ async function networkFirst(event, request, staleTime, maxEntries, maxAge) {
   try {
     const response = await _fetch(event, request);
     if (response.ok) {
+      const responseToCache = response.clone();
       event.waitUntil(
         (async () => {
-          await cacheResponse(request, response);
+          await cacheResponse(request, responseToCache);
           _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
         })(),
       );
@@ -312,7 +314,8 @@ async function staleWhileRevalidate(event, request, staleTime, maxEntries, maxAg
 
   const response = await _fetch(event, request);
   if (response.ok) {
-    await cacheResponse(request, response);
+    const responseToCache = response.clone();
+    await cacheResponse(request, responseToCache);
     _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
   }
   return response;
@@ -395,13 +398,16 @@ async function cacheTagUrl(url, actualUrl, tags) {
   });
 }
 
-async function refetchAfterInvalidation(url, actualUrl) {
+async function refetchAfterInvalidation(url, actualUrl, tags) {
   const fetchUrl = actualUrl || url;
   try {
     const response = await fetch(fetchUrl);
     if (response.ok) {
-      const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
-      await runtimeCache.put(url, response);
+      const request = new Request(url);
+      await storeRuntime(request, response);
+      if (tags && tags.length > 0) {
+        await cacheTagUrl(url, actualUrl, tags);
+      }
       staleVersions.delete(url);
       return true;
     }
@@ -424,7 +430,7 @@ async function invalidateByTag(tag) {
   });
   await db.close();
 
-  // Remove from tag index
+  // Remove from tag index and runtime cache
   const writeDb = await openTagDB();
   const writeTx = writeDb.transaction(TAG_STORE_NAME, "readwrite");
   const writeStore = writeTx.objectStore(TAG_STORE_NAME);
@@ -435,10 +441,16 @@ async function invalidateByTag(tag) {
     writeTx.oncomplete = () => resolve();
     writeTx.onerror = () => reject(writeTx.error);
   });
+  writeDb.close();
+
+  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
+  for (const entry of entries) {
+    await runtimeCache.delete(entry.url);
+  }
 
   // Background refetch each deleted URL; keep stale on failure
   for (const entry of entries) {
-    refetchAfterInvalidation(entry.url, entry.actualUrl);
+    refetchAfterInvalidation(entry.url, entry.actualUrl, entry.tags);
   }
 
   const clients = await self.clients.matchAll();
@@ -507,70 +519,6 @@ self.addEventListener("notificationclick", (event) => {
 });
 
 
-// --- Server Push Events (SSE) ---
-
-let pushReconnectTimer = null;
-let pushAbortController = null;
-
-async function connectPushEvents() {
-  try {
-    pushAbortController = new AbortController();
-    const response = await fetch("/api/events", {
-      headers: { Accept: "text/event-stream" },
-      signal: pushAbortController.signal,
-    });
-    if (!response.ok || !response.body) {
-      scheduleReconnect();
-      return;
-    }
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let eventType = "";
-    let dataStr = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        if (line.startsWith("event: ")) {
-          eventType = line.slice(7).trim();
-        } else if (line.startsWith("data: ")) {
-          dataStr = line.slice(6);
-        } else if (line === "") {
-          if (eventType === "invalidate" && dataStr) {
-            try {
-              const parsed = JSON.parse(dataStr);
-              if (parsed.tags) {
-                parsed.tags.forEach((tag) => invalidateByTag(tag));
-              }
-            } catch {}
-          }
-          eventType = "";
-          dataStr = "";
-        }
-      }
-    }
-  } catch {
-    // Connection lost or aborted
-  }
-  scheduleReconnect();
-}
-
-function scheduleReconnect() {
-  if (pushReconnectTimer) clearTimeout(pushReconnectTimer);
-  pushReconnectTimer = setTimeout(connectPushEvents, 5000);
-}
-
-self.addEventListener("activate", (event) => {
-  event.waitUntil(connectPushEvents());
-});
-
 
 
 self.addEventListener("sync", (event) => {
@@ -634,7 +582,7 @@ async function processMutationQueueInSW() {
           method: item.method,
           headers: { "Content-Type": "application/json", ...item.headers },
           body: JSON.stringify(item.body),
-        });
+          credentials: "same-origin",        });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         if (item.tags) {

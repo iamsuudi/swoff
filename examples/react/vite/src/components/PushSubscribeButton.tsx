@@ -16,11 +16,11 @@ export default function PushSubscribeButton() {
       await unsubscribe();
     } else {
       const sub = await subscribe();
-      if (sub) {
+      if (sub && subscription) {
         await fetch("/api/push/subscribe", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(sub.toJSON()),
+          body: JSON.stringify(subscription.toJSON()),
         });
       }
     }

@@ -28,6 +28,10 @@ self.addEventListener("message", (event) => {
   }
 
   code += `
+  if (event.data.type === "ONLINE") {
+    event.waitUntil(handleOnline());
+  }
+
 });`;
   return code;
 }

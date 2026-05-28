@@ -36,13 +36,6 @@ export interface FetchWithCacheResult${G("T")} {
   response${T("Response & { json(): Promise<T> }")};
   fromCache${T("boolean")};
 }
-
-export interface ResolvedFetchConfig {
-  staleTime${T("number")};
-  refetchOnWindowFocus${T("boolean")};
-  refetchOnReconnect${T("boolean")};
-  refetchInterval${T("number")};
-}
 `
     : "";
 
@@ -50,13 +43,11 @@ export interface ResolvedFetchConfig {
     ? `
 export interface FetchWithCacheOptions extends RequestInit {
   tags?: string[];
-  staleWhileRevalidate?: boolean;
   auth?: boolean;
   queueOffline?: boolean;
   invalidate?: 'auto' | string[] | false;
   type?: 'read' | 'mutation';
   strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only';
-  staleTime?: number;
 }
 `
     : "";
@@ -149,11 +140,6 @@ export interface FetchWithCacheOptions extends RequestInit {
   }`
     : "";
 
-  const staleTimeHeaders = `  // Pass staleTime to SW if set at per-request level
-  if (options.staleTime !== undefined) {
-    headers.set("X-SW-Stale-Time", String(options.staleTime));
-  }`;
-
   const code = `/**
  * Swoff Fetch Wrapper
  * Unified fetch with caching, auth, offline queue, auto-invalidation, staleTime, prefetching, and
@@ -174,15 +160,6 @@ export interface FetchWithCacheOptions extends RequestInit {
  *
  *   // Authenticated request (works with bearer, cookie, custom)
  *   const { response: userRes } = await fetchWithCache("/api/me", { auth: true });
- *
- *   // Custom tags + stale-while-revalidate
- *   const { response: staleRes, fromCache } = await fetchWithCache("/api/data", {
- *     tags: ["data"],
- *     staleWhileRevalidate: true,
- *   });
- *
- *   // Set staleTime per-request (overrides config — SW handles bg refresh)
- *   await fetchWithCache("/api/todos", { staleTime: 30 });
  *
  *   // Prefetch (fire-and-forget warm the cache)
  *   prefetchCache("/api/todos");
@@ -212,7 +189,7 @@ ${interfaceBlock}${optionsInterface}
 const inFlightRequests = new Map${G("string, Promise<Response>")}();
 
 /** Fetch with caching, auth, offline queue, auto-invalidation, and per-request strategy override. Returns { response, fromCache }. Use { auth: true } for authenticated requests — works with bearer, cookie, and custom auth types. */
-export async function fetchWithCache${G("T")}(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; staleWhileRevalidate?: boolean; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only'; staleTime?: number }")} = {})${R("Promise<FetchWithCacheResult<T>>")}{
+export async function fetchWithCache${G("T")}(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only' }")} = {})${R("Promise<FetchWithCacheResult<T>>")}{
   const method = (options.method || "GET").toUpperCase();
   const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD"));
   const url = typeof input === "string" ? input : input.url;
@@ -229,13 +206,9 @@ ${autoTagsBlock}
     headers.set("X-SW-Cache-Tags", options.tags.join(","));
   }
 
-  if (options.staleWhileRevalidate && !options.strategy) {
-    headers.set("X-SW-Strategy", "stale-while-revalidate");
-  }
   if (options.strategy) {
     headers.set("X-SW-Strategy", options.strategy);
   }
-${staleTimeHeaders}
 ${authBlock}${authUrlsBlock}
   const fetchOptions${T("RequestInit")} = { ...options, headers };
 ${authCredentialsBlock}
@@ -281,7 +254,7 @@ ${autoInvalidateBlock}${auth401Block}
 }
 
 /** Fire-and-forget prefetch: warms the cache for a URL without blocking. Useful for route prefetching or link hover prefetching. */
-export function prefetchCache(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; staleWhileRevalidate?: boolean; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only'; staleTime?: number }")} = {})${R("void")}{
+export function prefetchCache(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only' }")} = {})${R("void")}{
   fetchWithCache(input, { ...options }).catch(() => {
     // Prefetch failures are intentionally silent
   });

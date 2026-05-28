@@ -2,7 +2,6 @@ import {
   useState,
   useEffect,
   useCallback,
-  useRef,
   startTransition,
 } from "react";
 import { fetchWithCache } from "../fetch-wrapper.ts";
@@ -12,9 +11,6 @@ import type { FetchWithCacheOptions } from "../fetch-wrapper.ts";
 export function useCachedFetch<T>(
   url: string | null,
   options: FetchWithCacheOptions & {
-    refetchOnWindowFocus?: boolean;
-    refetchOnReconnect?: boolean;
-    refetchInterval?: number;
     enabled?: boolean;
   } = {},
 ) {
@@ -22,10 +18,6 @@ export function useCachedFetch<T>(
   const [error, setError] = useState<Error | null>(null);
   const [loading, setLoading] = useState(true);
   const [refetchCount, setRefetchCount] = useState(0);
-  const optionsRef = useRef(options);
-  useEffect(() => {
-    optionsRef.current = options;
-  }, [options]);
 
   const refetch = useCallback(() => setRefetchCount((c) => c + 1), []);
 
@@ -43,7 +35,7 @@ export function useCachedFetch<T>(
     const doFetch = async () => {
       try {
         const { response } = await fetchWithCache(url, {
-          ...optionsRef.current,
+          ...options,
           signal: controller.signal,
         });
         if (cancelled) return;
@@ -84,29 +76,6 @@ export function useCachedFetch<T>(
     window.addEventListener("cache-invalidated", onInvalidated);
     return () => window.removeEventListener("cache-invalidated", onInvalidated);
   }, [url, isEnabled]);
-
-  // Auto-refetch on window focus
-  useEffect(() => {
-    if (!options.refetchOnWindowFocus || !isEnabled) return;
-    const onFocus = () => refetch();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [options.refetchOnWindowFocus, refetch, isEnabled]);
-
-  // Auto-refetch on reconnect
-  useEffect(() => {
-    if (!options.refetchOnReconnect || !isEnabled) return;
-    const onOnline = () => refetch();
-    window.addEventListener("online", onOnline);
-    return () => window.removeEventListener("online", onOnline);
-  }, [options.refetchOnReconnect, refetch, isEnabled]);
-
-  // Auto-refetch on interval
-  useEffect(() => {
-    if (!options.refetchInterval || options.refetchInterval <= 0 || !isEnabled) return;
-    const id = setInterval(refetch, options.refetchInterval * 1000);
-    return () => clearInterval(id);
-  }, [options.refetchInterval, refetch, isEnabled]);
 
   return { data, error, loading, refetch };
 }

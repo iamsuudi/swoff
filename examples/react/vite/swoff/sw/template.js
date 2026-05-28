@@ -78,10 +78,103 @@ self.addEventListener("message", (event) => {
       }),
     );
   }
+  if (event.data.type === "ONLINE") {
+    event.waitUntil(handleOnline());
+  }
+
 });
 const GLOBAL_MAX_ENTRIES = 0;
 const GLOBAL_MAX_AGE = 0;
 const GLOBAL_STALE_TIME = 60;
+const REFETCH_BATCH_SIZE = 5;
+const REFETCH_BATCH_DELAY_MS = 1000;
+// --- Batch Refresh Queue ---
+
+const _refreshQueue = new Set();
+let _refreshQueueProcessing = false;
+let _refreshQueuePromise = null;
+
+function queueRefresh(cacheKeyUrl, actualUrl) {
+  _refreshQueue.add({ cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl });
+  if (!_refreshQueuePromise) {
+    _refreshQueuePromise = _processRefreshQueue().finally(() => {
+      _refreshQueuePromise = null;
+      if (_refreshQueue.size > 0) queueRefresh();
+    });
+  }
+  return _refreshQueuePromise;
+}
+
+function resolveActualUrl(entry) {
+  const url = entry.actualUrl || entry.cacheKey;
+  if (url.includes("/__swc/")) {
+    // Virtual cache key — use the stored actual URL from tag registry
+    return url;
+  }
+  return url;
+}
+
+async function _processRefreshQueue() {
+  while (_refreshQueue.size > 0) {
+    const batch = [];
+    for (const item of _refreshQueue) {
+      if (batch.length >= REFETCH_BATCH_SIZE) break;
+      batch.push(item);
+      _refreshQueue.delete(item);
+    }
+    if (batch.length === 0) break;
+
+    const clients = await self.clients.matchAll();
+
+    await Promise.allSettled(batch.map(async (entry) => {
+      const fetchUrl = resolveActualUrl(entry);
+      try {
+        const response = await fetch(fetchUrl);
+        if (response.ok) {
+          const request = new Request(entry.cacheKey);
+          await storeRuntime(request, response);
+          for (const client of clients) {
+            client.postMessage({ type: "CACHE_UPDATED", url: fetchUrl });
+          }
+        }
+      } catch {
+        // Refresh failed — stale cache remains usable
+      }
+    }));
+
+    if (_refreshQueue.size > 0 && REFETCH_BATCH_DELAY_MS > 0) {
+      await new Promise(r => setTimeout(r, REFETCH_BATCH_DELAY_MS));
+    }
+  }
+  _refreshQueueProcessing = false;
+}
+
+async function handleOnline() {
+  const clients = await self.clients.matchAll();
+  if (clients.length === 0) return;
+
+  const cache = await caches.open(CACHE_NAME_RUNTIME);
+  const keys = await cache.keys();
+
+  for (const request of keys) {
+    const url = new URL(request.url);
+    // Skip virtual cache keys (gql hashes etc.)
+    if (url.pathname.startsWith("/__swc/")) continue;
+
+    const config = determineCacheStrategyForUrl(url.href, {"/api/*":{"strategy":"network-first","staleTime":30},"/static/*":"cache-first"}, { defaultStrategy: "cache-first", staleTime: GLOBAL_STALE_TIME });
+    const strategy = config.strategy;
+
+    // Only refresh for strategies that cache: cache-first, network-first, stale-while-revalidate
+    if (strategy === "cache-only" || strategy === "network-only") continue;
+    if (!config.staleTime || config.staleTime <= 0) continue;
+
+    const cached = await cache.match(request);
+    if (cached && isStale(cached, config.staleTime)) {
+      queueRefresh(request.url, url.href);
+    }
+  }
+}
+
 // --- Cache Key ---
 
 function cacheKey(request) {
@@ -162,7 +255,7 @@ function determineCacheStrategy(request, customStrategies, globalDefaults) {
   if (override) {
     return {
       strategy: override,
-      staleTime: Number(request.headers.get("X-SW-Stale-Time")) || globalDefaults.staleTime,
+      staleTime: globalDefaults.staleTime,
       maxCacheEntries: Number(request.headers.get("X-SW-Max-Entries")) || globalDefaults.maxCacheEntries,
       maxCacheAge: Number(request.headers.get("X-SW-Max-Age")) || globalDefaults.maxCacheAge,
     };
@@ -187,10 +280,27 @@ function determineCacheStrategy(request, customStrategies, globalDefaults) {
   };
 }
 
+function determineCacheStrategyForUrl(url, customStrategies, globalDefaults) {
+  const path = new URL(url).pathname;
+  for (const [pattern, entry] of Object.entries(customStrategies)) {
+    if (path.startsWith(pattern.replace("*", ""))) {
+      const resolved = resolveStrategyEntry(entry);
+      return {
+        strategy: resolved.strategy,
+        staleTime: resolved.staleTime ?? globalDefaults.staleTime,
+      };
+    }
+  }
+  return {
+    strategy: globalDefaults.defaultStrategy,
+    staleTime: globalDefaults.staleTime,
+  };
+}
+
 function applyStrategy(event, request, config) {
   const { strategy, staleTime, maxCacheEntries, maxCacheAge } = config;
   if (strategy === "stale-while-revalidate") {
-    event.respondWith(staleWhileRevalidate(event, request, staleTime, maxCacheEntries, maxCacheAge));
+    event.respondWith(staleWhileRevalidate(event, request, maxEntries, maxAge));
   } else if (strategy === "network-first") {
     event.respondWith(networkFirst(event, request, staleTime, maxCacheEntries, maxCacheAge));
   } else if (strategy === "cache-only") {
@@ -233,10 +343,10 @@ async function cacheFirst(event, request, staleTime, maxEntries, maxAge) {
   if (cached) {
     cleanStaleVersions();
     if (staleVersions.has(cacheKey(request))) {
-      event.waitUntil(refreshCache(request).then(() => staleVersions.delete(cacheKey(request))));
+      queueRefresh(cacheKey(request), new URL(request.url).href);
     }
     if (isStale(cached, staleTime)) {
-      event.waitUntil(refreshCache(request));
+      event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
     }
     return markFromCache(cached);
   }
@@ -261,14 +371,6 @@ async function cacheFirst(event, request, staleTime, maxEntries, maxAge) {
 }
 
 async function networkFirst(event, request, staleTime, maxEntries, maxAge) {
-  // If cached and fresh (within staleTime), skip network entirely
-  if (staleTime > 0) {
-    const cached = await fromRuntime(request);
-    if (cached && !isStale(cached, staleTime)) {
-      return markFromCache(cached);
-    }
-  }
-
   try {
     const response = await _fetch(event, request);
     if (response.ok) {
@@ -283,32 +385,30 @@ async function networkFirst(event, request, staleTime, maxEntries, maxAge) {
     return response;
   } catch {
     const cached = await fromRuntime(request);
-    if (cached) return cached;
+    if (cached) {
+      return markFromCache(cached);
+    }
 
     const precached = await fromPrecache(request);
-    if (precached) return precached;
+    if (precached) return markFromCache(precached);
 
     const fallback = await fromSpaFallback(request);
     if (fallback) return fallback;
 
-    throw new Error("Request failed and no cached response available");
+    throw new Error("Network request failed and no cached response available");
   }
 }
 
-async function staleWhileRevalidate(event, request, staleTime, maxEntries, maxAge) {
+async function staleWhileRevalidate(event, request, maxEntries, maxAge) {
   const cached = await fromRuntime(request);
   if (cached) {
-    // Skip background refresh if still fresh
-    if (!isStale(cached, staleTime)) {
-      return markFromCache(cached);
-    }
-    event.waitUntil(refreshCache(request));
+    event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
     return markFromCache(cached);
   }
 
   const precached = await fromPrecache(request);
   if (precached) {
-    event.waitUntil(refreshCache(request));
+    event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
     return markFromCache(precached);
   }
 
@@ -321,28 +421,12 @@ async function staleWhileRevalidate(event, request, staleTime, maxEntries, maxAg
   return response;
 }
 
-async function refreshCache(request) {
-  try {
-    const key = request.headers.get("X-SW-Cache-Key");
-    const fetchRequest = key ? new Request(new URL(request.url).href, { method: request.method, headers: request.headers, body: request.method !== "GET" ? request.body : undefined }) : request;
-    const response = await fetch(fetchRequest);
-    if (response.ok) {
-      await storeRuntime(request, response);
-    }
-  } catch {
-    // Background refresh failed - stale cache remains usable
-  }
-}
-
 async function cacheOnly(event, request, staleTime, maxEntries, maxAge) {
   const cached = await fromRuntime(request);
   if (cached) {
     cleanStaleVersions();
     if (staleVersions.has(cacheKey(request))) {
-      event.waitUntil(refreshCache(request).then(() => staleVersions.delete(cacheKey(request))));
-    }
-    if (isStale(cached, staleTime)) {
-      event.waitUntil(refreshCache(request));
+      queueRefresh(cacheKey(request), new URL(request.url).href);
     }
     return markFromCache(cached);
   }

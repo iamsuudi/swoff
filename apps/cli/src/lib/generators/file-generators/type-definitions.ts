@@ -71,8 +71,6 @@ declare global {
 export interface FetchWithCacheOptions extends RequestInit {
   strategy?: "read" | "mutation";
   tags?: string[];
-  staleWhileRevalidate?: boolean;
-  staleTime?: number;
 }
 
 export type MutationStatus = "idle" | "pending" | "success" | "error";
@@ -88,7 +86,6 @@ export interface MutationState {
 export interface GqlOptions {
   variables?: Record<string, unknown>;
   tags?: string[];
-  staleWhileRevalidate?: boolean;
   auth?: boolean;
   queueOffline?: boolean;
   invalidate?: 'auto' | string[] | false;

@@ -49,17 +49,10 @@ entry usable while silently refreshing it — the user never sees a loading spin
 | `network-only` | No effect | No effect |
 
 
-## 🔄 Auto-refetch — keep data fresh automatically
-Three events can trigger an automatic refetch at the hook level:
-
-- **refetchOnWindowFocus**: When the user returns to the tab, re-fetch stale data
-- **refetchOnReconnect**: When the browser comes back online, re-fetch stale data
-- **refetchInterval**: Poll the server every N seconds for fresh data
-
-These are configured at 3 tiers too:
-- Global: `features.serviceWorker.refetchOnWindowFocus: true`
-- Per-route: `"/api/*": { refetchOnWindowFocus: false }`
-- Per-request: `useCachedFetch(url, { refetchOnWindowFocus: true })`
+## 🔄 Online refetch — recover stale cache after connectivity loss
+When the browser fires the `online` event, `client-injector` forwards it to the SW.
+The SW iterates its runtime cache and refetches any stale entries (batched & rate-limited).
+This is the only refetch trigger — no window focus, no intervals, no polling.
 
 ### React Hook: `useMutation`
 Track mutation state (loading, error, success) per-operation.
@@ -162,7 +155,7 @@ const online = useNetworkStatus();
 ## 🎯 Cache Strategy Resolution
 The SW uses a 3-tier priority system to determine which caching strategy applies to each request:
 
-1. **Per-request override (highest)** — set `strategy` or `staleWhileRevalidate` on `fetchWithCache()`.
+1. **Per-request override (highest)** — set `strategy` on `fetchWithCache()`.
    Sent as `X-SW-Strategy` header to the SW.
 2. **URL pattern match** — configured in `swoff.config.json` under `features.serviceWorker.strategies`.
    e.g. `"/api/*": "network-first"` matches all paths starting with `/api/`.
@@ -217,11 +210,11 @@ const { data: created } = await mutateGql(
   { title: "New task" },
 );
 
-// With auth, stale-while-revalidate, and custom tags
+// With auth and custom tags
 const { data, fromCache } = await queryGql(
   "query Me { me { name } }",
   {},
-  { auth: true, staleWhileRevalidate: true, tags: ["users"] },
+  { auth: true, tags: ["users"] },
 );
 ```
 
@@ -534,10 +527,8 @@ Re-run `npx @swoff/cli generate` after changing it.
 - `serviceWorker.cacheStrategy` — caching strategy mode (`"all"` or `"explicit-only"`)
 - `serviceWorker.defaultStrategy` — default caching strategy
 - `serviceWorker.strategies` — per-route strategy overrides
-- `serviceWorker.staleTime` — global stale time in seconds (data considered fresh for N seconds)
-- `serviceWorker.refetchOnWindowFocus` — auto-refetch on tab focus (hook-level)
-- `serviceWorker.refetchOnReconnect` — auto-refetch on reconnect
-- `serviceWorker.refetchInterval` — auto-refetch every N seconds
+- `serviceWorker.staleTime` — global stale time in seconds (data considered fresh for N seconds). Applies to cache-first and network-first only.
+- `serviceWorker.refetchBatchSize` — max stale cache entries to refetch per batch
 - `serviceWorker.maxCacheEntries` — max entries in runtime cache (oldest evicted)
 - `serviceWorker.maxCacheAge` — max age of cache entries in ms
 

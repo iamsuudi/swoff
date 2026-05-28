@@ -32,6 +32,11 @@ export interface StrategyEntry {
   staleTime?: number;
 }
 
+export interface RefetchBatchConfig {
+  refetchBatchSize?: number;
+  refetchBatchDelayMs?: number;
+}
+
 export interface SwoffConfig {
   $schema?: string;
   enabled: boolean;
@@ -56,9 +61,8 @@ export interface SwoffConfig {
       navigationPreload?: boolean;
       navigationMode: "spa" | "default";
       spaEntry: string;
-      refetchOnWindowFocus?: boolean;
-      refetchOnReconnect?: boolean;
-      refetchInterval?: number;
+      refetchBatchSize?: number;
+      refetchBatchDelayMs?: number;
     };
     mutationQueue: MutationQueueConfig;
     backgroundSync: boolean;

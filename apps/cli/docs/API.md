@@ -34,13 +34,11 @@ All `RequestInit` fields are supported (`method`, `body`, `headers`, `credential
 | Option                 | Type                                                                                             | Default                 | Description                                              |
 | ---------------------- | ------------------------------------------------------------------------------------------------ | ----------------------- | -------------------------------------------------------- |
 | `tags`                 | `string[]`                                                                                       | auto-generated from URL | Cache invalidation tags for this request                 |
-| `staleWhileRevalidate` | `boolean`                                                                                        | `false`                 | Return cached immediately, refresh in background         |
 | `auth`                 | `boolean`                                                                                        | `false`                 | Attach auth token via `withAuthHeaders()`                |
 | `queueOffline`         | `boolean`                                                                                        | `true`                  | When offline, queue writes to IndexedDB                  |
 | `invalidate`           | `'auto' \| string[] \| false`                                                                    | `'auto'`                | Auto-invalidate cache tags after successful mutation     |
 | `type`                 | `'read' \| 'mutation'`                                                                           | auto-detected           | Override read/mutation detection                         |
 | `strategy`             | `'cache-first' \| 'network-first' \| 'stale-while-revalidate' \| 'cache-only' \| 'network-only'` | —                       | Override caching strategy per-request (highest priority) |
-| `staleTime`            | `number`                                                                                         | inherited from config   | Per-request stale time in seconds                        |
 | `signal`               | `AbortSignal`                                                                                    | —                       | AbortController signal for cancellation                  |
 
 ### Behavior
@@ -56,7 +54,7 @@ All `RequestInit` fields are supported (`method`, `body`, `headers`, `credential
 - **Auto-tags**: when `tagInvalidation` enabled, tags derived from URL path for read requests.
 - **Auto-invalidate**: after a successful mutation, matching cache tags are invalidated.
 - **Auth**: when `auth: true`, attaches auth headers. Dispatches `sw-auth-unauthorized` on 401.
-- **StaleTime headers**: per-request `staleTime` sent as `X-SW-Stale-Time` header.
+- **StaleTime**: configured via route patterns or global default. Applies to cache-first and network-first strategies.
 
 ### `prefetchCache(input, options?)`
 
@@ -64,7 +62,7 @@ Fire-and-forget prefetch to warm the cache. Silently swallows errors.
 
 ```ts
 prefetchCache("/api/todos");
-prefetchCache("/api/todos", { staleTime: 30 });
+prefetchCache("/api/todos");
 ```
 
 ---
@@ -275,7 +273,6 @@ All `fetchWithCache` options are available, plus:
 | ---------------------- | ----------------------------- | -------------- | ------------------------------------------------ |
 | `variables`            | `Record<string, unknown>`     | `undefined`    | GraphQL variables                                |
 | `tags`                 | `string[]`                    | auto-generated | Override invalidation tags                       |
-| `staleWhileRevalidate` | `boolean`                     | `false`        | Return cached immediately, refresh in background |
 | `auth`                 | `boolean`                     | `false`        | Attach auth token                                |
 | `queueOffline`         | `boolean`                     | `true`         | Queue mutations when offline                     |
 | `invalidate`           | `'auto' \| string[] \| false` | `'auto'`       | Auto-invalidate after mutation                   |
@@ -431,7 +428,7 @@ Returns `{ data: T \| null, error: unknown, loading: boolean, refetch: () => voi
 
 - Auto-refetches on `cache-invalidated` events matching the URL
 - **Dependent queries**: pass `enabled: false` or a nullable URL to skip until a condition is met
-- Supports per-request config: `staleTime`, `refetchOnWindowFocus`, `refetchOnReconnect`, `refetchInterval`
+- Stale data is automatically refreshed in the background by the SW (batched & rate-limited). On `online` event, stale cache entries are recovered.
 
 ### `useMutation()`
 

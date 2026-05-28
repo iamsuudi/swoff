@@ -25,13 +25,6 @@
  *   // Authenticated
  *   const { data } = await queryGql("query Me { me { name } }", {}, { auth: true });
  *
- *   // Custom options
- *   const { data } = await queryGql(
- *     "query GetData { data { id } }",
- *     {},
- *     { staleWhileRevalidate: true, tags: ["data"] }
- *   );
- *
  *   // Offline: mutations are auto-queued
  *   const { data } = await mutateGql(
  *     "mutation CreateTodo($title: String!) { createTodo(title: $title) { id } }",
@@ -41,19 +34,14 @@
  */
 
 import { fetchWithCache } from "./fetch-wrapper.ts";
+import type { GqlResult } from "./swoff";
 
 export interface GqlOptions {
   variables?: Record<string, unknown>;
   tags?: string[];
-  staleWhileRevalidate?: boolean;
   auth?: boolean;
   queueOffline?: boolean;
   invalidate?: 'auto' | string[] | false;
-}
-
-export interface GqlResult<T> {
-  data: T;
-  fromCache: boolean;
 }
 
 /** Extract operation name from a GraphQL document. Returns null for anonymous queries (e.g. "{ todos { id } }"). */
@@ -107,7 +95,6 @@ export async function fetchWithGql<T>(
     },
     tags,
     type: isRead ? "read" : "mutation",
-    staleWhileRevalidate: options.staleWhileRevalidate,
     auth: options.auth,
     queueOffline: options.queueOffline,
     invalidate: options.invalidate,

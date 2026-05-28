@@ -24,7 +24,7 @@ need to assemble yourself.
 | **RxDB**            | Offline-first DB     | Runtime JS library                | ~40 kB gzip      |
 | **Remix**           | Meta-framework       | Server-rendered React framework   | SSR-dependent    |
 | **Next.js**         | Meta-framework       | Server-rendered React framework   | SSR-dependent    |
-| **upup**            | SW (lite)            | Single JS include                 | ~3 kB            |
+| **TanStack DB**            | Offline-first DB     | Runtime JS library                | ~5 kB gzip       |
 
 ---
 
@@ -32,7 +32,7 @@ need to assemble yourself.
 
 ### Service Worker & Caching Infrastructure
 
-| Feature                               | Swoff          | Workbox            | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB        | Remix | Next.js        | upup            |
+| Feature                               | Swoff          | Workbox            | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB        | Remix | Next.js        | TanStack DB            |
 | ------------------------------------- | -------------- | ------------------ | --------------- | -------------- | --- | --------- | ------------- | ----- | ---- | ----------- | ----- | -------------- | --------------- |
 | SW code generation                    | ✅ Full source | 🟡 Partial runtime | 🟡 Partial (WB) | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌          | ❌    | ❌             | ❌ Fixed script |
 | Precaching from build                 | ✅             | ✅                 | ✅              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌          | ❌    | 🟡 fetch cache | ❌              |
@@ -45,7 +45,7 @@ need to assemble yourself.
 
 ### Data Fetching & Reactivity
 
-| Feature                                | Swoff           | Workbox     | vite-plugin-pwa | TanStack Query | SWR        | RTK Query  | Apollo Client | Relay | urql | RxDB | Remix | Next.js  | upup |
+| Feature                                | Swoff           | Workbox     | vite-plugin-pwa | TanStack Query | SWR        | RTK Query  | Apollo Client | Relay | urql | RxDB | Remix | Next.js  | TanStack DB |
 | -------------------------------------- | --------------- | ----------- | --------------- | -------------- | ---------- | ---------- | ------------- | ----- | ---- | ---- | ----- | -------- | ---- |
 | Stale-while-revalidate                 | ✅              | ✅ SW-level | ✅ SW-level     | ✅             | ✅         | ✅         | ✅            | ✅    | ✅   | ❌   | ❌    | ✅ fetch | ❌   |
 | Stale-time config                      | ✅ 3-tier       | ✅ SW-level | ✅ SW-level     | ✅             | ❌         | 🟡         | ✅            | ✅    | 🟡   | ❌   | ❌    | ✅ fetch | ❌   |
@@ -62,7 +62,7 @@ need to assemble yourself.
 
 ### Offline Persistence
 
-| Feature                          | Swoff               | Workbox      | vite-plugin-pwa | TanStack Query      | SWR | RTK Query | Apollo Client | Relay | urql        | RxDB      | Remix | Next.js | upup |
+| Feature                          | Swoff               | Workbox      | vite-plugin-pwa | TanStack Query      | SWR | RTK Query | Apollo Client | Relay | urql        | RxDB      | Remix | Next.js | TanStack DB |
 | -------------------------------- | ------------------- | ------------ | --------------- | ------------------- | --- | --------- | ------------- | ----- | ----------- | --------- | ----- | ------- | ---- |
 | Offline write queue              | ✅ IndexedDB        | ❌           | ❌              | ❌                  | ❌  | ❌        | ❌            | ❌    | ❌          | ✅        | ❌    | ❌      | ❌   |
 | Configurable retry + backoff     | ✅                  | 🟡 basic     | 🟡 basic        | ❌                  | ❌  | ❌        | ❌            | ❌    | ❌          | ❌        | ❌    | ❌      | ❌   |
@@ -73,16 +73,16 @@ need to assemble yourself.
 
 ### Cache Invalidation
 
-| Feature                           | Swoff              | Workbox | vite-plugin-pwa | TanStack Query | SWR          | RTK Query               | Apollo Client    | Relay            | urql             | RxDB           | Remix         | Next.js       | upup |
+| Feature                           | Swoff              | Workbox | vite-plugin-pwa | TanStack Query | SWR          | RTK Query               | Apollo Client    | Relay            | urql             | RxDB           | Remix         | Next.js       | TanStack DB |
 | --------------------------------- | ------------------ | ------- | --------------- | -------------- | ------------ | ----------------------- | ---------------- | ---------------- | ---------------- | -------------- | ------------- | ------------- | ---- |
 | Tag-based invalidation            | ✅ URL/op-name     | ❌      | ❌              | ✅ query-key   | ✅ key-based | ✅ provides/invalidates | 🟡 custom        | ❌               | ✅ type-based    | ❌             | ❌            | ❌            | ❌   |
 | Server push invalidation (SSE/WS) | ✅ built-in        | ❌      | ❌              | ❌             | ❌           | ❌                      | ✅ subscriptions | ✅ subscriptions | ✅ subscriptions | ✅ replication | ❌            | ❌            | ❌   |
-| Polling-based invalidation        | ✅ refetchInterval | ❌      | ❌              | ✅             | ✅           | ✅                      | ✅               | ✅               | ✅               | ❌             | ❌            | ✅ fetch      | ❌   |
+| Polling-based invalidation        | 🟡 staleTime+bg-refresh | ❌      | ❌              | ✅             | ✅           | ✅                      | ✅               | ✅               | ✅               | ❌             | ❌            | ✅ fetch      | ❌   |
 | Manual invalidation API           | ✅                 | ❌      | ❌              | ✅             | ✅           | ✅                      | ✅               | ✅               | ✅               | ❌             | ✅ revalidate | ✅ revalidate | ❌   |
 
 ### Authentication
 
-| Feature                                    | Swoff | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB | Remix | Next.js | upup |
+| Feature                                    | Swoff | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB | Remix | Next.js | TanStack DB |
 | ------------------------------------------ | ----- | ------- | --------------- | -------------- | --- | --------- | ------------- | ----- | ---- | ---- | ----- | ------- | ---- |
 | Built-in auth header injection             | ✅    | ❌      | ❌              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌   | ❌    | ❌      | ❌   |
 | Multiple auth types (bearer/cookie/custom) | ✅    | ❌      | ❌              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌   | ❌    | ❌      | ❌   |
@@ -93,7 +93,7 @@ need to assemble yourself.
 
 ### GraphQL
 
-| Feature                              | Swoff                   | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client    | Relay     | urql        | RxDB           | Remix     | Next.js | upup |
+| Feature                              | Swoff                   | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client    | Relay     | urql        | RxDB           | Remix     | Next.js | TanStack DB |
 | ------------------------------------ | ----------------------- | ------- | --------------- | -------------- | --- | --------- | ---------------- | --------- | ----------- | -------------- | --------- | ------- | ---- |
 | Native GraphQL client                | ✅ queryGql / mutateGql | ❌      | ❌              | ❌             | ❌  | ❌        | ✅               | ✅        | ✅          | ✅ replication | 🟡 loader | ❌      | ❌   |
 | Body-hash / document caching         | ✅ SHA-256 key          | ❌      | ❌              | ❌             | ❌  | ❌        | 🟡 possible      | ❌        | ✅ default  | ❌             | ❌        | ❌      | ❌   |
@@ -102,7 +102,7 @@ need to assemble yourself.
 
 ### PWA
 
-| Feature                        | Swoff           | Workbox    | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB | Remix | Next.js | upup |
+| Feature                        | Swoff           | Workbox    | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB | Remix | Next.js | TanStack DB |
 | ------------------------------ | --------------- | ---------- | --------------- | -------------- | --- | --------- | ------------- | ----- | ---- | ---- | ----- | ------- | ---- |
 | PWA install prompt             | ✅              | ❌         | ✅              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌   | ❌    | ❌      | ❌   |
 | Manifest generation            | ✅              | ❌         | ✅              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌   | ❌    | ❌      | ❌   |
@@ -111,7 +111,7 @@ need to assemble yourself.
 
 ### Real-time
 
-| Feature                         | Swoff       | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay      | urql        | RxDB           | Remix | Next.js | upup |
+| Feature                         | Swoff       | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay      | urql        | RxDB           | Remix | Next.js | TanStack DB |
 | ------------------------------- | ----------- | ------- | --------------- | -------------- | --- | --------- | ------------- | ---------- | ----------- | -------------- | ----- | ------- | ---- |
 | SSE connection management       | ✅ built-in | ❌      | ❌              | ❌             | ❌  | ❌        | 🟡 link       | 🟡 network | ✅ exchange | ✅ replication | ❌    | ❌      | ❌   |
 | WebSocket connection management | ✅ built-in | ❌      | ❌              | ❌             | ❌  | ❌        | ✅ link       | ✅ network | ✅ exchange | ✅ replication | ❌    | ❌      | ❌   |
@@ -119,7 +119,7 @@ need to assemble yourself.
 
 ### Developer Experience
 
-| Feature                       | Swoff                | Workbox              | vite-plugin-pwa | TanStack Query | SWR          | RTK Query    | Apollo Client | Relay        | urql         | RxDB         | Remix        | Next.js      | upup             |
+| Feature                       | Swoff                | Workbox              | vite-plugin-pwa | TanStack Query | SWR          | RTK Query    | Apollo Client | Relay        | urql         | RxDB         | Remix        | Next.js      | TanStack DB             |
 | ----------------------------- | -------------------- | -------------------- | --------------- | -------------- | ------------ | ------------ | ------------- | ------------ | ------------ | ------------ | ------------ | ------------ | ---------------- |
 | TypeScript support            | ✅ full              | ✅ typed             | ✅ typed        | ✅ full        | ✅           | ✅           | ✅            | ✅ (codegen) | ✅           | ✅           | ✅           | ✅           | ❌               |
 | Zero runtime dependencies     | ✅ generated code    | ❌ runtime modules   | ❌ Workbox      | ❌ 3.8 kB      | ❌ 3.3 kB    | ❌ +Redux    | ❌ 32 kB      | ❌ 20 kB     | ❌ 8 kB      | ❌ 40 kB     | ❌ SSR       | ❌ SSR       | ✅ single script |
@@ -133,7 +133,7 @@ need to assemble yourself.
 
 ### Offline-First Infrastructure (the integration gap)
 
-| Feature                                       | Swoff           | Workbox       | vite-plugin-pwa | TanStack Query | SWR           | RTK Query     | Apollo Client | Relay        | urql        | RxDB       | Remix     | Next.js   | upup |
+| Feature                                       | Swoff           | Workbox       | vite-plugin-pwa | TanStack Query | SWR           | RTK Query     | Apollo Client | Relay        | urql        | RxDB       | Remix     | Next.js   | TanStack DB |
 | --------------------------------------------- | --------------- | ------------- | --------------- | -------------- | ------------- | ------------- | ------------- | ------------ | ----------- | ---------- | --------- | --------- | ---- |
 | Unified config for ALL concerns               | ✅ single-file  | ❌ SW only    | ❌ SW only      | ❌ fetch only  | ❌ fetch only | ❌ fetch only | ❌ GQL only   | ❌ GQL only  | ❌ GQL only | ❌ DB only | ❌ server | ❌ server | ❌   |
 | Hybrid SW ↔ client architecture               | ✅ built-in     | 🟡 sw->client | 🟡 sw->client   | ❌             | ❌            | ❌            | ❌            | ❌           | ❌          | ❌         | ❌        | ❌        | ❌   |
@@ -151,8 +151,8 @@ need to assemble yourself.
 Swoff generates a **full human-readable service worker** from `swoff.config.json`. Every line of
 caching logic is visible and editable. Workbox injects an opaque runtime that loads `workbox-*`
 modules — you control behavior through APIs but cannot read the generated code. vite-plugin-pwa
-inherits the same opacity from Workbox. upup provides a fixed script with basic offline support
-but is unmaintained since 2019.
+inherits the same opacity from Workbox. TanStack DB is the newest library in the ecosystem,
+offering a reactive offline-first database with sync capabilities.
 
 Swoff is the only SW toolkit that provides **3-tier config resolution**: per-request overrides
 (tier 1, highest priority), URL pattern matches (tier 2), and global defaults (tier 3). This

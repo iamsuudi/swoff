@@ -30,6 +30,7 @@ export interface StrategyEntry {
   maxCacheEntries?: number;
   maxCacheAge?: number;
   staleTime?: number;
+  swrSkipFreshRevalidate?: boolean;
 }
 
 export interface RefetchBatchConfig {
@@ -63,6 +64,9 @@ export interface SwoffConfig {
       spaEntry: string;
       refetchBatchSize?: number;
       refetchBatchDelayMs?: number;
+      swrSkipFreshRevalidate?: boolean;
+      ignoreQueryParams?: string[];
+      normalizeCacheKey?: boolean;
     };
     mutationQueue: MutationQueueConfig;
     backgroundSync: boolean;

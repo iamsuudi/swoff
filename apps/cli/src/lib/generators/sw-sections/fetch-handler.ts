@@ -19,10 +19,10 @@
  */
 
 export function generateFetchHandler(
-  swConfig: { defaultStrategy: string; strategies: Record<string, string | { strategy: string; maxCacheEntries?: number; maxCacheAge?: number; staleTime?: number }>; cacheStrategy?: "all" | "explicit-only"; staleTime?: number; maxCacheEntries?: number; maxCacheAge?: number; navigationPreload?: boolean; navigationMode?: string; spaEntry?: string; refetchBatchSize?: number; refetchBatchDelayMs?: number },
+  swConfig: { defaultStrategy: string; strategies: Record<string, string | { strategy: string; maxCacheEntries?: number; maxCacheAge?: number; staleTime?: number; swrSkipFreshRevalidate?: boolean }>; cacheStrategy?: "all" | "explicit-only"; staleTime?: number; maxCacheEntries?: number; maxCacheAge?: number; navigationPreload?: boolean; navigationMode?: string; spaEntry?: string; refetchBatchSize?: number; refetchBatchDelayMs?: number; swrSkipFreshRevalidate?: boolean; ignoreQueryParams?: string[]; normalizeCacheKey?: boolean },
   tagInvalidation: boolean,
 ): string {
-  const { defaultStrategy, strategies, cacheStrategy = "all", staleTime, maxCacheEntries, maxCacheAge, navigationPreload, navigationMode, spaEntry, refetchBatchSize = 5, refetchBatchDelayMs = 1000 } = swConfig;
+  const { defaultStrategy, strategies, cacheStrategy = "all", staleTime, maxCacheEntries, maxCacheAge, navigationPreload, navigationMode, spaEntry, refetchBatchSize = 5, refetchBatchDelayMs = 1000, swrSkipFreshRevalidate = false, ignoreQueryParams, normalizeCacheKey } = swConfig;
 
   const navMode = navigationMode ?? "spa";
   const spaPath = spaEntry ?? "/index.html";
@@ -45,18 +45,20 @@ export function generateFetchHandler(
   const trimDecl = `const GLOBAL_MAX_ENTRIES = ${maxCacheEntries ?? 0};
 const GLOBAL_MAX_AGE = ${maxCacheAge ?? 0};
 const GLOBAL_STALE_TIME = ${staleTime ?? 0};
+const GLOBAL_SWR_SKIP_FRESH = ${swrSkipFreshRevalidate};
 const REFETCH_BATCH_SIZE = ${refetchBatchSize};
 const REFETCH_BATCH_DELAY_MS = ${refetchBatchDelayMs};`;
 
   return `${trimDecl}
 // --- Batch Refresh Queue ---
 
-const _refreshQueue = new Set();
+const _refreshQueue = new Map();
 let _refreshQueueProcessing = false;
 let _refreshQueuePromise = null;
 
 function queueRefresh(cacheKeyUrl, actualUrl) {
-  _refreshQueue.add({ cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl });
+  // Use Map keyed by cacheKey for proper deduplication
+  _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl });
   if (!_refreshQueuePromise) {
     _refreshQueuePromise = _processRefreshQueue().finally(() => {
       _refreshQueuePromise = null;
@@ -78,10 +80,10 @@ function resolveActualUrl(entry) {
 async function _processRefreshQueue() {
   while (_refreshQueue.size > 0) {
     const batch = [];
-    for (const item of _refreshQueue) {
+    for (const [cacheKey, entry] of _refreshQueue) {
       if (batch.length >= REFETCH_BATCH_SIZE) break;
-      batch.push(item);
-      _refreshQueue.delete(item);
+      batch.push(entry);
+      _refreshQueue.delete(cacheKey);
     }
     if (batch.length === 0) break;
 
@@ -94,6 +96,10 @@ async function _processRefreshQueue() {
         if (response.ok) {
           const request = new Request(entry.cacheKey);
           await storeRuntime(request, response);
+          // Clean up stale version tracking on successful refresh
+          if (typeof staleVersions !== "undefined" && staleVersions.has(entry.cacheKey)) {
+            staleVersions.delete(entry.cacheKey);
+          }
           for (const client of clients) {
             client.postMessage({ type: "CACHE_UPDATED", url: fetchUrl });
           }
@@ -114,6 +120,15 @@ async function handleOnline() {
   const clients = await self.clients.matchAll();
   if (clients.length === 0) return;
 
+  // Step 1: Retry stale version entries (failed refetches after invalidation)
+  if (typeof staleVersions !== "undefined") {
+    const staleUrls = [...staleVersions.keys()];
+    for (const url of staleUrls) {
+      queueRefresh(url, url);
+    }
+  }
+
+  // Step 2: Full scan for entries that became stale while offline
   const cache = await caches.open(CACHE_NAME_RUNTIME);
   const keys = await cache.keys();
 
@@ -122,7 +137,7 @@ async function handleOnline() {
     // Skip virtual cache keys (gql hashes etc.)
     if (url.pathname.startsWith("/__swc/")) continue;
 
-    const config = determineCacheStrategyForUrl(url.href, ${JSON.stringify(strategies)}, { defaultStrategy: "${defaultStrategy}", staleTime: GLOBAL_STALE_TIME });
+    const config = determineCacheStrategyForUrl(url.href, ${JSON.stringify(strategies)}, { defaultStrategy: "${defaultStrategy}", staleTime: GLOBAL_STALE_TIME, swrSkipFreshRevalidate: GLOBAL_SWR_SKIP_FRESH });
     const strategy = config.strategy;
 
     // Only refresh for strategies that cache: cache-first, network-first, stale-while-revalidate
@@ -141,7 +156,27 @@ async function handleOnline() {
 function cacheKey(request) {
   const key = request.headers.get("X-SW-Cache-Key");
   if (key) return new URL("/__swc/" + key, self.location.origin).href;
-  return new URL(request.url).href;
+  const url = new URL(request.url);${
+  normalizeCacheKey ? `
+  // Sort query params alphabetically for consistent cache keys
+  if (url.search) {
+    const params = new URLSearchParams(url.search);
+    params.sort();
+    url.search = params.toString();
+  }` : ""
+}${
+  ignoreQueryParams && ignoreQueryParams.length > 0
+    ? `
+  // Strip configured query params from cache key
+  const ignore = ${JSON.stringify(ignoreQueryParams)};
+  if (url.search) {
+    const params = new URLSearchParams(url.search);
+    for (const key of ignore) params.delete(key);
+    url.search = params.toString();
+  }`
+    : ""
+}
+  return url.href;
 }
 
 // --- Cache Helpers ---
@@ -209,9 +244,10 @@ function determineCacheStrategy(request, customStrategies, globalDefaults) {
   if (override) {
     return {
       strategy: override,
-      staleTime: globalDefaults.staleTime,
+      staleTime: Number(request.headers.get("X-SW-Stale-Time")) || globalDefaults.staleTime,
       maxCacheEntries: Number(request.headers.get("X-SW-Max-Entries")) || globalDefaults.maxCacheEntries,
       maxCacheAge: Number(request.headers.get("X-SW-Max-Age")) || globalDefaults.maxCacheAge,
+      swrSkipFreshRevalidate: globalDefaults.swrSkipFreshRevalidate,
     };
   }
   const path = new URL(request.url).pathname;
@@ -223,6 +259,7 @@ function determineCacheStrategy(request, customStrategies, globalDefaults) {
         staleTime: resolved.staleTime ?? globalDefaults.staleTime,
         maxCacheEntries: resolved.maxCacheEntries ?? globalDefaults.maxCacheEntries,
         maxCacheAge: resolved.maxCacheAge ?? globalDefaults.maxCacheAge,
+        swrSkipFreshRevalidate: resolved.swrSkipFreshRevalidate ?? globalDefaults.swrSkipFreshRevalidate,
       };
     }
   }
@@ -231,6 +268,7 @@ function determineCacheStrategy(request, customStrategies, globalDefaults) {
     staleTime: globalDefaults.staleTime,
     maxCacheEntries: globalDefaults.maxCacheEntries,
     maxCacheAge: globalDefaults.maxCacheAge,
+    swrSkipFreshRevalidate: globalDefaults.swrSkipFreshRevalidate,
   };
 }
 
@@ -242,19 +280,21 @@ function determineCacheStrategyForUrl(url, customStrategies, globalDefaults) {
       return {
         strategy: resolved.strategy,
         staleTime: resolved.staleTime ?? globalDefaults.staleTime,
+        swrSkipFreshRevalidate: resolved.swrSkipFreshRevalidate ?? globalDefaults.swrSkipFreshRevalidate,
       };
     }
   }
   return {
     strategy: globalDefaults.defaultStrategy,
     staleTime: globalDefaults.staleTime,
+    swrSkipFreshRevalidate: globalDefaults.swrSkipFreshRevalidate,
   };
 }
 
 function applyStrategy(event, request, config) {
-  const { strategy, staleTime, maxCacheEntries, maxCacheAge } = config;
+  const { strategy, staleTime, maxCacheEntries, maxCacheAge, swrSkipFreshRevalidate } = config;
   if (strategy === "stale-while-revalidate") {
-    event.respondWith(staleWhileRevalidate(event, request, maxEntries, maxAge));
+    event.respondWith(staleWhileRevalidate(event, request, staleTime, maxCacheEntries, maxCacheAge, swrSkipFreshRevalidate));
   } else if (strategy === "network-first") {
     event.respondWith(networkFirst(event, request, staleTime, maxCacheEntries, maxCacheAge));
   } else if (strategy === "cache-only") {
@@ -272,7 +312,7 @@ self.addEventListener("fetch", (event) => {
     if (!request.headers.get("X-SW-Cache-Key")) return;
   }
   ${cacheStrategy === "explicit-only" ? `if (!request.headers.get("X-SW-Cache-Strategy")) return;` : ""}
-  applyStrategy(event, request, determineCacheStrategy(event.request, ${JSON.stringify(strategies)}, { defaultStrategy: "${defaultStrategy}", staleTime: GLOBAL_STALE_TIME, maxCacheEntries: GLOBAL_MAX_ENTRIES, maxCacheAge: GLOBAL_MAX_AGE }));
+  applyStrategy(event, request, determineCacheStrategy(event.request, ${JSON.stringify(strategies)}, { defaultStrategy: "${defaultStrategy}", staleTime: GLOBAL_STALE_TIME, maxCacheEntries: GLOBAL_MAX_ENTRIES, maxCacheAge: GLOBAL_MAX_AGE, swrSkipFreshRevalidate: GLOBAL_SWR_SKIP_FRESH }));
 });
 
 // --- Strategies ---
@@ -349,16 +389,20 @@ async function networkFirst(event, request, staleTime, maxEntries, maxAge) {
   }
 }
 
-async function staleWhileRevalidate(event, request, maxEntries, maxAge) {
+async function staleWhileRevalidate(event, request, staleTime, maxEntries, maxAge, swrSkipFreshRevalidate) {
   const cached = await fromRuntime(request);
   if (cached) {
-    event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
+    if (!swrSkipFreshRevalidate || isStale(cached, staleTime)) {
+      event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
+    }
     return markFromCache(cached);
   }
 
   const precached = await fromPrecache(request);
   if (precached) {
-    event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
+    if (!swrSkipFreshRevalidate || isStale(precached, staleTime)) {
+      event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
+    }
     return markFromCache(precached);
   }
 
@@ -410,9 +454,9 @@ async function trimRuntimeCache(cacheName, maxEntries, maxAge) {
     const now = Date.now();
     for (const request of keys) {
       const response = await cache.match(request);
-      const dateHeader = response?.headers.get("date");
-      if (dateHeader) {
-        const age = now - new Date(dateHeader).getTime();
+      const cachedAt = response?.headers.get("X-SW-Cached-At");
+      if (cachedAt) {
+        const age = now - Number(cachedAt);
         if (age > _maxAge) {
           await cache.delete(request);
         }

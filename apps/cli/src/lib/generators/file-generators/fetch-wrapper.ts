@@ -48,6 +48,7 @@ export interface FetchWithCacheOptions extends RequestInit {
   invalidate?: 'auto' | string[] | false;
   type?: 'read' | 'mutation';
   strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only';
+  staleTime?: number;
 }
 `
     : "";
@@ -189,7 +190,7 @@ ${interfaceBlock}${optionsInterface}
 const inFlightRequests = new Map${G("string, Promise<Response>")}();
 
 /** Fetch with caching, auth, offline queue, auto-invalidation, and per-request strategy override. Returns { response, fromCache }. Use { auth: true } for authenticated requests — works with bearer, cookie, and custom auth types. */
-export async function fetchWithCache${G("T")}(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only' }")} = {})${R("Promise<FetchWithCacheResult<T>>")}{
+export async function fetchWithCache${G("T")}(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only'; staleTime?: number }")} = {})${R("Promise<FetchWithCacheResult<T>>")}{
   const method = (options.method || "GET").toUpperCase();
   const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD"));
   const url = typeof input === "string" ? input : input.url;
@@ -208,6 +209,9 @@ ${autoTagsBlock}
 
   if (options.strategy) {
     headers.set("X-SW-Strategy", options.strategy);
+  }
+  if (options.staleTime !== undefined) {
+    headers.set("X-SW-Stale-Time", String(options.staleTime));
   }
 ${authBlock}${authUrlsBlock}
   const fetchOptions${T("RequestInit")} = { ...options, headers };
@@ -254,7 +258,7 @@ ${autoInvalidateBlock}${auth401Block}
 }
 
 /** Fire-and-forget prefetch: warms the cache for a URL without blocking. Useful for route prefetching or link hover prefetching. */
-export function prefetchCache(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only' }")} = {})${R("void")}{
+export function prefetchCache(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only'; staleTime?: number }")} = {})${R("void")}{
   fetchWithCache(input, { ...options }).catch(() => {
     // Prefetch failures are intentionally silent
   });

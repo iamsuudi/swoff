@@ -61,7 +61,9 @@ async function main() {
     case "generate": {
       const swOnly = options.includes("--sw-only");
       const filesOnly = options.includes("--files-only");
-      await generateCommand(projectRoot, { swOnly, filesOnly });
+      const langIdx = options.indexOf("--language");
+      const language = langIdx !== -1 ? options[langIdx + 1] : undefined;
+      await generateCommand(projectRoot, { swOnly, filesOnly, language });
       break;
     }
     case "validate":

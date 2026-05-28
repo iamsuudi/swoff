@@ -9,11 +9,11 @@ export function useAuth() {
   });
 
   useEffect(() => {
-    getAuthState().then(setState);
+    getAuthState().then(setState).catch(() => {});
 
     const onOnline = () => setState((s) => ({ ...s, online: true }));
     const onOffline = () => setState((s) => ({ ...s, online: false }));
-    const onAuthChange = () => getAuthState().then(setState);
+    const onAuthChange = () => getAuthState().then(setState).catch(() => {});
 
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);

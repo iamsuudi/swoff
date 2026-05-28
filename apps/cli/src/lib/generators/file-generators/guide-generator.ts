@@ -66,18 +66,11 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("| `network-only` | No effect | No effect |");
   w("");
 
-  // ── Auto-refetch (Window Focus / Reconnect / Interval) ──
-  wb("## 🔄 Auto-refetch — keep data fresh automatically");
-  w("Three events can trigger an automatic refetch at the hook level:");
-  w("");
-  w("- **refetchOnWindowFocus**: When the user returns to the tab, re-fetch stale data");
-  w("- **refetchOnReconnect**: When the browser comes back online, re-fetch stale data");
-  w("- **refetchInterval**: Poll the server every N seconds for fresh data");
-  w("");
-  w("These are configured at 3 tiers too:");
-  w("- Global: `features.serviceWorker.refetchOnWindowFocus: true`");
-  w("- Per-route: `\"/api/*\": { refetchOnWindowFocus: false }`");
-  w("- Per-request: `useCachedFetch(url, { refetchOnWindowFocus: true })`");
+  // ── Online Refetch ──
+  wb("## 🔄 Online refetch — recover stale cache after connectivity loss");
+  w("When the browser fires the `online` event, `client-injector` forwards it to the SW.");
+  w("The SW iterates its runtime cache and refetches any stale entries (batched & rate-limited).");
+  w("This is the only refetch trigger — no window focus, no intervals, no polling.");
   w("");
 
   if (ctx.frameworkName === "react") {
@@ -195,7 +188,7 @@ export function generateGuide(ctx: GeneratorContext): void {
   wb("## 🎯 Cache Strategy Resolution");
   w("The SW uses a 3-tier priority system to determine which caching strategy applies to each request:");
   w("");
-  w("1. **Per-request override (highest)** — set `strategy` or `staleWhileRevalidate` on `fetchWithCache()`.");
+  w("1. **Per-request override (highest)** — set `strategy` on `fetchWithCache()`.");
   w("   Sent as `X-SW-Strategy` header to the SW.");
   w("2. **URL pattern match** — configured in `swoff.config.json` under `features.serviceWorker.strategies`.");
   w("   e.g. `\"/api/*\": \"network-first\"` matches all paths starting with `/api/`.");
@@ -253,11 +246,11 @@ export function generateGuide(ctx: GeneratorContext): void {
     w('  { title: "New task" },');
     w(");");
     w("");
-    w("// With auth, stale-while-revalidate, and custom tags");
+    w("// With auth and custom tags");
     w('const { data, fromCache } = await queryGql(');
     w('  "query Me { me { name } }",');
     w("  {},");
-    w('  { auth: true, staleWhileRevalidate: true, tags: ["users"] },');
+    w('  { auth: true, tags: ["users"] },');
     w(");");
     w("```");
     w("");
@@ -714,10 +707,8 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("- `serviceWorker.cacheStrategy` — caching strategy mode (`\"all\"` or `\"explicit-only\"`)");
   w("- `serviceWorker.defaultStrategy` — default caching strategy");
   w("- `serviceWorker.strategies` — per-route strategy overrides");
-  w("- `serviceWorker.staleTime` — global stale time in seconds (data considered fresh for N seconds)");
-  w("- `serviceWorker.refetchOnWindowFocus` — auto-refetch on tab focus (hook-level)");
-  w("- `serviceWorker.refetchOnReconnect` — auto-refetch on reconnect");
-  w("- `serviceWorker.refetchInterval` — auto-refetch every N seconds");
+  w("- `serviceWorker.staleTime` — global stale time in seconds (data considered fresh for N seconds). Applies to cache-first and network-first only.");
+  w("- `serviceWorker.refetchBatchSize` — max stale cache entries to refetch per batch");
   w("- `serviceWorker.maxCacheEntries` — max entries in runtime cache (oldest evicted)");
   w("- `serviceWorker.maxCacheAge` — max age of cache entries in ms");
   w("");

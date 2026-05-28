@@ -40,9 +40,8 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
       "navigationPreload": true,
       "navigationMode": "spa",
       "spaEntry": "/index.html",
-      "refetchOnWindowFocus": true,
-      "refetchOnReconnect": true,
-      "refetchInterval": 0
+      "refetchBatchSize": 5,
+      "refetchBatchDelayMs": 1000
     },
     "mutationQueue": {
       "enabled": false,
@@ -105,7 +104,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | `defaultStrategy` | `string` | `"cache-first"` | Default caching strategy (lowest priority in 3-tier resolution). One of: `cache-first`, `network-first`, `stale-while-revalidate`, `cache-only`, `network-only` |
 | `strategies` | `object` | `{}` | Per-route strategy overrides. Keys are URL patterns (e.g. `/api/*`). Values can be a strategy name string or a `StrategyEntry` object |
 | `cacheStrategy` | `"all"` \| `"explicit-only"` | `"all"` | When to apply caching strategies. `"all"`: every GET/HEAD request; `"explicit-only"`: only requests with `X-SW-Cache-Strategy` header |
-| `staleTime` | `number` | `0` | Global stale time in seconds. Data is considered fresh for this long; after expiry, SW serves cached but triggers a background refresh. 0 = no staleTime (immediately stale). |
+| `staleTime` | `number` | `0` | Global stale time in seconds. Applies to **cache-first** and **network-first** only. Data is considered fresh for this long; after expiry, SW serves cached but triggers a background refresh. 0 = no staleTime (immediately stale). |
 | `maxCacheEntries` | `number` | — | Max entries in runtime cache (0 or undefined = unlimited). Oldest entries evicted first. |
 | `maxCacheAge` | `number` | — | Max age of cache entries in ms (0 or undefined = no limit) |
 | `runtimeCacheName` | `string` | `"swoff-runtime"` | Name of the runtime cache in the Cache Storage API |
@@ -113,9 +112,8 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | `navigationPreload` | `boolean` | `true` | Enable Navigation Preload API — reduces SW startup latency |
 | `navigationMode` | `"spa"` \| `"default"` | `"spa"` | SPA mode sends unmatched navigation requests to `spaEntry` |
 | `spaEntry` | `string` | `"/index.html"` | Fallback HTML for SPA navigation requests |
-| `refetchOnWindowFocus` | `boolean` | `false` | Auto-refetch stale data when the user returns to the tab (hook-level) |
-| `refetchOnReconnect` | `boolean` | `false` | Auto-refetch stale data when the browser comes back online (hook-level) |
-| `refetchInterval` | `number` | `0` | Poll interval in seconds for auto-refetching stale data (0 = disabled) |
+| `refetchBatchSize` | `number` | `5` | Max stale cache entries to refetch per batch in the background refresh queue |
+| `refetchBatchDelayMs` | `number` | `1000` | Delay between batch cycles when processing stale refreshes (rate limiting) |
 
 ### `StrategyEntry` object
 
@@ -135,7 +133,7 @@ When a strategy value is an object instead of a string:
 | `strategy` | `string` | (required) | Caching strategy name |
 | `maxCacheEntries` | `number` | inherited from top-level | Per-route max cache entries |
 | `maxCacheAge` | `number` | inherited from top-level | Per-route max cache age in ms |
-| `staleTime` | `number` | inherited from top-level | Per-route stale time in seconds |
+| `staleTime` | `number` | inherited from top-level | Per-route stale time in seconds. Applies to **cache-first** and **network-first** only. Not used by stale-while-revalidate, cache-only, or network-only. |
 
 ### 3-tier resolution
 
@@ -145,7 +143,7 @@ The following settings resolve in 3 tiers (highest to lowest priority):
 2. **Route pattern** — configured in `features.serviceWorker.strategies`
 3. **Global default** — configured at `features.serviceWorker.*`
 
-This applies to: `strategy`, `staleTime`, `refetchOnWindowFocus`, `refetchOnReconnect`, `refetchInterval`.
+This applies to: `strategy`, `staleTime`.
 
 ---
 

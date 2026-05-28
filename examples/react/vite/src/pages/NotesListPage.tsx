@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { fetchWithCache } from "../../swoff/fetch-wrapper";
-import { generateTags, invalidateByMethod } from "../../swoff/invalidation-tags";
+import { generateTags, invalidateUrl } from "../../swoff/invalidation-tags";
 import { queueMutation } from "../../swoff/mutation-queue";
 import NoteCard from "../components/NoteCard";
 import { usePendingQueue } from "../hooks/usePendingQueue";
@@ -32,7 +32,7 @@ export default function NotesListPage() {
       return;
     }
     await fetchWithCache(`/api/notes/${id}`, { method: "DELETE", auth: true });
-    await invalidateByMethod("DELETE", `/api/notes/${id}`);
+    await invalidateUrl(`/api/notes/${id}`);
     await loadNotes();
   };
 

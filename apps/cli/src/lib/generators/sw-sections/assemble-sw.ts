@@ -45,7 +45,9 @@ function applyReplacements(sw: string, config: SwoffConfig, assetsToCache: { url
 
   sw = sw.replace("// [[ASSETS_LIST]]", `ASSETS_TO_CACHE = ${JSON.stringify(assetsToCache, null, 2)}`);
   sw = sw.replace("// [[AUTO_SKIP_WAITING]]", `const AUTO_SKIP_WAITING = ${serviceWorker.autoActivate};`);
-  sw = sw.replace("// [[FETCH_HANDLER]]", generateFetchHandler(serviceWorker, features.tagInvalidation));
+  const refetchBatchSize = serviceWorker.refetchBatchSize ?? 5;
+  const refetchBatchDelayMs = serviceWorker.refetchBatchDelayMs ?? 1000;
+  sw = sw.replace("// [[FETCH_HANDLER]]", generateFetchHandler({ ...serviceWorker, refetchBatchSize, refetchBatchDelayMs }, features.tagInvalidation));
   sw = sw.replace("// [[ACTIVATE_HANDLER]]", generateActivateHandler(serviceWorker.clearRuntimeOnUpdate, serviceWorker.navigationPreload));
   sw = sw.replace("// [[INSTALL_HANDLER]]", generateInstallHandler());
   sw = sw.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(features.tagInvalidation, features.auth.enabled));

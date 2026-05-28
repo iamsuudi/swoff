@@ -14,15 +14,9 @@ export function generateGqlWrapper(ctx: GeneratorContext): void {
 export interface GqlOptions {
   variables?: Record<string, unknown>;
   tags?: string[];
-  staleWhileRevalidate?: boolean;
   auth?: boolean;
   queueOffline?: boolean;
   invalidate?: 'auto' | string[] | false;
-}
-
-export interface GqlResult${G("T")} {
-  data${T("T")};
-  fromCache${T("boolean")};
 }
 `
     : "";
@@ -54,13 +48,6 @@ export interface GqlResult${G("T")} {
  *   // Authenticated
  *   const { data } = await queryGql("query Me { me { name } }", {}, { auth: true });
  *
- *   // Custom options
- *   const { data } = await queryGql(
- *     "query GetData { data { id } }",
- *     {},
- *     { staleWhileRevalidate: true, tags: ["data"] }
- *   );
- *
  *   // Offline: mutations are auto-queued
  *   const { data } = await mutateGql(
  *     "mutation CreateTodo($title: String!) { createTodo(title: $title) { id } }",
@@ -70,6 +57,7 @@ export interface GqlResult${G("T")} {
  */
 
 import { fetchWithCache } from "./fetch-wrapper.${ext}";
+import type { GqlResult } from "./swoff";
 ${optionsInterface}
 /** Extract operation name from a GraphQL document. Returns null for anonymous queries (e.g. "{ todos { id } }"). */
 function getOperationName(query${T("string")})${T("string | null")}{
@@ -122,7 +110,6 @@ export async function fetchWithGql${G("T")}(
     },
     tags,
     type: isRead ? "read" : "mutation",
-    staleWhileRevalidate: options.staleWhileRevalidate,
     auth: options.auth,
     queueOffline: options.queueOffline,
     invalidate: options.invalidate,

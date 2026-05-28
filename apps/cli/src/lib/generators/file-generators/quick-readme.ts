@@ -101,9 +101,7 @@ export function generateReadme(ctx: GeneratorContext): void {
     w(`import { usePrefetch } from "./swoff/hooks/usePrefetch.${ext}x";`);
     w(`import { useMutationState } from "./swoff/hooks/useMutationState.${ext}x";`);
     w("");
-    w('const { data, error, loading, refetch } = useCachedFetch("/api/todos", {');
-    w('  refetchOnWindowFocus: true,');
-    w('});');
+    w('const { data, error, loading, refetch } = useCachedFetch("/api/todos");');
     w("");
     w('// Dependent query — skip until user is loaded');
     w('const { data: posts } = useCachedFetch("/api/posts", { enabled: !!user });');

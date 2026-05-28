@@ -44,12 +44,6 @@ const { data: created } = await mutateGql(
 );
 ```
 
-## Server push events (real-time cache invalidation)
-```ts
-import { startPushEvents } from "./swoff/server-push.ts";
-startPushEvents();
-```
-
 ## Push notifications
 ```ts
 import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push.ts";
@@ -63,9 +57,7 @@ import { useMutation } from "./swoff/hooks/useMutation.tsx";
 import { usePrefetch } from "./swoff/hooks/usePrefetch.tsx";
 import { useMutationState } from "./swoff/hooks/useMutationState.tsx";
 
-const { data, error, loading, refetch } = useCachedFetch("/api/todos", {
-  refetchOnWindowFocus: true,
-});
+const { data, error, loading, refetch } = useCachedFetch("/api/todos");
 
 // Dependent query — skip until user is loaded
 const { data: posts } = useCachedFetch("/api/posts", { enabled: !!user });

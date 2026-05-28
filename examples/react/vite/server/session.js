@@ -8,6 +8,7 @@ import { dirname, join } from "path";
 import webPush from "web-push";
 import { setupPush, triggerPushNotification } from "./push.js";
 import { setupGraphql } from "./graphql.js";
+import { setupLogger } from "./logger.js";
 
 const app = express();
 const PORT = 3001;
@@ -48,6 +49,7 @@ loadSessions();
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
+setupLogger(app);
 
 function authenticate(req, res, next) {
   const sessionId = req.cookies?.swoff_session;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, startTransition } from "react";
+import { useState, useEffect, useCallback, startTransition } from "react";
 import { fetchWithCache } from "../fetch-wrapper.js";
 import { generateTags } from "../invalidation-tags.js";
 
@@ -7,8 +7,6 @@ export function useCachedFetch(url, options = {}) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refetchCount, setRefetchCount] = useState(0);
-  const optionsRef = useRef(options);
-  useEffect(() => { optionsRef.current = options; }, [options]);
 
   const refetch = useCallback(() => setRefetchCount((c) => c + 1), []);
 
@@ -26,7 +24,7 @@ export function useCachedFetch(url, options = {}) {
     const doFetch = async () => {
       try {
         const { response } = await fetchWithCache(url, {
-          ...optionsRef.current,
+          ...options,
           signal: controller.signal,
         });
         if (cancelled) return;
@@ -66,29 +64,6 @@ export function useCachedFetch(url, options = {}) {
     window.addEventListener("cache-invalidated", onInvalidated);
     return () => window.removeEventListener("cache-invalidated", onInvalidated);
   }, [url, isEnabled]);
-
-  // Auto-refetch on window focus
-  useEffect(() => {
-    if (!options.refetchOnWindowFocus || !isEnabled) return;
-    const onFocus = () => refetch();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [options.refetchOnWindowFocus, refetch, isEnabled]);
-
-  // Auto-refetch on reconnect
-  useEffect(() => {
-    if (!options.refetchOnReconnect || !isEnabled) return;
-    const onOnline = () => refetch();
-    window.addEventListener("online", onOnline);
-    return () => window.removeEventListener("online", onOnline);
-  }, [options.refetchOnReconnect, refetch, isEnabled]);
-
-  // Auto-refetch on interval
-  useEffect(() => {
-    if (!options.refetchInterval || options.refetchInterval <= 0 || !isEnabled) return;
-    const id = setInterval(refetch, options.refetchInterval * 1000);
-    return () => clearInterval(id);
-  }, [options.refetchInterval, refetch, isEnabled]);
 
   return { data, error, loading, refetch };
 }

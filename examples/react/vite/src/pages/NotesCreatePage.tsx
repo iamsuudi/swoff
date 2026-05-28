@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { fetchWithCache } from "../../swoff/fetch-wrapper";
 import { queueMutation } from "../../swoff/mutation-queue";
-import { generateTags, invalidateByMethod } from "../../swoff/invalidation-tags";
+import { generateTags, invalidateUrl } from "../../swoff/invalidation-tags";
 import NoteForm from "../components/NoteForm";
 
 export default function NotesCreatePage() {
@@ -23,7 +23,7 @@ export default function NotesCreatePage() {
       body: JSON.stringify(body),
     });
     const note = await res.json();
-    await invalidateByMethod("POST", "/api/notes");
+    await invalidateUrl("/api/notes");
     navigate(`/notes/${note.id}`);
   };
 

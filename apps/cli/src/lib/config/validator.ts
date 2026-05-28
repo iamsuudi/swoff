@@ -107,14 +107,11 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       if (sw.staleTime !== undefined && (typeof sw.staleTime !== "number" || sw.staleTime < 0)) {
         errors.push("features.serviceWorker.staleTime must be a non-negative number");
       }
-      if (sw.refetchOnWindowFocus !== undefined && typeof sw.refetchOnWindowFocus !== "boolean") {
-        errors.push("features.serviceWorker.refetchOnWindowFocus must be a boolean");
+      if (sw.refetchBatchSize !== undefined && (typeof sw.refetchBatchSize !== "number" || sw.refetchBatchSize < 1 || !Number.isInteger(sw.refetchBatchSize))) {
+        errors.push("features.serviceWorker.refetchBatchSize must be a positive integer");
       }
-      if (sw.refetchOnReconnect !== undefined && typeof sw.refetchOnReconnect !== "boolean") {
-        errors.push("features.serviceWorker.refetchOnReconnect must be a boolean");
-      }
-      if (sw.refetchInterval !== undefined && (typeof sw.refetchInterval !== "number" || sw.refetchInterval < 0 || !Number.isInteger(sw.refetchInterval))) {
-        errors.push("features.serviceWorker.refetchInterval must be a non-negative integer");
+      if (sw.refetchBatchDelayMs !== undefined && (typeof sw.refetchBatchDelayMs !== "number" || sw.refetchBatchDelayMs < 0 || !Number.isInteger(sw.refetchBatchDelayMs))) {
+        errors.push("features.serviceWorker.refetchBatchDelayMs must be a non-negative integer");
       }
       if (sw.clearRuntimeOnUpdate !== undefined && typeof sw.clearRuntimeOnUpdate !== "boolean") {
         errors.push("features.serviceWorker.clearRuntimeOnUpdate must be a boolean");

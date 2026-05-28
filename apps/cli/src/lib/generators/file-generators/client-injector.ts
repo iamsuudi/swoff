@@ -30,6 +30,16 @@ window.addEventListener("online", processMutationQueue);
 `
     : "";
 
+  const onlineRefetchListener = `
+// --- Online Refetch Listener ---
+// When connectivity returns, the SW checks stale cache entries and refetches them.
+window.addEventListener("online", () => {
+  if (navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({ type: "ONLINE" });
+  }
+});
+`;
+
   const crossTabHandler = crossTabSync
     ? `
     if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
@@ -72,10 +82,22 @@ window.addEventListener("online", processMutationQueue);
  *   sw-version-detected   - Version info available
  */
 ${pwaImport}${mutationImport}${swImport}
-${pwaCall}${mutationOnlineListener}
+${pwaCall}${mutationOnlineListener}${onlineRefetchListener}
 // --- SW Message Listener ---
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data.type === "CACHE_UPDATED") {
+      window.dispatchEvent(
+        new CustomEvent("cache-invalidated", {
+          detail: { tags: event.data.tags || [] },
+        })
+      );
+      window.dispatchEvent(
+        new CustomEvent("swoff:cache-updated", {
+          detail: { url: event.data.url },
+        })
+      );
+    }
     if (event.data.type === "SW_PROGRESS") {
       const { percent, downloaded, total } = event.data;
       window.dispatchEvent(

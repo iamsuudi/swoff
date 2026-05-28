@@ -10,21 +10,21 @@ need to assemble yourself.
 
 ## Libraries Compared
 
-| Library | Category | Approach | Install size |
-|---------|----------|----------|-------------|
-| **Swoff** | All-in-one generator | Config-driven build-time code gen | 0 kB runtime |
-| **Workbox** | SW toolkit | Build-time + runtime modules | ~30 kB injected |
-| **vite-plugin-pwa** | SW (Vite) | Vite plugin wrapping Workbox | ~30 kB (Workbox) |
-| **TanStack Query** | Server state | Runtime JS library | 3.8 kB gzip |
-| **SWR** | Server state | Runtime JS library | 3.3 kB gzip |
-| **RTK Query** | Server state | Runtime JS (Redux) | 2.9 kB + Redux |
-| **Apollo Client** | GraphQL client | Runtime JS library | ~32 kB gzip |
-| **Relay** | GraphQL client | Runtime + compiler | ~20 kB gzip |
-| **urql** | GraphQL client | Runtime JS library | ~8 kB gzip |
-| **RxDB** | Offline-first DB | Runtime JS library | ~40 kB gzip |
-| **Remix** | Meta-framework | Server-rendered React framework | SSR-dependent |
-| **Next.js** | Meta-framework | Server-rendered React framework | SSR-dependent |
-| **upup** | SW (lite) | Single JS include | ~3 kB |
+| Library             | Category             | Approach                          | Install size     |
+| ------------------- | -------------------- | --------------------------------- | ---------------- |
+| **Swoff**           | All-in-one generator | Config-driven build-time code gen | 0 kB runtime     |
+| **Workbox**         | SW toolkit           | Build-time + runtime modules      | ~30 kB injected  |
+| **vite-plugin-pwa** | SW (Vite)            | Vite plugin wrapping Workbox      | ~30 kB (Workbox) |
+| **TanStack Query**  | Server state         | Runtime JS library                | 3.8 kB gzip      |
+| **SWR**             | Server state         | Runtime JS library                | 3.3 kB gzip      |
+| **RTK Query**       | Server state         | Runtime JS (Redux)                | 2.9 kB + Redux   |
+| **Apollo Client**   | GraphQL client       | Runtime JS library                | ~32 kB gzip      |
+| **Relay**           | GraphQL client       | Runtime + compiler                | ~20 kB gzip      |
+| **urql**            | GraphQL client       | Runtime JS library                | ~8 kB gzip       |
+| **RxDB**            | Offline-first DB     | Runtime JS library                | ~40 kB gzip      |
+| **Remix**           | Meta-framework       | Server-rendered React framework   | SSR-dependent    |
+| **Next.js**         | Meta-framework       | Server-rendered React framework   | SSR-dependent    |
+| **TanStack DB**            | Offline-first DB     | Runtime JS library                | ~5 kB gzip       |
 
 ---
 
@@ -32,115 +32,115 @@ need to assemble yourself.
 
 ### Service Worker & Caching Infrastructure
 
-| Feature | Swoff | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB | Remix | Next.js | upup |
-|---------|-------|--------|-----------------|----------------|-----|-----------|--------------|-------|------|------|-------|---------|------|
-| SW code generation | ✅ Full source | 🟡 Partial runtime | 🟡 Partial (WB) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ Fixed script |
-| Precaching from build | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | 🟡 fetch cache | ❌ |
-| Runtime caching (pattern) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Caching strategies | ✅ 5 | ✅ 5 | ✅ 5 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ 3 |
-| Offline read fallback | ✅ SW cache | ✅ SW cache | ✅ SW cache | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ local DB | ❌ | ❌ | ✅ basic |
-| 3-tier config resolution | ✅ | 🟡 route-only | 🟡 route-only | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Navigation preload | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Dedicated SW ↔ client message passing | ✅ | 🟡 limited | 🟡 limited | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Feature                               | Swoff          | Workbox            | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB        | Remix | Next.js        | TanStack DB            |
+| ------------------------------------- | -------------- | ------------------ | --------------- | -------------- | --- | --------- | ------------- | ----- | ---- | ----------- | ----- | -------------- | --------------- |
+| SW code generation                    | ✅ Full source | 🟡 Partial runtime | 🟡 Partial (WB) | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌          | ❌    | ❌             | ❌ Fixed script |
+| Precaching from build                 | ✅             | ✅                 | ✅              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌          | ❌    | 🟡 fetch cache | ❌              |
+| Runtime caching (pattern)             | ✅             | ✅                 | ✅              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌          | ❌    | ❌             | ❌              |
+| Caching strategies                    | ✅ 5           | ✅ 5               | ✅ 5            | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌          | ❌    | ❌             | ✅ 3            |
+| Offline read fallback                 | ✅ SW cache    | ✅ SW cache        | ✅ SW cache     | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ✅ local DB | ❌    | ❌             | ✅ basic        |
+| 3-tier config resolution              | ✅             | 🟡 route-only      | 🟡 route-only   | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌          | ❌    | ❌             | ❌              |
+| Navigation preload                    | ✅             | ✅                 | ✅              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌          | ❌    | ❌             | ❌              |
+| Dedicated SW ↔ client message passing | ✅             | 🟡 limited         | 🟡 limited      | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌          | ❌    | ❌             | ❌              |
 
 ### Data Fetching & Reactivity
 
-| Feature | Swoff | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB | Remix | Next.js | upup |
-|---------|-------|--------|-----------------|----------------|-----|-----------|--------------|-------|------|------|-------|---------|------|
-| Stale-while-revalidate | ✅ | ✅ SW-level | ✅ SW-level | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ fetch | ❌ |
-| Stale-time config | ✅ 3-tier | ✅ SW-level | ✅ SW-level | ✅ | ❌ | 🟡 | ✅ | ✅ | 🟡 | ❌ | ❌ | ✅ fetch | ❌ |
-| Refetch on window focus | ✅ 3-tier | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Refetch on reconnect | ✅ 3-tier | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Refetch interval / polling | ✅ 3-tier | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ fetch | ❌ |
-| Cache deduplication | ✅ in-flight | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Request cancellation (AbortController) | ✅ | ❌ | ❌ | ✅ | 🟡 limited | 🟡 limited | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Dependent queries | ✅ enabled/null | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Infinite queries / pagination | ❌ | ❌ | ❌ | ✅ | 🟡 basic | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Prefetching / cache warming | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ |
-| Optimistic updates | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ |
-| Mutation state tracking | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | 🟡 | 🟡 | ❌ |
+| Feature                                | Swoff           | Workbox     | vite-plugin-pwa | TanStack Query | SWR        | RTK Query  | Apollo Client | Relay | urql | RxDB | Remix | Next.js  | TanStack DB |
+| -------------------------------------- | --------------- | ----------- | --------------- | -------------- | ---------- | ---------- | ------------- | ----- | ---- | ---- | ----- | -------- | ---- |
+| Stale-while-revalidate                 | ✅              | ✅ SW-level | ✅ SW-level     | ✅             | ✅         | ✅         | ✅            | ✅    | ✅   | ❌   | ❌    | ✅ fetch | ❌   |
+| Stale-time config                      | ✅ 3-tier       | ✅ SW-level | ✅ SW-level     | ✅             | ❌         | 🟡         | ✅            | ✅    | 🟡   | ❌   | ❌    | ✅ fetch | ❌   |
+| Refetch on window focus                | ✅ 3-tier       | ❌          | ❌              | ✅             | ✅         | ✅         | ✅            | ❌    | ✅   | ❌   | ❌    | ❌       | ❌   |
+| Refetch on reconnect                   | ✅ 3-tier       | ❌          | ❌              | ✅             | ✅         | ✅         | ✅            | ❌    | ✅   | ❌   | ❌    | ❌       | ❌   |
+| Refetch interval / polling             | ✅ 3-tier       | ❌          | ❌              | ✅             | ✅         | ✅         | ✅            | ✅    | ✅   | ❌   | ❌    | ✅ fetch | ❌   |
+| Cache deduplication                    | ✅ in-flight    | ❌          | ❌              | ✅             | ✅         | ✅         | ✅            | ✅    | ✅   | ❌   | ❌    | ❌       | ❌   |
+| Request cancellation (AbortController) | ✅              | ❌          | ❌              | ✅             | 🟡 limited | 🟡 limited | ✅            | ✅    | ✅   | ❌   | ❌    | ❌       | ❌   |
+| Dependent queries                      | ✅ enabled/null | ❌          | ❌              | ✅             | ✅         | ✅         | ✅            | ✅    | ✅   | ❌   | ❌    | ❌       | ❌   |
+| Infinite queries / pagination          | ❌              | ❌          | ❌              | ✅             | 🟡 basic   | ❌         | ✅            | ✅    | ✅   | ❌   | ❌    | ❌       | ❌   |
+| Prefetching / cache warming            | ✅              | ❌          | ❌              | ✅             | ✅         | ✅         | ✅            | ✅    | ✅   | ❌   | ✅    | ✅       | ❌   |
+| Optimistic updates                     | ❌              | ❌          | ❌              | ✅             | ✅         | ✅         | ✅            | ✅    | ✅   | ❌   | ✅    | ✅       | ❌   |
+| Mutation state tracking                | ✅              | ❌          | ❌              | ✅             | ✅         | ✅         | ✅            | ✅    | ✅   | ❌   | 🟡    | 🟡       | ❌   |
 
 ### Offline Persistence
 
-| Feature | Swoff | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB | Remix | Next.js | upup |
-|---------|-------|--------|-----------------|----------------|-----|-----------|--------------|-------|------|------|-------|---------|------|
-| Offline write queue | ✅ IndexedDB | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Configurable retry + backoff | ✅ | 🟡 basic | 🟡 basic | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Background sync (post-tab-close) | ✅ SW+client | ✅ WB plugin | ✅ WB plugin | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| IndexedDB cache persistence | 🟡 user data | ❌ | ❌ | 🟡 persister plugin | ❌ | ❌ | ✅ | ❌ | ✅ exchange | ✅ native | ❌ | ❌ | ❌ |
-| Cross-tab state sync | ✅ BroadcastChannel | ❌ | ❌ | 🟡 limited | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Client-side queryable DB | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ RxDB | ❌ | ❌ | ❌ |
+| Feature                          | Swoff               | Workbox      | vite-plugin-pwa | TanStack Query      | SWR | RTK Query | Apollo Client | Relay | urql        | RxDB      | Remix | Next.js | TanStack DB |
+| -------------------------------- | ------------------- | ------------ | --------------- | ------------------- | --- | --------- | ------------- | ----- | ----------- | --------- | ----- | ------- | ---- |
+| Offline write queue              | ✅ IndexedDB        | ❌           | ❌              | ❌                  | ❌  | ❌        | ❌            | ❌    | ❌          | ✅        | ❌    | ❌      | ❌   |
+| Configurable retry + backoff     | ✅                  | 🟡 basic     | 🟡 basic        | ❌                  | ❌  | ❌        | ❌            | ❌    | ❌          | ❌        | ❌    | ❌      | ❌   |
+| Background sync (post-tab-close) | ✅ SW+client        | ✅ WB plugin | ✅ WB plugin    | ❌                  | ❌  | ❌        | ❌            | ❌    | ❌          | ❌        | ❌    | ❌      | ❌   |
+| IndexedDB cache persistence      | 🟡 user data        | ❌           | ❌              | 🟡 persister plugin | ❌  | ❌        | ✅            | ❌    | ✅ exchange | ✅ native | ❌    | ❌      | ❌   |
+| Cross-tab state sync             | ✅ BroadcastChannel | ❌           | ❌              | 🟡 limited          | ❌  | ❌        | ❌            | ❌    | ❌          | ❌        | ❌    | ❌      | ❌   |
+| Client-side queryable DB         | ❌                  | ❌           | ❌              | ❌                  | ❌  | ❌        | ❌            | ❌    | ❌          | ✅ RxDB   | ❌    | ❌      | ❌   |
 
 ### Cache Invalidation
 
-| Feature | Swoff | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB | Remix | Next.js | upup |
-|---------|-------|--------|-----------------|----------------|-----|-----------|--------------|-------|------|------|-------|---------|------|
-| Tag-based invalidation | ✅ URL/op-name | ❌ | ❌ | ✅ query-key | ✅ key-based | ✅ provides/invalidates | 🟡 custom | ❌ | ✅ type-based | ❌ | ❌ | ❌ | ❌ |
-| Server push invalidation (SSE/WS) | ✅ built-in | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ subscriptions | ✅ subscriptions | ✅ subscriptions | ✅ replication | ❌ | ❌ | ❌ |
-| Polling-based invalidation | ✅ refetchInterval | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ fetch | ❌ |
-| Manual invalidation API | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ revalidate | ✅ revalidate | ❌ |
+| Feature                           | Swoff              | Workbox | vite-plugin-pwa | TanStack Query | SWR          | RTK Query               | Apollo Client    | Relay            | urql             | RxDB           | Remix         | Next.js       | TanStack DB |
+| --------------------------------- | ------------------ | ------- | --------------- | -------------- | ------------ | ----------------------- | ---------------- | ---------------- | ---------------- | -------------- | ------------- | ------------- | ---- |
+| Tag-based invalidation            | ✅ URL/op-name     | ❌      | ❌              | ✅ query-key   | ✅ key-based | ✅ provides/invalidates | 🟡 custom        | ❌               | ✅ type-based    | ❌             | ❌            | ❌            | ❌   |
+| Server push invalidation (SSE/WS) | ✅ built-in        | ❌      | ❌              | ❌             | ❌           | ❌                      | ✅ subscriptions | ✅ subscriptions | ✅ subscriptions | ✅ replication | ❌            | ❌            | ❌   |
+| Polling-based invalidation        | 🟡 staleTime+bg-refresh | ❌      | ❌              | ✅             | ✅           | ✅                      | ✅               | ✅               | ✅               | ❌             | ❌            | ✅ fetch      | ❌   |
+| Manual invalidation API           | ✅                 | ❌      | ❌              | ✅             | ✅           | ✅                      | ✅               | ✅               | ✅               | ❌             | ✅ revalidate | ✅ revalidate | ❌   |
 
 ### Authentication
 
-| Feature | Swoff | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB | Remix | Next.js | upup |
-|---------|-------|--------|-----------------|----------------|-----|-----------|--------------|-------|------|------|-------|---------|------|
-| Built-in auth header injection | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Multiple auth types (bearer/cookie/custom) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Token refresh / expiry handling | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 401 auto-handling + clearAuth | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Offline user caching | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Auth state detection (4 states) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Feature                                    | Swoff | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB | Remix | Next.js | TanStack DB |
+| ------------------------------------------ | ----- | ------- | --------------- | -------------- | --- | --------- | ------------- | ----- | ---- | ---- | ----- | ------- | ---- |
+| Built-in auth header injection             | ✅    | ❌      | ❌              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌   | ❌    | ❌      | ❌   |
+| Multiple auth types (bearer/cookie/custom) | ✅    | ❌      | ❌              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌   | ❌    | ❌      | ❌   |
+| Token refresh / expiry handling            | ✅    | ❌      | ❌              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌   | ❌    | ❌      | ❌   |
+| 401 auto-handling + clearAuth              | ✅    | ❌      | ❌              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌   | ❌    | ❌      | ❌   |
+| Offline user caching                       | ✅    | ❌      | ❌              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ✅   | ❌    | ❌      | ❌   |
+| Auth state detection (4 states)            | ✅    | ❌      | ❌              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌   | ❌    | ❌      | ❌   |
 
 ### GraphQL
 
-| Feature | Swoff | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB | Remix | Next.js | upup |
-|---------|-------|--------|-----------------|----------------|-----|-----------|--------------|-------|------|------|-------|---------|------|
-| Native GraphQL client | ✅ queryGql / mutateGql | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ replication | 🟡 loader | ❌ | ❌ |
-| Body-hash / document caching | ✅ SHA-256 key | ❌ | ❌ | ❌ | ❌ | ❌ | 🟡 possible | ❌ | ✅ default | ❌ | ❌ | ❌ | ❌ |
-| Normalized entity cache | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ InMemoryCache | ✅ DataID | 🟡 exchange | ❌ | ❌ | ❌ | ❌ |
-| Auto-invalidation tags from op names | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Feature                              | Swoff                   | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client    | Relay     | urql        | RxDB           | Remix     | Next.js | TanStack DB |
+| ------------------------------------ | ----------------------- | ------- | --------------- | -------------- | --- | --------- | ---------------- | --------- | ----------- | -------------- | --------- | ------- | ---- |
+| Native GraphQL client                | ✅ queryGql / mutateGql | ❌      | ❌              | ❌             | ❌  | ❌        | ✅               | ✅        | ✅          | ✅ replication | 🟡 loader | ❌      | ❌   |
+| Body-hash / document caching         | ✅ SHA-256 key          | ❌      | ❌              | ❌             | ❌  | ❌        | 🟡 possible      | ❌        | ✅ default  | ❌             | ❌        | ❌      | ❌   |
+| Normalized entity cache              | ❌                      | ❌      | ❌              | ❌             | ❌  | ❌        | ✅ InMemoryCache | ✅ DataID | 🟡 exchange | ❌             | ❌        | ❌      | ❌   |
+| Auto-invalidation tags from op names | ✅                      | ❌      | ❌              | ❌             | ❌  | ❌        | ❌               | ❌        | ❌          | ❌             | ❌        | ❌      | ❌   |
 
 ### PWA
 
-| Feature | Swoff | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB | Remix | Next.js | upup |
-|---------|-------|--------|-----------------|----------------|-----|-----------|--------------|-------|------|------|-------|---------|------|
-| PWA install prompt | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Manifest generation | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Push notifications (VAPID) | ✅ + React hook | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| SW update lifecycle management | ✅ hooks | ✅ minimal | ✅ minimal | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Feature                        | Swoff           | Workbox    | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB | Remix | Next.js | TanStack DB |
+| ------------------------------ | --------------- | ---------- | --------------- | -------------- | --- | --------- | ------------- | ----- | ---- | ---- | ----- | ------- | ---- |
+| PWA install prompt             | ✅              | ❌         | ✅              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌   | ❌    | ❌      | ❌   |
+| Manifest generation            | ✅              | ❌         | ✅              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌   | ❌    | ❌      | ❌   |
+| Push notifications (VAPID)     | ✅ + React hook | ❌         | ❌              | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌   | ❌    | ❌      | ❌   |
+| SW update lifecycle management | ✅ hooks        | ✅ minimal | ✅ minimal      | ❌             | ❌  | ❌        | ❌            | ❌    | ❌   | ❌   | ❌    | ❌      | ❌   |
 
 ### Real-time
 
-| Feature | Swoff | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB | Remix | Next.js | upup |
-|---------|-------|--------|-----------------|----------------|-----|-----------|--------------|-------|------|------|-------|---------|------|
-| SSE connection management | ✅ built-in | ❌ | ❌ | ❌ | ❌ | ❌ | 🟡 link | 🟡 network | ✅ exchange | ✅ replication | ❌ | ❌ | ❌ |
-| WebSocket connection management | ✅ built-in | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ link | ✅ network | ✅ exchange | ✅ replication | ❌ | ❌ | ❌ |
-| Auto-reconnect with backoff | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | 🟡 link | 🟡 | ✅ exchange | ✅ | ❌ | ❌ | ❌ |
+| Feature                         | Swoff       | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay      | urql        | RxDB           | Remix | Next.js | TanStack DB |
+| ------------------------------- | ----------- | ------- | --------------- | -------------- | --- | --------- | ------------- | ---------- | ----------- | -------------- | ----- | ------- | ---- |
+| SSE connection management       | ✅ built-in | ❌      | ❌              | ❌             | ❌  | ❌        | 🟡 link       | 🟡 network | ✅ exchange | ✅ replication | ❌    | ❌      | ❌   |
+| WebSocket connection management | ✅ built-in | ❌      | ❌              | ❌             | ❌  | ❌        | ✅ link       | ✅ network | ✅ exchange | ✅ replication | ❌    | ❌      | ❌   |
+| Auto-reconnect with backoff     | ✅          | ❌      | ❌              | ❌             | ❌  | ❌        | 🟡 link       | 🟡         | ✅ exchange | ✅             | ❌    | ❌      | ❌   |
 
 ### Developer Experience
 
-| Feature | Swoff | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB | Remix | Next.js | upup |
-|---------|-------|--------|-----------------|----------------|-----|-----------|--------------|-------|------|------|-------|---------|------|
-| TypeScript support | ✅ full | ✅ typed | ✅ typed | ✅ full | ✅ | ✅ | ✅ | ✅ (codegen) | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Zero runtime dependencies | ✅ generated code | ❌ runtime modules | ❌ Workbox | ❌ 3.8 kB | ❌ 3.3 kB | ❌ +Redux | ❌ 32 kB | ❌ 20 kB | ❌ 8 kB | ❌ 40 kB | ❌ SSR | ❌ SSR | ✅ single script |
-| Generated auditable code | ✅ full source | ❌ obfuscated | ❌ obfuscated | ❌ runtime | ❌ runtime | ❌ runtime | ❌ runtime | ❌ runtime | ❌ runtime | ❌ runtime | ❌ runtime | ❌ runtime | ✅ |
-| Config-driven setup | ✅ swoff.config.json | ✅ workbox-config.js | ✅ vite.config | ❌ code-only | ❌ code-only | ❌ code-only | ❌ code-only | ❌ code-only | ❌ code-only | ❌ code-only | ❌ code-only | ❌ code-only | ❌ |
-| Build-tool agnostic | ✅ any tool | ✅ any tool | ❌ Vite only | ✅ any | ✅ any | ✅ any | ✅ any | ✅ any | ✅ any | ✅ any | ✅ any | ❌ Next | ✅ any |
-| React hooks | ✅ 11 hooks | 🟡 minimal | 🟡 minimal | ✅ extensive | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Vue hooks | ❌ planned | ❌ | ❌ | ✅ via adapter | ✅ swrv | ❌ | 🟡 | ❌ | ✅ @urql/vue | ✅ | ❌ | ❌ | ❌ |
-| Svelte hooks | ❌ planned | ❌ | ❌ | ✅ via adapter | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Solid / other framework hooks | ❌ planned | ❌ | ❌ | ✅ Solid | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Feature                       | Swoff                | Workbox              | vite-plugin-pwa | TanStack Query | SWR          | RTK Query    | Apollo Client | Relay        | urql         | RxDB         | Remix        | Next.js      | TanStack DB             |
+| ----------------------------- | -------------------- | -------------------- | --------------- | -------------- | ------------ | ------------ | ------------- | ------------ | ------------ | ------------ | ------------ | ------------ | ---------------- |
+| TypeScript support            | ✅ full              | ✅ typed             | ✅ typed        | ✅ full        | ✅           | ✅           | ✅            | ✅ (codegen) | ✅           | ✅           | ✅           | ✅           | ❌               |
+| Zero runtime dependencies     | ✅ generated code    | ❌ runtime modules   | ❌ Workbox      | ❌ 3.8 kB      | ❌ 3.3 kB    | ❌ +Redux    | ❌ 32 kB      | ❌ 20 kB     | ❌ 8 kB      | ❌ 40 kB     | ❌ SSR       | ❌ SSR       | ✅ single script |
+| Generated auditable code      | ✅ full source       | ❌ obfuscated        | ❌ obfuscated   | ❌ runtime     | ❌ runtime   | ❌ runtime   | ❌ runtime    | ❌ runtime   | ❌ runtime   | ❌ runtime   | ❌ runtime   | ❌ runtime   | ✅               |
+| Config-driven setup           | ✅ swoff.config.json | ✅ workbox-config.js | ✅ vite.config  | ❌ code-only   | ❌ code-only | ❌ code-only | ❌ code-only  | ❌ code-only | ❌ code-only | ❌ code-only | ❌ code-only | ❌ code-only | ❌               |
+| Build-tool agnostic           | ✅ any tool          | ✅ any tool          | ❌ Vite only    | ✅ any         | ✅ any       | ✅ any       | ✅ any        | ✅ any       | ✅ any       | ✅ any       | ✅ any       | ❌ Next      | ✅ any           |
+| React hooks                   | ✅ 11 hooks          | 🟡 minimal           | 🟡 minimal      | ✅ extensive   | ✅           | ✅           | ✅            | ✅           | ✅           | ✅           | ✅           | ✅           | ❌               |
+| Vue hooks                     | ❌ planned           | ❌                   | ❌              | ✅ via adapter | ✅ swrv      | ❌           | 🟡            | ❌           | ✅ @urql/vue | ✅           | ❌           | ❌           | ❌               |
+| Svelte hooks                  | ❌ planned           | ❌                   | ❌              | ✅ via adapter | ❌           | ❌           | ❌            | ❌           | ❌           | ✅           | ❌           | ❌           | ❌               |
+| Solid / other framework hooks | ❌ planned           | ❌                   | ❌              | ✅ Solid       | ❌           | ❌           | ❌            | ❌           | ❌           | ❌           | ❌           | ❌           | ❌               |
 
 ### Offline-First Infrastructure (the integration gap)
 
-| Feature | Swoff | Workbox | vite-plugin-pwa | TanStack Query | SWR | RTK Query | Apollo Client | Relay | urql | RxDB | Remix | Next.js | upup |
-|---------|-------|--------|-----------------|----------------|-----|-----------|--------------|-------|------|------|-------|---------|------|
-| Unified config for ALL concerns | ✅ single-file | ❌ SW only | ❌ SW only | ❌ fetch only | ❌ fetch only | ❌ fetch only | ❌ GQL only | ❌ GQL only | ❌ GQL only | ❌ DB only | ❌ server | ❌ server | ❌ |
-| Hybrid SW ↔ client architecture | ✅ built-in | 🟡 sw->client | 🟡 sw->client | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Single CLI init + generate setup | ✅ | 🟡 wizard | ✅ vite add | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Deterministic cache keys for POST/GQL | ✅ SHA-256 hash | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ in-memory | ❌ in-memory | ✅ document | ❌ | ❌ | ❌ | ❌ |
-| Auth-aware offline queue (re-fetch at replay) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| SW ↔ client message passing for invalidation | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Feature                                       | Swoff           | Workbox       | vite-plugin-pwa | TanStack Query | SWR           | RTK Query     | Apollo Client | Relay        | urql        | RxDB       | Remix     | Next.js   | TanStack DB |
+| --------------------------------------------- | --------------- | ------------- | --------------- | -------------- | ------------- | ------------- | ------------- | ------------ | ----------- | ---------- | --------- | --------- | ---- |
+| Unified config for ALL concerns               | ✅ single-file  | ❌ SW only    | ❌ SW only      | ❌ fetch only  | ❌ fetch only | ❌ fetch only | ❌ GQL only   | ❌ GQL only  | ❌ GQL only | ❌ DB only | ❌ server | ❌ server | ❌   |
+| Hybrid SW ↔ client architecture               | ✅ built-in     | 🟡 sw->client | 🟡 sw->client   | ❌             | ❌            | ❌            | ❌            | ❌           | ❌          | ❌         | ❌        | ❌        | ❌   |
+| Single CLI init + generate setup              | ✅              | 🟡 wizard     | ✅ vite add     | ❌             | ❌            | ❌            | ❌            | ❌           | ❌          | ❌         | ❌        | ❌        | ❌   |
+| Deterministic cache keys for POST/GQL         | ✅ SHA-256 hash | ❌            | ❌              | ❌             | ❌            | ❌            | ❌ in-memory  | ❌ in-memory | ✅ document | ❌         | ❌        | ❌        | ❌   |
+| Auth-aware offline queue (re-fetch at replay) | ✅              | ❌            | ❌              | ❌             | ❌            | ❌            | ❌            | ❌           | ❌          | ❌         | ❌        | ❌        | ❌   |
+| SW ↔ client message passing for invalidation  | ✅              | ❌            | ❌              | ❌             | ❌            | ❌            | ❌            | ❌           | ❌          | ❌         | ❌        | ❌        | ❌   |
 
 ---
 
@@ -151,8 +151,8 @@ need to assemble yourself.
 Swoff generates a **full human-readable service worker** from `swoff.config.json`. Every line of
 caching logic is visible and editable. Workbox injects an opaque runtime that loads `workbox-*`
 modules — you control behavior through APIs but cannot read the generated code. vite-plugin-pwa
-inherits the same opacity from Workbox. upup provides a fixed script with basic offline support
-but is unmaintained since 2019.
+inherits the same opacity from Workbox. TanStack DB is the newest library in the ecosystem,
+offering a reactive offline-first database with sync capabilities.
 
 Swoff is the only SW toolkit that provides **3-tier config resolution**: per-request overrides
 (tier 1, highest priority), URL pattern matches (tier 2), and global defaults (tier 3). This
@@ -246,6 +246,7 @@ libraries. All code is generated as plain JS/TS files in `swoff/` during build t
 APIs (Cache API, IndexedDB, BroadcastChannel, Push API, etc.).
 
 This means:
+
 - **No bundle size impact** from the SW or client utilities (the generated code is your code)
 - **Full auditability** — every line can be read, edited, and committed to version control
 - **No version mismatches** between the CLI and runtime — the generated code is pinned to your project
@@ -254,94 +255,6 @@ This means:
 TanStack Query (3.8 kB), SWR (3.3 kB), Apollo (32 kB), and others are lightweight individually,
 but when you need to combine a server state library + SW toolkit + auth + GraphQL + PWA,
 the cumulative bundle and integration complexity grows quickly.
-
----
-
-## Choose a Path
-
-### Choose Swoff if
-
-You want a **single config-driven tool** that generates everything for offline-first: service
-worker, data fetching with stale-while-revalidate, auth, mutation queue, GraphQL wrapper, PWA,
-push notifications, and real-time invalidation — all with zero runtime dependencies and fully
-auditable code. You are okay with trading some advanced features (normalized cache, infinite
-queries, optimistic updates, non-React framework hooks — coming in future releases) for
-radically simpler setup and a unified config.
-
-### Choose Workbox if
-
-You need battle-tested, Google-maintained SW infrastructure with the most flexible caching
-plugins available. You are building your own offline abstractions on top of SW primitives and
-do not need auth, mutation queue, GraphQL, or push notification support out of the box.
-
-### Choose vite-plugin-pwa if
-
-You are already using Vite + Workbox and want a zero-config PWA integration. Your app is
-primarily static content with few mutation-heavy features. Same trade-offs as Workbox but
-with Vite-native DX.
-
-### Choose TanStack Query if
-
-Server state is your primary concern and you want the richest data-fetching feature set
-available: infinite queries, optimistic updates, extensive devtools, and framework adapters
-for React, Vue, Svelte, and Solid. You plan to add SW caching, auth, PWA, and push
-notifications separately — or do not need them.
-
-### Choose SWR if
-
-You want a lightweight, Vercel-backed server state library with a simpler API than TanStack
-Query. You are building a Next.js app (SWR is developed by the Vercel team) and need basic
-stale-while-revalidate with refetch-on-focus and interval support.
-
-### Choose RTK Query if
-
-You are already using Redux Toolkit and want server state management that integrates directly
-with your Redux store. You need tag-based invalidation and mutation tracking within the Redux
-ecosystem.
-
-### Choose Apollo Client if
-
-GraphQL is your primary API layer and you need a full-featured client with normalized caching,
-subscriptions, and extensive community support. You accept the larger bundle size and prefer
-a runtime library over generated code.
-
-### Choose Relay if
-
-You are building a large-scale GraphQL application and want the most sophisticated data
-management with compile-time optimizations, colocated data requirements, and connection-based
-pagination. You accept the steeper learning curve and require a GraphQL schema at build time.
-
-### Choose urql if
-
-You want a lighter, more modular GraphQL client. urql's exchange architecture lets you add
-features (document caching, normalized cache, offline persistence, subscriptions) à la carte.
-It is smaller than Apollo and supports both React and Vue.
-
-### Choose RxDB if
-
-Your app needs a full client-side NoSQL database with reactive queries, schema validation,
-encryption, and bi-directional replication — for example, a collaborative app that works
-fully offline and syncs when connected. RxDB complements Swoff rather than competing with
-it; they could be used together (Swoff for HTTP caching + auth, RxDB for local state/DB).
-
-### Choose Remix if
-
-You prefer a server-driven architecture where data loading happens on the server via loaders
-and mutations via form actions. Remix's progressive enhancement model means the app works
-without JavaScript and gets better with it. Offline and PWA features require manual addition
-(typically via Swoff or Workbox alongside).
-
-### Choose Next.js if
-
-You want the most popular React meta-framework with server components, streaming, and ISR.
-Next.js fetch caching provides stale-while-revalidate at the framework level, but offline
-support, PWA, push notifications, and advanced caching strategies require manual integration.
-
-### Choose upup if
-
-You need a dead-simple offline fallback for a static HTML site. You do not need auth,
-mutations, dynamic data, or any interactivity offline. upup is unmaintained since 2019 but
-still works for basic use cases.
 
 ---
 

@@ -54,9 +54,12 @@ export function usePushSubscription(vapidPublicKey: string) {
     };
   }, []);
 
-  const subscribe = useCallback(async () => {
+  const subscribe = useCallback(async (): Promise<PushSubscription | null> => {
     const sub = await subscribeToPush(vapidPublicKey);
-    return sub !== null;
+    if (sub) {
+      setState({ subscribed: true, subscription: sub, permission: Notification.permission, loading: false });
+    }
+    return sub;
   }, [vapidPublicKey]);
 
   const unsubscribe = useCallback(async () => {

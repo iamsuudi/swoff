@@ -25,9 +25,18 @@
       "createdAt": "2026-05-23T14:06:30.262Z",
       "updatedAt": "2026-05-23T14:06:30.262Z",
       "userId": 1
+    },
+    {
+      "id": 16,
+      "title": "new",
+      "description": "wa78",
+      "priority": "high",
+      "createdAt": "2026-05-28T07:06:10.759Z",
+      "updatedAt": "2026-05-28T07:06:10.759Z",
+      "userId": 1
     }
   ],
-  "nextNoteId": 16,
+  "nextNoteId": 18,
   "sessions": [
     {
       "id": "23d7f737-d325-4a0d-826b-5ce939ce9964",
@@ -40,5 +49,14 @@
       "createdAt": "2026-05-26T10:56:19.501Z"
     }
   ],
-  "pushSubscriptions": []
+  "pushSubscriptions": [
+    {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/c7H5awFb1As:APA91bGLivM8rliYZX4fMiRu2VeY73VhDIIC5EwsXfrz4yF5eIDmTeC4jVNh0YCkbVXFAh8RUCkcxCBq5FjshbiJmfqIalUOyuuIez7HC0BQAJkXp9emA1J1hdL4NRIbwJv9jmNOUJ3t",
+      "expirationTime": null,
+      "keys": {
+        "p256dh": "BMZSh2cEziR0NrZ1XV_58V-zEORZT_C5xV1py1Pl4jX9p7AH_xxLo0tNAF-CLDNQefWQBQBtSpiFIXJaZBnGrA4",
+        "auth": "eN9qH1UW2XOt8E9fXz8kNg"
+      }
+    }
+  ]
 }

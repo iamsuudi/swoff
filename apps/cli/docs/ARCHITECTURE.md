@@ -31,37 +31,43 @@ The hybrid model exists because:
 
 ---
 
-## staleTime: fresh vs stale data
+## Reactive strategy: staleTime + refresh triggers
 
-Swoff's staleness model is different from a TTL eviction:
+Swoff's staleness model is different from a TTL eviction. It is scoped to a single explicit **reactive** strategy rather than spread across all strategies:
 
 - **Fresh**: within `staleTime` seconds of being cached. The SW serves from cache immediately — no network request.
 - **Stale**: past `staleTime`. The SW still serves the cached response, but triggers a **background refresh** (batched and rate-limited). The next request gets fresh data.
 
 This means the user **never sees a loading spinner** for cached data. The response is always instant from cache; freshness is maintained in the background.
 
-**staleTime applies to 3 strategies (context-dependent):**
+**staleTime is reactive-only.** It has no meaning on other strategies — each non-reactive strategy has its own simple, predictable contract:
 
-| Strategy | Fresh data (within staleTime) | Stale data (past staleTime) |
-|----------|------------------------------|----------------------------|
-| `cache-first` | Serve from cache, no network | Serve from cache + background refresh |
-| `network-first` | Try network first | Try network first. On failure serve from cache + background refresh queued for online recovery |
-| `stale-while-revalidate` (default) | Serve cache + always background refresh | Serve cache + always background refresh |
-| `stale-while-revalidate` (with `swrSkipFreshRevalidate: true`) | Serve cache, **no** background refresh | Serve cache + background refresh |
-| `cache-only` | No effect | No effect |
-| `network-only` | No effect | No effect |
-
-When `swrSkipFreshRevalidate: true` is set (global or per-route), `stale-while-revalidate` becomes staleTime-aware — it only refreshes entries past their `staleTime`, reducing network churn for frequently accessed fresh data.
+| Strategy | Behavior |
+|----------|----------|
+| `cache-first` | Serve from cache if available, fall back to network. No staleTime awareness. |
+| `network-first` | Try network first, fall back to cache on failure. No staleTime awareness. |
+| `stale-while-revalidate` | Serve from cache immediately + always background refresh on every request. Unconditional — no staleTime gate. |
+| `cache-only` | Serve from cache only. Never hits the network. |
+| `network-only` | Always hit the network. Never caches. |
+| `reactive` | Serve from cache. If stale (past `staleTime`), trigger a background refresh. Additionally, can auto-refetch on interval, window focus, or reconnect. |
 
 The key insight: staleTime does not **evict** the entry. It makes the data **usable indefinitely** while keeping it fresh in the background. Background refreshes are batched (`refetchBatchSize`) with rate limiting (`refetchBatchDelayMs`) to avoid stampedes.
 
+The reactive strategy bundles three optional refresh triggers that all gate through `staleTime`:
+
+| Trigger | Description | Gating |
+|---------|-------------|--------|
+| `refetchInterval` | Timer-based — re-fetches every N seconds in the background | Only fires if stale (past `staleTime`) |
+| `refetchOnFocus` | Fires when the tab regains focus (`visibilitychange` / `window.focus`) | Only fires if stale (past `staleTime`) |
+| `refetchOnReconnect` | Fires when the browser comes back online | Only fires if stale (past `staleTime`) |
+
 ---
 
-## Batch refresh queue
+## Batch refresh queue (`queueRefresh`)
 
-Instead of fire-and-forget `event.waitUntil(refreshCache())` on every stale request, Swoff uses a shared batch queue:
+Instead of fire-and-forget `event.waitUntil(refetch())` on every stale request, Swoff uses a shared batch queue as the single deduped entry point for all proactive refreshes:
 
-1. When a strategy determines data is stale, it calls `queueRefresh(url)` which adds the URL to a `Map<string, entry>` keyed by cache key (automatic dedup)
+1. Any trigger (staleTime expiry, refetchInterval tick, refetchOnFocus, refetchOnReconnect, or tag invalidation) calls `queueRefresh(url)` which adds the URL to a `Map<string, entry>` keyed by cache key (automatic dedup)
 2. A single `_processRefreshQueue()` microtask processes URLs in batches of `refetchBatchSize`
 3. Between batches, a delay of `refetchBatchDelayMs` is applied (rate limiting)
 4. On each successful refetch, `CACHE_UPDATED` is posted to all connected clients, and any `staleVersions` tracking is cleaned up
@@ -77,39 +83,37 @@ When the browser fires `online`, the `client-injector` forwards the event to the
 
 **Phase 1 — staleVersions retry:** Any cache entries that failed to refetch after tag invalidation (while offline) are re-queued first via the batch refresh queue. This ensures invalidation-triggered refetches are prioritized.
 
-**Phase 2 — full cache scan:** The SW iterates its runtime cache and for each cached URL:
+**Phase 2 — reactive pattern scan:** The SW scans its reactive route patterns and for each cached URL matching a reactive pattern with `refetchOnReconnect: true`:
 
-1. Resolves the route config to get `staleTime` and `strategy`
-2. Skips strategies that don't cache (cache-only, network-only)
-3. Skips if `staleTime` is 0 or not set
-4. Checks `isStale()` on the cached entry
-5. If stale → queues a refresh via the shared batch queue
+1. Resolves the pattern config to get the reactive entry
+2. Calls `shouldReactiveRefresh(cachedResponse, config)` which checks if the entry is stale (past `staleTime`, or if `staleTime` is 0/undefined)
+3. If stale → queues a refresh via `queueRefresh(url)`
 
-This naturally recovers from: background refresh failure while offline, tab closed while offline, and first request after connectivity returns.
+Non-reactive strategies (cache-first, network-first, stale-while-revalidate) do **not** participate in the online recovery scan — their contracts are stateless with respect to staleness. This naturally recovers from: background refresh failure while offline, tab closed while offline, and first request after connectivity returns.
 
 ## 3-tier config resolution
 
-Every tunable setting resolves through three priority levels:
+The `strategy` field resolves through three priority levels:
 
-1. **Per-request (highest)** — passed as options to `fetchWithCache({ staleTime })` or `useCachedFetch()`, or via `X-SW-Stale-Time` / `X-SW-Strategy` headers
+1. **Per-request (highest)** — passed as options to `fetchWithCache({ strategy })` or `useCachedFetch()`, or via `X-SW-Strategy` header
 2. **Route pattern** — configured in `features.serviceWorker.strategies` keyed by URL pattern
-3. **Global default (lowest)** — configured at `features.serviceWorker.*`
+3. **Global default (lowest)** — configured at `features.serviceWorker.defaultStrategy`
 
-**Example resolution flow for `staleTime`:**
+**Reactive-only fields** (`staleTime`, `refetchInterval`, `refetchOnReconnect`, `refetchOnFocus`) resolve through two tiers only — there is no global default:
+
+1. **Per-request** — via `X-SW-Stale-Time` header or per-request options
+2. **Route pattern** — configured in the strategies entry for the matching pattern
+
+**Example resolution flow:**
 
 ```
-fetchWithCache("/api/todos", { staleTime: 10 })
-    → tier 1 match: use 10s (via X-SW-Stale-Time header)
-
-fetchWithCache("/api/todos")  (no per-request staleTime)
-    → tier 2 check: "/api/*" has staleTime: 30
+request to /api/todos with strategy "reactive"
+    → tier 1: X-SW-Stale-Time header? no
+    → tier 2: "/api/*" has staleTime: 30
     → use 30s
-
-no route match either
-    → tier 3: use features.serviceWorker.staleTime (global default)
 ```
 
-This applies to: `strategy`, `staleTime`, `swrSkipFreshRevalidate`.
+This applies to: `strategy` (3 tiers), reactive-only fields (2 tiers).
 
 **Why 3 tiers?**
 
@@ -309,20 +313,31 @@ Use `"explicit-only"` when you want precise control over what gets cached and do
 ```
 navigation (SPA fallback) → precache hit? → strategy dispatch → pass-through
 
-Each strategy:
+cache-first:
   → serve cache (if available)
-  → staleTime check (cache-first, network-first only)
-  → stale? → queueRefresh(url) (batched + rate-limited)
-            → fetch → storeRuntime → CACHE_UPDATED to all clients
-  → fresh? → no network
+  → fall back to network on miss → storeRuntime
 
-network-first always: fetch → fail? → serve cache (fresh or stale)
-stale-while-revalidate (default): queueRefresh on every request (no staleTime)
-stale-while-revalidate (swrSkipFreshRevalidate): fresh? → no network; stale? → queueRefresh
+network-first:
+  → fetch → on failure → serve cache
+
+stale-while-revalidate:
+  → serve cache (if available)
+  → always queueRefresh(url) (unconditional background refresh)
+
+cache-only:
+  → serve cache only
+
+network-only:
+  → fetch only (no cache interaction)
+
+reactive:
+  → serve cache (if available)
+  → shouldReactiveRefresh? → stale? → queueRefresh(url)
+  → also: refetchInterval timer, refetchOnFocus, refetchOnReconnect → all gate through staleTime
 
 On "online" event from window:
   → handleOnline(phase 1) → staleVersions retry → queueRefresh()
-  → handleOnline(phase 2) → iterate cache → stale URLs? → queueRefresh()
+  → handleOnline(phase 2) → scan reactive patterns with refetchOnReconnect → queueRefresh()
 
 On tag invalidation:
   → delete cache entries

@@ -25,12 +25,16 @@ export interface MutationQueueConfig {
   retryBackoffMs: number;
 }
 
+export const REACTIVE_FIELDS = ["staleTime", "refetchInterval", "refetchOnReconnect", "refetchOnFocus"] as const;
+
 export interface StrategyEntry {
   strategy: string;
   maxCacheEntries?: number;
   maxCacheAge?: number;
   staleTime?: number;
-  swrSkipFreshRevalidate?: boolean;
+  refetchInterval?: number;
+  refetchOnReconnect?: boolean;
+  refetchOnFocus?: boolean;
 }
 
 export interface RefetchBatchConfig {
@@ -54,7 +58,6 @@ export interface SwoffConfig {
       defaultStrategy: string;
       strategies: Record<string, string | StrategyEntry>;
       cacheStrategy?: "all" | "explicit-only";
-      staleTime?: number;
       maxCacheEntries?: number;
       maxCacheAge?: number;
       runtimeCacheName?: string;
@@ -64,7 +67,6 @@ export interface SwoffConfig {
       spaEntry: string;
       refetchBatchSize?: number;
       refetchBatchDelayMs?: number;
-      swrSkipFreshRevalidate?: boolean;
       ignoreQueryParams?: string[];
       normalizeCacheKey?: boolean;
     };
@@ -110,6 +112,7 @@ export const VALID_STRATEGIES = [
   "stale-while-revalidate",
   "cache-only",
   "network-only",
+  "reactive",
 ] as const;
 
 export const API_PREFIXES = ["api", "v1", "v2", "v3", "rest", "graphql", "gql"];

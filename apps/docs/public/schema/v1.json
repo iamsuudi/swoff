@@ -94,18 +94,13 @@
                 "network-first",
                 "stale-while-revalidate",
                 "cache-only",
-                "network-only"
+                "network-only",
+                "reactive"
               ]
-            },
-            "staleTime": {
-              "type": "integer",
-              "description": "Default stale time in seconds. Cached data is considered fresh for this duration. After expiry, the SW serves the cached copy but triggers a background refresh. 0 = always stale, undefined = never auto-stale.",
-              "default": 0,
-              "minimum": 0
             },
             "strategies": {
               "type": "object",
-              "description": "Custom cache strategies for specific URL patterns. Each value can be a strategy name string, or an object with strategy, staleTime, maxCacheEntries, and maxCacheAge. staleTime overrides the global staleTime for matching routes.",
+              "description": "Custom cache strategies for specific URL patterns. Each value can be a strategy name string, or an object with strategy-specific options. Reactive-only fields (staleTime, refetchInterval, refetchOnReconnect, refetchOnFocus) are only valid with strategy 'reactive'.",
               "additionalProperties": {
                 "oneOf": [
                   {
@@ -115,7 +110,8 @@
                       "network-first",
                       "stale-while-revalidate",
                       "cache-only",
-                      "network-only"
+                      "network-only",
+                      "reactive"
                     ]
                   },
                   {
@@ -128,13 +124,29 @@
                           "network-first",
                           "stale-while-revalidate",
                           "cache-only",
-                          "network-only"
+                          "network-only",
+                          "reactive"
                         ]
                       },
                       "staleTime": {
                         "type": "integer",
-                        "description": "Per-route stale time in seconds. Overrides global staleTime for this pattern.",
+                        "description": "Stale time in seconds for reactive strategy. Cached data is considered fresh for this duration. After expiry, the SW serves the cached copy but triggers a background refresh. 0 = always stale. Only valid with 'reactive' strategy.",
                         "minimum": 0
+                      },
+                      "refetchInterval": {
+                        "type": "integer",
+                        "description": "Auto-refetch interval in seconds for reactive strategy. The SW will periodically re-fetch this route in the background. 0 disables. Only valid with 'reactive' strategy.",
+                        "minimum": 0
+                      },
+                      "refetchOnReconnect": {
+                        "type": "boolean",
+                        "description": "Refetch when the browser comes back online. Only valid with 'reactive' strategy.",
+                        "default": false
+                      },
+                      "refetchOnFocus": {
+                        "type": "boolean",
+                        "description": "Refetch when the browser tab gains focus. Only valid with 'reactive' strategy.",
+                        "default": false
                       },
                       "maxCacheEntries": {
                         "type": "integer",
@@ -152,6 +164,18 @@
                 ]
               }
             },
+            "refetchBatchSize": {
+              "type": "integer",
+              "description": "Maximum number of background refetches to run concurrently (reactive strategy). Limits burst when many cached routes go stale at once.",
+              "default": 0,
+              "minimum": 0
+            },
+            "refetchBatchDelayMs": {
+              "type": "integer",
+              "description": "Delay in ms between batches of background refetches (reactive strategy). Use to rate-limit refetch bursts.",
+              "default": 0,
+              "minimum": 0
+            },
             "maxCacheEntries": {
               "type": "integer",
               "description": "Maximum number of cached entries (0 disables trimming)",
@@ -161,22 +185,6 @@
             "maxCacheAge": {
               "type": "integer",
               "description": "Maximum age of cached entries in milliseconds (0 disables trimming)",
-              "default": 0,
-              "minimum": 0
-            },
-            "refetchOnWindowFocus": {
-              "type": "boolean",
-              "description": "Automatically refetch stale data when the browser tab gains focus. Configurable per-request in useCachedFetch.",
-              "default": false
-            },
-            "refetchOnReconnect": {
-              "type": "boolean",
-              "description": "Automatically refetch stale data when the browser comes back online. Configurable per-request in useCachedFetch.",
-              "default": false
-            },
-            "refetchInterval": {
-              "type": "integer",
-              "description": "Automatically refetch stale data every N seconds (0 disables). Configurable per-request in useCachedFetch.",
               "default": 0,
               "minimum": 0
             },
@@ -212,6 +220,17 @@
               "type": "string",
               "description": "Fallback URL for navigation requests when navigationMode is 'spa'",
               "default": "/index.html"
+            },
+            "ignoreQueryParams": {
+              "type": "array",
+              "description": "Query parameter names to ignore when matching cache keys. Useful for Analytics/UTM params that should not create separate cache entries.",
+              "items": { "type": "string" },
+              "uniqueItems": true
+            },
+            "normalizeCacheKey": {
+              "type": "boolean",
+              "description": "Normalize cache keys by lowercasing and sorting query params. Reduces cache fragmentation.",
+              "default": false
             }
           },
           "required": [

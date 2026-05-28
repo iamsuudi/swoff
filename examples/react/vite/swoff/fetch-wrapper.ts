@@ -44,8 +44,6 @@
 
 import { generateTags } from "./invalidation-tags.ts";
 import { invalidateByTags } from "./cache.ts";
-import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, AUTH_WITH_CREDENTIALS } from "./auth/store.ts";
-import { queueMutation } from "./mutation-queue.ts";
 
 export interface FetchWithCacheResult<T> {
   response: Response & { json(): Promise<T> };
@@ -59,12 +57,13 @@ export interface FetchWithCacheOptions extends RequestInit {
   invalidate?: 'auto' | string[] | false;
   type?: 'read' | 'mutation';
   strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only';
+  staleTime?: number;
 }
 
 const inFlightRequests = new Map<string, Promise<Response>>();
 
 /** Fetch with caching, auth, offline queue, auto-invalidation, and per-request strategy override. Returns { response, fromCache }. Use { auth: true } for authenticated requests — works with bearer, cookie, and custom auth types. */
-export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit & { tags?: string[]; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only' } = {}): Promise<FetchWithCacheResult<T>> {
+export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit & { tags?: string[]; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only'; staleTime?: number } = {}): Promise<FetchWithCacheResult<T>> {
   const method = (options.method || "GET").toUpperCase();
   const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD"));
   const url = typeof input === "string" ? input : input.url;
@@ -91,20 +90,12 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
   if (options.strategy) {
     headers.set("X-SW-Strategy", options.strategy);
   }
+  if (options.staleTime !== undefined) {
+    headers.set("X-SW-Stale-Time", String(options.staleTime));
+  }
 
-  if (options.auth) {
-    const auth = await getAuth();
-    withAuthHeaders(headers, auth);
-  }
-  // Auth endpoints bypass SW cache
-  if (options.auth && isAuthUrl(url) && !headers.has("X-SW-Cache-Strategy")) {
-    headers.set("X-SW-Cache-Strategy", "mutation");
-  }
   const fetchOptions: RequestInit = { ...options, headers };
 
-  if (AUTH_WITH_CREDENTIALS) {
-    fetchOptions.credentials = "include";
-  }
 
   // Offline handling
   if (!navigator.onLine) {
@@ -113,25 +104,6 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
       const cached = await caches.match(input);
       if (cached) return { response: cached, fromCache: true };
       throw new Error("Offline: no cached data available");
-    }
-    // Write offline — auto-queue
-    if (options.queueOffline !== false) {
-      const headerObj: Record<string, string> = {};
-      headers.forEach((value, key) => {
-        headerObj[key] = value;
-      });
-      await queueMutation({
-        method,
-        url,
-        body: options.body,
-        headers: headerObj,
-        tags: options.tags || [],
-        timestamp: Date.now(),
-      });
-      return {
-        response: new Response(null, { status: 202, statusText: "Queued" }),
-        fromCache: false,
-      };
     }
     throw new Error("Offline: write operation failed");
   }
@@ -178,16 +150,12 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
       }
     }
   }
-  if (options.auth && response.status === 401) {
-    await clearAuth();
-    window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
-  }
   const fromCache = response.headers.get("X-SW-From-Cache") === "true";
   return { response, fromCache };
 }
 
 /** Fire-and-forget prefetch: warms the cache for a URL without blocking. Useful for route prefetching or link hover prefetching. */
-export function prefetchCache(input: RequestInfo, options: RequestInit & { tags?: string[]; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only' } = {}): void {
+export function prefetchCache(input: RequestInfo, options: RequestInit & { tags?: string[]; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only'; staleTime?: number } = {}): void {
   fetchWithCache(input, { ...options }).catch(() => {
     // Prefetch failures are intentionally silent
   });

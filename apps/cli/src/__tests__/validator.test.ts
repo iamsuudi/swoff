@@ -90,8 +90,44 @@ describe("validateConfig", () => {
       expect(errors[0]).toContain("Invalid strategy");
     });
 
+    it("rejects staleTime on non-reactive strategy", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, strategies: { "/api/*": { strategy: "cache-first", staleTime: 30 } } } },
+      };
+      const errors = validateConfig(config);
+      expect(errors[0]).toContain('staleTime is only valid with "reactive" strategy');
+    });
+
+    it("rejects refetchInterval on non-reactive strategy", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, strategies: { "/api/*": { strategy: "stale-while-revalidate", refetchInterval: 15 } } } },
+      };
+      const errors = validateConfig(config);
+      expect(errors[0]).toContain('refetchInterval is only valid with "reactive" strategy');
+    });
+
+    it("accepts reactive strategy with all reactive fields", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, strategies: { "/api/*": { strategy: "reactive", staleTime: 30, refetchInterval: 15, refetchOnFocus: true, refetchOnReconnect: true } } } },
+      };
+      const errors = validateConfig(config);
+      expect(errors).toEqual([]);
+    });
+
+    it("rejects invalid staleTime on reactive strategy", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, strategies: { "/api/*": { strategy: "reactive", staleTime: -5 } } } },
+      };
+      const errors = validateConfig(config);
+      expect(errors[0]).toContain("staleTime must be a non-negative number");
+    });
+
     it("accepts all valid strategies", () => {
-      const strategies = ["cache-first", "network-first", "stale-while-revalidate", "cache-only", "network-only"];
+      const strategies = ["cache-first", "network-first", "stale-while-revalidate", "cache-only", "network-only", "reactive"];
       for (const strategy of strategies) {
         const config = {
           ...validConfig,

@@ -31,6 +31,9 @@ self.addEventListener("message", (event) => {
   if (event.data.type === "ONLINE") {
     event.waitUntil(handleOnline());
   }
+  if (event.data.type === "FOCUS") {
+    event.waitUntil(handleOnFocus());
+  }
 
 });`;
   return code;

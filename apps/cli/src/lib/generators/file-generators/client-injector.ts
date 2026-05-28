@@ -40,6 +40,23 @@ window.addEventListener("online", () => {
 });
 `;
 
+  const focusListener = `
+// --- Focus Listener for Reactive Strategy ---
+// Notifies the SW when the tab gains focus so it can refresh stale reactive entries.
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: "FOCUS" });
+    }
+  });
+  window.addEventListener("focus", () => {
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: "FOCUS" });
+    }
+  });
+}
+`;
+
   const crossTabHandler = crossTabSync
     ? `
     if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
@@ -82,7 +99,7 @@ window.addEventListener("online", () => {
  *   sw-version-detected   - Version info available
  */
 ${pwaImport}${mutationImport}${swImport}
-${pwaCall}${mutationOnlineListener}${onlineRefetchListener}
+${pwaCall}${mutationOnlineListener}${onlineRefetchListener}${focusListener}
 // --- SW Message Listener ---
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (event) => {

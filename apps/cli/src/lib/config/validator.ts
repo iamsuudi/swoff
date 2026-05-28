@@ -122,6 +122,30 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       if (sw.spaEntry !== undefined && typeof sw.spaEntry !== "string") {
         errors.push("features.serviceWorker.spaEntry must be a string");
       }
+      if (sw.cacheStrategy !== undefined && !["all", "explicit-only"].includes(sw.cacheStrategy as string)) {
+        errors.push('features.serviceWorker.cacheStrategy must be "all" or "explicit-only"');
+      }
+      if (sw.runtimeCacheName !== undefined && typeof sw.runtimeCacheName !== "string") {
+        errors.push("features.serviceWorker.runtimeCacheName must be a string");
+      }
+      if (sw.navigationPreload !== undefined && typeof sw.navigationPreload !== "boolean") {
+        errors.push("features.serviceWorker.navigationPreload must be a boolean");
+      }
+      if (sw.swrSkipFreshRevalidate !== undefined && typeof sw.swrSkipFreshRevalidate !== "boolean") {
+        errors.push("features.serviceWorker.swrSkipFreshRevalidate must be a boolean");
+      }
+      if (sw.normalizeCacheKey !== undefined && typeof sw.normalizeCacheKey !== "boolean") {
+        errors.push("features.serviceWorker.normalizeCacheKey must be a boolean");
+      }
+      if (sw.ignoreQueryParams !== undefined && (!Array.isArray(sw.ignoreQueryParams) || !sw.ignoreQueryParams.every((p: unknown) => typeof p === "string"))) {
+        errors.push("features.serviceWorker.ignoreQueryParams must be an array of strings");
+      }
+      if (sw.maxCacheEntries !== undefined && (typeof sw.maxCacheEntries !== "number" || sw.maxCacheEntries < 1 || !Number.isInteger(sw.maxCacheEntries))) {
+        errors.push("features.serviceWorker.maxCacheEntries must be a positive integer");
+      }
+      if (sw.maxCacheAge !== undefined && (typeof sw.maxCacheAge !== "number" || sw.maxCacheAge < 0)) {
+        errors.push("features.serviceWorker.maxCacheAge must be a non-negative number");
+      }
 
       const ver = sw.version as Record<string, unknown> | undefined;
       if (ver) {
@@ -201,6 +225,16 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       }
       if (serverPush.reconnectDelayMs !== undefined && (typeof serverPush.reconnectDelayMs !== "number" || serverPush.reconnectDelayMs < 0)) {
         errors.push("features.serverPush.reconnectDelayMs must be a non-negative number");
+      }
+    }
+
+    const pushNotifications = features.pushNotifications as Record<string, unknown> | undefined;
+    if (pushNotifications && typeof pushNotifications === "object") {
+      if (pushNotifications.enabled !== undefined && typeof pushNotifications.enabled !== "boolean") {
+        errors.push("features.pushNotifications.enabled must be a boolean");
+      }
+      if (pushNotifications.vapidPublicKey !== undefined && typeof pushNotifications.vapidPublicKey !== "string") {
+        errors.push("features.pushNotifications.vapidPublicKey must be a string");
       }
     }
   }

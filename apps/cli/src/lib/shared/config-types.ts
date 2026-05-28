@@ -137,6 +137,12 @@ function normalizeMutationQueue(val: unknown): MutationQueueConfig {
   return defaultMutationQueue;
 }
 
+function normalizePushNotifications(val: unknown): { enabled: boolean; vapidPublicKey?: string } {
+  if (typeof val === "boolean") return { enabled: val };
+  if (val && typeof val === "object") return { enabled: false, ...(val as Partial<{ enabled: boolean; vapidPublicKey: string }>) };
+  return { enabled: false };
+}
+
 export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>): SwoffConfig {
   return {
     ...base,
@@ -153,7 +159,8 @@ export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>):
       auth: normalizeAuth(override.features?.auth),
       mutationQueue: normalizeMutationQueue(override.features?.mutationQueue),
       graphql: normalizeGql(override.features?.graphql),
-      serverPush: { ...defaultServerPush, ...override.features?.serverPush },
+      pushNotifications: normalizePushNotifications(override.features?.pushNotifications ?? base.features.pushNotifications),
+      serverPush: { ...defaultServerPush, ...base.features.serverPush, ...override.features?.serverPush },
     },
     build: { ...base.build, ...override.build },
   };

@@ -15,7 +15,7 @@ import { generateMessageHandler } from "./message-handler.js";
 import { generateFetchHandler } from "./fetch-handler.js";
 import { generateTagManagement } from "./tag-management.js";
 import { generateBackgroundSyncHandler } from "./background-sync-handler.js";
-import { generateSwPushHandlers } from "../file-generators/sw-push.js";
+import { generateSwPushHandlers } from "./sw-push.js";
 import { generateServerPushHandler } from "./server-push-handler.js";
 
 function collectAssets(dir: string, baseDir: string): string[] {

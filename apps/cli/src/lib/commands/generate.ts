@@ -7,6 +7,7 @@ import { log } from "../cli/logger.js";
 import { loadConfig } from "../config/loader.js";
 import { detectProjectLanguage } from "../utils/detect-language.js";
 import { appendGeneratorToBuildScript } from "../utils/build-script.js";
+import { statusLine, clearStatusLine } from "../utils/tty-status.js";
 import { generateSW } from "../generators/sw-generator.js";
 import { generateFiles } from "../generators/swoff-files-generator.js";
 import type { GeneratorContext } from "../generators/file-generators/context.js";
@@ -16,22 +17,6 @@ export interface GenerateOptions {
   swOnly?: boolean;
   filesOnly?: boolean;
   language?: string;
-}
-
-function statusLine(msg: string) {
-  if (process.stdout.isTTY) {
-    const cols = process.stdout.columns || 80;
-    process.stdout.write(`\r${" ".repeat(cols - 1)}\r  ${msg}`);
-  } else {
-    console.log(`  ${msg}`);
-  }
-}
-
-function clearStatusLine() {
-  if (process.stdout.isTTY) {
-    const cols = process.stdout.columns || 80;
-    process.stdout.write(`\r${" ".repeat(cols - 1)}\r`);
-  }
 }
 
 export async function generateCommand(

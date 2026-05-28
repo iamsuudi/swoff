@@ -41,7 +41,10 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
       "navigationMode": "spa",
       "spaEntry": "/index.html",
       "refetchBatchSize": 5,
-      "refetchBatchDelayMs": 1000
+      "refetchBatchDelayMs": 1000,
+      "swrSkipFreshRevalidate": false,
+      "ignoreQueryParams": [],
+      "normalizeCacheKey": false
     },
     "mutationQueue": {
       "enabled": false,
@@ -104,7 +107,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | `defaultStrategy` | `string` | `"cache-first"` | Default caching strategy (lowest priority in 3-tier resolution). One of: `cache-first`, `network-first`, `stale-while-revalidate`, `cache-only`, `network-only` |
 | `strategies` | `object` | `{}` | Per-route strategy overrides. Keys are URL patterns (e.g. `/api/*`). Values can be a strategy name string or a `StrategyEntry` object |
 | `cacheStrategy` | `"all"` \| `"explicit-only"` | `"all"` | When to apply caching strategies. `"all"`: every GET/HEAD request; `"explicit-only"`: only requests with `X-SW-Cache-Strategy` header |
-| `staleTime` | `number` | `0` | Global stale time in seconds. Applies to **cache-first** and **network-first** only. Data is considered fresh for this long; after expiry, SW serves cached but triggers a background refresh. 0 = no staleTime (immediately stale). |
+| `staleTime` | `number` | `0` | Global stale time in seconds. Applies to **cache-first**, **network-first** (via online recovery), and **stale-while-revalidate** (when `swrSkipFreshRevalidate` is true). Data is considered fresh for this long; after expiry, SW serves cached but triggers a background refresh. 0 = no staleTime (immediately stale). Per-request override via `fetchWithCache(url, { staleTime })` or the `X-SW-Stale-Time` header. |
 | `maxCacheEntries` | `number` | — | Max entries in runtime cache (0 or undefined = unlimited). Oldest entries evicted first. |
 | `maxCacheAge` | `number` | — | Max age of cache entries in ms (0 or undefined = no limit) |
 | `runtimeCacheName` | `string` | `"swoff-runtime"` | Name of the runtime cache in the Cache Storage API |
@@ -114,6 +117,9 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | `spaEntry` | `string` | `"/index.html"` | Fallback HTML for SPA navigation requests |
 | `refetchBatchSize` | `number` | `5` | Max stale cache entries to refetch per batch in the background refresh queue |
 | `refetchBatchDelayMs` | `number` | `1000` | Delay between batch cycles when processing stale refreshes (rate limiting) |
+| `swrSkipFreshRevalidate` | `boolean` | `false` | When `true`, `stale-while-revalidate` skips the background refresh if cached data is still within `staleTime`. Also configurable per-route in `StrategyEntry`. |
+| `ignoreQueryParams` | `string[]` | `[]` | Query params to strip from cache keys (e.g. `["_t", "utm_source"]`). Prevents cache-busting params from creating duplicate cache entries. |
+| `normalizeCacheKey` | `boolean` | `false` | When `true`, query params are sorted alphabetically in cache keys so `?b=1&a=2` and `?a=2&b=1` resolve to the same entry. |
 
 ### `StrategyEntry` object
 
@@ -133,17 +139,18 @@ When a strategy value is an object instead of a string:
 | `strategy` | `string` | (required) | Caching strategy name |
 | `maxCacheEntries` | `number` | inherited from top-level | Per-route max cache entries |
 | `maxCacheAge` | `number` | inherited from top-level | Per-route max cache age in ms |
-| `staleTime` | `number` | inherited from top-level | Per-route stale time in seconds. Applies to **cache-first** and **network-first** only. Not used by stale-while-revalidate, cache-only, or network-only. |
+| `staleTime` | `number` | inherited from top-level | Per-route stale time in seconds. Applies to **cache-first**, **network-first** (via online recovery), and **stale-while-revalidate** (when `swrSkipFreshRevalidate` is true). Not used by cache-only or network-only. |
+| `swrSkipFreshRevalidate` | `boolean` | inherited from top-level | Per-route override for `stale-while-revalidate` skip-fresh behavior. When true, SWR won't background-refresh entries that are still within `staleTime`. |
 
 ### 3-tier resolution
 
 The following settings resolve in 3 tiers (highest to lowest priority):
 
-1. **Per-request** — passed as options to `fetchWithCache()` or `useCachedFetch()`
+1. **Per-request** — passed as options to `fetchWithCache({ staleTime })` or `useCachedFetch()`, or via `X-SW-Strategy` / `X-SW-Stale-Time` headers
 2. **Route pattern** — configured in `features.serviceWorker.strategies`
 3. **Global default** — configured at `features.serviceWorker.*`
 
-This applies to: `strategy`, `staleTime`.
+This applies to: `strategy`, `staleTime`, `swrSkipFreshRevalidate`.
 
 ---
 

@@ -15,6 +15,7 @@
 import { join } from "path";
 import { fileURLToPath } from "url";
 import { loadConfig } from "../config/loader.js";
+import { statusLine, clearStatusLine } from "../utils/tty-status.js";
 import type { GeneratorContext } from "./file-generators/context.js";
 import { generateSwTemplate } from "./file-generators/sw-template.js";
 import { generateSwInjector } from "./file-generators/sw-injector.js";
@@ -115,21 +116,11 @@ if (fileURLToPath(import.meta.url) === fileURLToPath(new URL(process.argv[1], "f
     frameworkName: config.framework ?? "vanilla",
   };
 
-  const ttyStatus = process.stdout.isTTY
-    ? (msg: string) => {
-        const cols = process.stdout.columns || 80;
-        process.stdout.write(`\r${" ".repeat(cols - 1)}\r  ${msg}`);
-      }
-    : (msg: string) => console.log(`  ${msg}`);
-
   console.log(`Generating Swoff files (${language})...`);
 
-  generateFiles(ctx, (name) => ttyStatus(`→ ${name}...`));
+  generateFiles(ctx, (name) => statusLine(`→ ${name}...`));
 
-  if (process.stdout.isTTY) {
-    const cols = process.stdout.columns || 80;
-    process.stdout.write(`\r${" ".repeat(cols - 1)}\r`);
-  }
+  clearStatusLine();
 
   console.log("Generated files:");
   generatedFiles.forEach((file) => console.log(`  ${file}`));

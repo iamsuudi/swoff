@@ -42,6 +42,7 @@ describe("assembleSW", () => {
     expect(sw).toContain("staleWhileRevalidate");
     expect(sw).toContain("cacheOnly");
     expect(sw).toContain("networkOnly");
+    expect(sw).toContain("reactiveStrategy");
   });
 
   it("checks precache from all strategies", () => {

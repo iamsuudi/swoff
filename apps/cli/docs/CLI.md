@@ -36,6 +36,7 @@ swoff generate --files-only   # regenerate only supporting files (not SW)
 |------|-------------|
 | `--sw-only` | Skip all client-side files; regenerate only `sw/template.js`, `sw/injector.ts`, `sw/generator.js` |
 | `--files-only` | Skip SW regeneration; regenerate all client-side files (fetch-wrapper, hooks, etc.) |
+| `--language` | `"ts"` \| `"js"` — override language auto-detection; forces `.tsx`/`.ts` or `.jsx`/`.js` output |
 
 After generation, read `swoff/GUIDE.md` for the full integration guide customised to your config.
 

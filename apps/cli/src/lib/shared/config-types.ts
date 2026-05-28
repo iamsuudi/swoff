@@ -25,11 +25,16 @@ export interface MutationQueueConfig {
   retryBackoffMs: number;
 }
 
+export const REACTIVE_FIELDS = ["staleTime", "refetchInterval", "refetchOnReconnect", "refetchOnFocus"] as const;
+
 export interface StrategyEntry {
   strategy: string;
   maxCacheEntries?: number;
   maxCacheAge?: number;
   staleTime?: number;
+  refetchInterval?: number;
+  refetchOnReconnect?: boolean;
+  refetchOnFocus?: boolean;
 }
 
 export interface RefetchBatchConfig {
@@ -53,7 +58,6 @@ export interface SwoffConfig {
       defaultStrategy: string;
       strategies: Record<string, string | StrategyEntry>;
       cacheStrategy?: "all" | "explicit-only";
-      staleTime?: number;
       maxCacheEntries?: number;
       maxCacheAge?: number;
       runtimeCacheName?: string;
@@ -63,6 +67,8 @@ export interface SwoffConfig {
       spaEntry: string;
       refetchBatchSize?: number;
       refetchBatchDelayMs?: number;
+      ignoreQueryParams?: string[];
+      normalizeCacheKey?: boolean;
     };
     mutationQueue: MutationQueueConfig;
     backgroundSync: boolean;
@@ -106,6 +112,7 @@ export const VALID_STRATEGIES = [
   "stale-while-revalidate",
   "cache-only",
   "network-only",
+  "reactive",
 ] as const;
 
 export const API_PREFIXES = ["api", "v1", "v2", "v3", "rest", "graphql", "gql"];
@@ -133,6 +140,12 @@ function normalizeMutationQueue(val: unknown): MutationQueueConfig {
   return defaultMutationQueue;
 }
 
+function normalizePushNotifications(val: unknown): { enabled: boolean; vapidPublicKey?: string } {
+  if (typeof val === "boolean") return { enabled: val };
+  if (val && typeof val === "object") return { enabled: false, ...(val as Partial<{ enabled: boolean; vapidPublicKey: string }>) };
+  return { enabled: false };
+}
+
 export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>): SwoffConfig {
   return {
     ...base,
@@ -149,7 +162,8 @@ export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>):
       auth: normalizeAuth(override.features?.auth),
       mutationQueue: normalizeMutationQueue(override.features?.mutationQueue),
       graphql: normalizeGql(override.features?.graphql),
-      serverPush: { ...defaultServerPush, ...override.features?.serverPush },
+      pushNotifications: normalizePushNotifications(override.features?.pushNotifications ?? base.features.pushNotifications),
+      serverPush: { ...defaultServerPush, ...base.features.serverPush, ...override.features?.serverPush },
     },
     build: { ...base.build, ...override.build },
   };

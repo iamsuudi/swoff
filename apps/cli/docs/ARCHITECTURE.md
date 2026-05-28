@@ -40,15 +40,18 @@ Swoff's staleness model is different from a TTL eviction:
 
 This means the user **never sees a loading spinner** for cached data. The response is always instant from cache; freshness is maintained in the background.
 
-**staleTime applies to 2 strategies only:**
+**staleTime applies to 3 strategies (context-dependent):**
 
 | Strategy | Fresh data (within staleTime) | Stale data (past staleTime) |
 |----------|------------------------------|----------------------------|
 | `cache-first` | Serve from cache, no network | Serve from cache + background refresh |
 | `network-first` | Try network first | Try network first. On failure serve from cache + background refresh queued for online recovery |
-| `stale-while-revalidate` | Unaffected — always serve cache + bg refresh on every request | Unaffected — always serve cache + bg refresh on every request |
+| `stale-while-revalidate` (default) | Serve cache + always background refresh | Serve cache + always background refresh |
+| `stale-while-revalidate` (with `swrSkipFreshRevalidate: true`) | Serve cache, **no** background refresh | Serve cache + background refresh |
 | `cache-only` | No effect | No effect |
 | `network-only` | No effect | No effect |
+
+When `swrSkipFreshRevalidate: true` is set (global or per-route), `stale-while-revalidate` becomes staleTime-aware — it only refreshes entries past their `staleTime`, reducing network churn for frequently accessed fresh data.
 
 The key insight: staleTime does not **evict** the entry. It makes the data **usable indefinitely** while keeping it fresh in the background. Background refreshes are batched (`refetchBatchSize`) with rate limiting (`refetchBatchDelayMs`) to avoid stampedes.
 
@@ -58,10 +61,10 @@ The key insight: staleTime does not **evict** the entry. It makes the data **usa
 
 Instead of fire-and-forget `event.waitUntil(refreshCache())` on every stale request, Swoff uses a shared batch queue:
 
-1. When a strategy determines data is stale, it calls `queueRefresh(url)` which adds the URL to a `Set` (automatic dedup)
+1. When a strategy determines data is stale, it calls `queueRefresh(url)` which adds the URL to a `Map<string, entry>` keyed by cache key (automatic dedup)
 2. A single `_processRefreshQueue()` microtask processes URLs in batches of `refetchBatchSize`
 3. Between batches, a delay of `refetchBatchDelayMs` is applied (rate limiting)
-4. On each successful refetch, `CACHE_UPDATED` is posted to all connected clients
+4. On each successful refetch, `CACHE_UPDATED` is posted to all connected clients, and any `staleVersions` tracking is cleaned up
 
 This prevents:
 - **Stampedes**: 50 stale resources from a page load all get queued, not fetched simultaneously
@@ -70,7 +73,11 @@ This prevents:
 
 ## Online recovery
 
-When the browser fires `online`, the `client-injector` forwards the event to the SW. The SW iterates its runtime cache and for each cached URL:
+When the browser fires `online`, the `client-injector` forwards the event to the SW. The SW runs `handleOnline()` in two phases:
+
+**Phase 1 — staleVersions retry:** Any cache entries that failed to refetch after tag invalidation (while offline) are re-queued first via the batch refresh queue. This ensures invalidation-triggered refetches are prioritized.
+
+**Phase 2 — full cache scan:** The SW iterates its runtime cache and for each cached URL:
 
 1. Resolves the route config to get `staleTime` and `strategy`
 2. Skips strategies that don't cache (cache-only, network-only)
@@ -84,7 +91,7 @@ This naturally recovers from: background refresh failure while offline, tab clos
 
 Every tunable setting resolves through three priority levels:
 
-1. **Per-request (highest)** — passed as options to `fetchWithCache()` or `useCachedFetch()`
+1. **Per-request (highest)** — passed as options to `fetchWithCache({ staleTime })` or `useCachedFetch()`, or via `X-SW-Stale-Time` / `X-SW-Strategy` headers
 2. **Route pattern** — configured in `features.serviceWorker.strategies` keyed by URL pattern
 3. **Global default (lowest)** — configured at `features.serviceWorker.*`
 
@@ -92,7 +99,7 @@ Every tunable setting resolves through three priority levels:
 
 ```
 fetchWithCache("/api/todos", { staleTime: 10 })
-    → tier 1 match: use 10s
+    → tier 1 match: use 10s (via X-SW-Stale-Time header)
 
 fetchWithCache("/api/todos")  (no per-request staleTime)
     → tier 2 check: "/api/*" has staleTime: 30
@@ -102,7 +109,7 @@ no route match either
     → tier 3: use features.serviceWorker.staleTime (global default)
 ```
 
-This applies to: `strategy`, `staleTime`.
+This applies to: `strategy`, `staleTime`, `swrSkipFreshRevalidate`.
 
 **Why 3 tiers?**
 
@@ -196,6 +203,34 @@ The mutation queue stores writes in IndexedDB and replays them when online. Each
 - `maxRetries` limits retries before dropping (with exponential backoff: `retryBackoffMs × 2^retryCount`)
 - `flushMutations()` provides a manual trigger (call after re-login to replay 401'd mutations)
 
+## Dual-replay coordination
+
+Mutations queued while offline can be replayed by **both** the service worker (via Background Sync) and the client (when `online` fires). Swoff uses a shared IndexedDB `_processing_lock` to prevent double-execution:
+
+1. Before processing, the client/SW writes a lock entry with a unique instance ID + timestamp
+2. The SW first checks for active clients via `self.clients.matchAll()`. If clients exist, it checks the lock timestamp — if it's recent (written within the last 3 seconds by a client), the SW skips processing entirely
+3. The lock is released when processing completes (success or fail)
+4. The lock survives tab crashes — if the client dies mid-replay, the SW eventually finds no recent lock and processes the remaining mutations
+
+This ensures:
+- **Page is open**: client handles replay (preferred — has DOM access for progress events)
+- **Page is closed or crashed**: SW handles replay via Background Sync (no data loss)
+- **Both race**: only one processes; the other sees the lock and backs off
+
+## Online-status awareness during mutation replay
+
+Both the client and SW mutation processors check `navigator.onLine` per-mutation (not just once at start):
+
+1. Before each mutation replay attempt, the processor checks online status
+2. If offline, processing stops immediately and dispatches a `mutation-sync-complete` event with `interrupted: true`
+3. On next `online` event or Background Sync trigger, processing resumes from where it left off (FIFO order)
+4. This prevents partial network failures from corrupting the queue — if a fetch fails mid-batch due to connectivity loss, the remaining mutations stay queued
+
+Why per-mutation instead of once?
+- A user might go back offline mid-replay (e.g. walking through a tunnel)
+- The background sync event might fire right as connectivity flickers
+- Each mutation can independently fail and be retried; no single mutation's failure blocks others (beyond the interrupt signal)
+
 ---
 
 ## Server push transport: SSE vs WebSocket
@@ -228,7 +263,12 @@ data: {"tags": ["todos", "categories"]}
 {"event": "invalidate", "tags": ["todos", "categories"]}
 ```
 
-When the SW receives an `invalidate` event, it calls `invalidateByTags(tags)` which removes matching cache entries and background-refetches them.
+When the SW receives an `invalidate` event, it calls `invalidateByTags(tags)` which:
+1. Removes matching cache entries from the runtime cache
+2. Tracks stale URLs in `staleVersions` (an in-memory `Map<cacheKey, timestamp>`)
+3. Queues each stale URL through the shared batch refresh queue (`queueRefresh`)
+4. On successful refetch, removes the entry from `staleVersions` and sends `CACHE_UPDATED` to all clients
+5. Any `staleVersions` that remain on next `online` event get priority retry in `handleOnline` phase 1
 
 ---
 
@@ -277,12 +317,16 @@ Each strategy:
   → fresh? → no network
 
 network-first always: fetch → fail? → serve cache (fresh or stale)
-stale-while-revalidate always: queueRefresh on every request (no staleTime)
+stale-while-revalidate (default): queueRefresh on every request (no staleTime)
+stale-while-revalidate (swrSkipFreshRevalidate): fresh? → no network; stale? → queueRefresh
 
 On "online" event from window:
-  → handleOnline() → iterate cache → stale URLs? → queueRefresh()
+  → handleOnline(phase 1) → staleVersions retry → queueRefresh()
+  → handleOnline(phase 2) → iterate cache → stale URLs? → queueRefresh()
 
 On tag invalidation:
   → delete cache entries
-  → refetch → storeRuntime → CACHE_UPDATED
+  → mark staleVersions
+  → queueRefresh (through batch queue)
+  → on success: CACHE_UPDATED + cleanup staleVersions
 ```

@@ -15,7 +15,7 @@ import { generateMessageHandler } from "./message-handler.js";
 import { generateFetchHandler } from "./fetch-handler.js";
 import { generateTagManagement } from "./tag-management.js";
 import { generateBackgroundSyncHandler } from "./background-sync-handler.js";
-import { generateSwPushHandlers } from "../file-generators/sw-push.js";
+import { generateSwPushHandlers } from "./sw-push.js";
 import { generateServerPushHandler } from "./server-push-handler.js";
 
 function collectAssets(dir: string, baseDir: string): string[] {
@@ -47,7 +47,7 @@ function applyReplacements(sw: string, config: SwoffConfig, assetsToCache: { url
   sw = sw.replace("// [[AUTO_SKIP_WAITING]]", `const AUTO_SKIP_WAITING = ${serviceWorker.autoActivate};`);
   const refetchBatchSize = serviceWorker.refetchBatchSize ?? 5;
   const refetchBatchDelayMs = serviceWorker.refetchBatchDelayMs ?? 1000;
-  sw = sw.replace("// [[FETCH_HANDLER]]", generateFetchHandler({ ...serviceWorker, refetchBatchSize, refetchBatchDelayMs }, features.tagInvalidation));
+  sw = sw.replace("// [[FETCH_HANDLER]]", generateFetchHandler({ ...serviceWorker, refetchBatchSize, refetchBatchDelayMs, strategies: serviceWorker.strategies }, features.tagInvalidation));
   sw = sw.replace("// [[ACTIVATE_HANDLER]]", generateActivateHandler(serviceWorker.clearRuntimeOnUpdate, serviceWorker.navigationPreload));
   sw = sw.replace("// [[INSTALL_HANDLER]]", generateInstallHandler());
   sw = sw.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(features.tagInvalidation, features.auth.enabled));

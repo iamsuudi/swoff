@@ -1,4 +1,4 @@
-import { KNOWN_FEATURES, OBJECT_FEATURES, VALID_STRATEGIES } from "../shared/config-types.js";
+import { KNOWN_FEATURES, OBJECT_FEATURES, VALID_STRATEGIES, REACTIVE_FIELDS } from "../shared/config-types.js";
 
 export function validateConfig(config: Record<string, unknown>): string[] {
   const errors: string[] = [];
@@ -74,6 +74,7 @@ export function validateConfig(config: Record<string, unknown>): string[] {
           `Invalid defaultStrategy "${sw.defaultStrategy}". Must be one of: ${VALID_STRATEGIES.join(", ")}`,
         );
       }
+      const REACTIVE_FIELDS_SET = new Set(REACTIVE_FIELDS);
       if (sw.strategies && typeof sw.strategies === "object") {
         const strategies = sw.strategies as Record<string, unknown>;
         for (const [pattern, entry] of Object.entries(strategies)) {
@@ -85,13 +86,32 @@ export function validateConfig(config: Record<string, unknown>): string[] {
             }
           } else if (typeof entry === "object" && entry !== null) {
             const obj = entry as Record<string, unknown>;
-            if (obj.strategy && !VALID_STRATEGIES.includes(obj.strategy as (typeof VALID_STRATEGIES)[number])) {
+            const strat = (obj.strategy as string) || "";
+            if (strat && !VALID_STRATEGIES.includes(strat as (typeof VALID_STRATEGIES)[number])) {
               errors.push(
-                `Invalid strategy "${obj.strategy}" for pattern "${pattern}". Must be one of: ${VALID_STRATEGIES.join(", ")}`,
+                `Invalid strategy "${strat}" for pattern "${pattern}". Must be one of: ${VALID_STRATEGIES.join(", ")}`,
               );
             }
-            if (obj.staleTime !== undefined && (typeof obj.staleTime !== "number" || obj.staleTime < 0)) {
-              errors.push(`features.serviceWorker.strategies["${pattern}"].staleTime must be a non-negative number`);
+            // Reactive-only fields are only valid with "reactive" strategy
+            if (strat !== "reactive") {
+              for (const field of REACTIVE_FIELDS) {
+                if (obj[field] !== undefined) {
+                  errors.push(`features.serviceWorker.strategies["${pattern}"].${field} is only valid with "reactive" strategy`);
+                }
+              }
+            } else {
+              if (obj.staleTime !== undefined && (typeof obj.staleTime !== "number" || obj.staleTime < 0)) {
+                errors.push(`features.serviceWorker.strategies["${pattern}"].staleTime must be a non-negative number`);
+              }
+              if (obj.refetchInterval !== undefined && (typeof obj.refetchInterval !== "number" || obj.refetchInterval < 0)) {
+                errors.push(`features.serviceWorker.strategies["${pattern}"].refetchInterval must be a non-negative number`);
+              }
+              if (obj.refetchOnReconnect !== undefined && typeof obj.refetchOnReconnect !== "boolean") {
+                errors.push(`features.serviceWorker.strategies["${pattern}"].refetchOnReconnect must be a boolean`);
+              }
+              if (obj.refetchOnFocus !== undefined && typeof obj.refetchOnFocus !== "boolean") {
+                errors.push(`features.serviceWorker.strategies["${pattern}"].refetchOnFocus must be a boolean`);
+              }
             }
             if (obj.maxCacheEntries !== undefined && (typeof obj.maxCacheEntries !== "number" || obj.maxCacheEntries < 1 || !Number.isInteger(obj.maxCacheEntries))) {
               errors.push(`features.serviceWorker.strategies["${pattern}"].maxCacheEntries must be a positive integer`);
@@ -103,9 +123,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
             errors.push(`features.serviceWorker.strategies["${pattern}"] must be a string or an object`);
           }
         }
-      }
-      if (sw.staleTime !== undefined && (typeof sw.staleTime !== "number" || sw.staleTime < 0)) {
-        errors.push("features.serviceWorker.staleTime must be a non-negative number");
       }
       if (sw.refetchBatchSize !== undefined && (typeof sw.refetchBatchSize !== "number" || sw.refetchBatchSize < 1 || !Number.isInteger(sw.refetchBatchSize))) {
         errors.push("features.serviceWorker.refetchBatchSize must be a positive integer");
@@ -121,6 +138,27 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       }
       if (sw.spaEntry !== undefined && typeof sw.spaEntry !== "string") {
         errors.push("features.serviceWorker.spaEntry must be a string");
+      }
+      if (sw.cacheStrategy !== undefined && !["all", "explicit-only"].includes(sw.cacheStrategy as string)) {
+        errors.push('features.serviceWorker.cacheStrategy must be "all" or "explicit-only"');
+      }
+      if (sw.runtimeCacheName !== undefined && typeof sw.runtimeCacheName !== "string") {
+        errors.push("features.serviceWorker.runtimeCacheName must be a string");
+      }
+      if (sw.navigationPreload !== undefined && typeof sw.navigationPreload !== "boolean") {
+        errors.push("features.serviceWorker.navigationPreload must be a boolean");
+      }
+      if (sw.normalizeCacheKey !== undefined && typeof sw.normalizeCacheKey !== "boolean") {
+        errors.push("features.serviceWorker.normalizeCacheKey must be a boolean");
+      }
+      if (sw.ignoreQueryParams !== undefined && (!Array.isArray(sw.ignoreQueryParams) || !sw.ignoreQueryParams.every((p: unknown) => typeof p === "string"))) {
+        errors.push("features.serviceWorker.ignoreQueryParams must be an array of strings");
+      }
+      if (sw.maxCacheEntries !== undefined && (typeof sw.maxCacheEntries !== "number" || sw.maxCacheEntries < 1 || !Number.isInteger(sw.maxCacheEntries))) {
+        errors.push("features.serviceWorker.maxCacheEntries must be a positive integer");
+      }
+      if (sw.maxCacheAge !== undefined && (typeof sw.maxCacheAge !== "number" || sw.maxCacheAge < 0)) {
+        errors.push("features.serviceWorker.maxCacheAge must be a non-negative number");
       }
 
       const ver = sw.version as Record<string, unknown> | undefined;
@@ -201,6 +239,16 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       }
       if (serverPush.reconnectDelayMs !== undefined && (typeof serverPush.reconnectDelayMs !== "number" || serverPush.reconnectDelayMs < 0)) {
         errors.push("features.serverPush.reconnectDelayMs must be a non-negative number");
+      }
+    }
+
+    const pushNotifications = features.pushNotifications as Record<string, unknown> | undefined;
+    if (pushNotifications && typeof pushNotifications === "object") {
+      if (pushNotifications.enabled !== undefined && typeof pushNotifications.enabled !== "boolean") {
+        errors.push("features.pushNotifications.enabled must be a boolean");
+      }
+      if (pushNotifications.vapidPublicKey !== undefined && typeof pushNotifications.vapidPublicKey !== "string") {
+        errors.push("features.pushNotifications.vapidPublicKey must be a string");
       }
     }
   }

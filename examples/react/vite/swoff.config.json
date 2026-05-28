@@ -18,46 +18,40 @@
         "minSupportedVersion": "1.0.0"
       },
       "autoUpdate": true,
-      "autoActivate": true,
+      "autoActivate": false,
       "defaultStrategy": "cache-first",
       "strategies": {
-        "/api/*": {
-          "strategy": "network-first",
-          "staleTime": 30
-        },
+        "/api/*": "network-first",
         "/static/*": "cache-first"
       },
-      "staleTime": 60,
       "cacheStrategy": "all",
       "clearRuntimeOnUpdate": false,
       "navigationPreload": true,
       "navigationMode": "spa",
-      "spaEntry": "/index.html",
-      "refetchOnWindowFocus": true,
-      "refetchOnReconnect": true
+      "spaEntry": "/index.html"
     },
     "mutationQueue": {
-      "enabled": true,
-      "batchSize": 5,
-      "batchDelayMs": 1000,
-      "maxRetries": 3,
-      "retryBackoffMs": 2000
+      "enabled": false,
+      "batchSize": 1,
+      "batchDelayMs": 0,
+      "maxRetries": 5,
+      "retryBackoffMs": 1000
     },
-    "backgroundSync": true,
+    "backgroundSync": false,
     "auth": {
-      "enabled": true,
-      "type": "cookie",
+      "enabled": false,
+      "type": "bearer",
       "refreshPath": "/api/refresh",
       "userEndpoint": "/api/me"
     },
     "crossTabSync": true,
     "tagInvalidation": true,
     "graphql": {
-      "enabled": true,
+      "enabled": false,
       "endpoint": "/graphql"
     },
     "pushNotifications": {
-      "enabled": true
+      "enabled": false
     },
     "serverPush": {
       "enabled": false,

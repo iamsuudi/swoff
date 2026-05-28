@@ -61,17 +61,19 @@ async function main() {
     case "generate": {
       const swOnly = options.includes("--sw-only");
       const filesOnly = options.includes("--files-only");
-      await generateCommand(projectRoot, { swOnly, filesOnly });
+      const langIdx = options.indexOf("--language");
+      const language = langIdx !== -1 ? options[langIdx + 1] : undefined;
+      await generateCommand(projectRoot, { swOnly, filesOnly, language });
       break;
     }
     case "validate":
       await validateCommand(projectRoot);
       break;
     case "add": {
-      const feature = options[0];
+      const feature = options.join(",");
       if (!feature) {
         log.error("Please specify a feature to add");
-        log.info("Usage: swoff add <feature>");
+        log.info("Usage: swoff add <feature1>[,<feature2>,...]");
         log.info("Features: mutation-queue, pwa, cross-tab, auth, tag-invalidation, background-sync, graphql, push-notification");
         process.exit(1);
       }

@@ -47,26 +47,6 @@ async function cacheTagUrl(url, actualUrl, tags) {
   });
 }
 
-async function refetchAfterInvalidation(url, actualUrl, tags) {
-  const fetchUrl = actualUrl || url;
-  try {
-    const response = await fetch(fetchUrl);
-    if (response.ok) {
-      const request = new Request(url);
-      await storeRuntime(request, response);
-      if (tags && tags.length > 0) {
-        await cacheTagUrl(url, actualUrl, tags);
-      }
-      staleVersions.delete(url);
-      return true;
-    }
-  } catch {
-    // fetch failed (network error, auth required, etc.)
-  }
-  staleVersions.set(url, Date.now());
-  return false;
-}
-
 async function invalidateByTag(tag) {
   const db = await openTagDB();
   const tx = db.transaction(TAG_STORE_NAME, "readonly");
@@ -97,9 +77,11 @@ async function invalidateByTag(tag) {
     await runtimeCache.delete(entry.url);
   }
 
-  // Background refetch each deleted URL; keep stale on failure
+  // Enqueue background refetch through batched refresh queue
+  // Mark as stale first; queueRefresh success will clean up staleVersions
   for (const entry of entries) {
-    refetchAfterInvalidation(entry.url, entry.actualUrl, entry.tags);
+    staleVersions.set(entry.url, Date.now());
+    queueRefresh(entry.url, entry.actualUrl);
   }
 
   const clients = await self.clients.matchAll();

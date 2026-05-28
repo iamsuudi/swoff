@@ -95,7 +95,8 @@ describe("config-types", () => {
       expect(VALID_STRATEGIES).toContain("stale-while-revalidate");
       expect(VALID_STRATEGIES).toContain("cache-only");
       expect(VALID_STRATEGIES).toContain("network-only");
-      expect(VALID_STRATEGIES).toHaveLength(5);
+      expect(VALID_STRATEGIES).toContain("reactive");
+      expect(VALID_STRATEGIES).toHaveLength(6);
     });
 
     it("API_PREFIXES contains common prefixes", () => {

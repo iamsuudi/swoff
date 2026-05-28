@@ -16,40 +16,6 @@ import { fetchWithCache } from "./swoff/fetch-wrapper.ts";
 const data = await fetchWithCache("/api/data").then(r => r.json());
 ```
 
-## Authenticated API calls
-```ts
-import { fetchWithCache } from "./swoff/fetch-wrapper.ts";
-const data = await fetchWithCache("/api/me", { auth: true }).then(r => r.json());
-```
-
-## Offline mutations (queue writes when offline)
-```ts
-import { queueMutation, getPendingCount } from "./swoff/mutation-queue.ts";
-await queueMutation({ method: "POST", url: "/api/todos", body: {...} });
-```
-
-## After re-login (flush queued mutations)
-```ts
-import { flushMutations } from "./swoff/mutation-queue.ts";
-await flushMutations();
-```
-
-## GraphQL (cached queries with body-hash)
-```ts
-import { queryGql, mutateGql } from "./swoff/gql-wrapper.ts";
-const { data } = await queryGql("{ todos { id title } }");
-const { data: created } = await mutateGql(
-  "mutation CreateTodo($t: String!) { createTodo(title: $t) { id } }",
-  { t: "New task" },
-);
-```
-
-## Push notifications
-```ts
-import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push.ts";
-const sub = await subscribeToPush("YOUR_VAPID_PUBLIC_KEY");
-```
-
 ## React hooks
 ```tsx
 import { useCachedFetch } from "./swoff/hooks/useCachedFetch.tsx";
@@ -70,16 +36,6 @@ prefetch("/api/todos");
 
 // Track a specific mutation by its returned id
 const mutation = useMutationState(mutationId);
-```
-
-## Mutation queue hooks
-```tsx
-import { useMutationQueue } from "./swoff/hooks/useMutationQueue.tsx";
-import { useMutationState } from "./swoff/hooks/useMutationState.tsx";
-
-const { pending, items, lastSync } = useMutationQueue();
-// items: MutationQueueItem[] — each with id, url, method, status, retryCount
-// lastSync: { succeeded, failed } | null — result of the last sync attempt
 ```
 
 ## Cache invalidation

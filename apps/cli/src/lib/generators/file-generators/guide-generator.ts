@@ -4,6 +4,11 @@
 
 import { GeneratorContext, writeFile } from "./context.js";
 
+function tagInvalidationEnabled(config: { features: { tagInvalidation: unknown } }): boolean {
+  const ti = config.features.tagInvalidation;
+  return typeof ti === "boolean" ? ti : (ti as { enabled: boolean })?.enabled ?? false;
+}
+
 export function generateGuide(ctx: GeneratorContext): void {
   const { config } = ctx;
   const ext = ctx.ext;
@@ -453,7 +458,7 @@ export function generateGuide(ctx: GeneratorContext): void {
   }
 
   // ── Tag Invalidation ──
-  if (config.features.tagInvalidation) {
+  if (tagInvalidationEnabled(config)) {
     wb("## 🏷️ Tag Invalidation — keep cached data fresh");
     w("When data changes on the server, cached responses in the SW become stale. Tag invalidation");
     w("lets you mark related cache entries as stale so they're re-fetched on next request.");
@@ -523,7 +528,7 @@ export function generateGuide(ctx: GeneratorContext): void {
     w("The service worker listens for invalidation events and forwards them to all clients.");
     w("");
 
-    if (!config.features.tagInvalidation) {
+    if (!tagInvalidationEnabled(config)) {
       w("> ⚠️ Cross-tab sync requires tag invalidation to be enabled for full functionality.");
       w("");
     }

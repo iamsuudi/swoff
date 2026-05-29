@@ -42,6 +42,18 @@ export interface RefetchBatchConfig {
   refetchBatchDelayMs?: number;
 }
 
+export interface TagInvalidationConfig {
+  enabled: boolean;
+  prefixes?: string[];
+  patterns?: Record<string, string[]>;
+  singularization?: Record<string, string>;
+  cascading?: Record<string, string[]>;
+  invalidation?: {
+    debounceMs?: number;
+    optimistic?: boolean;
+  };
+}
+
 export interface SwoffConfig {
   $schema?: string;
   enabled: boolean;
@@ -74,7 +86,7 @@ export interface SwoffConfig {
     backgroundSync: boolean;
     auth: AuthConfig;
     crossTabSync: boolean;
-    tagInvalidation: boolean;
+    tagInvalidation: boolean | TagInvalidationConfig;
     graphql: GqlConfig;
     pushNotifications?: {
       enabled: boolean;
@@ -104,7 +116,7 @@ export const KNOWN_FEATURES = [
   "serverPush",
 ] as const;
 
-export const OBJECT_FEATURES = ["pwa", "serviceWorker", "auth", "pushNotifications", "graphql", "serverPush"] as const;
+export const OBJECT_FEATURES = ["pwa", "serviceWorker", "auth", "pushNotifications", "graphql", "serverPush", "tagInvalidation"] as const;
 
 export const VALID_STRATEGIES = [
   "cache-first",
@@ -146,6 +158,12 @@ function normalizePushNotifications(val: unknown): { enabled: boolean; vapidPubl
   return { enabled: false };
 }
 
+function normalizeTagInvalidation(val: unknown): TagInvalidationConfig {
+  if (typeof val === "boolean") return { ...defaultTagInvalidation, enabled: val };
+  if (val && typeof val === "object") return { ...defaultTagInvalidation, ...(val as Partial<TagInvalidationConfig>) };
+  return defaultTagInvalidation;
+}
+
 export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>): SwoffConfig {
   return {
     ...base,
@@ -162,6 +180,7 @@ export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>):
       auth: normalizeAuth(override.features?.auth),
       mutationQueue: normalizeMutationQueue(override.features?.mutationQueue),
       graphql: normalizeGql(override.features?.graphql),
+      tagInvalidation: normalizeTagInvalidation(override.features?.tagInvalidation ?? base.features.tagInvalidation),
       pushNotifications: normalizePushNotifications(override.features?.pushNotifications ?? base.features.pushNotifications),
       serverPush: { ...defaultServerPush, ...base.features.serverPush, ...override.features?.serverPush },
     },
@@ -202,6 +221,18 @@ export const defaultServerPush = {
   reconnectDelayMs: 5000,
 };
 
+export const defaultTagInvalidation: TagInvalidationConfig = {
+  enabled: true,
+  prefixes: [...API_PREFIXES],
+  patterns: {},
+  singularization: {},
+  cascading: {},
+  invalidation: {
+    debounceMs: 0,
+    optimistic: false,
+  },
+};
+
 export const defaultConfig: SwoffConfig = {
   enabled: true,
   features: {
@@ -225,7 +256,7 @@ export const defaultConfig: SwoffConfig = {
     backgroundSync: false,
     auth: { ...defaultAuth },
     crossTabSync: true,
-    tagInvalidation: true,
+    tagInvalidation: { ...defaultTagInvalidation },
     graphql: { ...defaultGql },
     pushNotifications: { enabled: false },
     serverPush: { ...defaultServerPush },

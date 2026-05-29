@@ -41,6 +41,12 @@ import { generateTypeDefinitions } from "./file-generators/type-definitions.js";
 import { generateHooks } from "./file-generators/generate-hooks.js";
 import { generateGuide } from "./file-generators/guide-generator.js";
 import { generateReadme } from "./file-generators/quick-readme.js";
+import type { TagInvalidationConfig } from "../shared/config-types.js";
+
+function tiEnabled(ctx: GeneratorContext): boolean {
+  const ti = ctx.config.features.tagInvalidation;
+  return typeof ti === "boolean" ? ti : ti.enabled;
+}
 
 interface Step {
   name: string;
@@ -54,7 +60,8 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
     { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: true },
     { name: "client-injector", gen: () => generateClientInjector(ctx), enabled: true },
     { name: "fetch-wrapper", gen: () => generateFetchWrapper(ctx), enabled: true },
-    { name: "cache", gen: () => generateCache(ctx), enabled: ctx.config.features.tagInvalidation },
+    { name: "cache", gen: () => generateCache(ctx), enabled: tiEnabled(ctx) },
+
 
     { name: "mutation-queue", gen: () => generateMutationQueue(ctx), enabled: ctx.config.features.mutationQueue.enabled },
     { name: "mutation-state", gen: () => generateMutationState(ctx), enabled: ctx.config.features.mutationQueue.enabled },
@@ -66,7 +73,7 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
     { name: "swoff.d.ts", gen: () => generateTypeDefinitions(ctx), enabled: ctx.ext === "ts" },
     { name: "pwa-install", gen: () => generatePwaInstall(ctx), enabled: ctx.config.features.pwa.enabled },
     { name: "manifest.json", gen: () => generateManifest(ctx), enabled: ctx.config.features.pwa.enabled },
-    { name: "invalidation-tags", gen: () => generateInvalidationTags(ctx), enabled: ctx.config.features.tagInvalidation },
+    { name: "invalidation-tags", gen: () => generateInvalidationTags(ctx), enabled: tiEnabled(ctx) },
     { name: "gql-wrapper", gen: () => generateGqlWrapper(ctx), enabled: ctx.config.features.graphql.enabled },
     { name: "push", gen: () => generatePush(ctx), enabled: ctx.config.features.pushNotifications?.enabled ?? false },
     { name: "server-push", gen: () => generateServerPush(ctx), enabled: ctx.config.features.serverPush.enabled },

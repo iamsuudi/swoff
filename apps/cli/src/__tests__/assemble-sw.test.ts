@@ -161,7 +161,7 @@ describe("assembleSW", () => {
     expect(sw).toContain("/api/*");
     expect(sw).toContain("network-first");
     expect(sw).toContain("new URL(request.url).pathname");
-    expect(sw).toContain("path.startsWith");
+    expect(sw).toContain("matchGlob");
   });
 
   it("includes trimRuntimeCache when maxCacheEntries is set", () => {

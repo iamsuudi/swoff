@@ -2,15 +2,35 @@
  * Generates IndexedDB-based tag invalidation logic for the SW.
  * After invalidation, tries to re-fetch URLs in the background.
  * On failure, keeps the old entry as stale-while-revalidate fallback.
+ * Supports cascading invalidation (tag A → tags B, C).
  */
 
-export function generateTagManagement(): string {
+function generateCascadingCode(cascading: Record<string, string[]>): string {
+  if (!cascading || Object.keys(cascading).length === 0) return "null";
+  return JSON.stringify(cascading);
+}
+
+export function generateTagManagement(cascading: Record<string, string[]> = {}): string {
+  const cascadingCode = generateCascadingCode(cascading);
+
   return `
 const staleVersions = new Map();
 const STALE_VERSIONS_MAX = 100;
 const STALE_VERSION_TTL = 30 * 60 * 1000;
 const TAG_DB_NAME = "swoff-cache-tags";
 const TAG_STORE_NAME = "tags";
+
+// Cascading invalidation map (tag → dependent tags)
+const CASCADING_MAP = ${cascadingCode};
+
+function resolveCascadingTags(tag) {
+  if (!CASCADING_MAP) return [tag];
+  const deps = CASCADING_MAP[tag];
+  if (!deps || deps.length === 0) return [tag];
+  const result = new Set([tag]);
+  for (const dep of deps) result.add(dep);
+  return [...result];
+}
 
 function cleanStaleVersions() {
   const now = Date.now();
@@ -48,45 +68,48 @@ async function cacheTagUrl(url, actualUrl, tags) {
 }
 
 async function invalidateByTag(tag) {
-  const db = await openTagDB();
-  const tx = db.transaction(TAG_STORE_NAME, "readonly");
-  const store = tx.objectStore(TAG_STORE_NAME);
-  const index = store.index("by-tag");
-  const entries = await new Promise((resolve, reject) => {
-    const request = index.getAll(tag);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-  await db.close();
+  const allTags = resolveCascadingTags(tag);
 
-  // Remove from tag index and runtime cache
-  const writeDb = await openTagDB();
-  const writeTx = writeDb.transaction(TAG_STORE_NAME, "readwrite");
-  const writeStore = writeTx.objectStore(TAG_STORE_NAME);
-  for (const entry of entries) {
-    writeStore.delete(entry.url);
-  }
-  await new Promise((resolve, reject) => {
-    writeTx.oncomplete = () => resolve();
-    writeTx.onerror = () => reject(writeTx.error);
-  });
-  writeDb.close();
+  for (const currentTag of allTags) {
+    const db = await openTagDB();
+    const tx = db.transaction(TAG_STORE_NAME, "readonly");
+    const store = tx.objectStore(TAG_STORE_NAME);
+    const index = store.index("by-tag");
+    const entries = await new Promise((resolve, reject) => {
+      const request = index.getAll(currentTag);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await db.close();
 
-  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
-  for (const entry of entries) {
-    await runtimeCache.delete(entry.url);
-  }
+    // Remove from tag index and runtime cache
+    const writeDb = await openTagDB();
+    const writeTx = writeDb.transaction(TAG_STORE_NAME, "readwrite");
+    const writeStore = writeTx.objectStore(TAG_STORE_NAME);
+    for (const entry of entries) {
+      writeStore.delete(entry.url);
+    }
+    await new Promise((resolve, reject) => {
+      writeTx.oncomplete = () => resolve();
+      writeTx.onerror = () => reject(writeTx.error);
+    });
+    writeDb.close();
 
-  // Enqueue background refetch through batched refresh queue
-  // Mark as stale first; queueRefresh success will clean up staleVersions
-  for (const entry of entries) {
-    staleVersions.set(entry.url, Date.now());
-    queueRefresh(entry.url, entry.actualUrl);
+    const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
+    for (const entry of entries) {
+      await runtimeCache.delete(entry.url);
+    }
+
+    // Enqueue background refetch through batched refresh queue
+    for (const entry of entries) {
+      staleVersions.set(entry.url, Date.now());
+      queueRefresh(entry.url, entry.actualUrl);
+    }
   }
 
   const clients = await self.clients.matchAll();
   clients.forEach((client) => {
-    client.postMessage({ type: "TAG_INVALIDATED", tag });
+    client.postMessage({ type: "TAG_INVALIDATED", tag, cascadingTags: allTags });
   });
 }`;
 }

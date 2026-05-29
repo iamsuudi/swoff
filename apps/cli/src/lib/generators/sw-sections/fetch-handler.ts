@@ -61,6 +61,61 @@ const GLOBAL_MAX_AGE = ${maxCacheAge ?? 0};
 const REFETCH_BATCH_SIZE = ${refetchBatchSize};
 const REFETCH_BATCH_DELAY_MS = ${refetchBatchDelayMs};`;
 
+  const GLOB_CODE = "\n" +
+"// --- Glob Pattern Matching ---\n" +
+"\n" +
+"function escapeGlobMeta(s) {\n" +
+"  return s.replace(/[.+^${}()|[\\]\\\\]/g, \"\\\\$$&\");\n" +
+"}\n" +
+"\n" +
+"function globPartRe(part) {\n" +
+"  for (var o = \"\", i = 0; i < part.length; i++) {\n" +
+"    var c = part[i];\n" +
+"    if (c === \"*\") { o += \"[^/]*\"; }\n" +
+"    else if (c === \"?\") { o += \"[^/]\"; }\n" +
+"    else if (c === \"{\") {\n" +
+"      var cl = part.indexOf(\"}\", i);\n" +
+"      if (cl === -1) { o += \"\\\\\" + c; }\n" +
+"      else {\n" +
+"        o += \"(?:\" + part.slice(i + 1, cl).split(\",\").map(function(s) { return escapeGlobMeta(s.trim()); }).join(\"|\") + \")\";\n" +
+"        i = cl;\n" +
+"      }\n" +
+"    } else { o += \"\\\\\" + c; }\n" +
+"  }\n" +
+"  return o;\n" +
+"}\n" +
+"\n" +
+"function matchGlob(path, pattern) {\n" +
+"  if (pattern.charAt(0) === \"!\") return !matchGlob(path, pattern.slice(1));\n" +
+"  var parts = pattern.split(\"/\").filter(Boolean);\n" +
+"  var pps = path.split(\"/\").filter(Boolean);\n" +
+"  var pi = 0, ppi = 0;\n" +
+"  while (pi < parts.length && ppi < pps.length) {\n" +
+"    var part = parts[pi];\n" +
+"    if (part === \"**\") {\n" +
+"      if (pi === parts.length - 1) return true;\n" +
+"      var nxt = parts[pi + 1];\n" +
+"      var found = -1;\n" +
+"      for (var j = ppi; j < pps.length; j++) {\n" +
+"        if (nxt.indexOf(\"*\") > -1 || nxt.indexOf(\"?\") > -1 || nxt.indexOf(\"{\") > -1) {\n" +
+"          if (new RegExp(\"^\" + globPartRe(nxt) + \"$\").test(pps[j])) { found = j; break; }\n" +
+"        } else if (nxt === pps[j]) { found = j; break; }\n" +
+"      }\n" +
+"      if (found === -1) return false;\n" +
+"      ppi = found;\n" +
+"      pi++;\n" +
+"      continue;\n" +
+"    }\n" +
+"    if (part.indexOf(\"*\") > -1 || part.indexOf(\"?\") > -1 || part.indexOf(\"{\") > -1) {\n" +
+"      if (!new RegExp(\"^\" + globPartRe(part) + \"$\").test(pps[ppi])) return false;\n" +
+"    } else if (part !== pps[ppi]) return false;\n" +
+"    pi++;\n" +
+"    ppi++;\n" +
+"  }\n" +
+"  return pi === parts.length && ppi === pps.length;\n" +
+"}\n" +
+"\n";
+
   return `${trimDecl}
 // --- Batch Refresh Queue ---
 
@@ -135,7 +190,7 @@ const REACTIVE_PATTERNS = ${JSON.stringify(reactivePatterns)};
 function findReactiveConfig(url) {
   const path = new URL(url).pathname;
   for (const cfg of REACTIVE_PATTERNS) {
-    if (path.startsWith(cfg.pattern.replace("*", ""))) return cfg;
+    if (matchGlob(path, cfg.pattern)) return cfg;
   }
   return null;
 }
@@ -160,7 +215,7 @@ ${patternsWithInterval.map(p =>
     for (const request of keys) {
       const url = new URL(request.url);
       if (url.pathname.startsWith("/__swc/")) continue;
-      if (!url.pathname.startsWith("${p.pattern.replace("*", "")}")) continue;
+      if (!matchGlob(url.pathname, "${p.pattern}")) continue;
       const config = findReactiveConfig(url.href);
       if (!config) continue;
       const cached = await cache.match(request);
@@ -297,7 +352,7 @@ function isStale(response, staleTimeSeconds) {
   return Date.now() - Number(cachedAt) > staleTimeSeconds * 1000;
 }
 
-// --- Strategy Selection (3-tier config resolution) ---
+${GLOB_CODE}// --- Strategy Selection (3-tier config resolution) ---
 
 function resolveStrategyEntry(entry) {
   return typeof entry === "string" ? { strategy: entry } : entry;
@@ -314,7 +369,7 @@ function determineCacheStrategy(request, customStrategies, globalDefaults) {
   }
   const path = new URL(request.url).pathname;
   for (const [pattern, entry] of Object.entries(customStrategies)) {
-    if (path.startsWith(pattern.replace("*", ""))) {
+    if (matchGlob(path, pattern)) {
       const resolved = resolveStrategyEntry(entry);
       return {
         strategy: resolved.strategy,
@@ -333,7 +388,7 @@ function determineCacheStrategy(request, customStrategies, globalDefaults) {
 function determineCacheStrategyForUrl(url, customStrategies, globalDefaults) {
   const path = new URL(url).pathname;
   for (const [pattern, entry] of Object.entries(customStrategies)) {
-    if (path.startsWith(pattern.replace("*", ""))) {
+    if (matchGlob(path, pattern)) {
       const resolved = resolveStrategyEntry(entry);
       return { strategy: resolved.strategy };
     }

@@ -131,7 +131,7 @@ export function generateReadme(ctx: GeneratorContext): void {
     }
   }
 
-  if (config.features.tagInvalidation) {
+  if (typeof config.features.tagInvalidation === "boolean" ? config.features.tagInvalidation : config.features.tagInvalidation.enabled) {
     w("## Cache invalidation");
     w("```ts");
     w(`import { generateTags, invalidateUrl } from "./swoff/invalidation-tags.${ext}";`);

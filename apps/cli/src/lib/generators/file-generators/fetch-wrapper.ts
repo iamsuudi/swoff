@@ -11,7 +11,8 @@ export function generateFetchWrapper(ctx: GeneratorContext): void {
   const T = (type: string) => (ts ? `: ${type}` : "");
   const R = (type: string) => (ts ? `: ${type} ` : " ");
   const G = (type: string) => (ts ? `<${type}>` : "");
-  const tagInvalidation = ctx.config.features.tagInvalidation;
+  const ti = ctx.config.features.tagInvalidation;
+  const tagInvalidation = typeof ti === "boolean" ? ti : ti.enabled;
   const authEnabled = ctx.config.features.auth.enabled;
   const mutationQueue = ctx.config.features.mutationQueue.enabled;
 

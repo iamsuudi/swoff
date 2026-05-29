@@ -15,7 +15,12 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     const features = config.features as Record<string, unknown>;
 
     for (const [key, value] of Object.entries(features)) {
-      if (OBJECT_FEATURES.includes(key as (typeof OBJECT_FEATURES)[number])) {
+      if (key === "tagInvalidation") {
+        if (typeof value !== "boolean" && (typeof value !== "object" || value === null)) {
+          errors.push('Feature "tagInvalidation" must be a boolean or an object');
+          continue;
+        }
+      } else if (OBJECT_FEATURES.includes(key as (typeof OBJECT_FEATURES)[number])) {
         if (typeof value !== "object" || value === null) {
           errors.push(`Feature "${key}" must be an object`);
           continue;
@@ -188,8 +193,9 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     }
 
     const tagInvalidationVal = features.tagInvalidation;
+    const tagInvalidationEnabled = typeof tagInvalidationVal === "boolean" ? tagInvalidationVal : (tagInvalidationVal as Record<string, unknown>)?.enabled === true;
     const crossTabSyncVal = features.crossTabSync;
-    if (crossTabSyncVal === true && tagInvalidationVal !== true) {
+    if (crossTabSyncVal === true && !tagInvalidationEnabled) {
       errors.push("crossTabSync requires tagInvalidation to be enabled");
     }
 

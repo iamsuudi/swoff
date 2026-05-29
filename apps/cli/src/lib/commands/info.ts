@@ -158,7 +158,7 @@ export async function infoCommand(projectRoot: string, feature?: string) {
   if (config.features.backgroundSync) enabled.push("background-sync");
   if (config.features.auth.enabled) enabled.push("auth");
   if (config.features.crossTabSync) enabled.push("cross-tab");
-  if (config.features.tagInvalidation) enabled.push("tag-invalidation");
+  if (typeof config.features.tagInvalidation === "boolean" ? config.features.tagInvalidation : config.features.tagInvalidation.enabled) enabled.push("tag-invalidation");
   if (config.features.graphql.enabled) enabled.push("graphql");
   if (config.features.pushNotifications?.enabled) enabled.push("push-notification");
   if (config.features.pwa.enabled) enabled.push("pwa");

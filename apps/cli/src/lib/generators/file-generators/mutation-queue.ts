@@ -8,8 +8,7 @@ export function generateMutationQueue(ctx: GeneratorContext): void {
   const PT = (type: string) => (ts ? `<${type}>` : "");
   const AS = (type: string) => (ts ? ` as ${type}` : "");
   const authEnabled = ctx.config.features.auth.enabled;
-  const ti = ctx.config.features.tagInvalidation;
-  const tagInvalidation = typeof ti === "boolean" ? ti : ti.enabled;
+  const tagInvalidation = ctx.config.features.tagInvalidation.enabled;
   const mqConfig = ctx.config.features.mutationQueue;
   const batchSize = mqConfig.batchSize;
   const batchDelayMs = mqConfig.batchDelayMs;

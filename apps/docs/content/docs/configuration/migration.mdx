@@ -25,10 +25,16 @@ This creates `swoff.config.json` and the `swoff/` directory. Or create config ma
   "serviceWorker": {
     "autoRegister": true,
     "autoActivate": false,
-    "defaultStrategy": "cache-first",
-    "clearRuntimeOnUpdate": false,
-    "navigationMode": "spa",
-    "spaEntry": "/index.html"
+    "strategy": {
+      "default": "cache-first",
+      "mode": "all",
+      "clearRuntimeOnUpdate": false
+    },
+    "navigation": {
+      "mode": "spa",
+      "preload": true,
+      "fallback": "/index.html"
+    }
   },
   "features": {
     "versionedSw": true,
@@ -93,10 +99,12 @@ Run `npx @swoff/cli generate` after each change.
 ```json
 {
   "serviceWorker": {
-    "strategies": {
-      "/api/*": "network-first",
-      "/static/*": "cache-first",
-      "/images/*": "stale-while-revalidate"
+    "strategy": {
+      "patterns": {
+        "/api/*": "network-first",
+        "/static/*": "cache-first",
+        "/images/*": "stale-while-revalidate"
+      }
     }
   }
 }

@@ -12,23 +12,40 @@
       "preventDefaultInstall": false
     },
     "serviceWorker": {
-      "version": {
-        "enabled": true,
-        "source": "from-package",
-        "minSupportedVersion": "1.0.0"
-      },
+      "version": "package",
+      "minSupportedVersion": "1.0.0",
       "autoUpdate": true,
       "autoActivate": false,
-      "defaultStrategy": "cache-first",
-      "strategies": {
-        "/api/*": "network-first",
-        "/static/*": "cache-first"
+      "strategy": {
+        "default": "cache-first",
+        "patterns": {
+          "/api/*": "network-first",
+          "/static/*": "cache-first"
+        },
+        "reactive": {
+          "defaults": {
+            "staleTime": 0,
+            "refetchInterval": 0,
+            "refetchOnReconnect": false,
+            "refetchOnFocus": false
+          }
+        },
+        "mode": "all",
+        "clearRuntimeOnUpdate": false,
+        "normalizeKey": false,
+        "ignoreQueryParams": []
       },
-      "cacheStrategy": "all",
-      "clearRuntimeOnUpdate": false,
-      "navigationPreload": true,
-      "navigationMode": "spa",
-      "spaEntry": "/index.html"
+      "navigation": {
+        "mode": "spa",
+        "preload": true,
+        "fallback": "/index.html"
+      }
+    },
+    "refetchQueue": {
+      "batchSize": 5,
+      "batchDelayMs": 1000,
+      "maxRetries": 3,
+      "retryDelayMs": 1000
     },
     "mutationQueue": {
       "enabled": false,
@@ -45,7 +62,22 @@
       "userEndpoint": "/api/me"
     },
     "crossTabSync": true,
-    "tagInvalidation": true,
+    "tagInvalidation": {
+      "enabled": true,
+      "debounceMs": 0,
+      "prefixes": [
+        "api",
+        "v1",
+        "v2",
+        "v3",
+        "rest",
+        "graphql",
+        "gql"
+      ],
+      "patterns": {},
+      "singularization": {},
+      "cascading": {}
+    },
     "graphql": {
       "enabled": false,
       "endpoint": "/graphql"

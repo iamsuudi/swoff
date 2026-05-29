@@ -3,7 +3,7 @@
  * Generated from swoff.config.json
  * DO NOT EDIT MANUALLY
  * Version: 0.0.0
- * Features: version.enabled=true, mutationQueue=false, backgroundSync=false, tagInvalidation=true
+ * Features: version=package, mutationQueue=false, backgroundSync=false, tagInvalidation=true
  * Default Strategy: cache-first
  * See: https://swoff.netlify.app/docs
  */
@@ -71,6 +71,21 @@ self.addEventListener("message", (event) => {
   if (event.data.type === "INVALIDATE_TAG" && event.data.tag) {
     event.waitUntil(invalidateByTag(event.data.tag));
   }
+  if (event.data.type === "GET_URLS_FOR_TAG" && event.data.tag) {
+    const urls = getUrlsForTag(event.data.tag);
+    if (event.ports && event.ports[0]) {
+      event.ports[0].postMessage({ type: "URLS_FOR_TAG", urls });
+    }
+  }
+  if (event.data.type === "GET_TAGS_FOR_URL" && event.data.url) {
+    const tags = getTagsForUrl(event.data.url);
+    if (event.ports && event.ports[0]) {
+      event.ports[0].postMessage({ type: "TAGS_FOR_URL", tags });
+    }
+  }
+  if (event.data.type === "INVALIDATE_MATCHING" && event.data.glob) {
+    event.waitUntil(invalidateMatching(event.data.glob));
+  }
   if (event.data.type === "ONLINE") {
     event.waitUntil(handleOnline());
   }
@@ -79,10 +94,10 @@ self.addEventListener("message", (event) => {
   }
 
 });
-const GLOBAL_MAX_ENTRIES = 0;
-const GLOBAL_MAX_AGE = 0;
 const REFETCH_BATCH_SIZE = 5;
 const REFETCH_BATCH_DELAY_MS = 1000;
+const REFRESH_MAX_RETRIES = 3;
+const REFRESH_RETRY_DELAY_MS = 1000;
 // --- Batch Refresh Queue ---
 
 const _refreshQueue = new Map();
@@ -91,7 +106,7 @@ let _refreshQueuePromise = null;
 
 function queueRefresh(cacheKeyUrl, actualUrl) {
   // Use Map keyed by cacheKey for proper deduplication
-  _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl });
+  _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl, retryCount: 0 });
   if (!_refreshQueuePromise) {
     _refreshQueuePromise = _processRefreshQueue().finally(() => {
       _refreshQueuePromise = null;
@@ -138,7 +153,21 @@ async function _processRefreshQueue() {
           }
         }
       } catch {
-        // Refresh failed — stale cache remains usable
+        // Refresh failed — retry with exponential backoff
+        if (entry.retryCount < REFRESH_MAX_RETRIES) {
+          entry.retryCount++;
+          const delay = REFRESH_RETRY_DELAY_MS * Math.pow(2, entry.retryCount - 1);
+          _refreshQueue.set(entry.cacheKey, entry);
+          // Schedule re-processing after delay
+          setTimeout(() => {
+            if (!_refreshQueuePromise) {
+              _refreshQueuePromise = _processRefreshQueue().finally(() => {
+                _refreshQueuePromise = null;
+                if (_refreshQueue.size > 0) queueRefresh();
+              });
+            }
+          }, delay);
+        }
       }
     }));
 
@@ -156,7 +185,7 @@ const REACTIVE_PATTERNS = [];
 function findReactiveConfig(url) {
   const path = new URL(url).pathname;
   for (const cfg of REACTIVE_PATTERNS) {
-    if (path.startsWith(cfg.pattern.replace("*", ""))) return cfg;
+    if (matchGlob(path, cfg.pattern)) return cfg;
   }
   return null;
 }
@@ -282,6 +311,60 @@ function isStale(response, staleTimeSeconds) {
   return Date.now() - Number(cachedAt) > staleTimeSeconds * 1000;
 }
 
+
+// --- Glob Pattern Matching ---
+
+function escapeGlobMeta(s) {
+  return s.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+}
+
+function globPartRe(part) {
+  for (var o = "", i = 0; i < part.length; i++) {
+    var c = part[i];
+    if (c === "*") { o += "[^/]*"; }
+    else if (c === "?") { o += "[^/]"; }
+    else if (c === "{") {
+      var cl = part.indexOf("}", i);
+      if (cl === -1) { o += "\\" + c; }
+      else {
+        o += "(?:" + part.slice(i + 1, cl).split(",").map(function(s) { return escapeGlobMeta(s.trim()); }).join("|") + ")";
+        i = cl;
+      }
+    } else { o += "\\" + c; }
+  }
+  return o;
+}
+
+function matchGlob(path, pattern) {
+  if (pattern.charAt(0) === "!") return !matchGlob(path, pattern.slice(1));
+  var parts = pattern.split("/").filter(Boolean);
+  var pps = path.split("/").filter(Boolean);
+  var pi = 0, ppi = 0;
+  while (pi < parts.length && ppi < pps.length) {
+    var part = parts[pi];
+    if (part === "**") {
+      if (pi === parts.length - 1) return true;
+      var nxt = parts[pi + 1];
+      var found = -1;
+      for (var j = ppi; j < pps.length; j++) {
+        if (nxt.indexOf("*") > -1 || nxt.indexOf("?") > -1 || nxt.indexOf("{") > -1) {
+          if (new RegExp("^" + globPartRe(nxt) + "$").test(pps[j])) { found = j; break; }
+        } else if (nxt === pps[j]) { found = j; break; }
+      }
+      if (found === -1) return false;
+      ppi = found;
+      pi++;
+      continue;
+    }
+    if (part.indexOf("*") > -1 || part.indexOf("?") > -1 || part.indexOf("{") > -1) {
+      if (!new RegExp("^" + globPartRe(part) + "$").test(pps[ppi])) return false;
+    } else if (part !== pps[ppi]) return false;
+    pi++;
+    ppi++;
+  }
+  return pi === parts.length && ppi === pps.length;
+}
+
 // --- Strategy Selection (3-tier config resolution) ---
 
 function resolveStrategyEntry(entry) {
@@ -291,34 +374,22 @@ function resolveStrategyEntry(entry) {
 function determineCacheStrategy(request, customStrategies, globalDefaults) {
   const override = request.headers.get("X-SW-Strategy");
   if (override) {
-    return {
-      strategy: override,
-      maxCacheEntries: Number(request.headers.get("X-SW-Max-Entries")) || globalDefaults.maxCacheEntries,
-      maxCacheAge: Number(request.headers.get("X-SW-Max-Age")) || globalDefaults.maxCacheAge,
-    };
+    return { strategy: override };
   }
   const path = new URL(request.url).pathname;
   for (const [pattern, entry] of Object.entries(customStrategies)) {
-    if (path.startsWith(pattern.replace("*", ""))) {
+    if (matchGlob(path, pattern)) {
       const resolved = resolveStrategyEntry(entry);
-      return {
-        strategy: resolved.strategy,
-        maxCacheEntries: resolved.maxCacheEntries ?? globalDefaults.maxCacheEntries,
-        maxCacheAge: resolved.maxCacheAge ?? globalDefaults.maxCacheAge,
-      };
+      return { strategy: resolved.strategy };
     }
   }
-  return {
-    strategy: globalDefaults.defaultStrategy,
-    maxCacheEntries: globalDefaults.maxCacheEntries,
-    maxCacheAge: globalDefaults.maxCacheAge,
-  };
+  return { strategy: globalDefaults.defaultStrategy };
 }
 
 function determineCacheStrategyForUrl(url, customStrategies, globalDefaults) {
   const path = new URL(url).pathname;
   for (const [pattern, entry] of Object.entries(customStrategies)) {
-    if (path.startsWith(pattern.replace("*", ""))) {
+    if (matchGlob(path, pattern)) {
       const resolved = resolveStrategyEntry(entry);
       return { strategy: resolved.strategy };
     }
@@ -327,20 +398,20 @@ function determineCacheStrategyForUrl(url, customStrategies, globalDefaults) {
 }
 
 function applyStrategy(event, request, config) {
-  const { strategy, maxCacheEntries, maxCacheAge } = config;
+  const { strategy } = config;
   if (strategy === "reactive") {
     const reactiveCfg = findReactiveConfig(new URL(request.url).href);
-    event.respondWith(reactiveStrategy(event, request, reactiveCfg?.staleTime, maxCacheEntries, maxCacheAge));
+    event.respondWith(reactiveStrategy(event, request, reactiveCfg?.staleTime));
   } else if (strategy === "stale-while-revalidate") {
-    event.respondWith(staleWhileRevalidate(event, request, maxCacheEntries, maxCacheAge));
+    event.respondWith(staleWhileRevalidate(event, request));
   } else if (strategy === "network-first") {
-    event.respondWith(networkFirst(event, request, maxCacheEntries, maxCacheAge));
+    event.respondWith(networkFirst(event, request));
   } else if (strategy === "cache-only") {
-    event.respondWith(cacheOnly(event, request, maxCacheEntries, maxCacheAge));
+    event.respondWith(cacheOnly(event, request));
   } else if (strategy === "network-only") {
     event.respondWith(networkOnly(event, request));
   } else {
-    event.respondWith(cacheFirst(event, request, maxCacheEntries, maxCacheAge));
+    event.respondWith(cacheFirst(event, request));
   }
 }
 
@@ -350,7 +421,7 @@ self.addEventListener("fetch", (event) => {
     if (!request.headers.get("X-SW-Cache-Key")) return;
   }
   
-  applyStrategy(event, request, determineCacheStrategy(event.request, {"/api/*":"network-first","/static/*":"cache-first"}, { defaultStrategy: "cache-first", maxCacheEntries: GLOBAL_MAX_ENTRIES, maxCacheAge: GLOBAL_MAX_AGE }));
+  applyStrategy(event, request, determineCacheStrategy(event.request, {"/api/*":"network-first","/static/*":"cache-first"}, { defaultStrategy: "cache-first" }));
 });
 
 // --- Strategies ---
@@ -365,12 +436,7 @@ async function fetchWithPreload(event, request) {
 }
 const _fetch = fetchWithPreload;
 
-
-function _trim(cacheName, maxEntries, maxAge) {
-
-}
-
-async function cacheFirst(event, request, maxEntries, maxAge) {
+async function cacheFirst(event, request) {
   const cached = await fromRuntime(request);
   if (cached) {
     cleanStaleVersions();
@@ -389,27 +455,17 @@ async function cacheFirst(event, request, maxEntries, maxAge) {
   const response = await _fetch(event, request);
   if (response.ok) {
     const responseToCache = response.clone();
-    event.waitUntil(
-      (async () => {
-        await cacheResponse(request, responseToCache);
-        _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
-      })(),
-    );
+    event.waitUntil(cacheResponse(request, responseToCache));
   }
   return response;
 }
 
-async function networkFirst(event, request, maxEntries, maxAge) {
+async function networkFirst(event, request) {
   try {
     const response = await _fetch(event, request);
     if (response.ok) {
       const responseToCache = response.clone();
-      event.waitUntil(
-        (async () => {
-          await cacheResponse(request, responseToCache);
-          _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
-        })(),
-      );
+      event.waitUntil(cacheResponse(request, responseToCache));
     }
     return response;
   } catch {
@@ -428,7 +484,7 @@ async function networkFirst(event, request, maxEntries, maxAge) {
   }
 }
 
-async function staleWhileRevalidate(event, request, maxEntries, maxAge) {
+async function staleWhileRevalidate(event, request) {
   const cached = await fromRuntime(request);
   if (cached) {
     event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
@@ -445,19 +501,21 @@ async function staleWhileRevalidate(event, request, maxEntries, maxAge) {
   if (response.ok) {
     const responseToCache = response.clone();
     await cacheResponse(request, responseToCache);
-    _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
   }
   return response;
 }
 
-async function reactiveStrategy(event, request, staleTime, maxEntries, maxAge) {
+async function reactiveStrategy(event, request, staleTime) {
   const cached = await fromRuntime(request);
+  // Per-request staleTime header overrides config-level staleTime
+  const headerStale = request.headers.get("X-SW-Stale-Time");
+  const effectiveStaleTime = headerStale !== null ? Number(headerStale) : staleTime;
   if (cached) {
     cleanStaleVersions();
     if (staleVersions.has(cacheKey(request))) {
       queueRefresh(cacheKey(request), new URL(request.url).href);
     }
-    if (shouldReactiveRefresh(cached, { staleTime })) {
+    if (shouldReactiveRefresh(cached, { staleTime: effectiveStaleTime })) {
       event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
     }
     return markFromCache(cached);
@@ -473,12 +531,11 @@ async function reactiveStrategy(event, request, staleTime, maxEntries, maxAge) {
   if (response.ok) {
     const responseToCache = response.clone();
     await cacheResponse(request, responseToCache);
-    _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
   }
   return response;
 }
 
-async function cacheOnly(event, request, maxEntries, maxAge) {
+async function cacheOnly(event, request) {
   const cached = await fromRuntime(request);
   if (cached) {
     cleanStaleVersions();
@@ -570,7 +627,6 @@ async function invalidateByTag(tag) {
   }
 
   // Enqueue background refetch through batched refresh queue
-  // Mark as stale first; queueRefresh success will clean up staleVersions
   for (const entry of entries) {
     staleVersions.set(entry.url, Date.now());
     queueRefresh(entry.url, entry.actualUrl);
@@ -580,6 +636,54 @@ async function invalidateByTag(tag) {
   clients.forEach((client) => {
     client.postMessage({ type: "TAG_INVALIDATED", tag });
   });
+}
+
+async function getUrlsForTag(tag) {
+  const db = await openTagDB();
+  const tx = db.transaction(TAG_STORE_NAME, "readonly");
+  const store = tx.objectStore(TAG_STORE_NAME);
+  const index = store.index("by-tag");
+  const entries = await new Promise((resolve, reject) => {
+    const request = index.getAll(tag);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  await db.close();
+  return entries.map((e) => ({ url: e.url, actualUrl: e.actualUrl }));
+}
+
+async function getTagsForUrl(url) {
+  const db = await openTagDB();
+  const tx = db.transaction(TAG_STORE_NAME, "readonly");
+  const store = tx.objectStore(TAG_STORE_NAME);
+  const entry = await new Promise((resolve, reject) => {
+    const request = store.get(url);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  await db.close();
+  return entry ? entry.tags : [];
+}
+
+async function invalidateMatching(globPattern) {
+  const db = await openTagDB();
+  const tx = db.transaction(TAG_STORE_NAME, "readonly");
+  const store = tx.objectStore(TAG_STORE_NAME);
+  const allEntries = await new Promise((resolve, reject) => {
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  await db.close();
+
+  const matching = allEntries.filter((entry) => matchGlob(entry.url, globPattern));
+  const tags = new Set();
+  for (const entry of matching) {
+    for (const tag of entry.tags) {
+      tags.add(tag);
+    }
+  }
+  await Promise.all([...tags].map((tag) => invalidateByTag(tag)));
 }
 
 

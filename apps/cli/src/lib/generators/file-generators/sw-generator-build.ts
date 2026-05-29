@@ -1,7 +1,3 @@
-/**
- * Generates sw-generator.js - build script that processes sw-template.js.
- */
-
 import { GeneratorContext, writeFile } from "./context.js";
 
 export function generateSwGeneratorBuild(ctx: GeneratorContext): void {
@@ -42,11 +38,13 @@ const config = JSON.parse(readFileSync(configPath, 'utf8'));
 const template = readFileSync(templatePath, 'utf8');
 
 const swConfig = config.features?.serviceWorker || {};
-const versionConfig = swConfig.version || {};
-const versionEnabled = versionConfig.enabled !== false;
-const version = versionConfig.source === 'manual' && versionConfig.value
-  ? versionConfig.value
-  : pkg.version || '1.0.0';
+const versionField = swConfig.version;
+const versionEnabled = versionField !== false && versionField !== "hash";
+const version = versionField === "package"
+  ? (pkg.version || '1.0.0')
+  : versionField && versionField !== "hash"
+    ? versionField
+    : (pkg.version || '1.0.0');
 const outputDir = config.build?.outputDir || 'dist';
 const swFilename = config.build?.swFilename || 'sw';
 
@@ -100,7 +98,7 @@ if (!versionEnabled) {
   writeFileSync(join(outDir, swFile), sw);
   writeFileSync(join(outDir, 'version.json'), JSON.stringify({
     version,
-    minSupportedVersion: versionConfig.minSupportedVersion || '0.0.0',
+    minSupportedVersion: swConfig.minSupportedVersion || '0.0.0',
     generatedAt: new Date().toISOString(),
   }, null, 2));
   console.log(\`Service worker built: \${outputDir}/\${swFile}\`);

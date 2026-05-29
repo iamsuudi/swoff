@@ -47,33 +47,18 @@
           "description": "Service Worker configuration",
           "properties": {
             "version": {
-              "type": "object",
-              "description": "Service Worker versioning configuration",
-              "properties": {
-                "enabled": {
-                  "type": "boolean",
-                  "description": "Enable versioned service worker (versioned SW URL, version.json, update events). When disabled, uses a fixed SW URL with hash-based cache naming.",
-                  "default": true
-                },
-                "source": {
-                  "type": "string",
-                  "description": "Version source. 'from-package' reads from package.json, 'manual' uses the value field.",
-                  "default": "from-package",
-                  "enum": ["from-package", "manual"]
-                },
-                "value": {
-                  "type": "string",
-                  "description": "Manual version value. Required when source is 'manual'. Must be semver (e.g., '1.0.0').",
-                  "pattern": "^\\d+\\.\\d+\\.\\d+$"
-                },
-                "minSupportedVersion": {
-                  "type": "string",
-                  "description": "Minimum supported version for forced updates. Clients running older versions will be forced to update.",
-                  "default": "0.0.0",
-                  "pattern": "^\\d+\\.\\d+\\.\\d+$"
-                }
-              },
-              "required": ["enabled", "source"]
+              "oneOf": [
+                { "type": "string", "enum": ["package", "hash"], "description": "\"package\": reads version from package.json. \"hash\": uses SHA-256 hash of generated SW content (deterministic, fixed SW URL)." },
+                { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "description": "Explicit semver version string (e.g. \"1.2.3\")" },
+                { "type": "boolean", "const": false, "description": "Disable versioning — uses a fixed SW URL with hash-based cache naming (simple mode)" }
+              ],
+              "default": "package"
+            },
+            "minSupportedVersion": {
+              "type": "string",
+              "description": "Minimum supported SW version for forced updates. Clients running older versions are force-updated on page load.",
+              "default": "0.0.0",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
             },
             "autoUpdate": {
               "type": "boolean",
@@ -85,39 +70,29 @@
               "description": "Automatically activate newly registered service workers (skipWaiting). Only applies when a new version is registered — use with autoUpdate for fully silent updates, or wait for user consent then call handleUpdateApproved().",
               "default": false
             },
-            "defaultStrategy": {
-              "type": "string",
-              "description": "Default caching strategy for all requests",
-              "default": "cache-first",
-              "enum": [
-                "cache-first",
-                "network-first",
-                "stale-while-revalidate",
-                "cache-only",
-                "network-only",
-                "reactive"
-              ]
-            },
-            "strategies": {
+            "strategy": {
               "type": "object",
-              "description": "Custom cache strategies for specific URL patterns. Each value can be a strategy name string, or an object with strategy-specific options. Reactive-only fields (staleTime, refetchInterval, refetchOnReconnect, refetchOnFocus) are only valid with strategy 'reactive'.",
-              "additionalProperties": {
-                "oneOf": [
-                  {
-                    "type": "string",
-                    "enum": [
-                      "cache-first",
-                      "network-first",
-                      "stale-while-revalidate",
-                      "cache-only",
-                      "network-only",
-                      "reactive"
-                    ]
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "strategy": {
+              "description": "Caching strategy configuration",
+              "properties": {
+                "default": {
+                  "type": "string",
+                  "description": "Default caching strategy for all requests",
+                  "default": "cache-first",
+                  "enum": [
+                    "cache-first",
+                    "network-first",
+                    "stale-while-revalidate",
+                    "cache-only",
+                    "network-only",
+                    "reactive"
+                  ]
+                },
+                "patterns": {
+                  "type": "object",
+                  "description": "Custom cache strategies for specific URL patterns. Each value can be a strategy name string, or an object with strategy-specific options. Reactive-only fields (staleTime, refetchInterval, refetchOnReconnect, refetchOnFocus) are only valid with strategy 'reactive'.",
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
                         "type": "string",
                         "enum": [
                           "cache-first",
@@ -128,105 +103,173 @@
                           "reactive"
                         ]
                       },
-                      "staleTime": {
-                        "type": "integer",
-                        "description": "Stale time in seconds for reactive strategy. Cached data is considered fresh for this duration. After expiry, the SW serves the cached copy but triggers a background refresh. 0 = always stale. Only valid with 'reactive' strategy.",
-                        "minimum": 0
-                      },
-                      "refetchInterval": {
-                        "type": "integer",
-                        "description": "Auto-refetch interval in seconds for reactive strategy. The SW will periodically re-fetch this route in the background. 0 disables. Only valid with 'reactive' strategy.",
-                        "minimum": 0
-                      },
-                      "refetchOnReconnect": {
-                        "type": "boolean",
-                        "description": "Refetch when the browser comes back online. Only valid with 'reactive' strategy.",
-                        "default": false
-                      },
-                      "refetchOnFocus": {
-                        "type": "boolean",
-                        "description": "Refetch when the browser tab gains focus. Only valid with 'reactive' strategy.",
-                        "default": false
+                      {
+                        "type": "object",
+                        "properties": {
+                          "strategy": {
+                            "type": "string",
+                            "enum": [
+                              "cache-first",
+                              "network-first",
+                              "stale-while-revalidate",
+                              "cache-only",
+                              "network-only",
+                              "reactive"
+                            ]
+                          },
+                          "staleTime": {
+                            "type": "integer",
+                            "description": "Stale time in seconds for reactive strategy. Cached data is considered fresh for this duration. After expiry, the SW serves the cached copy but triggers a background refresh. 0 = always stale. Only valid with 'reactive' strategy.",
+                            "minimum": 0
+                          },
+                          "refetchInterval": {
+                            "type": "integer",
+                            "description": "Auto-refetch interval in seconds for reactive strategy. The SW will periodically re-fetch this route in the background. 0 disables. Only valid with 'reactive' strategy.",
+                            "minimum": 0
+                          },
+                          "refetchOnReconnect": {
+                            "type": "boolean",
+                            "description": "Refetch when the browser comes back online. Only valid with 'reactive' strategy.",
+                            "default": false
+                          },
+                          "refetchOnFocus": {
+                            "type": "boolean",
+                            "description": "Refetch when the browser tab gains focus. Only valid with 'reactive' strategy.",
+                            "default": false
+                          }
+                        },
+                        "required": ["strategy"]
                       }
-                    },
-                    "required": ["strategy"]
+                    ]
                   }
-                ]
+                },
+                "reactive": {
+                  "type": "object",
+                  "description": "Reactive strategy global defaults. These apply to all routes using the 'reactive' strategy unless overridden per-route.",
+                  "properties": {
+                    "defaults": {
+                      "type": "object",
+                      "description": "Default values for reactive strategy fields",
+                      "properties": {
+                        "staleTime": {
+                          "type": "integer",
+                          "description": "Global default stale time in seconds. Data is considered fresh for this long; after expiry, SW serves cached but triggers a background refresh. 0 = always stale.",
+                          "default": 0,
+                          "minimum": 0
+                        },
+                        "refetchInterval": {
+                          "type": "integer",
+                          "description": "Global default auto-refetch interval in seconds. SW periodically re-fetches matching routes in the background. 0 disables.",
+                          "default": 0,
+                          "minimum": 0
+                        },
+                        "refetchOnReconnect": {
+                          "type": "boolean",
+                          "description": "Global default — refetch reactive entries when the browser comes back online.",
+                          "default": false
+                        },
+                        "refetchOnFocus": {
+                          "type": "boolean",
+                          "description": "Global default — refetch reactive entries when the tab gains focus.",
+                          "default": false
+                        }
+                      }
+                    }
+                  }
+                },
+                "mode": {
+                  "type": "string",
+                  "description": "Controls which requests are processed by the SW cache strategy system. 'all' processes every GET/HEAD request. 'explicit-only' only processes requests with X-SW-Cache-Strategy header (set automatically by fetchWithCache()).",
+                  "default": "all",
+                  "enum": ["all", "explicit-only"]
+                },
+                "clearRuntimeOnUpdate": {
+                  "type": "boolean",
+                  "description": "Delete runtime cache on SW activate. Use as a security measure: when true, cached API responses are cleared on every SW update, preventing poisoned data from persisting.",
+                  "default": false
+                },
+                "normalizeKey": {
+                  "type": "boolean",
+                  "description": "Normalize cache keys by lowercasing and sorting query params. Reduces cache fragmentation.",
+                  "default": false
+                },
+                "ignoreQueryParams": {
+                  "type": "array",
+                  "description": "Query parameter names to ignore when matching cache keys. Useful for Analytics/UTM params that should not create separate cache entries.",
+                  "items": { "type": "string" },
+                  "uniqueItems": true
+                }
               }
             },
-            "refetchBatchSize": {
-              "type": "integer",
-              "description": "Maximum number of background refetches to run concurrently (reactive strategy). Limits burst when many cached routes go stale at once.",
-              "default": 0,
-              "minimum": 0
-            },
-            "refetchBatchDelayMs": {
-              "type": "integer",
-              "description": "Delay in ms between batches of background refetches (reactive strategy). Use to rate-limit refetch bursts.",
-              "default": 0,
-              "minimum": 0
-            },
-            "clearRuntimeOnUpdate": {
-              "type": "boolean",
-              "description": "Delete runtime cache on SW activate. Use as a security measure: when true, cached API responses are cleared on every SW update, preventing poisoned data from persisting.",
-              "default": false
-            },
-            "navigationMode": {
-              "type": "string",
-              "description": "How navigation requests are handled. 'spa' falls back to spaEntry on cache miss. 'default' uses the strategy as-is without special navigation handling.",
-              "default": "spa",
-              "enum": ["spa", "default"]
-            },
-            "navigationPreload": {
-              "type": "boolean",
-              "description": "Enable Navigation Preload API in the service worker. Reduces startup latency for navigation requests by allowing the SW to fetch while the page boots.",
-              "default": true
-            },
-            "cacheStrategy": {
-              "type": "string",
-              "description": "Controls which requests are processed by the SW cache strategy system. 'all' processes every GET/HEAD request. 'explicit-only' only processes requests with X-SW-Cache-Strategy header (set automatically by fetchWithCache()).",
-              "default": "all",
-              "enum": ["all", "explicit-only"]
-            },
-            "spaEntry": {
-              "type": "string",
-              "description": "Fallback URL for navigation requests when navigationMode is 'spa'",
-              "default": "/index.html"
-            },
-            "ignoreQueryParams": {
-              "type": "array",
-              "description": "Query parameter names to ignore when matching cache keys. Useful for Analytics/UTM params that should not create separate cache entries.",
-              "items": { "type": "string" },
-              "uniqueItems": true
-            },
-            "normalizeCacheKey": {
-              "type": "boolean",
-              "description": "Normalize cache keys by lowercasing and sorting query params. Reduces cache fragmentation.",
-              "default": false
+            "navigation": {
+              "type": "object",
+              "description": "Navigation request handling configuration",
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "description": "How navigation requests are handled. 'spa' falls back to fallback on cache miss. 'default' uses the strategy as-is without special navigation handling.",
+                  "default": "spa",
+                  "enum": ["spa", "default"]
+                },
+                "preload": {
+                  "type": "boolean",
+                  "description": "Enable Navigation Preload API in the service worker. Reduces startup latency for navigation requests by allowing the SW to fetch while the page boots.",
+                  "default": true
+                },
+                "fallback": {
+                  "type": "string",
+                  "description": "Fallback URL for navigation requests when navigation mode is 'spa'",
+                  "default": "/index.html"
+                }
+              }
             }
           },
           "required": [
             "version",
             "autoUpdate",
-            "autoActivate",
-            "defaultStrategy"
+            "autoActivate"
           ]
         },
-        "mutationQueue": {
-          "oneOf": [
-            { "type": "boolean", "description": "Enable offline mutation queue" },
-            {
-              "type": "object",
-              "description": "Offline mutation queue configuration",
-              "properties": {
-                "enabled": { "type": "boolean", "description": "Enable offline mutation queue", "default": false },
-                "batchSize": { "type": "integer", "description": "Mutations per progress event", "default": 1, "minimum": 1 },
-                "batchDelayMs": { "type": "integer", "description": "Delay between mutations (rate limiting)", "default": 0, "minimum": 0 },
-                "maxRetries": { "type": "integer", "description": "Max retries before dropping", "default": 5, "minimum": 1 },
-                "retryBackoffMs": { "type": "integer", "description": "Exponential backoff base in ms", "default": 1000, "minimum": 0 }
-              }
+        "refetchQueue": {
+          "type": "object",
+          "description": "Background refetch queue configuration. Controls batching and retry behavior for stale cache refreshes.",
+          "properties": {
+            "batchSize": {
+              "type": "integer",
+              "description": "Max stale cache entries to refetch per batch",
+              "default": 5,
+              "minimum": 1
+            },
+            "batchDelayMs": {
+              "type": "integer",
+              "description": "Delay in ms between batch cycles (rate limiting)",
+              "default": 1000,
+              "minimum": 0
+            },
+            "maxRetries": {
+              "type": "integer",
+              "description": "Max retries for background refetches (exponential backoff)",
+              "default": 3,
+              "minimum": 0
+            },
+            "retryDelayMs": {
+              "type": "integer",
+              "description": "Base delay in ms for retry backoff (delay × 2^retryCount)",
+              "default": 1000,
+              "minimum": 0
             }
-          ]
+          }
+        },
+        "mutationQueue": {
+          "type": "object",
+          "description": "Offline mutation queue configuration. Object-only (boolean shorthand not supported).",
+          "properties": {
+            "enabled": { "type": "boolean", "description": "Enable offline mutation queue", "default": false },
+            "batchSize": { "type": "integer", "description": "Mutations per progress event", "default": 1, "minimum": 1 },
+            "batchDelayMs": { "type": "integer", "description": "Delay between mutations (rate limiting)", "default": 0, "minimum": 0 },
+            "maxRetries": { "type": "integer", "description": "Max retries before dropping", "default": 5, "minimum": 1 },
+            "retryBackoffMs": { "type": "integer", "description": "Exponential backoff base in ms", "default": 1000, "minimum": 0 }
+          }
         },
         "backgroundSync": {
           "type": "boolean",
@@ -267,22 +310,59 @@
           "default": true
         },
         "tagInvalidation": {
-          "type": "boolean",
-          "description": "Tag-based cache invalidation",
-          "default": true
+          "type": "object",
+          "description": "Tag-based cache invalidation configuration. Object-only (boolean shorthand not supported).",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable tag-based cache invalidation",
+              "default": true
+            },
+            "debounceMs": {
+              "type": "integer",
+              "description": "Debounce window (ms) for coalescing rapid invalidations. When > 0, repeated INVALIDATE_TAG messages within the window are batched and processed once, reducing redundant cache scans.",
+              "default": 0,
+              "minimum": 0
+            },
+            "prefixes": {
+              "type": "array",
+              "description": "URL path prefixes to skip during tag generation",
+              "items": { "type": "string" },
+              "default": ["api", "v1", "v2", "v3", "rest", "graphql", "gql"]
+            },
+            "patterns": {
+              "type": "object",
+              "description": "Custom glob patterns for tag generation. Keys are URL patterns, values are tag template arrays.",
+              "additionalProperties": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "default": {}
+            },
+            "singularization": {
+              "type": "object",
+              "description": "Custom plural to singular mapping (e.g. {\"categories\": \"category\"}). Default strips trailing 's'.",
+              "additionalProperties": { "type": "string" },
+              "default": {}
+            },
+            "cascading": {
+              "type": "object",
+              "description": "Cascading tag dependencies. {\"todos\": [\"categories\"]} means invalidating 'todos' also invalidates 'categories'.",
+              "additionalProperties": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "default": {}
+            }
+          }
         },
         "graphql": {
-          "oneOf": [
-            { "type": "boolean", "description": "Enable GraphQL wrapper with body-hash caching" },
-            {
-              "type": "object",
-              "description": "GraphQL client wrapper configuration",
-              "properties": {
-                "enabled": { "type": "boolean", "description": "Enable GraphQL wrapper", "default": false },
-                "endpoint": { "type": "string", "description": "GraphQL API endpoint", "example": "/graphql" }
-              }
-            }
-          ]
+          "type": "object",
+          "description": "GraphQL client wrapper configuration. Object-only (boolean shorthand not supported).",
+          "properties": {
+            "enabled": { "type": "boolean", "description": "Enable GraphQL wrapper with body-hash caching", "default": false },
+            "endpoint": { "type": "string", "description": "GraphQL API endpoint", "example": "/graphql" }
+          }
         },
         "serverPush": {
           "type": "object",
@@ -324,7 +404,7 @@
             },
             "vapidPublicKey": {
               "type": "string",
-              "description": "VAPID public key for push subscription. Required when enabled. You can also pass it at runtime to subscribeToPush().",
+              "description": "VAPID public key for push subscription. Baked into the generated push handler at build time — not needed at runtime.",
               "example": "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeghA5N1Fha7J3Ef4sQyKgOoF7m4wA1gPXi6gXqJxYd3o="
             }
           },

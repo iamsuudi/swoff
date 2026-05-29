@@ -1,9 +1,4 @@
-/**
- * Generates cache.{js|ts} - cache tag invalidation utilities.
- */
-
 import { GeneratorContext, writeFile } from "./context.js";
-import type { TagInvalidationConfig } from "../../shared/config-types.js";
 
 function generateCascadingCode(cascading: Record<string, string[]>): string {
   if (!cascading || Object.keys(cascading).length === 0) return "null";
@@ -16,13 +11,57 @@ export function generateCache(ctx: GeneratorContext): void {
   const T = (type: string) => (ts ? `: ${type}` : "");
   const R = (type: string) => (ts ? `: ${type} ` : " ");
 
-  const ti = ctx.config.features.tagInvalidation;
-  const tiConfig: TagInvalidationConfig = typeof ti === "boolean"
-    ? { enabled: ti }
-    : ti;
-
+  const tiConfig = ctx.config.features.tagInvalidation;
   const cascading = tiConfig.cascading ?? {};
   const cascadingCode = generateCascadingCode(cascading);
+  const debounceMs = tiConfig.debounceMs ?? 0;
+  const debounceCode = debounceMs > 0 ? `
+const INVALIDATION_DEBOUNCE_MS = ${debounceMs};
+let _debounceBatch${T("string[]")} = [];
+let _debounceTimer${T("ReturnType<typeof setTimeout> | null")} = null;
+let _debounceWaiters${T("Array<() => void>")} = [];
+
+function flushInvalidation() {
+  const tags = [...new Set(_debounceBatch)];
+  _debounceBatch = [];
+  _debounceTimer = null;
+  const waiters = _debounceWaiters;
+  _debounceWaiters = [];
+
+  if (navigator.serviceWorker?.controller) {
+    for (const t of tags) {
+      navigator.serviceWorker.controller.postMessage({ type: "INVALIDATE_TAG", tag: t });
+    }
+  }
+
+  const allTags = CASCADING ? [...new Set(tags.flatMap(function(t) { return expandCascading([t]); }))] : tags;
+  window.dispatchEvent(new CustomEvent("cache-invalidated", { detail: { tags: allTags } }));
+
+  waiters.forEach(function(r) { r(); });
+}
+
+function debouncedInvalidate(tag${T("string")})${R("Promise<void>")}{
+  _debounceBatch.push(tag);
+  if (_debounceTimer) clearTimeout(_debounceTimer);
+  return new Promise(function(resolve) {
+    _debounceWaiters.push(resolve);
+    _debounceTimer = setTimeout(flushInvalidation, INVALIDATION_DEBOUNCE_MS);
+  });
+}
+` : "";
+
+  const invalidateBody = debounceMs > 0 ? `  return debouncedInvalidate(tag);` : `
+  if (!navigator.serviceWorker?.controller) return;
+
+  navigator.serviceWorker.controller.postMessage({
+    type: "INVALIDATE_TAG",
+    tag,
+  });
+
+  const allTags = CASCADING ? expandCascading([tag]) : [tag];
+  window.dispatchEvent(
+    new CustomEvent("cache-invalidated", { detail: { tags: allTags } })
+  );`;
 
   const code = `/**
  * Swoff Cache Invalidation
@@ -56,21 +95,9 @@ function expandCascading(tags${T("string[]")})${R("string[]")}{
   }
   return [...result];
 }
-
+${debounceCode}
 /** Invalidate all cached responses tagged with the given tag. Dispatches cache-invalidated event with cascading dependencies expanded. */
-export async function invalidateByTag(tag${T("string")})${R("Promise<void>")}{
-  if (!navigator.serviceWorker?.controller) return;
-
-  navigator.serviceWorker.controller.postMessage({
-    type: "INVALIDATE_TAG",
-    tag,
-  });
-
-  // Expand cascading for the window event so hooks know all affected tags
-  const allTags = CASCADING ? expandCascading([tag]) : [tag];
-  window.dispatchEvent(
-    new CustomEvent("cache-invalidated", { detail: { tags: allTags } })
-  );
+export async function invalidateByTag(tag${T("string")})${R("Promise<void>")}{${invalidateBody}
 }
 
 /** Invalidate all cached responses matching any of the given tags. Cascading should be expanded by the caller (e.g., invalidateUrl in invalidation-tags) before passing here. */

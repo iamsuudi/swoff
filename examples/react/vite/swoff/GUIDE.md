@@ -31,10 +31,12 @@ When data is fresh, the SW serves it immediately from cache — no network reque
 When data is stale, the SW serves the cached copy but triggers a **background refresh**,
 so the next read returns fresh data.
 
+StaleTime keeps the entry usable while silently refreshing it — the user never sees a loading spinner.
+
 **3-tier staleTime resolution (like strategies):**
 1. **Per-request** — `fetchWithCache(url, { staleTime: 30 })` overrides everything
 2. **Route pattern** — `"/api/*": { staleTime: 60 }` in `swoff.config.json`
-3. **Global default** — `features.serviceWorker.staleTime`
+3. **Global default** — `features.serviceWorker.strategy.reactive.defaults.staleTime`
 
 **How staleTime changes each strategy:**
 | Strategy | Fresh data (within staleTime) | Stale data (past staleTime) |
@@ -154,12 +156,12 @@ The SW uses a 3-tier priority system to determine which caching strategy applies
 
 1. **Per-request override (highest)** — set `strategy` on `fetchWithCache()`.
    Sent as `X-SW-Strategy` header to the SW.
-2. **URL pattern match** — configured in `swoff.config.json` under `features.serviceWorker.strategies`.
+2. **URL pattern match** — configured in `swoff.config.json` under `features.serviceWorker.strategy.patterns`.
    e.g. `"/api/*": "network-first"` matches all paths starting with `/api/`.
-3. **Default (lowest)** — `features.serviceWorker.defaultStrategy` (default: `"cache-first"`).
+3. **Default (lowest)** — `features.serviceWorker.strategy.default` (default: `"cache-first"`).
 
 ### Cache strategy mode
-The `features.serviceWorker.cacheStrategy` option controls when strategies are invoked:
+The `features.serviceWorker.strategy.mode` option controls when strategies are invoked:
 
 - `"all"` (default): every GET/HEAD request goes through strategy dispatch, including plain `fetch()` calls.
 - `"explicit-only"`: only requests with an `X-SW-Cache-Strategy` header (set automatically by `fetchWithCache()`)
@@ -185,51 +187,160 @@ navigation (SPA fallback) → precache check → strategy dispatch → network p
 
 ## 🏷️ Tag Invalidation — keep cached data fresh
 When data changes on the server, cached responses in the SW become stale. Tag invalidation
-lets you mark related cache entries as stale so they're re-fetched on next request.
+marks related cache entries as stale so they're re-fetched on next request.
 
-### How it works
-1. When fetching, attach tags: `fetchWithCache(url, { tags: generateTags(url) })`
-2. After a mutation, invalidate: `await invalidateUrl(url)`
-3. The SW removes all cached responses that were tagged with the related tags
+### How it works (end-to-end)
+1. **Tag on read** — `fetchWithCache` automatically attaches tags to outgoing requests
+   via the `X-SW-Cache-Tags` header. The SW stores `url → tags[]` in IndexedDB.
+2. **Invalidate on write** — after a successful mutation, `fetchWithCache` calls
+   `invalidateUrl(url)` which generates tags from the URL, expands cascading deps,
+   and sends `INVALIDATE_TAG` messages to the SW.
+3. **SW deletes cache** — the SW queries IndexedDB by tag (multiEntry index), deletes
+   matching entries from cache storage, and enqueues background refetches.
 
-### `invalidation-tags.ts` — Tag generation helpers
+### `fetchWithCache` options for invalidation
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `tags` | `string[]` | **(read only)** Custom tags attached to the cached response via `X-SW-Cache-Tags`. Auto-generated from URL if omitted. |
+| `invalidate` | `'auto' \| string[] \| false` | Controls post-mutation invalidation. `'auto'` (default): generate tags from URL + expand cascading. `string[]`: invalidate these exact tags. `false`: skip invalidation. |
+| `validateSuccess` | `(res) => boolean` | Custom success check for mutations. Default: `res.ok`. Return `false` to skip invalidation (e.g., `(res) => res.status === 200`). |
+
+**Examples:**
 ```ts
-import { generateTags, invalidateUrl } from "./swoff/invalidation-tags.ts";
+import { fetchWithCache } from "./swoff/fetch-wrapper.ts";
 
-// Tag reads
-const data = await fetchWithCache("/api/todos", { tags: generateTags("/api/todos") });
+// Auto: generate tags, auto-invalidate on mutation
+await fetchWithCache("/api/todos", { method: "POST", body: {...} });
 
-// Invalidate after writing
-await invalidateUrl("/api/todos/42");
+// Explicit tags — invalidate these exact tags after mutation
+await fetchWithCache("/api/todos", {
+  method: "POST",
+  tags: ["custom-tag"],
+  invalidate: ["custom-tag"],
+});
+
+// Skip auto-invalidation; invalidate manually later
+await fetchWithCache("/api/todos", { method: "POST", invalidate: false });
+// ... later:
+await invalidateUrl("/api/todos");
+
+// Custom success validation (API returns 200 { success: false })
+await fetchWithCache("/api/todos", {
+  method: "POST",
+  body: {...},
+  validateSuccess: (res) => res.status === 200,
+});
 ```
 
-**Functions:**
-- `generateTags(url)` — extract tags from a URL path. e.g. `/api/todos/42` → `["todos", "todo:42"]`
-- `generateTagsFromMethod(method, url)` — method-prefixed tags. e.g. `post-todos`
-- `invalidateUrl(url)` — extract tags and invalidate all matching cache entries
-- `invalidateByMethod(method, url)` — invalidate using method-prefixed tags
-
-### `cache.ts` — Low-level invalidation
-```ts
-import { invalidateByTag, invalidateByTags } from "./swoff/cache.ts";
-
-await invalidateByTag("todos");
-await invalidateByTags(["todos", "categories"]);
+### Decision tree — which function to call?
+```
+After a write (POST / PUT / PATCH / DELETE):
+  │
+  ├─ You used fetchWithCache() with invalidate: 'auto' (default)
+  │   → Nothing extra needed — auto-invalidation triggers on success
+  │
+  ├─ You used fetchWithCache() with invalidate: ['tag1', 'tag2']
+  │   → Nothing extra needed — those exact tags are invalidated
+  │
+  ├─ You need to invalidate by URL (generate tags from path):
+  │   → await invalidateUrl('/api/todos/42')
+  │
+  ├─ You need to invalidate by method + URL:
+  │   → await invalidateByMethod('POST', '/api/todos')
+  │
+  ├─ You know the exact tag name:
+  │   → await invalidateByTag('todos')
+  │
+  └─ You need to invalidate multiple tags:
+      → await invalidateByTags(['todos', 'categories'])
 ```
 
-**Functions:**
-- `invalidateByTag(tag)` — invalidate a single tag. Dispatches `cache-invalidated` event.
-- `invalidateByTags(tags)` — invalidate multiple tags.
+### Tag generation — URL → tags
+Tags can be generated from URLs in two ways:
+
+#### 1. Segment-based fallback (default)
+When no patterns match, tags are generated by splitting the URL path:
+```
+/api/todos        →  ['todos']
+/api/todos/42     →  ['todos', 'todo:42']
+/api/todos/42/cmt →  ['todos', 'todo:42', 'cmt']
+```
+Prefix matching skips `/api`, `/v1`, `/v2`, `/graphql`, etc.
+Collection names ending in `s` are singularized for the ID tag.
+
+#### 2. Glob pattern matching (configurable)
+Define patterns in your config for custom tag generation:
+```json
+"tagInvalidation": {
+  "patterns": {
+    "/api/users/:id": ["users", "user:{id}"],
+    "/api/**": ["api"],
+    "/api/{users,posts}/*": ["{resource}", "{resource}:{id}"],
+    "/api/projects/*/tasks": ["projects", "tasks"]
+  },
+  "singularization": { "people": "person" },
+  "prefixes": ["api", "v1"]
+}
+```
+| Pattern | Matches | Tags |
+|---------|---------|------|
+| `:param` | `/api/users/42` | Named capture group |
+| `*` | `/api/users/abc` | Single path segment (no `/`) |
+| `**` | `/api/users/123/posts` | Any number of segments |
+| `{a,b}` | `/api/users/42` or `/api/posts/42` | Alternation |
+
+### Cascading invalidation — tag A → tags B, C
+When you invalidate a tag, its cascading dependencies are also invalidated automatically.
+Configured in the `tagInvalidation` config:
+```json
+"tagInvalidation": {
+  "cascading": {
+    "users": ["sessions", "permissions"],
+    "todos": ["categories", "stats"]
+  }
+}
+```
+Now `invalidateUrl('/api/users')` invalidates `users`, `sessions`, and `permissions`.
+
+### Functions reference
+
+**`invalidation-tags.ts` — tag generation and URL-level invalidation**
+| Function | Purpose | Example |
+|----------|---------|---------|
+| `generateTags(url)` | URL → tags (patterns + segment fallback) | `generateTags('/api/todos/42') → ['todos', 'todo:42']` |
+| `generateTagsFromMethod(method, url)` | URL → method-prefixed tags | `generateTagsFromMethod('POST', '/api/todos') → ['post-todos']` |
+| `invalidateUrl(url)` | Generate tags + expand cascading + invalidate | `await invalidateUrl('/api/todos/42')` |
+| `invalidateByMethod(method, url)` | Method-prefixed tags + cascading + invalidate | `await invalidateByMethod('DELETE', '/api/todos/42')` |
+| `expandCascading(tags)` | Expand cascading deps, dedup | `expandCascading(['users']) → ['users', 'sessions', 'permissions']` |
+
+**`cache.ts` — low-level tag invalidation**
+| Function | Purpose | Example |
+|----------|---------|---------|
+| `invalidateByTag(tag)` | Send INVALIDATE_TAG to SW + fire `cache-invalidated` event | `await invalidateByTag('todos')` |
+| `invalidateByTags(tags)` | Invalidate multiple tags in parallel | `await invalidateByTags(['todos', 'categories'])` |
+
+**`fetch-wrapper.ts` — automatic invalidation**
+| Function | Purpose |
+|----------|---------|
+| `fetchWithCache(input, options)` | Auto-tags reads via `X-SW-Cache-Tags`. Auto-invalidates after mutation success using `options.invalidate`. |
+| `prefetchCache(input, options)` | Fire-and-forget cache warming; inherits all tag behavior. |
+
+**React Hooks**
+| Hook | Returns | Description |
+|------|---------|-------------|
+| `useCacheInvalidation()` | `{ invalidateByTag, invalidateByTags, invalidateUrl }` | Stable `useCallback`-wrapped invalidation functions. |
+| `useCachedFetch(url, options?)` | `{ data, error, loading, refetch }` | Auto-refetches when the SW dispatches `cache-invalidated` events matching the URL's tags. |
 
 ### React Hook: `useCacheInvalidation`
-Reactive wrapper around cache invalidation functions.
 ```tsx
 import { useCacheInvalidation } from "./swoff/hooks/useCacheInvalidation.tsx";
 
 const { invalidateByTag, invalidateByTags, invalidateUrl } = useCacheInvalidation();
-```
 
-Returns stable `useCallback`-wrapped versions of each invalidation function.
+// Invalidate after manual mutation
+await invalidateUrl("/api/todos");
+```
 
 
 ## 🔄 Cross-tab Sync — keep tabs in sync
@@ -288,14 +399,14 @@ Re-run `npx @swoff/cli generate` after changing it.
 - `backgroundSync` — Background Sync API (Chrome/Edge only)
 - `auth.enabled` — auth module (bearer/cookie/custom)
 - `crossTabSync` — broadcast changes across tabs
-- `tagInvalidation` — cache invalidation by tags
+- `tagInvalidation` — cache invalidation by tags with glob patterns, cascading, and configurable singularization. Object: `{ enabled, prefixes, patterns, singularization, cascading }`
 - `graphql.enabled` — GraphQL wrapper with body-hash caching. Object: `{ enabled, endpoint }`
 - `pwa.enabled` — PWA install prompt and manifest
 - `serverPush.enabled` — real-time cache invalidation via SSE/WebSocket. Object: `{ enabled, type, endpoint, reconnectDelayMs }`
-- `serviceWorker.cacheStrategy` — caching strategy mode (`"all"` or `"explicit-only"`)
-- `serviceWorker.defaultStrategy` — default caching strategy
-- `serviceWorker.strategies` — per-route strategy overrides
-- `serviceWorker.staleTime` — global stale time in seconds (data considered fresh for N seconds). Applies to cache-first and network-first only.
-- `serviceWorker.refetchBatchSize` — max stale cache entries to refetch per batch
+- `serviceWorker.strategy.mode` — caching strategy mode (`"all"` or `"explicit-only"`)
+- `serviceWorker.strategy.default` — default caching strategy
+- `serviceWorker.strategy.patterns` — per-route strategy overrides
+- `serviceWorker.strategy.reactive.defaults.staleTime` — global stale time in seconds (data considered fresh for N seconds). Applies to cache-first and network-first only.
+- `features.refetchQueue.batchSize` — max stale cache entries to refetch per batch
 
 ---

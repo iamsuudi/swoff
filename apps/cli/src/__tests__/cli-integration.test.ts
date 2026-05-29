@@ -22,21 +22,28 @@ describe("CLI commands integration", () => {
         features: {
           pwa: { enabled: true, preventDefaultInstall: false },
           serviceWorker: {
-            version: {
-              enabled: true,
-              source: "from-package",
-              minSupportedVersion: "1.0.0",
-            },
+            version: "package",
+            minSupportedVersion: "1.0.0",
             autoUpdate: true,
             autoActivate: false,
-            defaultStrategy: "cache-first",
-            strategies: { "/api/*": "network-first", "/static/*": "cache-first" },
+            strategy: {
+              default: "cache-first",
+              patterns: { "/api/*": "network-first", "/static/*": "cache-first" },
+              reactive: {
+                defaults: { staleTime: 0, refetchInterval: 0, refetchOnReconnect: false, refetchOnFocus: false },
+              },
+            },
+            navigation: {
+              mode: "spa",
+              fallback: "/index.html",
+            },
           },
-          mutationQueue: false,
+          refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
+          mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
           backgroundSync: false,
           auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
           crossTabSync: true,
-          tagInvalidation: true,
+          tagInvalidation: { enabled: true },
         },
         build: { outputDir: "dist", swFilename: "sw" },
       };
@@ -45,7 +52,7 @@ describe("CLI commands integration", () => {
       const parsed = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
       expect(parsed.$schema).toBe("https://swoff.netlify.app/schema/v1.json");
       expect(parsed.enabled).toBe(true);
-      expect(parsed.features.serviceWorker.version.source).toBe("from-package");
+      expect(parsed.features.serviceWorker.version).toBe("package");
       expect(parsed.features.pwa.preventDefaultInstall).toBe(false);
     });
 
@@ -120,7 +127,7 @@ describe("CLI commands integration", () => {
       const config = {
         features: {
           pwa: { enabled: true, preventDefaultInstall: false },
-          serviceWorker: { version: { enabled: true, source: "from-package", minSupportedVersion: "0.0.0" }, autoUpdate: true, autoActivate: false, defaultStrategy: "cache-first" },
+          serviceWorker: { version: "package", minSupportedVersion: "0.0.0", autoUpdate: true, autoActivate: false, strategy: { default: "cache-first", patterns: {} } },
           auth: 1,
         },
       };

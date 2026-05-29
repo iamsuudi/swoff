@@ -66,7 +66,7 @@ describe("generateSwTemplate", () => {
 
   it("includes config-driven strategy code", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, tagInvalidation: true, serviceWorker: { ...defaultConfig.features.serviceWorker, strategies: { "/api/*": "network-first" } } },
+      features: { ...defaultConfig.features, tagInvalidation: { enabled: true }, serviceWorker: { ...defaultConfig.features.serviceWorker, strategy: { ...defaultConfig.features.serviceWorker.strategy, patterns: { "/api/*": "network-first" } } } },
     });
     generateSwTemplate(ctx);
     const content = readFileSync(join(ctx.swoffDir, "sw", "template.js"), "utf8");
@@ -112,7 +112,7 @@ describe("generateSwInjector", () => {
 
   it("generates simple injector when version is disabled", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, version: { ...defaultConfig.features.serviceWorker.version, enabled: false } } },
+      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, version: false } },
     });
     generateSwInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "sw", "injector.js"), "utf8");

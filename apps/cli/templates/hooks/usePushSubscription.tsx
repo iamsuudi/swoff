@@ -6,7 +6,7 @@ import {
   getPushSubscription,
 } from "../push.ts";
 
-export function usePushSubscription(vapidPublicKey: string) {
+export function usePushSubscription() {
   const [state, setState] = useState({
     subscribed: false,
     subscription: null as PushSubscription | null,
@@ -55,9 +55,9 @@ export function usePushSubscription(vapidPublicKey: string) {
   }, []);
 
   const subscribe = useCallback(async () => {
-    const sub = await subscribeToPush(vapidPublicKey);
+    const sub = await subscribeToPush();
     return sub !== null;
-  }, [vapidPublicKey]);
+  }, []);
 
   const unsubscribe = useCallback(async () => {
     await unsubscribeFromPush();

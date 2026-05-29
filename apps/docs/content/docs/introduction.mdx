@@ -49,13 +49,21 @@ Edit `swoff.config.json`, run `npx @swoff/cli generate`. The CLI handles everyth
   "serviceWorker": {
     "autoRegister": true,
     "autoActivate": false,
-    "defaultStrategy": "cache-first",
-    "strategies": {
-      "/api/*": "network-first"
+    "strategy": {
+      "default": "cache-first",
+      "patterns": {
+        "/api/*": "network-first"
+      },
+      "mode": "all",
+      "clearRuntimeOnUpdate": false,
+      "normalizeKey": false,
+      "ignoreQueryParams": []
     },
-    "clearRuntimeOnUpdate": false,
-    "navigationMode": "spa",
-    "spaEntry": "/index.html"
+    "navigation": {
+      "mode": "spa",
+      "preload": true,
+      "fallback": "/index.html"
+    }
   },
   "features": {
     "versionedSw": true,

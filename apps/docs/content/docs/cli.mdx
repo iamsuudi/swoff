@@ -132,10 +132,12 @@ npx @swoff/cli validate
 **What it checks:**
 
 - Required fields are present (`enabled`, `version`, `serviceWorker`, `features`, `build`)
-- `serviceWorker.autoRegister`, `autoActivate`, `clearRuntimeOnUpdate` are booleans
-- `defaultStrategy` is one of the 5 valid strategies
-- `navigationMode` is `"spa"` or `"default"`
-- `spaEntry` is a string
+- `serviceWorker.autoRegister`, `autoActivate` are booleans
+- `serviceWorker.strategy.default` is one of the 6 valid strategies
+- `serviceWorker.strategy.mode` is `"all"` or `"explicit-only"`
+- `serviceWorker.navigation.mode` is `"spa"` or `"default"`
+- `serviceWorker.navigation.preload` is a boolean
+- `serviceWorker.navigation.fallback` is a string
 - Feature flags are known and correct type (boolean or object)
 - Object features (`pwa`, `auth`, `indexeddb`) have valid sub-fields
 - `pwa.enabled` and `preventDefaultInstall` are booleans

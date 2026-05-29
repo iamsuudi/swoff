@@ -1,4 +1,4 @@
-export function generateActivateHandler(clearRuntimeOnUpdate?: boolean, navigationPreload?: boolean): string {
+export function generateActivateHandler(clearRuntimeOnUpdate: boolean, navigationPreload?: boolean): string {
   const cacheCleanup = clearRuntimeOnUpdate
     ? `keys.filter((key) => key !== CACHE_NAME)`
     : `keys.filter((key) => key !== CACHE_NAME && key !== CACHE_NAME_RUNTIME)`;

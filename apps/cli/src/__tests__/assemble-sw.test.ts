@@ -68,7 +68,7 @@ describe("assembleSW", () => {
   it("excludes tag management when tagInvalidation is disabled", () => {
     const configWithoutTags: SwoffConfig = {
       ...config,
-      features: { ...config.features, tagInvalidation: false },
+      features: { ...config.features, tagInvalidation: { enabled: false } },
     };
     const sw = assembleSW(configWithoutTags, "1.0.0");
     expect(sw).not.toContain("invalidateByTag");
@@ -119,7 +119,7 @@ describe("assembleSW", () => {
         ...config.features,
         serviceWorker: {
           ...config.features.serviceWorker,
-          version: { ...config.features.serviceWorker.version, enabled: false },
+          version: false,
         },
       },
     };
@@ -153,7 +153,7 @@ describe("assembleSW", () => {
         ...config.features,
         serviceWorker: {
           ...config.features.serviceWorker,
-          strategies: { "/api/*": "network-first" },
+          strategy: { ...config.features.serviceWorker.strategy, patterns: { "/api/*": "network-first" } },
         },
       },
     };

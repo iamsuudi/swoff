@@ -13,13 +13,12 @@ describe("config-types", () => {
       expect(defaultConfig.enabled).toBe(true);
       expect(defaultConfig.features.serviceWorker.autoUpdate).toBe(true);
       expect(defaultConfig.features.serviceWorker.autoActivate).toBe(false);
-      expect(defaultConfig.features.serviceWorker.defaultStrategy).toBe("cache-first");
-      expect(defaultConfig.features.serviceWorker.clearRuntimeOnUpdate).toBe(false);
-      expect(defaultConfig.features.serviceWorker.navigationMode).toBe("spa");
-      expect(defaultConfig.features.serviceWorker.spaEntry).toBe("/index.html");
-      expect(defaultConfig.features.serviceWorker.version.enabled).toBe(true);
-      expect(defaultConfig.features.serviceWorker.version.source).toBe("from-package");
-      expect(defaultConfig.features.serviceWorker.version.minSupportedVersion).toBe("0.0.0");
+      expect(defaultConfig.features.serviceWorker.strategy.default).toBe("cache-first");
+      expect(defaultConfig.features.serviceWorker.strategy.clearRuntimeOnUpdate).toBe(false);
+      expect(defaultConfig.features.serviceWorker.navigation.mode).toBe("spa");
+      expect(defaultConfig.features.serviceWorker.navigation.fallback).toBe("/index.html");
+      expect(defaultConfig.features.serviceWorker.version).toBe("package");
+      expect(defaultConfig.features.serviceWorker.minSupportedVersion).toBe("0.0.0");
       expect(defaultConfig.build.outputDir).toBe("dist");
       expect(defaultConfig.build.swFilename).toBe("sw");
       expect(defaultConfig.features.pwa.enabled).toBe(true);
@@ -29,7 +28,7 @@ describe("config-types", () => {
     it("has all known features with correct types", () => {
       for (const feature of KNOWN_FEATURES) {
         expect(defaultConfig.features).toHaveProperty(feature);
-        if (feature === "auth" || feature === "pushNotifications" || feature === "mutationQueue" || feature === "graphql" || feature === "serverPush" || feature === "tagInvalidation") {
+        if (feature === "auth" || feature === "pushNotifications" || feature === "mutationQueue" || feature === "graphql" || feature === "serverPush" || feature === "tagInvalidation" || feature === "refetchQueue") {
           expect(typeof defaultConfig.features[feature]).toBe("object");
         } else {
           expect(typeof defaultConfig.features[feature]).toBe("boolean");
@@ -43,8 +42,26 @@ describe("config-types", () => {
       expect(typeof defaultConfig.features.pwa.preventDefaultInstall).toBe("boolean");
     });
 
-    it("has empty strategies by default", () => {
-      expect(defaultConfig.features.serviceWorker.strategies).toEqual({});
+    it("has empty patterns by default", () => {
+      expect(defaultConfig.features.serviceWorker.strategy.patterns).toEqual({});
+    });
+
+    it("has reactive defaults", () => {
+      expect(defaultConfig.features.serviceWorker.strategy.reactive.defaults.staleTime).toBe(0);
+      expect(defaultConfig.features.serviceWorker.strategy.reactive.defaults.refetchInterval).toBe(0);
+      expect(defaultConfig.features.serviceWorker.strategy.reactive.defaults.refetchOnReconnect).toBe(false);
+      expect(defaultConfig.features.serviceWorker.strategy.reactive.defaults.refetchOnFocus).toBe(false);
+    });
+
+    it("has refetchQueue defaults", () => {
+      expect(defaultConfig.features.refetchQueue.batchSize).toBe(5);
+      expect(defaultConfig.features.refetchQueue.batchDelayMs).toBe(1000);
+      expect(defaultConfig.features.refetchQueue.maxRetries).toBe(3);
+      expect(defaultConfig.features.refetchQueue.retryDelayMs).toBe(1000);
+    });
+
+    it("has tagInvalidation with debounceMs", () => {
+      expect(defaultConfig.features.tagInvalidation.debounceMs).toBe(0);
     });
   });
 
@@ -53,15 +70,15 @@ describe("config-types", () => {
       expect(defaultInitConfig.$schema).toBe("https://swoff.netlify.app/schema/v1.json");
     });
 
-    it("has default strategies for API and static", () => {
-      expect(defaultInitConfig.features.serviceWorker.strategies).toEqual({
+    it("has default patterns for API and static", () => {
+      expect(defaultInitConfig.features.serviceWorker.strategy.patterns).toEqual({
         "/api/*": "network-first",
         "/static/*": "cache-first",
       });
     });
 
     it("has minSupportedVersion of 1.0.0", () => {
-      expect(defaultInitConfig.features.serviceWorker.version.minSupportedVersion).toBe("1.0.0");
+      expect(defaultInitConfig.features.serviceWorker.minSupportedVersion).toBe("1.0.0");
     });
   });
 
@@ -87,9 +104,11 @@ describe("config-types", () => {
       expect(OBJECT_FEATURES).toContain("auth");
       expect(OBJECT_FEATURES).toContain("pushNotifications");
       expect(OBJECT_FEATURES).toContain("graphql");
+      expect(OBJECT_FEATURES).toContain("mutationQueue");
+      expect(OBJECT_FEATURES).toContain("tagInvalidation");
     });
 
-    it("VALID_STRATEGIES contains all 5 strategies", () => {
+    it("VALID_STRATEGIES contains all 6 strategies", () => {
       expect(VALID_STRATEGIES).toContain("cache-first");
       expect(VALID_STRATEGIES).toContain("network-first");
       expect(VALID_STRATEGIES).toContain("stale-while-revalidate");

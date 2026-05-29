@@ -43,14 +43,20 @@ Files in `swoff/` are generated based on `features` toggles in your config. Ever
   "serviceWorker": {
     "autoRegister": true,
     "autoActivate": false,
-    "defaultStrategy": "cache-first",
-    "strategies": {
-      "/api/*": "network-first",
-      "/static/*": "cache-first"
+    "strategy": {
+      "default": "cache-first",
+      "patterns": {
+        "/api/*": "network-first",
+        "/static/*": "cache-first"
+      },
+      "mode": "all",
+      "clearRuntimeOnUpdate": false
     },
-    "clearRuntimeOnUpdate": false,
-    "navigationMode": "spa",
-    "spaEntry": "/index.html"
+    "navigation": {
+      "mode": "spa",
+      "preload": true,
+      "fallback": "/index.html"
+    }
   },
   "features": {
     "versionedSw": true,

@@ -4,7 +4,6 @@
  */
 
 import { GeneratorContext, writeFile } from "./context.js";
-import type { TagInvalidationConfig } from "../../shared/config-types.js";
 
 interface PatternEntry {
   regex: string;
@@ -106,10 +105,7 @@ export function generateInvalidationTags(ctx: GeneratorContext): void {
   const T = (type: string) => (ts ? `: ${type}` : "");
   const R = (type: string) => (ts ? `: ${type} ` : " ");
 
-  const ti = ctx.config.features.tagInvalidation;
-  const tiConfig: TagInvalidationConfig = typeof ti === "boolean"
-    ? { enabled: ti, prefixes: ["api", "v1", "v2", "v3", "rest", "graphql", "gql"] }
-    : ti;
+  const tiConfig = ctx.config.features.tagInvalidation;
 
   const prefixes = tiConfig.prefixes ?? ["api", "v1", "v2", "v3", "rest", "graphql", "gql"];
   const patterns = tiConfig.patterns ?? {};

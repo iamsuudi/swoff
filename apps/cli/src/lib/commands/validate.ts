@@ -28,9 +28,9 @@ export async function validateCommand(projectRoot: string) {
 
   log.success("Configuration is valid!");
   log.info("\nConfig summary:");
-  log.help(`Version source: ${config.features.serviceWorker.version.source}`);
-  log.help(`Version enabled: ${config.features.serviceWorker.version.enabled}`);
-  log.help(`Default strategy: ${config.features.serviceWorker.defaultStrategy}`);
+  log.help(`Version: ${config.features.serviceWorker.version}`);
+  log.help(`Min supported version: ${config.features.serviceWorker.minSupportedVersion}`);
+  log.help(`Default strategy: ${config.features.serviceWorker.strategy.default}`);
   log.help(`Auto update: ${config.features.serviceWorker.autoUpdate}`);
   log.help(
     `Features enabled: ${Object.entries(config.features)

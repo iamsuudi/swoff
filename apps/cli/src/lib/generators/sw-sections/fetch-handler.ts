@@ -23,13 +23,11 @@
  */
 
 export function generateFetchHandler(
-  swConfig: { defaultStrategy: string; strategies: Record<string, string | { strategy: string; staleTime?: number; refetchInterval?: number; refetchOnReconnect?: boolean; refetchOnFocus?: boolean }>; cacheStrategy?: "all" | "explicit-only"; navigationPreload?: boolean; navigationMode?: string; spaEntry?: string; staleTime?: number; refetchInterval?: number; refetchOnReconnect?: boolean; refetchOnFocus?: boolean; refetchBatchSize?: number; refetchBatchDelayMs?: number; refetchMaxRetries?: number; refetchRetryDelayMs?: number; ignoreQueryParams?: string[]; normalizeCacheKey?: boolean },
+  swConfig: { strategy: { default: string; patterns: Record<string, string | { strategy: string; staleTime?: number; refetchInterval?: number; refetchOnReconnect?: boolean; refetchOnFocus?: boolean }>; reactive?: { defaults: { staleTime?: number; refetchInterval?: number; refetchOnReconnect?: boolean; refetchOnFocus?: boolean } }; mode?: "all" | "explicit-only"; normalizeKey?: boolean; ignoreQueryParams?: string[] }; navigation: { mode?: "spa" | "default"; preload?: boolean; fallback?: string }; refetchQueue: { batchSize?: number; batchDelayMs?: number; maxRetries?: number; retryDelayMs?: number } },
   tagInvalidation: boolean,
 ): string {
-  const { defaultStrategy, strategies, cacheStrategy = "all", navigationPreload, navigationMode, spaEntry, staleTime: globalStaleTime, refetchInterval: globalRefetchInterval, refetchOnReconnect: globalRefetchOnReconnect, refetchOnFocus: globalRefetchOnFocus, refetchBatchSize = 5, refetchBatchDelayMs = 1000, refetchMaxRetries = 3, refetchRetryDelayMs = 1000, ignoreQueryParams, normalizeCacheKey } = swConfig;
-
-  const navMode = navigationMode ?? "spa";
-  const spaPath = spaEntry ?? "/index.html";
+  const { strategy: { default: defaultStrategy, patterns: strategies, mode: cacheStrategy = "all", normalizeKey: normalizeCacheKey, ignoreQueryParams }, navigation: { mode: navMode = "spa", preload: navigationPreload, fallback: spaPath = "/index.html" }, refetchQueue: { batchSize: refetchBatchSize = 5, batchDelayMs: refetchBatchDelayMs = 1000, maxRetries: refetchMaxRetries = 3, retryDelayMs: refetchRetryDelayMs = 1000 } } = swConfig;
+  const { staleTime: globalStaleTime, refetchInterval: globalRefetchInterval, refetchOnReconnect: globalRefetchOnReconnect, refetchOnFocus: globalRefetchOnFocus } = swConfig.strategy.reactive?.defaults || {};
 
   const staleVersionCode = tagInvalidation ? `
     cleanStaleVersions();

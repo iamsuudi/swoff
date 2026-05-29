@@ -51,7 +51,7 @@ This means the user **never sees a loading spinner** for cached data. The respon
 | `network-only` | Always hit the network. Never caches. |
 | `reactive` | Serve from cache. If stale (past `staleTime`), trigger a background refresh. Additionally, can auto-refetch on interval, window focus, or reconnect. |
 
-The key insight: staleTime does not **evict** the entry. It makes the data **usable indefinitely** while keeping it fresh in the background. Background refreshes are batched (`refetchBatchSize`) with rate limiting (`refetchBatchDelayMs`) to avoid stampedes.
+The key insight: staleTime does not **evict** the entry. It makes the data **usable indefinitely** while keeping it fresh in the background. Background refreshes are batched (`features.refetchQueue.batchSize`) with rate limiting (`features.refetchQueue.batchDelayMs`) to avoid stampedes.
 
 The reactive strategy bundles three optional refresh triggers that all gate through `staleTime`:
 
@@ -68,11 +68,11 @@ The reactive strategy bundles three optional refresh triggers that all gate thro
 Instead of fire-and-forget `event.waitUntil(refetch())` on every stale request, Swoff uses a shared batch queue as the single deduped entry point for all proactive refreshes:
 
 1. Any trigger (staleTime expiry, refetchInterval tick, refetchOnFocus, refetchOnReconnect, or tag invalidation) calls `queueRefresh(url)` which adds the URL to a `Map<string, entry>` keyed by cache key (automatic dedup)
-2. A single `_processRefreshQueue()` microtask processes URLs in batches of `refetchBatchSize`
-3. Between batches, a delay of `refetchBatchDelayMs` is applied (rate limiting)
+2. A single `_processRefreshQueue()` microtask processes URLs in batches of `features.refetchQueue.batchSize`
+3. Between batches, a delay of `features.refetchQueue.batchDelayMs` is applied (rate limiting)
 4. On each successful refetch, `CACHE_UPDATED` is posted to all connected clients, and any `staleVersions` tracking is cleaned up
 
-**Retry with exponential backoff**: if a refresh fetch fails (network error, non-ok response), the entry is re-queued with an incremented `retryCount`. The retry delay = `refetchRetryDelayMs × 2^(retryCount - 1)`. After `refetchMaxRetries` consecutive failures, the entry is dropped. A `setTimeout` schedules re-processing after the delay, ensuring the SW stays alive for retries.
+**Retry with exponential backoff**: if a refresh fetch fails (network error, non-ok response), the entry is re-queued with an incremented `retryCount`. The retry delay = `features.refetchQueue.retryDelayMs × 2^(retryCount - 1)`. After `features.refetchQueue.maxRetries` consecutive failures, the entry is dropped. A `setTimeout` schedules re-processing after the delay, ensuring the SW stays alive for retries.
 
 This prevents:
 - **Stampedes**: 50 stale resources from a page load all get queued, not fetched simultaneously
@@ -99,14 +99,14 @@ Non-reactive strategies (cache-first, network-first, stale-while-revalidate) do 
 The `strategy` field resolves through three priority levels:
 
 1. **Per-request (highest)** — passed as options to `fetchWithCache({ strategy })` or `useCachedFetch()`, or via `X-SW-Strategy` header
-2. **Route pattern** — configured in `features.serviceWorker.strategies` keyed by URL pattern
-3. **Global default (lowest)** — configured at `features.serviceWorker.defaultStrategy`
+2. **Route pattern** — configured in `features.serviceWorker.strategy.patterns` keyed by URL pattern
+3. **Global default (lowest)** — configured at `features.serviceWorker.strategy.default`
 
 **Reactive-only fields** (`staleTime`, `refetchInterval`, `refetchOnReconnect`, `refetchOnFocus`) now resolve through three tiers:
 
 1. **Per-request (highest)** — via `X-SW-Stale-Time` / `X-SW-Refetch-Interval` / `X-SW-Refetch-On-Reconnect` / `X-SW-Refetch-On-Focus` headers or per-request options on `fetchWithCache`
-2. **Route pattern** — configured in the strategies entry for the matching pattern (e.g. `{ "strategy": "reactive", "staleTime": 30 }`)
-3. **Global default (lowest)** — configured at `features.serviceWorker.staleTime` / `features.serviceWorker.refetchInterval` etc.
+2. **Route pattern** — configured in the patterns entry for the matching pattern (e.g. `{ "strategy": "reactive", "staleTime": 30 }`)
+3. **Global default (lowest)** — configured at `features.serviceWorker.strategy.reactive.defaults.staleTime` / `features.serviceWorker.strategy.reactive.defaults.refetchInterval` etc.
 
 **Example resolution flow:**
 
@@ -309,7 +309,7 @@ Auth tokens are stored **in memory only** — never persisted to IndexedDB or lo
 
 ## Cache strategy modes
 
-`features.serviceWorker.cacheStrategy` controls when the SW applies caching strategies to requests:
+`features.serviceWorker.strategy.mode` controls when the SW applies caching strategies to requests:
 
 - **`"all"`** (default): every GET/HEAD request passes through the strategy dispatch system, including plain `fetch()` calls. This means third-party libraries that use `fetch()` are also cached.
 - **`"explicit-only"`**: only requests with `X-SW-Cache-Strategy` header are processed by the strategy system. `fetchWithCache()` sets this header automatically. Plain `fetch()` calls pass through unmodified.

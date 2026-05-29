@@ -61,7 +61,7 @@ All `RequestInit` fields are supported (`method`, `body`, `headers`, `credential
 - **Auto-invalidate**: after a successful mutation, matching cache tags are invalidated. Mutation success is determined by `response.ok` by default, or `validateSuccess` if provided. The auto-invalidation target URL can be overridden with `invalidateUrl` (useful when mutation URL differs from the cache tag URL).
 - **Auth**: when `auth: true`, attaches auth headers. Dispatches `sw-auth-unauthorized` on 401.
 - **StaleTime**: 3-tier resolution (per-request / route pattern / global default). Only affects `reactive` strategy. Controls the fresh window before a background refresh is triggered.
-- **Background refresh retry**: failed refetches are retried with exponential backoff up to `refetchMaxRetries` times (base delay `refetchRetryDelayMs`).
+- **Background refresh retry**: failed refetches are retried with exponential backoff up to `features.refetchQueue.maxRetries` times (base delay `features.refetchQueue.retryDelayMs`).
 
 ### `prefetchCache(input, options?)`
 
@@ -398,7 +398,7 @@ import {
 
 | Function                          | Description                                                                            |
 | --------------------------------- | -------------------------------------------------------------------------------------- |
-| `subscribeToPush(vapidPublicKey)` | Request permission and subscribe. Returns `PushSubscription \| null` (null if denied). |
+| `subscribeToPush()` | Request permission and subscribe. Returns `PushSubscription \| null` (null if denied). |
 | `unsubscribeFromPush()`           | Unsubscribe and clear stored subscription                                              |
 | `isSubscribed()`                  | Check subscription status (returns `Promise<boolean>`)                                 |
 | `getPushSubscription()`           | Get current subscription object (returns `Promise<PushSubscription \| null>`)          |

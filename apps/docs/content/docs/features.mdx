@@ -55,11 +55,15 @@ Configure via `swoff.config.json`:
 |-------|------|---------|-------------|
 | `autoRegister` | boolean | `true` | Auto-register new SW versions on page load |
 | `autoActivate` | boolean | `false` | Auto-activate via `skipWaiting` after registration |
-| `defaultStrategy` | string | `"cache-first"` | Default caching strategy |
-| `strategies` | object | `{}` | Per-URL pattern strategy overrides |
-| `clearRuntimeOnUpdate` | boolean | `false` | Clear runtime cache on SW activate (security measure) |
-| `navigationMode` | string | `"spa"` | SPA navigation fallback or default strategy |
-| `spaEntry` | string | `"/index.html"` | Fallback URL for SPA navigation mode |
+| `strategy.default` | string | `"cache-first"` | Default caching strategy |
+| `strategy.patterns` | object | `{}` | Per-URL pattern strategy overrides |
+| `strategy.mode` | string | `"all"` | Controls which requests are processed by the SW cache strategy system |
+| `strategy.clearRuntimeOnUpdate` | boolean | `false` | Clear runtime cache on SW activate (security measure) |
+| `strategy.normalizeKey` | boolean | `false` | Normalize cache keys by sorting query params |
+| `strategy.ignoreQueryParams` | string[] | `[]` | Query params to ignore when matching cache keys |
+| `navigation.mode` | string | `"spa"` | SPA navigation fallback or default strategy |
+| `navigation.preload` | boolean | `true` | Enable Navigation Preload API |
+| `navigation.fallback` | string | `"/index.html"` | Fallback URL for SPA navigation mode |
 
 ## Invalidation Tags
 

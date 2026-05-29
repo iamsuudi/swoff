@@ -4,9 +4,8 @@
 
 import { GeneratorContext, writeFile } from "./context.js";
 
-function tagInvalidationEnabled(config: { features: { tagInvalidation: unknown } }): boolean {
-  const ti = config.features.tagInvalidation;
-  return typeof ti === "boolean" ? ti : (ti as { enabled: boolean })?.enabled ?? false;
+function tagInvalidationEnabled(config: { features: { tagInvalidation: { enabled: boolean } } }): boolean {
+  return config.features.tagInvalidation.enabled;
 }
 
 export function generateGuide(ctx: GeneratorContext): void {
@@ -58,7 +57,7 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("**3-tier staleTime resolution (like strategies):**");
   w("1. **Per-request** — `fetchWithCache(url, { staleTime: 30 })` overrides everything");
   w("2. **Route pattern** — `\"/api/*\": { staleTime: 60 }` in `swoff.config.json`");
-  w("3. **Global default** — `features.serviceWorker.staleTime`");
+  w("3. **Global default** — `features.serviceWorker.strategy.reactive.defaults.staleTime`");
   w("");
   w("**How staleTime changes each strategy:**");
   w("| Strategy | Fresh data (within staleTime) | Stale data (past staleTime) |");
@@ -194,12 +193,12 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("");
   w("1. **Per-request override (highest)** — set `strategy` on `fetchWithCache()`.");
   w("   Sent as `X-SW-Strategy` header to the SW.");
-  w("2. **URL pattern match** — configured in `swoff.config.json` under `features.serviceWorker.strategies`.");
+  w("2. **URL pattern match** — configured in `swoff.config.json` under `features.serviceWorker.strategy.patterns`.");
   w("   e.g. `\"/api/*\": \"network-first\"` matches all paths starting with `/api/`.");
-  w("3. **Default (lowest)** — `features.serviceWorker.defaultStrategy` (default: `\"cache-first\"`).");
+  w("3. **Default (lowest)** — `features.serviceWorker.strategy.default` (default: `\"cache-first\"`).");
   w("");
   w("### Cache strategy mode");
-  w("The `features.serviceWorker.cacheStrategy` option controls when strategies are invoked:");
+  w("The `features.serviceWorker.strategy.mode` option controls when strategies are invoked:");
   w("");
   w("- `\"all\"` (default): every GET/HEAD request goes through strategy dispatch, including plain `fetch()` calls.");
   w("- `\"explicit-only\"`: only requests with an `X-SW-Cache-Strategy` header (set automatically by `fetchWithCache()`)");
@@ -645,7 +644,7 @@ export function generateGuide(ctx: GeneratorContext): void {
     w("The service worker listens for invalidation events and forwards them to all clients.");
     w("");
 
-    if (!tagInvalidationEnabled(config)) {
+    if (!config.features.tagInvalidation.enabled) {
       w("> ⚠️ Cross-tab sync requires tag invalidation to be enabled for full functionality.");
       w("");
     }
@@ -826,11 +825,11 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("- `graphql.enabled` — GraphQL wrapper with body-hash caching. Object: `{ enabled, endpoint }`");
   w("- `pwa.enabled` — PWA install prompt and manifest");
   w("- `serverPush.enabled` — real-time cache invalidation via SSE/WebSocket. Object: `{ enabled, type, endpoint, reconnectDelayMs }`");
-  w("- `serviceWorker.cacheStrategy` — caching strategy mode (`\"all\"` or `\"explicit-only\"`)");
-  w("- `serviceWorker.defaultStrategy` — default caching strategy");
-  w("- `serviceWorker.strategies` — per-route strategy overrides");
-  w("- `serviceWorker.staleTime` — global stale time in seconds (data considered fresh for N seconds). Applies to cache-first and network-first only.");
-  w("- `serviceWorker.refetchBatchSize` — max stale cache entries to refetch per batch");
+  w("- `serviceWorker.strategy.mode` — caching strategy mode (`\"all\"` or `\"explicit-only\"`)");
+  w("- `serviceWorker.strategy.default` — default caching strategy");
+  w("- `serviceWorker.strategy.patterns` — per-route strategy overrides");
+  w("- `serviceWorker.strategy.reactive.defaults.staleTime` — global stale time in seconds (data considered fresh for N seconds). Applies to cache-first and network-first only.");
+  w("- `features.refetchQueue.batchSize` — max stale cache entries to refetch per batch");
   w("");
 
   w("---");

@@ -1,17 +1,3 @@
-/**
- * Swoff Service Worker Generator
- *
- * Generates a service worker based on swoff.config.json configuration.
- * Thin orchestrator - delegates to sw-sections for code generation.
- *
- * CLI Usage:
- *   node sw-generator.js [--project-root <path>] [--package-dir <path>] [--config-path <path>]
- *
- * Module Usage:
- *   import { generateSW } from './sw-generator.js';
- *   await generateSW({ projectRoot: '/path/to/project', onStatus: (msg) => {...} });
- */
-
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -24,10 +10,11 @@ interface GeneratorOptions {
   onStatus?: (msg: string) => void;
 }
 
-function resolveVersion(config: { features: { serviceWorker: { version: { source: string; value?: string } } } }, pkgVersion: string): string {
+function resolveVersion(config: { features: { serviceWorker: { version: string | false; minSupportedVersion: string } } }, pkgVersion: string): string {
   const v = config.features.serviceWorker.version;
-  if (v.source === "manual" && v.value) return v.value;
-  return pkgVersion || "1.0.0";
+  if (v === false || v === "hash") return pkgVersion || "1.0.0";
+  if (v === "package") return pkgVersion || "1.0.0";
+  return v;
 }
 
 export async function generateSW(options: GeneratorOptions = {}): Promise<{ version: string; outputFile: string }> {
@@ -53,7 +40,8 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ vers
     return { version: "", outputFile: "" };
   }
 
-  const versionEnabled = config.features.serviceWorker.version.enabled;
+  const v = config.features.serviceWorker.version;
+  const versionEnabled = v !== false && v !== "hash";
   const version = resolveVersion(config, pkg.version || "1.0.0");
   const sw = assembleSW(config, version, optProjectRoot);
 
@@ -74,7 +62,7 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ vers
         JSON.stringify(
           {
             version,
-            minSupportedVersion: config.features.serviceWorker.version.minSupportedVersion,
+            minSupportedVersion: config.features.serviceWorker.minSupportedVersion,
             generatedAt: new Date().toISOString(),
             configEnabled: config.enabled,
             configSource,

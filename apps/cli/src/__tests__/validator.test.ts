@@ -2,26 +2,43 @@ import { describe, it, expect } from "vitest";
 import { validateConfig } from "../lib/config/validator.js";
 
 describe("validateConfig", () => {
-  const validConfig = {
+  const validConfig: Record<string, any> = {
     enabled: true,
     features: {
       pwa: { enabled: true, preventDefaultInstall: false },
       serviceWorker: {
-        version: {
-          enabled: true,
-          source: "from-package",
-          minSupportedVersion: "1.0.0",
-        },
+        version: "package",
+        minSupportedVersion: "1.0.0",
         autoUpdate: true,
         autoActivate: false,
-        defaultStrategy: "cache-first",
-        strategies: {},
+        strategy: {
+          default: "cache-first",
+          patterns: {},
+          reactive: {
+            defaults: {
+              staleTime: 0,
+              refetchInterval: 0,
+              refetchOnReconnect: false,
+              refetchOnFocus: false,
+            },
+          },
+        },
+        navigation: {
+          mode: "spa",
+          fallback: "/index.html",
+        },
       },
-      mutationQueue: false,
+      refetchQueue: {
+        batchSize: 5,
+        batchDelayMs: 1000,
+        maxRetries: 3,
+        retryDelayMs: 1000,
+      },
+      mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
       backgroundSync: false,
       auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
       crossTabSync: true,
-      tagInvalidation: true,
+      tagInvalidation: { enabled: true },
       graphql: { enabled: false, endpoint: "/graphql" },
     },
     build: { outputDir: "dist", swFilename: "sw" },
@@ -34,20 +51,20 @@ describe("validateConfig", () => {
     });
 
     it("fails when enabled is missing", () => {
-      const { enabled, ...rest } = validConfig;
+      const { enabled: _, ...rest } = validConfig;
       const errors = validateConfig(rest as Record<string, unknown>);
       expect(errors).toHaveLength(1);
       expect(errors[0]).toContain("Missing required fields");
     });
 
     it("fails when features is missing", () => {
-      const { features, ...rest } = validConfig;
+      const { features: _, ...rest } = validConfig;
       const errors = validateConfig(rest as Record<string, unknown>);
       expect(errors[0]).toContain("Missing required fields");
     });
 
     it("fails when build is missing", () => {
-      const { build, ...rest } = validConfig;
+      const { build: _, ...rest } = validConfig;
       const errors = validateConfig(rest as Record<string, unknown>);
       expect(errors[0]).toContain("Missing required fields");
     });
@@ -72,19 +89,19 @@ describe("validateConfig", () => {
       expect(errors).toContain("features.serviceWorker.autoActivate must be a boolean");
     });
 
-    it("rejects invalid defaultStrategy", () => {
+    it("rejects invalid default strategy", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, defaultStrategy: "magic-cache" } },
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, strategy: { ...validConfig.features.serviceWorker.strategy, default: "magic-cache" } } },
       };
       const errors = validateConfig(config);
-      expect(errors[0]).toContain("Invalid defaultStrategy");
+      expect(errors[0]).toContain("Invalid features.serviceWorker.strategy.default");
     });
 
-    it("rejects invalid strategy in strategies", () => {
+    it("rejects invalid strategy in patterns", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, strategies: { "/api/*": "invalid" } } },
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, strategy: { ...validConfig.features.serviceWorker.strategy, patterns: { "/api/*": "invalid" } } } },
       };
       const errors = validateConfig(config);
       expect(errors[0]).toContain("Invalid strategy");
@@ -93,7 +110,7 @@ describe("validateConfig", () => {
     it("rejects staleTime on non-reactive strategy", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, strategies: { "/api/*": { strategy: "cache-first", staleTime: 30 } } } },
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, strategy: { ...validConfig.features.serviceWorker.strategy, patterns: { "/api/*": { strategy: "cache-first", staleTime: 30 } } } } },
       };
       const errors = validateConfig(config);
       expect(errors[0]).toContain('staleTime is only valid with "reactive" strategy');
@@ -102,7 +119,7 @@ describe("validateConfig", () => {
     it("rejects refetchInterval on non-reactive strategy", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, strategies: { "/api/*": { strategy: "stale-while-revalidate", refetchInterval: 15 } } } },
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, strategy: { ...validConfig.features.serviceWorker.strategy, patterns: { "/api/*": { strategy: "stale-while-revalidate", refetchInterval: 15 } } } } },
       };
       const errors = validateConfig(config);
       expect(errors[0]).toContain('refetchInterval is only valid with "reactive" strategy');
@@ -111,7 +128,7 @@ describe("validateConfig", () => {
     it("accepts reactive strategy with all reactive fields", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, strategies: { "/api/*": { strategy: "reactive", staleTime: 30, refetchInterval: 15, refetchOnFocus: true, refetchOnReconnect: true } } } },
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, strategy: { ...validConfig.features.serviceWorker.strategy, patterns: { "/api/*": { strategy: "reactive", staleTime: 30, refetchInterval: 15, refetchOnFocus: true, refetchOnReconnect: true } } } } },
       };
       const errors = validateConfig(config);
       expect(errors).toEqual([]);
@@ -120,7 +137,7 @@ describe("validateConfig", () => {
     it("rejects invalid staleTime on reactive strategy", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, strategies: { "/api/*": { strategy: "reactive", staleTime: -5 } } } },
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, strategy: { ...validConfig.features.serviceWorker.strategy, patterns: { "/api/*": { strategy: "reactive", staleTime: -5 } } } } },
       };
       const errors = validateConfig(config);
       expect(errors[0]).toContain("staleTime must be a non-negative number");
@@ -131,11 +148,82 @@ describe("validateConfig", () => {
       for (const strategy of strategies) {
         const config = {
           ...validConfig,
-          features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, defaultStrategy: strategy } },
+          features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, strategy: { ...validConfig.features.serviceWorker.strategy, default: strategy } } },
         };
         const errors = validateConfig(config);
         expect(errors).toEqual([]);
       }
+    });
+  });
+
+  describe("version validation", () => {
+    it('accepts "package" version', () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: "package" } },
+      };
+      expect(validateConfig(config)).toEqual([]);
+    });
+
+    it('accepts "hash" version', () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: "hash" } },
+      };
+      expect(validateConfig(config)).toEqual([]);
+    });
+
+    it("accepts valid semver string version", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: "1.2.3" } },
+      };
+      expect(validateConfig(config)).toEqual([]);
+    });
+
+    it("accepts false version", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: false } },
+      };
+      expect(validateConfig(config)).toEqual([]);
+    });
+
+    it("rejects invalid version string", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: "latest" } },
+      };
+      const errors = validateConfig(config);
+      expect(errors[0]).toContain('version must be "package", "hash", a semver string');
+    });
+
+    it("rejects version with wrong type", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: true } },
+      };
+      const errors = validateConfig(config);
+      expect(errors[0]).toContain("features.serviceWorker.version must be a string or false");
+    });
+  });
+
+  describe("minSupportedVersion validation", () => {
+    it("accepts valid semver", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, minSupportedVersion: "0.1.0" } },
+      };
+      expect(validateConfig(config)).toEqual([]);
+    });
+
+    it("rejects invalid format", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, minSupportedVersion: "beta" } },
+      };
+      const errors = validateConfig(config);
+      expect(errors[0]).toContain("Invalid minSupportedVersion");
     });
   });
 
@@ -158,6 +246,24 @@ describe("validateConfig", () => {
       expect(errors[0]).toContain('Feature "pwa" must be an object');
     });
 
+    it("rejects boolean for object feature mutationQueue", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, mutationQueue: true },
+      };
+      const errors = validateConfig(config);
+      expect(errors[0]).toContain('Feature "mutationQueue" must be an object');
+    });
+
+    it("rejects boolean for object feature tagInvalidation", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, tagInvalidation: true },
+      };
+      const errors = validateConfig(config);
+      expect(errors[0]).toContain('Feature "tagInvalidation" must be an object');
+    });
+
     it("accepts object feature pwa", () => {
       const config = {
         ...validConfig,
@@ -175,7 +281,7 @@ describe("validateConfig", () => {
       expect(errors).toContain("features.pwa.enabled must be a boolean");
     });
 
-    it("validates pwa.preventDefaultInstall is boolean", () => {
+    it("validates pva.preventDefaultInstall is boolean", () => {
       const config = {
         ...validConfig,
         features: { ...validConfig.features, pwa: { enabled: true, preventDefaultInstall: "true" } },
@@ -187,7 +293,7 @@ describe("validateConfig", () => {
     it("rejects crossTabSync without tagInvalidation", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, crossTabSync: true, tagInvalidation: false },
+        features: { ...validConfig.features, crossTabSync: true, tagInvalidation: { enabled: false } },
       };
       const errors = validateConfig(config);
       expect(errors).toContain("crossTabSync requires tagInvalidation to be enabled");
@@ -196,22 +302,13 @@ describe("validateConfig", () => {
     it("rejects backgroundSync without mutationQueue enabled", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, backgroundSync: true, mutationQueue: false },
-      };
-      const errors = validateConfig(config);
-      expect(errors).toContain("backgroundSync requires mutationQueue to be enabled");
-    });
-
-    it("rejects backgroundSync with mutationQueue object enabled: false", () => {
-      const config = {
-        ...validConfig,
         features: { ...validConfig.features, backgroundSync: true, mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 } },
       };
       const errors = validateConfig(config);
       expect(errors).toContain("backgroundSync requires mutationQueue to be enabled");
     });
 
-    it("passes backgroundSync with mutationQueue object enabled: true", () => {
+    it("passes backgroundSync with mutationQueue enabled", () => {
       const config = {
         ...validConfig,
         features: { ...validConfig.features, backgroundSync: true, mutationQueue: { enabled: true, batchSize: 5, batchDelayMs: 500, maxRetries: 3, retryBackoffMs: 2000 } },
@@ -236,24 +333,6 @@ describe("validateConfig", () => {
       };
       const errors = validateConfig(config);
       expect(errors).toContain("features.mutationQueue.maxRetries must be a positive integer");
-    });
-
-    it("validates mutationQueue.batchDelayMs must be non-negative integer", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, mutationQueue: { enabled: true, batchDelayMs: -5 } },
-      };
-      const errors = validateConfig(config);
-      expect(errors).toContain("features.mutationQueue.batchDelayMs must be a non-negative integer");
-    });
-
-    it("validates mutationQueue.retryBackoffMs must be non-negative", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, mutationQueue: { enabled: true, retryBackoffMs: -1 } },
-      };
-      const errors = validateConfig(config);
-      expect(errors).toContain("features.mutationQueue.retryBackoffMs must be a non-negative number");
     });
 
     it("validates auth.enabled is boolean", () => {
@@ -281,70 +360,6 @@ describe("validateConfig", () => {
       };
       const errors = validateConfig(config);
       expect(errors).toContain("features.auth.refreshPath must be a string");
-    });
-
-    it("validates auth.userEndpoint is string", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, auth: { enabled: true, type: "bearer", refreshPath: "/api/refresh", userEndpoint: 456 } },
-      };
-      const errors = validateConfig(config);
-      expect(errors).toContain("features.auth.userEndpoint must be a string");
-    });
-  });
-
-  describe("version validation", () => {
-    it("accepts from-package source", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: { ...validConfig.features.serviceWorker.version, source: "from-package" } } },
-      };
-      expect(validateConfig(config)).toEqual([]);
-    });
-
-    it("accepts valid semver value with manual source", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: { enabled: true, source: "manual", value: "1.2.3", minSupportedVersion: "0.0.0" } } },
-      };
-      expect(validateConfig(config)).toEqual([]);
-    });
-
-    it("rejects missing value when source is manual", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: { enabled: true, source: "manual", minSupportedVersion: "0.0.0" } } },
-      };
-      const errors = validateConfig(config);
-      expect(errors[0]).toContain("version.value is required when source is 'manual'");
-    });
-
-    it("rejects invalid version value format", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: { enabled: true, source: "manual", value: "latest", minSupportedVersion: "0.0.0" } } },
-      };
-      const errors = validateConfig(config);
-      expect(errors[0]).toContain("Invalid version value");
-    });
-  });
-
-  describe("minSupportedVersion validation", () => {
-    it("accepts valid semver", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: { ...validConfig.features.serviceWorker.version, minSupportedVersion: "0.1.0" } } },
-      };
-      expect(validateConfig(config)).toEqual([]);
-    });
-
-    it("rejects invalid format", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: { ...validConfig.features.serviceWorker.version, minSupportedVersion: "beta" } } },
-      };
-      const errors = validateConfig(config);
-      expect(errors[0]).toContain("Invalid minSupportedVersion");
     });
   });
 

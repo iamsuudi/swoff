@@ -23,11 +23,25 @@ Full schema at `https://swoff.netlify.app/schema/v1.json`.
 |-------|------|---------|-------------|
 | `autoRegister` | boolean | `true` | Auto-register new SW versions on page load. Set `false` for consent-based registration |
 | `autoActivate` | boolean | `false` | Auto-activate new SW via `skipWaiting`. Only applies when `autoRegister` or `handleUpdateApproved()` registers a new version |
-| `defaultStrategy` | string | `"cache-first"` | Default caching strategy for unmatched routes |
-| `strategies` | object | `{}` | Per-URL pattern strategy overrides |
+
+### `serviceWorker.strategy`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `default` | string | `"cache-first"` | Default caching strategy for unmatched routes |
+| `patterns` | object | `{}` | Per-URL pattern strategy overrides |
+| `mode` | string | `"all"` | Controls which requests are processed by the SW cache strategy system. `"all"` processes every GET/HEAD request. `"explicit-only"` only processes requests with `X-SW-Cache-Strategy` header |
 | `clearRuntimeOnUpdate` | boolean | `false` | Delete runtime cache on SW activate. Use as a security measure — cached API responses are cleared on every SW update, preventing poisoned data from persisting |
-| `navigationMode` | string | `"spa"` | How navigation requests are handled. `"spa"` falls back to `spaEntry` on cache miss. `"default"` uses the strategy as-is |
-| `spaEntry` | string | `"/index.html"` | Fallback URL for navigation requests when `navigationMode` is `"spa"` |
+| `normalizeKey` | boolean | `false` | Normalize cache keys by lowercasing and sorting query params. Reduces cache fragmentation |
+| `ignoreQueryParams` | string[] | `[]` | Query parameter names to ignore when matching cache keys. Useful for Analytics/UTM params that should not create separate cache entries |
+
+### `serviceWorker.navigation`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `mode` | string | `"spa"` | How navigation requests are handled. `"spa"` falls back to `fallback` on cache miss. `"default"` uses the strategy as-is |
+| `preload` | boolean | `true` | Enable Navigation Preload API in the service worker. Reduces startup latency for navigation requests |
+| `fallback` | string | `"/index.html"` | Fallback URL for navigation requests when `navigation.mode` is `"spa"` |
 
 
 ### Strategy Values
@@ -105,14 +119,22 @@ The generated manifest includes full PWA fields (name, short_name, icons, start_
   "serviceWorker": {
     "autoRegister": true,
     "autoActivate": false,
-    "defaultStrategy": "cache-first",
-    "strategies": {
-      "/api/*": "network-first",
-      "/static/*": "cache-first"
+    "strategy": {
+      "default": "cache-first",
+      "patterns": {
+        "/api/*": "network-first",
+        "/static/*": "cache-first"
+      },
+      "mode": "all",
+      "clearRuntimeOnUpdate": false,
+      "normalizeKey": false,
+      "ignoreQueryParams": []
     },
-    "clearRuntimeOnUpdate": false,
-    "navigationMode": "spa",
-    "spaEntry": "/index.html"
+    "navigation": {
+      "mode": "spa",
+      "preload": true,
+      "fallback": "/index.html"
+    }
   },
   "features": {
     "versionedSw": true,

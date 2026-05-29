@@ -27,10 +27,12 @@ All framework guides now use the new JSON configuration system:
   "enabled": true,
   "version": "from-package",
   "serviceWorker": {
-    "defaultStrategy": "cache-first",
-    "strategies": {
-      "/api/*": "network-first",
-      "/static/*": "cache-first"
+    "strategy": {
+      "default": "cache-first",
+      "patterns": {
+        "/api/*": "network-first",
+        "/static/*": "cache-first"
+      }
     }
   },
   "features": {

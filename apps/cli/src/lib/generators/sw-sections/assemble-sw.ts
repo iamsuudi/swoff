@@ -1,8 +1,3 @@
-/**
- * Assembles the complete service worker string from config and version.
- * Calls individual section generators and performs placeholder replacement.
- */
-
 import { readdirSync, existsSync } from "fs";
 import { join, relative } from "path";
 import { createHash } from "crypto";
@@ -45,14 +40,20 @@ function applyReplacements(sw: string, config: SwoffConfig, assetsToCache: { url
 
   sw = sw.replace("// [[ASSETS_LIST]]", `ASSETS_TO_CACHE = ${JSON.stringify(assetsToCache, null, 2)}`);
   sw = sw.replace("// [[AUTO_SKIP_WAITING]]", `const AUTO_SKIP_WAITING = ${serviceWorker.autoActivate};`);
-  const refetchBatchSize = serviceWorker.refetchBatchSize ?? 5;
-  const refetchBatchDelayMs = serviceWorker.refetchBatchDelayMs ?? 1000;
-  const ti = features.tagInvalidation;
-  const tagInvalidationEnabled = typeof ti === "boolean" ? ti : ti.enabled;
-  sw = sw.replace("// [[FETCH_HANDLER]]", generateFetchHandler({ ...serviceWorker, refetchBatchSize, refetchBatchDelayMs, strategies: serviceWorker.strategies }, tagInvalidationEnabled));
-  sw = sw.replace("// [[ACTIVATE_HANDLER]]", generateActivateHandler(serviceWorker.clearRuntimeOnUpdate, serviceWorker.navigationPreload));
+
+  const { strategy, navigation } = serviceWorker;
+  const { refetchQueue } = features;
+  const tagInvalidationEnabled = features.tagInvalidation.enabled;
+
+  sw = sw.replace("// [[FETCH_HANDLER]]", generateFetchHandler({
+    strategy,
+    navigation,
+    refetchQueue,
+  }, tagInvalidationEnabled));
+
+  sw = sw.replace("// [[ACTIVATE_HANDLER]]", generateActivateHandler(strategy.clearRuntimeOnUpdate, navigation.preload));
   sw = sw.replace("// [[INSTALL_HANDLER]]", generateInstallHandler());
-  sw = sw.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(tagInvalidationEnabled, features.auth.enabled));
+  sw = sw.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(tagInvalidationEnabled, features.auth.enabled, features.tagInvalidation.debounceMs));
   sw = tagInvalidationEnabled
     ? sw.replace("// [[TAG_MANAGEMENT]]", generateTagManagement())
     : sw.replace("// [[TAG_MANAGEMENT]]", "");
@@ -73,7 +74,7 @@ export function assembleSW(config: SwoffConfig, version: string, projectRoot?: s
   const { features } = config;
   const outputDir = config.build?.outputDir || "dist";
   const swFilename = config.build?.swFilename || "sw";
-  const versionEnabled = serviceWorker.version.enabled;
+  const versionEnabled = serviceWorker.version !== false && serviceWorker.version !== "hash";
 
   const fallback: string[] = ["/index.html"];
   if (features.pwa.enabled) fallback.push("/manifest.json");

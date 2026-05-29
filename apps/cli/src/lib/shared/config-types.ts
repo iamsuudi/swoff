@@ -10,19 +10,19 @@ export interface AuthConfig {
   userEndpoint: string;
 }
 
-export interface SwVersionConfig {
-  enabled: boolean;
-  source: "from-package" | "manual";
-  value?: string;
-  minSupportedVersion: string;
-}
-
 export interface MutationQueueConfig {
   enabled: boolean;
   batchSize: number;
   batchDelayMs: number;
   maxRetries: number;
   retryBackoffMs: number;
+}
+
+export interface RefetchQueueConfig {
+  batchSize: number;
+  batchDelayMs: number;
+  maxRetries: number;
+  retryDelayMs: number;
 }
 
 export const REACTIVE_FIELDS = ["staleTime", "refetchInterval", "refetchOnReconnect", "refetchOnFocus"] as const;
@@ -37,14 +37,11 @@ export interface StrategyEntry {
 
 export interface TagInvalidationConfig {
   enabled: boolean;
+  debounceMs?: number;
   prefixes?: string[];
   patterns?: Record<string, string[]>;
   singularization?: Record<string, string>;
   cascading?: Record<string, string[]>;
-  invalidation?: {
-    debounceMs?: number;
-    optimistic?: boolean;
-  };
 }
 
 export interface SwoffConfig {
@@ -57,34 +54,40 @@ export interface SwoffConfig {
       preventDefaultInstall: boolean;
     };
     serviceWorker: {
-      version: SwVersionConfig;
+      version: string | false;
+      minSupportedVersion: string;
       autoUpdate: boolean;
       autoActivate: boolean;
-      defaultStrategy: string;
-      strategies: Record<string, string | StrategyEntry>;
-      cacheStrategy?: "all" | "explicit-only";
-      clearRuntimeOnUpdate: boolean;
-      navigationPreload?: boolean;
-      navigationMode: "spa" | "default";
-      spaEntry: string;
-      staleTime?: number;
-      refetchInterval?: number;
-      refetchOnReconnect?: boolean;
-      refetchOnFocus?: boolean;
-      refetchBatchSize?: number;
-      refetchBatchDelayMs?: number;
-      refetchMaxRetries?: number;
-      refetchRetryDelayMs?: number;
-      ignoreQueryParams?: string[];
-      normalizeCacheKey?: boolean;
+      strategy: {
+        default: string;
+        patterns: Record<string, string | StrategyEntry>;
+        reactive: {
+          defaults: {
+            staleTime?: number;
+            refetchInterval?: number;
+            refetchOnReconnect?: boolean;
+            refetchOnFocus?: boolean;
+          };
+        };
+        mode?: "all" | "explicit-only";
+        clearRuntimeOnUpdate: boolean;
+        normalizeKey?: boolean;
+        ignoreQueryParams?: string[];
+      };
+      navigation: {
+        mode: "spa" | "default";
+        preload?: boolean;
+        fallback: string;
+      };
     };
+    refetchQueue: RefetchQueueConfig;
     mutationQueue: MutationQueueConfig;
     backgroundSync: boolean;
     auth: AuthConfig;
     crossTabSync: boolean;
-    tagInvalidation: boolean | TagInvalidationConfig;
+    tagInvalidation: TagInvalidationConfig;
     graphql: GqlConfig;
-    pushNotifications?: {
+    pushNotifications: {
       enabled: boolean;
       vapidPublicKey?: string;
     };
@@ -102,6 +105,7 @@ export interface SwoffConfig {
 }
 
 export const KNOWN_FEATURES = [
+  "refetchQueue",
   "mutationQueue",
   "backgroundSync",
   "auth",
@@ -112,7 +116,7 @@ export const KNOWN_FEATURES = [
   "serverPush",
 ] as const;
 
-export const OBJECT_FEATURES = ["pwa", "serviceWorker", "auth", "pushNotifications", "graphql", "serverPush", "tagInvalidation"] as const;
+export const OBJECT_FEATURES = ["pwa", "serviceWorker", "auth", "pushNotifications", "graphql", "serverPush", "tagInvalidation", "mutationQueue", "refetchQueue"] as const;
 
 export const VALID_STRATEGIES = [
   "cache-first",
@@ -125,41 +129,6 @@ export const VALID_STRATEGIES = [
 
 export const API_PREFIXES = ["api", "v1", "v2", "v3", "rest", "graphql", "gql"];
 
-function normalizeAuth(auth: unknown): AuthConfig {
-  if (typeof auth === "boolean") return { ...defaultAuth, enabled: auth };
-  if (auth && typeof auth === "object") return { ...defaultAuth, ...(auth as Partial<AuthConfig>) };
-  return defaultAuth;
-}
-
-function normalizeSwVersion(ver: unknown): SwVersionConfig {
-  if (ver && typeof ver === "object") return { ...defaultVersionConfig, ...(ver as Partial<SwVersionConfig>) };
-  return defaultVersionConfig;
-}
-
-function normalizeGql(val: unknown): GqlConfig {
-  if (typeof val === "boolean") return { ...defaultGql, enabled: val };
-  if (val && typeof val === "object") return { ...defaultGql, ...(val as Partial<GqlConfig>) };
-  return defaultGql;
-}
-
-function normalizeMutationQueue(val: unknown): MutationQueueConfig {
-  if (typeof val === "boolean") return { ...defaultMutationQueue, enabled: val };
-  if (val && typeof val === "object") return { ...defaultMutationQueue, ...(val as Partial<MutationQueueConfig>) };
-  return defaultMutationQueue;
-}
-
-function normalizePushNotifications(val: unknown): { enabled: boolean; vapidPublicKey?: string } {
-  if (typeof val === "boolean") return { enabled: val };
-  if (val && typeof val === "object") return { enabled: false, ...(val as Partial<{ enabled: boolean; vapidPublicKey: string }>) };
-  return { enabled: false };
-}
-
-function normalizeTagInvalidation(val: unknown): TagInvalidationConfig {
-  if (typeof val === "boolean") return { ...defaultTagInvalidation, enabled: val };
-  if (val && typeof val === "object") return { ...defaultTagInvalidation, ...(val as Partial<TagInvalidationConfig>) };
-  return defaultTagInvalidation;
-}
-
 export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>): SwoffConfig {
   return {
     ...base,
@@ -171,13 +140,29 @@ export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>):
       serviceWorker: {
         ...base.features.serviceWorker,
         ...override.features?.serviceWorker,
-        version: normalizeSwVersion(override.features?.serviceWorker?.version),
+        version: override.features?.serviceWorker?.version ?? base.features.serviceWorker.version,
+        minSupportedVersion: override.features?.serviceWorker?.minSupportedVersion ?? base.features.serviceWorker.minSupportedVersion,
+        strategy: {
+          ...base.features.serviceWorker.strategy,
+          ...override.features?.serviceWorker?.strategy,
+          reactive: {
+            defaults: {
+              ...base.features.serviceWorker.strategy.reactive.defaults,
+              ...override.features?.serviceWorker?.strategy?.reactive?.defaults,
+            },
+          },
+        },
+        navigation: {
+          ...base.features.serviceWorker.navigation,
+          ...override.features?.serviceWorker?.navigation,
+        },
       },
-      auth: normalizeAuth(override.features?.auth),
-      mutationQueue: normalizeMutationQueue(override.features?.mutationQueue),
-      graphql: normalizeGql(override.features?.graphql),
-      tagInvalidation: normalizeTagInvalidation(override.features?.tagInvalidation ?? base.features.tagInvalidation),
-      pushNotifications: normalizePushNotifications(override.features?.pushNotifications ?? base.features.pushNotifications),
+      refetchQueue: { ...defaultRefetchQueue, ...base.features.refetchQueue, ...override.features?.refetchQueue },
+      mutationQueue: { ...defaultMutationQueue, ...base.features.mutationQueue, ...override.features?.mutationQueue },
+      auth: { ...defaultAuth, ...base.features.auth, ...override.features?.auth },
+      graphql: { ...defaultGql, ...base.features.graphql, ...override.features?.graphql },
+      tagInvalidation: { ...defaultTagInvalidation, ...base.features.tagInvalidation, ...override.features?.tagInvalidation },
+      pushNotifications: { ...base.features.pushNotifications, ...override.features?.pushNotifications },
       serverPush: { ...defaultServerPush, ...base.features.serverPush, ...override.features?.serverPush },
     },
     build: { ...base.build, ...override.build },
@@ -189,12 +174,6 @@ export const defaultAuth: AuthConfig = {
   type: "bearer",
   refreshPath: "/api/refresh",
   userEndpoint: "/api/me",
-};
-
-export const defaultVersionConfig: SwVersionConfig = {
-  enabled: true,
-  source: "from-package",
-  minSupportedVersion: "0.0.0",
 };
 
 export const defaultGql: GqlConfig = {
@@ -210,6 +189,13 @@ export const defaultMutationQueue: MutationQueueConfig = {
   retryBackoffMs: 1000,
 };
 
+export const defaultRefetchQueue: RefetchQueueConfig = {
+  batchSize: 5,
+  batchDelayMs: 1000,
+  maxRetries: 3,
+  retryDelayMs: 1000,
+};
+
 export const defaultServerPush = {
   enabled: false,
   type: "sse" as const,
@@ -219,14 +205,11 @@ export const defaultServerPush = {
 
 export const defaultTagInvalidation: TagInvalidationConfig = {
   enabled: true,
+  debounceMs: 0,
   prefixes: [...API_PREFIXES],
   patterns: {},
   singularization: {},
   cascading: {},
-  invalidation: {
-    debounceMs: 0,
-    optimistic: false,
-  },
 };
 
 export const defaultConfig: SwoffConfig = {
@@ -237,27 +220,33 @@ export const defaultConfig: SwoffConfig = {
       preventDefaultInstall: false,
     },
     serviceWorker: {
-      version: { ...defaultVersionConfig },
+      version: "package",
+      minSupportedVersion: "0.0.0",
       autoUpdate: true,
       autoActivate: false,
-      defaultStrategy: "cache-first",
-      strategies: {},
-      cacheStrategy: "all",
-      clearRuntimeOnUpdate: false,
-      navigationPreload: true,
-      navigationMode: "spa",
-      spaEntry: "/index.html",
-      staleTime: 0,
-      refetchInterval: 0,
-      refetchOnReconnect: false,
-      refetchOnFocus: false,
-      refetchBatchSize: 5,
-      refetchBatchDelayMs: 1000,
-      refetchMaxRetries: 3,
-      refetchRetryDelayMs: 1000,
-      ignoreQueryParams: [],
-      normalizeCacheKey: false,
+      strategy: {
+        default: "cache-first",
+        patterns: {},
+        reactive: {
+          defaults: {
+            staleTime: 0,
+            refetchInterval: 0,
+            refetchOnReconnect: false,
+            refetchOnFocus: false,
+          },
+        },
+        mode: "all",
+        clearRuntimeOnUpdate: false,
+        normalizeKey: false,
+        ignoreQueryParams: [],
+      },
+      navigation: {
+        mode: "spa",
+        preload: true,
+        fallback: "/index.html",
+      },
     },
+    refetchQueue: { ...defaultRefetchQueue },
     mutationQueue: { ...defaultMutationQueue },
     backgroundSync: false,
     auth: { ...defaultAuth },
@@ -280,30 +269,36 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & { $schema: string
   features: {
     pwa: { enabled: true, preventDefaultInstall: false },
     serviceWorker: {
-      version: { ...defaultVersionConfig, minSupportedVersion: "1.0.0" },
+      version: "package",
+      minSupportedVersion: "1.0.0",
       autoUpdate: true,
       autoActivate: false,
-      defaultStrategy: "cache-first",
-      strategies: {
-        "/api/*": "network-first",
-        "/static/*": "cache-first",
+      strategy: {
+        default: "cache-first",
+        patterns: {
+          "/api/*": "network-first",
+          "/static/*": "cache-first",
+        },
+        reactive: {
+          defaults: {
+            staleTime: 0,
+            refetchInterval: 0,
+            refetchOnReconnect: false,
+            refetchOnFocus: false,
+          },
+        },
+        mode: "all",
+        clearRuntimeOnUpdate: false,
+        normalizeKey: false,
+        ignoreQueryParams: [],
       },
-      cacheStrategy: "all",
-      clearRuntimeOnUpdate: false,
-      navigationPreload: true,
-      navigationMode: "spa",
-      spaEntry: "/index.html",
-      staleTime: 0,
-      refetchInterval: 0,
-      refetchOnReconnect: false,
-      refetchOnFocus: false,
-      refetchBatchSize: 5,
-      refetchBatchDelayMs: 1000,
-      refetchMaxRetries: 3,
-      refetchRetryDelayMs: 1000,
-      ignoreQueryParams: [],
-      normalizeCacheKey: false,
+      navigation: {
+        mode: "spa",
+        preload: true,
+        fallback: "/index.html",
+      },
     },
+    refetchQueue: { ...defaultRefetchQueue },
     mutationQueue: { ...defaultMutationQueue },
     backgroundSync: false,
     auth: { ...defaultAuth },

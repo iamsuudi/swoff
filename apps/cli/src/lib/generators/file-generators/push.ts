@@ -1,7 +1,3 @@
-/**
- * Generates push.{js|ts} - push notification subscription management.
- */
-
 import { GeneratorContext, writeFile } from "./context.js";
 
 export function generatePush(ctx: GeneratorContext): void {
@@ -11,6 +7,7 @@ export function generatePush(ctx: GeneratorContext): void {
   const R = (type: string) => (ts ? `: ${type} ` : " ");
   const PT = (type: string) => (ts ? `<${type}>` : "");
   const AS = (type: string) => (ts ? ` as ${type}` : "");
+  const vapidKey = ctx.config.features.pushNotifications?.vapidPublicKey ?? "";
 
   const code = `/**
  * Swoff Push Notifications
@@ -20,7 +17,7 @@ export function generatePush(ctx: GeneratorContext): void {
  *   import { subscribeToPush, unsubscribeFromPush, isSubscribed } from './swoff/push.${ext}';
  *
  *   // Enable (triggers permission prompt)
- *   const subscription = await subscribeToPush("YOUR_VAPID_PUBLIC_KEY");
+ *   const subscription = await subscribeToPush();
  *   await fetch("/api/push/subscribe", {
  *     method: "POST",
  *     body: JSON.stringify(subscription.toJSON()),
@@ -36,6 +33,7 @@ export function generatePush(ctx: GeneratorContext): void {
 
 const SUBSCRIPTION_DB = "swoff-push";
 const SUBSCRIPTION_STORE = "subscription";
+const VAPID_PUBLIC_KEY = ${JSON.stringify(vapidKey)};
 
 let permissionState = Notification.permission;
 
@@ -76,15 +74,15 @@ export async function getPushSubscription()${R("Promise<PushSubscription | null>
   }
 }
 
-/** Subscribe to push notifications. Returns the subscription or null if permission denied. */
-export async function subscribeToPush(vapidPublicKey${T("string")})${R("Promise<PushSubscription | null>")}{
+/** Subscribe to push notifications. Returns the subscription or null if permission denied. Uses the VAPID public key from your swoff.config.json. */
+export async function subscribeToPush()${R("Promise<PushSubscription | null>")}{
   const granted = await requestNotificationPermission();
   if (!granted) return null;
 
   const registration = await navigator.serviceWorker.ready;
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)${AS("BufferSource")},
+    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)${AS("BufferSource")},
   });
 
   const db = await openPushDB();

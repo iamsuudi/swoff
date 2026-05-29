@@ -79,10 +79,7 @@ export async function addCommand(projectRoot: string, featureArg: string) {
         ...defaultConfig.features,
         serviceWorker: {
           ...defaultConfig.features.serviceWorker,
-          version: {
-            ...defaultConfig.features.serviceWorker.version,
-            minSupportedVersion: "0.0.0",
-          },
+          minSupportedVersion: "0.0.0",
         },
         crossTabSync: false,
       },

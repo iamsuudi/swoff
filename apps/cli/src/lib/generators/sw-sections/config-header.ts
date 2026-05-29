@@ -10,8 +10,8 @@ export function generateConfigHeader(config: SwoffConfig, resolvedVersion: strin
  * Generated from swoff.config.json
  * DO NOT EDIT MANUALLY
  * Version: ${resolvedVersion}
- * Features: version.enabled=${config.features.serviceWorker.version.enabled}, mutationQueue=${config.features.mutationQueue.enabled}, backgroundSync=${config.features.backgroundSync}, tagInvalidation=${typeof config.features.tagInvalidation === "boolean" ? config.features.tagInvalidation : config.features.tagInvalidation.enabled}
- * Default Strategy: ${config.features.serviceWorker.defaultStrategy}
+ * Features: version=${config.features.serviceWorker.version}, mutationQueue=${config.features.mutationQueue.enabled}, backgroundSync=${config.features.backgroundSync}, tagInvalidation=${config.features.tagInvalidation.enabled}
+ * Default Strategy: ${config.features.serviceWorker.strategy.default}
  * See: https://swoff.netlify.app/docs
  */`;
 }

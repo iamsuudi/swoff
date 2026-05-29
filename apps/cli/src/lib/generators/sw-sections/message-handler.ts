@@ -1,18 +1,47 @@
-/**
- * Generates the SW message event handler.
- */
+export function generateMessageHandler(tagInvalidation: boolean, authEnabled: boolean, debounceMs: number = 0): string {
+  const debouncePrologue = tagInvalidation && debounceMs > 0
+    ? `
+const INVALIDATION_DEBOUNCE_MS = ${debounceMs};
+let _invTagBatch = [];
+let _invTimer = null;
+let _invWaiters = [];
 
-export function generateMessageHandler(tagInvalidation: boolean, authEnabled: boolean): string {
-  let code = `
+function processInvalidationBatch() {
+  const tags = [...new Set(_invTagBatch)];
+  _invTagBatch = [];
+  _invTimer = null;
+  const waiters = _invWaiters;
+  _invWaiters = [];
+  Promise.all(tags.map(function(t) { return invalidateByTag(t); }))
+    .then(function() { waiters.forEach(function(r) { r(); }); })
+    .catch(function() { waiters.forEach(function(r) { r(); }); });
+}
+
+function debouncedInvalidate(tag) {
+  _invTagBatch.push(tag);
+  if (_invTimer) clearTimeout(_invTimer);
+  _invTimer = setTimeout(processInvalidationBatch, INVALIDATION_DEBOUNCE_MS);
+  return new Promise(function(resolve) {
+    _invWaiters.push(resolve);
+  });
+}
+`
+    : "";
+
+  let code = `${debouncePrologue}
 self.addEventListener("message", (event) => {
   if (event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
   }`;
 
   if (tagInvalidation) {
+    const invalidateCall = debounceMs > 0
+      ? "event.waitUntil(debouncedInvalidate(event.data.tag))"
+      : "event.waitUntil(invalidateByTag(event.data.tag))";
+
     code += `
   if (event.data.type === "INVALIDATE_TAG" && event.data.tag) {
-    event.waitUntil(invalidateByTag(event.data.tag));
+    ${invalidateCall};
   }
   if (event.data.type === "GET_URLS_FOR_TAG" && event.data.tag) {
     const urls = getUrlsForTag(event.data.tag);

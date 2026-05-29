@@ -7,7 +7,8 @@ import { GeneratorContext, writeFile } from "./context.js";
 export function generateSwInjector(ctx: GeneratorContext): void {
   const autoUpdate = ctx.config.features.serviceWorker.autoUpdate;
   const autoActivate = ctx.config.features.serviceWorker.autoActivate;
-  const versionEnabled = ctx.config.features.serviceWorker.version.enabled;
+  const v = ctx.config.features.serviceWorker.version;
+  const versionEnabled = v !== false && v !== "hash";
   const ext = ctx.ext;
   const ts = ext === "ts";
 

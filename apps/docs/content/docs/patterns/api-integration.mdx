@@ -26,10 +26,12 @@ URL-pattern strategies are configured in `swoff.config.json`:
 ```json
 {
   "serviceWorker": {
-    "defaultStrategy": "cache-first",
-    "strategies": {
-      "/api/*": "network-first",
-      "/static/*": "cache-first"
+    "strategy": {
+      "default": "cache-first",
+      "patterns": {
+        "/api/*": "network-first",
+        "/static/*": "cache-first"
+      }
     }
   }
 }
@@ -103,7 +105,7 @@ Configure per-URL strategies in `swoff.config.json`. The SW uses the `defaultStr
 
 ### Strategy detection
 
-The SW checks `X-SW-Cache-Strategy` header first, then falls back to URL-pattern matching from `config.serviceWorker.strategies`.
+The SW checks `X-SW-Cache-Strategy` header first, then falls back to URL-pattern matching from `config.serviceWorker.strategy.patterns`.
 
 ---
 

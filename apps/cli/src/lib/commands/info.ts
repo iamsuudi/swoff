@@ -96,7 +96,7 @@ const FEATURES: Record<string, FeatureInfo> = {
       "Push notification subscription management with IndexedDB persistence, VAPID key support, and service worker push/notificationclick event handlers.",
     files: ["push.ts"],
     functions: [
-      "subscribeToPush(vapidPublicKey) — request permission and subscribe",
+      "subscribeToPush() — request permission and subscribe (uses VAPID key from config)",
       "unsubscribeFromPush() — unsubscribe and clear stored subscription",
       "isSubscribed() — check subscription status",
       "getPushSubscription() — get current PushSubscription object",
@@ -158,7 +158,7 @@ export async function infoCommand(projectRoot: string, feature?: string) {
   if (config.features.backgroundSync) enabled.push("background-sync");
   if (config.features.auth.enabled) enabled.push("auth");
   if (config.features.crossTabSync) enabled.push("cross-tab");
-  if (typeof config.features.tagInvalidation === "boolean" ? config.features.tagInvalidation : config.features.tagInvalidation.enabled) enabled.push("tag-invalidation");
+  if (config.features.tagInvalidation.enabled) enabled.push("tag-invalidation");
   if (config.features.graphql.enabled) enabled.push("graphql");
   if (config.features.pushNotifications?.enabled) enabled.push("push-notification");
   if (config.features.pwa.enabled) enabled.push("pwa");

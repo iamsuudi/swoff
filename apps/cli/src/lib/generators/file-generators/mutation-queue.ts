@@ -8,6 +8,8 @@ export function generateMutationQueue(ctx: GeneratorContext): void {
   const PT = (type: string) => (ts ? `<${type}>` : "");
   const AS = (type: string) => (ts ? ` as ${type}` : "");
   const authEnabled = ctx.config.features.auth.enabled;
+  const ti = ctx.config.features.tagInvalidation;
+  const tagInvalidation = typeof ti === "boolean" ? ti : ti.enabled;
   const mqConfig = ctx.config.features.mutationQueue;
   const batchSize = mqConfig.batchSize;
   const batchDelayMs = mqConfig.batchDelayMs;
@@ -19,8 +21,11 @@ export function generateMutationQueue(ctx: GeneratorContext): void {
 `
     : "";
 
-  const additionalImports = `import { invalidateByTags } from "./cache.${ext}";
-${
+  const invalidateImport = tagInvalidation
+    ? `import { invalidateByTags } from "./cache.${ext}";
+`
+    : "";
+  const additionalImports = `${invalidateImport}${
   ts
     ? `import type { MutationQueueItem } from "./swoff.d.ts";
 `
@@ -186,7 +191,7 @@ ${authHeaderSpread}        ...item.headers,
     if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
 
     if (item.tags && item.tags.length > 0) {
-      await invalidateByTags(item.tags);
+      ${tagInvalidation ? "await invalidateByTags(item.tags);" : "// tagInvalidation disabled — skipping cache invalidation"}
     }
 
     await removeFromQueue(item.id);

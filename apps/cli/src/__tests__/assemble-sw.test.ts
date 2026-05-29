@@ -161,45 +161,12 @@ describe("assembleSW", () => {
     expect(sw).toContain("/api/*");
     expect(sw).toContain("network-first");
     expect(sw).toContain("new URL(request.url).pathname");
-    expect(sw).toContain("path.startsWith");
+    expect(sw).toContain("matchGlob");
   });
 
-  it("includes trimRuntimeCache when maxCacheEntries is set", () => {
-    const configWithTrim: SwoffConfig = {
-      ...config,
-      features: {
-        ...config.features,
-        serviceWorker: {
-          ...config.features.serviceWorker,
-          maxCacheEntries: 100,
-        },
-      },
-    };
-    const sw = assembleSW(configWithTrim, "1.0.0");
-    expect(sw).toContain("trimRuntimeCache");
-    expect(sw).toContain("GLOBAL_MAX_ENTRIES = 100");
-    expect(sw).toContain("GLOBAL_MAX_AGE = 0");
-  });
-
-  it("includes trimRuntimeCache when maxCacheAge is set", () => {
-    const configWithTrim: SwoffConfig = {
-      ...config,
-      features: {
-        ...config.features,
-        serviceWorker: {
-          ...config.features.serviceWorker,
-          maxCacheAge: 86400000,
-        },
-      },
-    };
-    const sw = assembleSW(configWithTrim, "1.0.0");
-    expect(sw).toContain("trimRuntimeCache");
-    expect(sw).toContain("GLOBAL_MAX_AGE = 86400000");
-    expect(sw).toContain("GLOBAL_MAX_ENTRIES = 0");
-  });
-
-  it("excludes trimRuntimeCache when no trimming configured", () => {
+  it("includes refresh retry constants", () => {
     const sw = assembleSW(config, "1.0.0");
-    expect(sw).not.toContain("trimRuntimeCache");
+    expect(sw).toContain("REFRESH_MAX_RETRIES");
+    expect(sw).toContain("REFRESH_RETRY_DELAY_MS");
   });
 });

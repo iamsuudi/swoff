@@ -15,7 +15,12 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     const features = config.features as Record<string, unknown>;
 
     for (const [key, value] of Object.entries(features)) {
-      if (OBJECT_FEATURES.includes(key as (typeof OBJECT_FEATURES)[number])) {
+      if (key === "tagInvalidation") {
+        if (typeof value !== "boolean" && (typeof value !== "object" || value === null)) {
+          errors.push('Feature "tagInvalidation" must be a boolean or an object');
+          continue;
+        }
+      } else if (OBJECT_FEATURES.includes(key as (typeof OBJECT_FEATURES)[number])) {
         if (typeof value !== "object" || value === null) {
           errors.push(`Feature "${key}" must be an object`);
           continue;
@@ -113,12 +118,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
                 errors.push(`features.serviceWorker.strategies["${pattern}"].refetchOnFocus must be a boolean`);
               }
             }
-            if (obj.maxCacheEntries !== undefined && (typeof obj.maxCacheEntries !== "number" || obj.maxCacheEntries < 1 || !Number.isInteger(obj.maxCacheEntries))) {
-              errors.push(`features.serviceWorker.strategies["${pattern}"].maxCacheEntries must be a positive integer`);
-            }
-            if (obj.maxCacheAge !== undefined && (typeof obj.maxCacheAge !== "number" || obj.maxCacheAge < 0)) {
-              errors.push(`features.serviceWorker.strategies["${pattern}"].maxCacheAge must be a non-negative number`);
-            }
           } else {
             errors.push(`features.serviceWorker.strategies["${pattern}"] must be a string or an object`);
           }
@@ -142,9 +141,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       if (sw.cacheStrategy !== undefined && !["all", "explicit-only"].includes(sw.cacheStrategy as string)) {
         errors.push('features.serviceWorker.cacheStrategy must be "all" or "explicit-only"');
       }
-      if (sw.runtimeCacheName !== undefined && typeof sw.runtimeCacheName !== "string") {
-        errors.push("features.serviceWorker.runtimeCacheName must be a string");
-      }
       if (sw.navigationPreload !== undefined && typeof sw.navigationPreload !== "boolean") {
         errors.push("features.serviceWorker.navigationPreload must be a boolean");
       }
@@ -154,11 +150,23 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       if (sw.ignoreQueryParams !== undefined && (!Array.isArray(sw.ignoreQueryParams) || !sw.ignoreQueryParams.every((p: unknown) => typeof p === "string"))) {
         errors.push("features.serviceWorker.ignoreQueryParams must be an array of strings");
       }
-      if (sw.maxCacheEntries !== undefined && (typeof sw.maxCacheEntries !== "number" || sw.maxCacheEntries < 1 || !Number.isInteger(sw.maxCacheEntries))) {
-        errors.push("features.serviceWorker.maxCacheEntries must be a positive integer");
+      if (sw.staleTime !== undefined && (typeof sw.staleTime !== "number" || sw.staleTime < 0)) {
+        errors.push("features.serviceWorker.staleTime must be a non-negative number");
       }
-      if (sw.maxCacheAge !== undefined && (typeof sw.maxCacheAge !== "number" || sw.maxCacheAge < 0)) {
-        errors.push("features.serviceWorker.maxCacheAge must be a non-negative number");
+      if (sw.refetchInterval !== undefined && (typeof sw.refetchInterval !== "number" || sw.refetchInterval < 0 || !Number.isInteger(sw.refetchInterval))) {
+        errors.push("features.serviceWorker.refetchInterval must be a non-negative integer");
+      }
+      if (sw.refetchOnReconnect !== undefined && typeof sw.refetchOnReconnect !== "boolean") {
+        errors.push("features.serviceWorker.refetchOnReconnect must be a boolean");
+      }
+      if (sw.refetchOnFocus !== undefined && typeof sw.refetchOnFocus !== "boolean") {
+        errors.push("features.serviceWorker.refetchOnFocus must be a boolean");
+      }
+      if (sw.refetchMaxRetries !== undefined && (typeof sw.refetchMaxRetries !== "number" || sw.refetchMaxRetries < 0 || !Number.isInteger(sw.refetchMaxRetries))) {
+        errors.push("features.serviceWorker.refetchMaxRetries must be a non-negative integer");
+      }
+      if (sw.refetchRetryDelayMs !== undefined && (typeof sw.refetchRetryDelayMs !== "number" || sw.refetchRetryDelayMs < 0 || !Number.isInteger(sw.refetchRetryDelayMs))) {
+        errors.push("features.serviceWorker.refetchRetryDelayMs must be a non-negative integer");
       }
 
       const ver = sw.version as Record<string, unknown> | undefined;
@@ -188,8 +196,33 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     }
 
     const tagInvalidationVal = features.tagInvalidation;
+    if (tagInvalidationVal && typeof tagInvalidationVal === "object") {
+      const ti = tagInvalidationVal as Record<string, unknown>;
+      if (ti.prefixes !== undefined && (!Array.isArray(ti.prefixes) || !(ti.prefixes as unknown[]).every((p) => typeof p === "string"))) {
+        errors.push("features.tagInvalidation.prefixes must be an array of strings");
+      }
+      if (ti.patterns !== undefined && (typeof ti.patterns !== "object" || ti.patterns === null)) {
+        errors.push("features.tagInvalidation.patterns must be an object");
+      }
+      if (ti.singularization !== undefined && (typeof ti.singularization !== "object" || ti.singularization === null)) {
+        errors.push("features.tagInvalidation.singularization must be an object");
+      }
+      if (ti.cascading !== undefined && (typeof ti.cascading !== "object" || ti.cascading === null)) {
+        errors.push("features.tagInvalidation.cascading must be an object");
+      }
+      if (ti.invalidation !== undefined && typeof ti.invalidation === "object" && ti.invalidation !== null) {
+        const inv = ti.invalidation as Record<string, unknown>;
+        if (inv.debounceMs !== undefined && (typeof inv.debounceMs !== "number" || inv.debounceMs < 0 || !Number.isInteger(inv.debounceMs))) {
+          errors.push("features.tagInvalidation.invalidation.debounceMs must be a non-negative integer");
+        }
+        if (inv.optimistic !== undefined && typeof inv.optimistic !== "boolean") {
+          errors.push("features.tagInvalidation.invalidation.optimistic must be a boolean");
+        }
+      }
+    }
+    const tagInvalidationEnabled = typeof tagInvalidationVal === "boolean" ? tagInvalidationVal : (tagInvalidationVal as Record<string, unknown>)?.enabled === true;
     const crossTabSyncVal = features.crossTabSync;
-    if (crossTabSyncVal === true && tagInvalidationVal !== true) {
+    if (crossTabSyncVal === true && !tagInvalidationEnabled) {
       errors.push("crossTabSync requires tagInvalidation to be enabled");
     }
 

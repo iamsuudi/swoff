@@ -29,17 +29,22 @@ export const REACTIVE_FIELDS = ["staleTime", "refetchInterval", "refetchOnReconn
 
 export interface StrategyEntry {
   strategy: string;
-  maxCacheEntries?: number;
-  maxCacheAge?: number;
   staleTime?: number;
   refetchInterval?: number;
   refetchOnReconnect?: boolean;
   refetchOnFocus?: boolean;
 }
 
-export interface RefetchBatchConfig {
-  refetchBatchSize?: number;
-  refetchBatchDelayMs?: number;
+export interface TagInvalidationConfig {
+  enabled: boolean;
+  prefixes?: string[];
+  patterns?: Record<string, string[]>;
+  singularization?: Record<string, string>;
+  cascading?: Record<string, string[]>;
+  invalidation?: {
+    debounceMs?: number;
+    optimistic?: boolean;
+  };
 }
 
 export interface SwoffConfig {
@@ -58,15 +63,18 @@ export interface SwoffConfig {
       defaultStrategy: string;
       strategies: Record<string, string | StrategyEntry>;
       cacheStrategy?: "all" | "explicit-only";
-      maxCacheEntries?: number;
-      maxCacheAge?: number;
-      runtimeCacheName?: string;
       clearRuntimeOnUpdate: boolean;
       navigationPreload?: boolean;
       navigationMode: "spa" | "default";
       spaEntry: string;
+      staleTime?: number;
+      refetchInterval?: number;
+      refetchOnReconnect?: boolean;
+      refetchOnFocus?: boolean;
       refetchBatchSize?: number;
       refetchBatchDelayMs?: number;
+      refetchMaxRetries?: number;
+      refetchRetryDelayMs?: number;
       ignoreQueryParams?: string[];
       normalizeCacheKey?: boolean;
     };
@@ -74,7 +82,7 @@ export interface SwoffConfig {
     backgroundSync: boolean;
     auth: AuthConfig;
     crossTabSync: boolean;
-    tagInvalidation: boolean;
+    tagInvalidation: boolean | TagInvalidationConfig;
     graphql: GqlConfig;
     pushNotifications?: {
       enabled: boolean;
@@ -104,7 +112,7 @@ export const KNOWN_FEATURES = [
   "serverPush",
 ] as const;
 
-export const OBJECT_FEATURES = ["pwa", "serviceWorker", "auth", "pushNotifications", "graphql", "serverPush"] as const;
+export const OBJECT_FEATURES = ["pwa", "serviceWorker", "auth", "pushNotifications", "graphql", "serverPush", "tagInvalidation"] as const;
 
 export const VALID_STRATEGIES = [
   "cache-first",
@@ -146,6 +154,12 @@ function normalizePushNotifications(val: unknown): { enabled: boolean; vapidPubl
   return { enabled: false };
 }
 
+function normalizeTagInvalidation(val: unknown): TagInvalidationConfig {
+  if (typeof val === "boolean") return { ...defaultTagInvalidation, enabled: val };
+  if (val && typeof val === "object") return { ...defaultTagInvalidation, ...(val as Partial<TagInvalidationConfig>) };
+  return defaultTagInvalidation;
+}
+
 export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>): SwoffConfig {
   return {
     ...base,
@@ -162,6 +176,7 @@ export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>):
       auth: normalizeAuth(override.features?.auth),
       mutationQueue: normalizeMutationQueue(override.features?.mutationQueue),
       graphql: normalizeGql(override.features?.graphql),
+      tagInvalidation: normalizeTagInvalidation(override.features?.tagInvalidation ?? base.features.tagInvalidation),
       pushNotifications: normalizePushNotifications(override.features?.pushNotifications ?? base.features.pushNotifications),
       serverPush: { ...defaultServerPush, ...base.features.serverPush, ...override.features?.serverPush },
     },
@@ -202,6 +217,18 @@ export const defaultServerPush = {
   reconnectDelayMs: 5000,
 };
 
+export const defaultTagInvalidation: TagInvalidationConfig = {
+  enabled: true,
+  prefixes: [...API_PREFIXES],
+  patterns: {},
+  singularization: {},
+  cascading: {},
+  invalidation: {
+    debounceMs: 0,
+    optimistic: false,
+  },
+};
+
 export const defaultConfig: SwoffConfig = {
   enabled: true,
   features: {
@@ -220,12 +247,22 @@ export const defaultConfig: SwoffConfig = {
       navigationPreload: true,
       navigationMode: "spa",
       spaEntry: "/index.html",
+      staleTime: 0,
+      refetchInterval: 0,
+      refetchOnReconnect: false,
+      refetchOnFocus: false,
+      refetchBatchSize: 5,
+      refetchBatchDelayMs: 1000,
+      refetchMaxRetries: 3,
+      refetchRetryDelayMs: 1000,
+      ignoreQueryParams: [],
+      normalizeCacheKey: false,
     },
     mutationQueue: { ...defaultMutationQueue },
     backgroundSync: false,
     auth: { ...defaultAuth },
     crossTabSync: true,
-    tagInvalidation: true,
+    tagInvalidation: { ...defaultTagInvalidation },
     graphql: { ...defaultGql },
     pushNotifications: { enabled: false },
     serverPush: { ...defaultServerPush },
@@ -237,20 +274,44 @@ export const defaultConfig: SwoffConfig = {
 };
 
 export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & { $schema: string } = {
-  ...defaultConfig,
   $schema: "https://swoff.netlify.app/schema/v1.json",
+  enabled: true,
+  framework: "vanilla",
   features: {
-    ...defaultConfig.features,
+    pwa: { enabled: true, preventDefaultInstall: false },
     serviceWorker: {
-      ...defaultConfig.features.serviceWorker,
-      version: {
-        ...defaultVersionConfig,
-        minSupportedVersion: "1.0.0",
-      },
+      version: { ...defaultVersionConfig, minSupportedVersion: "1.0.0" },
+      autoUpdate: true,
+      autoActivate: false,
+      defaultStrategy: "cache-first",
       strategies: {
         "/api/*": "network-first",
         "/static/*": "cache-first",
       },
+      cacheStrategy: "all",
+      clearRuntimeOnUpdate: false,
+      navigationPreload: true,
+      navigationMode: "spa",
+      spaEntry: "/index.html",
+      staleTime: 0,
+      refetchInterval: 0,
+      refetchOnReconnect: false,
+      refetchOnFocus: false,
+      refetchBatchSize: 5,
+      refetchBatchDelayMs: 1000,
+      refetchMaxRetries: 3,
+      refetchRetryDelayMs: 1000,
+      ignoreQueryParams: [],
+      normalizeCacheKey: false,
     },
+    mutationQueue: { ...defaultMutationQueue },
+    backgroundSync: false,
+    auth: { ...defaultAuth },
+    crossTabSync: true,
+    tagInvalidation: { ...defaultTagInvalidation },
+    graphql: { ...defaultGql },
+    pushNotifications: { enabled: false },
+    serverPush: { ...defaultServerPush },
   },
+  build: { outputDir: "dist", swFilename: "sw" },
 };

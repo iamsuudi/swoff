@@ -39,6 +39,12 @@ All `RequestInit` fields are supported (`method`, `body`, `headers`, `credential
 | `invalidate`           | `'auto' \| string[] \| false`                                                                    | `'auto'`                | Auto-invalidate cache tags after successful mutation     |
 | `type`                 | `'read' \| 'mutation'`                                                                           | auto-detected           | Override read/mutation detection                         |
 | `strategy`             | `'cache-first' \| 'network-first' \| 'stale-while-revalidate' \| 'cache-only' \| 'network-only' \| 'reactive'` | —                       | Override caching strategy per-request (highest priority) |
+| `staleTime`            | `number`                                                                                         | —                       | Override stale time in seconds (reactive-only, per-request tier 1) |
+| `refetchInterval`      | `number`                                                                                         | —                       | Override refetch interval in seconds (reactive-only, per-request tier 1) |
+| `refetchOnReconnect`   | `boolean`                                                                                        | —                       | Override refetch-on-reconnect flag (reactive-only)       |
+| `refetchOnFocus`       | `boolean`                                                                                        | —                       | Override refetch-on-focus flag (reactive-only)           |
+| `validateSuccess`      | `(response: Response) => boolean \| Promise<boolean>`                                            | `res.ok`                | Custom mutation success check (e.g. when API returns 200 with `{ success: false }`) |
+| `invalidateUrl`        | `string`                                                                                         | the request URL         | Override the URL used for auto-invalidation tags. Useful when mutation URL differs from cache tag URL. |
 | `signal`               | `AbortSignal`                                                                                    | —                       | AbortController signal for cancellation                  |
 
 ### Behavior
@@ -52,9 +58,10 @@ All `RequestInit` fields are supported (`method`, `body`, `headers`, `credential
 - **Dedup**: in-flight GETs to the same URL return a single promise (cloned response).
   AbortController integration: cleaned up on completion or abort.
 - **Auto-tags**: when `tagInvalidation` enabled, tags derived from URL path for read requests.
-- **Auto-invalidate**: after a successful mutation, matching cache tags are invalidated.
+- **Auto-invalidate**: after a successful mutation, matching cache tags are invalidated. Mutation success is determined by `response.ok` by default, or `validateSuccess` if provided. The auto-invalidation target URL can be overridden with `invalidateUrl` (useful when mutation URL differs from the cache tag URL).
 - **Auth**: when `auth: true`, attaches auth headers. Dispatches `sw-auth-unauthorized` on 401.
-- **StaleTime**: configured per-route in strategies entries with `strategy: "reactive"`. Controls the fresh window before a background refresh is triggered.
+- **StaleTime**: 3-tier resolution (per-request / route pattern / global default). Only affects `reactive` strategy. Controls the fresh window before a background refresh is triggered.
+- **Background refresh retry**: failed refetches are retried with exponential backoff up to `refetchMaxRetries` times (base delay `refetchRetryDelayMs`).
 
 ### `prefetchCache(input, options?)`
 
@@ -225,6 +232,10 @@ import {
   generateTagsFromMethod,
   invalidateUrl,
   invalidateByMethod,
+  expandCascading,
+  getUrlsForTag,
+  getTagsForUrl,
+  invalidateMatching,
 } from "swoff/invalidation-tags";
 ```
 
@@ -236,6 +247,10 @@ import {
 | `generateTagsFromMethod` | `(method: string, url: string) => string[]`      | Method-prefixed tags. `POST /api/todos` → `["post-todos"]`           |
 | `invalidateUrl`          | `(url: string) => Promise<void>`                 | Extract tags from URL and invalidate all matching cache entries      |
 | `invalidateByMethod`     | `(method: string, url: string) => Promise<void>` | Invalidate using method-prefixed tags                                |
+| `expandCascading`        | `(tags: string[]) => string[]`                   | Expand tags with cascading dependencies, deduplicated                |
+| `getUrlsForTag`          | `(tag: string) => Promise<{ url, actualUrl }[]>` | Get all URLs cached under a given tag (uses MessageChannel)          |
+| `getTagsForUrl`          | `(url: string) => Promise<string[]>`             | Get all tags associated with a given URL                             |
+| `invalidateMatching`     | `(glob: string) => Promise<void>`                | Invalidate all cached responses whose URL matches a glob pattern     |
 
 Generated when `features.tagInvalidation` is `true`.
 

@@ -31,9 +31,6 @@ When data is fresh, the SW serves it immediately from cache — no network reque
 When data is stale, the SW serves the cached copy but triggers a **background refresh**,
 so the next read returns fresh data.
 
-This is different from `maxCacheAge` (which **evicts** old entries entirely). StaleTime keeps the
-entry usable while silently refreshing it — the user never sees a loading spinner.
-
 **3-tier staleTime resolution (like strategies):**
 1. **Per-request** — `fetchWithCache(url, { staleTime: 30 })` overrides everything
 2. **Route pattern** — `"/api/*": { staleTime: 60 }` in `swoff.config.json`
@@ -300,7 +297,5 @@ Re-run `npx @swoff/cli generate` after changing it.
 - `serviceWorker.strategies` — per-route strategy overrides
 - `serviceWorker.staleTime` — global stale time in seconds (data considered fresh for N seconds). Applies to cache-first and network-first only.
 - `serviceWorker.refetchBatchSize` — max stale cache entries to refetch per batch
-- `serviceWorker.maxCacheEntries` — max entries in runtime cache (oldest evicted)
-- `serviceWorker.maxCacheAge` — max age of cache entries in ms
 
 ---

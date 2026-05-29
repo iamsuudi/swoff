@@ -72,10 +72,13 @@ Instead of fire-and-forget `event.waitUntil(refetch())` on every stale request, 
 3. Between batches, a delay of `refetchBatchDelayMs` is applied (rate limiting)
 4. On each successful refetch, `CACHE_UPDATED` is posted to all connected clients, and any `staleVersions` tracking is cleaned up
 
+**Retry with exponential backoff**: if a refresh fetch fails (network error, non-ok response), the entry is re-queued with an incremented `retryCount`. The retry delay = `refetchRetryDelayMs × 2^(retryCount - 1)`. After `refetchMaxRetries` consecutive failures, the entry is dropped. A `setTimeout` schedules re-processing after the delay, ensuring the SW stays alive for retries.
+
 This prevents:
 - **Stampedes**: 50 stale resources from a page load all get queued, not fetched simultaneously
 - **Dedup waste**: Two requests for the same stale URL only produce one refetch
 - **SW termination**: The queue promise is shared across all `event.waitUntil()` calls, keeping the SW alive
+- **Transient failure loss**: a flaky network doesn't permanently lose the refresh — retries continue with backoff
 
 ## Online recovery
 
@@ -99,10 +102,11 @@ The `strategy` field resolves through three priority levels:
 2. **Route pattern** — configured in `features.serviceWorker.strategies` keyed by URL pattern
 3. **Global default (lowest)** — configured at `features.serviceWorker.defaultStrategy`
 
-**Reactive-only fields** (`staleTime`, `refetchInterval`, `refetchOnReconnect`, `refetchOnFocus`) resolve through two tiers only — there is no global default:
+**Reactive-only fields** (`staleTime`, `refetchInterval`, `refetchOnReconnect`, `refetchOnFocus`) now resolve through three tiers:
 
-1. **Per-request** — via `X-SW-Stale-Time` header or per-request options
-2. **Route pattern** — configured in the strategies entry for the matching pattern
+1. **Per-request (highest)** — via `X-SW-Stale-Time` / `X-SW-Refetch-Interval` / `X-SW-Refetch-On-Reconnect` / `X-SW-Refetch-On-Focus` headers or per-request options on `fetchWithCache`
+2. **Route pattern** — configured in the strategies entry for the matching pattern (e.g. `{ "strategy": "reactive", "staleTime": 30 }`)
+3. **Global default (lowest)** — configured at `features.serviceWorker.staleTime` / `features.serviceWorker.refetchInterval` etc.
 
 **Example resolution flow:**
 
@@ -111,9 +115,13 @@ request to /api/todos with strategy "reactive"
     → tier 1: X-SW-Stale-Time header? no
     → tier 2: "/api/*" has staleTime: 30
     → use 30s
-```
 
-This applies to: `strategy` (3 tiers), reactive-only fields (2 tiers).
+request to /api/posts with strategy "reactive" (no route match)
+    → tier 1: X-SW-Stale-Time header? no
+    → tier 2: no route pattern
+    → tier 3: global staleTime: 0
+    → use 0s (always stale)
+```
 
 **Why 3 tiers?**
 
@@ -344,4 +352,18 @@ On tag invalidation:
   → mark staleVersions
   → queueRefresh (through batch queue)
   → on success: CACHE_UPDATED + cleanup staleVersions
+
+## Tag introspection
+
+Swoff exposes three introspection functions for debugging and dynamic invalidation:
+
+| Client function | SW handler | Description |
+|---|---|---|
+| `getUrlsForTag(tag)` → `{ url, actualUrl }[]` | `GET_URLS_FOR_TAG` | Query all URLs cached under a given tag |
+| `getTagsForUrl(url)` → `string[]` | `GET_TAGS_FOR_URL` | Query all tags associated with a URL |
+| `invalidateMatching(glob)` | `INVALIDATE_MATCHING` | Invalidate all cached entries whose URL matches a glob pattern |
+
+The client functions use `MessageChannel` to communicate with the SW, receiving responses via `channel.port1.onmessage`. The SW handler queries the IndexedDB tag registry (opened via `openTagDB()`) and returns results synchronously through the channel port.
+
+`invalidateMatching` scans all entries in the tag registry, filters by `matchGlob(url, globPattern)`, collects unique tags, and calls `invalidateByTag(tag)` for each matching tag. Invalidated entries are then queue-refreshed through the standard batch queue.
 ```

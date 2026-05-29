@@ -135,7 +135,7 @@ export function generateGuide(ctx: GuideContext): string[] {
     }
   }
 
-  if (config.features.tagInvalidation) {
+  if (typeof config.features.tagInvalidation === "boolean" ? config.features.tagInvalidation : config.features.tagInvalidation.enabled) {
     lines.push("");
     lines.push("  ── Tag Invalidation ──");
     lines.push(`  Generate tags and invalidate after mutations:`);
@@ -158,7 +158,7 @@ export function generateGuide(ctx: GuideContext): string[] {
     }
   }
 
-  if (!config.features.tagInvalidation && config.features.crossTabSync) {
+  if (!(typeof config.features.tagInvalidation === "boolean" ? config.features.tagInvalidation : config.features.tagInvalidation.enabled) && config.features.crossTabSync) {
     lines.push("");
     lines.push("  ⚠️ crossTabSync requires tagInvalidation to be enabled.");
     lines.push('     Run: npx @swoff/cli add tag-invalidation');

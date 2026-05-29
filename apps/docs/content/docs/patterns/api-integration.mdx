@@ -141,26 +141,6 @@ The dedup map tracks in-flight GET requests by URL. When a request completes, it
 
 ---
 
-## Cache Trimming
-
-Control runtime cache size with two config fields:
-
-```json
-{
-  "serviceWorker": {
-    "maxCacheEntries": 200,
-    "maxCacheAge": 604800000
-  }
-}
-```
-
-| Field | Default | Purpose |
-|---|---|---|
-| `maxCacheEntries` | 0 (disabled) | Evict oldest entries when count exceeds limit |
-| `maxCacheAge` | 0 (disabled) | Evict entries older than this many ms |
-
-When either is set, the SW trims the runtime cache after every new cache entry. See [Configuration Reference](/docs/configuration/schema-reference) for details.
-
 ---
 
 ## Error Handling

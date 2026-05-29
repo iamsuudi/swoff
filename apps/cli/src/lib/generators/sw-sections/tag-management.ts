@@ -2,6 +2,8 @@
  * Generates IndexedDB-based tag invalidation logic for the SW.
  * After invalidation, tries to re-fetch URLs in the background.
  * On failure, keeps the old entry as stale-while-revalidate fallback.
+ *
+ * Cascading is handled by the client — the SW processes one tag at a time.
  */
 
 export function generateTagManagement(): string {
@@ -78,7 +80,6 @@ async function invalidateByTag(tag) {
   }
 
   // Enqueue background refetch through batched refresh queue
-  // Mark as stale first; queueRefresh success will clean up staleVersions
   for (const entry of entries) {
     staleVersions.set(entry.url, Date.now());
     queueRefresh(entry.url, entry.actualUrl);
@@ -88,5 +89,53 @@ async function invalidateByTag(tag) {
   clients.forEach((client) => {
     client.postMessage({ type: "TAG_INVALIDATED", tag });
   });
+}
+
+async function getUrlsForTag(tag) {
+  const db = await openTagDB();
+  const tx = db.transaction(TAG_STORE_NAME, "readonly");
+  const store = tx.objectStore(TAG_STORE_NAME);
+  const index = store.index("by-tag");
+  const entries = await new Promise((resolve, reject) => {
+    const request = index.getAll(tag);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  await db.close();
+  return entries.map((e) => ({ url: e.url, actualUrl: e.actualUrl }));
+}
+
+async function getTagsForUrl(url) {
+  const db = await openTagDB();
+  const tx = db.transaction(TAG_STORE_NAME, "readonly");
+  const store = tx.objectStore(TAG_STORE_NAME);
+  const entry = await new Promise((resolve, reject) => {
+    const request = store.get(url);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  await db.close();
+  return entry ? entry.tags : [];
+}
+
+async function invalidateMatching(globPattern) {
+  const db = await openTagDB();
+  const tx = db.transaction(TAG_STORE_NAME, "readonly");
+  const store = tx.objectStore(TAG_STORE_NAME);
+  const allEntries = await new Promise((resolve, reject) => {
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  await db.close();
+
+  const matching = allEntries.filter((entry) => matchGlob(entry.url, globPattern));
+  const tags = new Set();
+  for (const entry of matching) {
+    for (const tag of entry.tags) {
+      tags.add(tag);
+    }
+  }
+  await Promise.all([...tags].map((tag) => invalidateByTag(tag)));
 }`;
 }

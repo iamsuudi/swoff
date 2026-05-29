@@ -11,13 +11,14 @@ export function generateFetchWrapper(ctx: GeneratorContext): void {
   const T = (type: string) => (ts ? `: ${type}` : "");
   const R = (type: string) => (ts ? `: ${type} ` : " ");
   const G = (type: string) => (ts ? `<${type}>` : "");
-  const tagInvalidation = ctx.config.features.tagInvalidation;
+  const ti = ctx.config.features.tagInvalidation;
+  const tagInvalidation = typeof ti === "boolean" ? ti : ti.enabled;
   const authEnabled = ctx.config.features.auth.enabled;
   const mutationQueue = ctx.config.features.mutationQueue.enabled;
 
   const importLines = [
     tagInvalidation
-      ? `import { generateTags } from "./invalidation-tags.${ext}";`
+      ? `import { generateTags, invalidateUrl, expandCascading } from "./invalidation-tags.${ext}";`
       : "",
     tagInvalidation ? `import { invalidateByTags } from "./cache.${ext}";` : "",
     authEnabled
@@ -49,6 +50,13 @@ export interface FetchWithCacheOptions extends RequestInit {
   type?: 'read' | 'mutation';
   strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only';
   staleTime?: number;
+  refetchInterval?: number;
+  refetchOnReconnect?: boolean;
+  refetchOnFocus?: boolean;
+  /** Custom response validation for mutation success. Default: res.ok. Use this when your API returns 200 with { success: false } for logical failures. */
+  validateSuccess?: (response: Response) => boolean | Promise<boolean>;
+  /** Override the URL used for auto-invalidation. Defaults to the request URL. Useful when the mutation URL differs from the cache tag URL. */
+  invalidateUrl?: string;
 }
 `
     : "";
@@ -91,6 +99,20 @@ export interface FetchWithCacheOptions extends RequestInit {
       throw new Error("Offline: no cached data available");
     }`;
 
+  const offlineTagComp = tagInvalidation
+    ? `      // Pre-compute invalidation tags for replay
+      let queueTags = [];
+      const invalidateSetting = options.invalidate !== false ? (options.invalidate || 'auto') : false;
+      if (invalidateSetting !== false) {
+        if (Array.isArray(invalidateSetting)) {
+          queueTags = invalidateSetting;
+        } else {
+          queueTags = generateTags(url);
+          queueTags = expandCascading(queueTags);
+        }
+      }`
+    : `      const queueTags = options.tags || [];`;
+
   const offlineWriteBlock = mutationQueue
     ? `    // Write offline — auto-queue
     if (options.queueOffline !== false) {
@@ -98,12 +120,13 @@ export interface FetchWithCacheOptions extends RequestInit {
       headers.forEach((value, key) => {
         headerObj[key] = value;
       });
+${offlineTagComp}
       await queueMutation({
         method,
         url,
         body: options.body,
         headers: headerObj,
-        tags: options.tags || [],
+        tags: queueTags,
         timestamp: Date.now(),
       });
       return {
@@ -117,14 +140,15 @@ export interface FetchWithCacheOptions extends RequestInit {
   const autoInvalidateBlock = tagInvalidation
     ? `
   // Auto-invalidate after mutation success
-  if (!isRead && response.ok) {
+  const mutationSuccess = options.validateSuccess ? await options.validateSuccess(response) : response.ok;
+  if (!isRead && mutationSuccess) {
     const invalidateSetting = options.invalidate !== false ? (options.invalidate || 'auto') : false;
     if (invalidateSetting !== false) {
-      const tagsToInvalidate${T("string[]")} = Array.isArray(invalidateSetting)
-        ? invalidateSetting
-        : (options.tags || generateTags(url));
-      if (tagsToInvalidate.length > 0) {
-        await invalidateByTags(tagsToInvalidate);
+      const invalidateTarget = options.invalidateUrl || url;
+      if (Array.isArray(invalidateSetting)) {
+        await invalidateByTags(invalidateSetting);
+      } else {
+        await invalidateUrl(invalidateTarget);
       }
     }
   }`
@@ -159,6 +183,26 @@ export interface FetchWithCacheOptions extends RequestInit {
  *     body: JSON.stringify({ title: "New task" }),
  *   });
  *
+ *   // Skip auto-invalidation, invalidate manually later
+ *   await fetchWithCache("/api/todos", {
+ *     method: "POST",
+ *     body: JSON.stringify({ title: "New" }),
+ *     invalidate: false,
+ *   });
+ *
+ *   // Validate mutation success with custom logic
+ *   await fetchWithCache("/api/todos", {
+ *     method: "POST",
+ *     body: JSON.stringify({ title: "New" }),
+ *     validateSuccess: (res) => res.status === 200,
+ *   });
+ *
+ *   // Custom tags for caching (read) + explicit invalidate tags (mutation)
+ *   await fetchWithCache("/api/todos", {
+ *     tags: ["custom-tag"],
+ *     invalidate: ["custom-tag"],
+ *   });
+ *
  *   // Authenticated request (works with bearer, cookie, custom)
  *   const { response: userRes } = await fetchWithCache("/api/me", { auth: true });
  *
@@ -190,7 +234,7 @@ ${interfaceBlock}${optionsInterface}
 const inFlightRequests = new Map${G("string, Promise<Response>")}();
 
 /** Fetch with caching, auth, offline queue, auto-invalidation, and per-request strategy override. Returns { response, fromCache }. Use { auth: true } for authenticated requests — works with bearer, cookie, and custom auth types. */
-export async function fetchWithCache${G("T")}(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only'; staleTime?: number }")} = {})${R("Promise<FetchWithCacheResult<T>>")}{
+export async function fetchWithCache${G("T")}(input${T("RequestInfo")}, options${T("RequestInit & FetchWithCacheOptions")} = {})${R("Promise<FetchWithCacheResult<T>>")}{
   const method = (options.method || "GET").toUpperCase();
   const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD"));
   const url = typeof input === "string" ? input : input.url;
@@ -212,6 +256,15 @@ ${autoTagsBlock}
   }
   if (options.staleTime !== undefined) {
     headers.set("X-SW-Stale-Time", String(options.staleTime));
+  }
+  if (options.refetchInterval !== undefined) {
+    headers.set("X-SW-Refetch-Interval", String(options.refetchInterval));
+  }
+  if (options.refetchOnReconnect !== undefined) {
+    headers.set("X-SW-Refetch-On-Reconnect", String(options.refetchOnReconnect));
+  }
+  if (options.refetchOnFocus !== undefined) {
+    headers.set("X-SW-Refetch-On-Focus", String(options.refetchOnFocus));
   }
 ${authBlock}${authUrlsBlock}
   const fetchOptions${T("RequestInit")} = { ...options, headers };
@@ -258,7 +311,7 @@ ${autoInvalidateBlock}${auth401Block}
 }
 
 /** Fire-and-forget prefetch: warms the cache for a URL without blocking. Useful for route prefetching or link hover prefetching. */
-export function prefetchCache(input${T("RequestInfo")}, options${T("RequestInit & { tags?: string[]; auth?: boolean; queueOffline?: boolean; invalidate?: 'auto' | string[] | false; type?: 'read' | 'mutation'; strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only'; staleTime?: number }")} = {})${R("void")}{
+export function prefetchCache(input${T("RequestInfo")}, options${T("RequestInit & FetchWithCacheOptions")} = {})${R("void")}{
   fetchWithCache(input, { ...options }).catch(() => {
     // Prefetch failures are intentionally silent
   });

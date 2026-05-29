@@ -29,17 +29,10 @@ export const REACTIVE_FIELDS = ["staleTime", "refetchInterval", "refetchOnReconn
 
 export interface StrategyEntry {
   strategy: string;
-  maxCacheEntries?: number;
-  maxCacheAge?: number;
   staleTime?: number;
   refetchInterval?: number;
   refetchOnReconnect?: boolean;
   refetchOnFocus?: boolean;
-}
-
-export interface RefetchBatchConfig {
-  refetchBatchSize?: number;
-  refetchBatchDelayMs?: number;
 }
 
 export interface TagInvalidationConfig {
@@ -70,15 +63,18 @@ export interface SwoffConfig {
       defaultStrategy: string;
       strategies: Record<string, string | StrategyEntry>;
       cacheStrategy?: "all" | "explicit-only";
-      maxCacheEntries?: number;
-      maxCacheAge?: number;
-      runtimeCacheName?: string;
       clearRuntimeOnUpdate: boolean;
       navigationPreload?: boolean;
       navigationMode: "spa" | "default";
       spaEntry: string;
+      staleTime?: number;
+      refetchInterval?: number;
+      refetchOnReconnect?: boolean;
+      refetchOnFocus?: boolean;
       refetchBatchSize?: number;
       refetchBatchDelayMs?: number;
+      refetchMaxRetries?: number;
+      refetchRetryDelayMs?: number;
       ignoreQueryParams?: string[];
       normalizeCacheKey?: boolean;
     };
@@ -251,6 +247,16 @@ export const defaultConfig: SwoffConfig = {
       navigationPreload: true,
       navigationMode: "spa",
       spaEntry: "/index.html",
+      staleTime: 0,
+      refetchInterval: 0,
+      refetchOnReconnect: false,
+      refetchOnFocus: false,
+      refetchBatchSize: 5,
+      refetchBatchDelayMs: 1000,
+      refetchMaxRetries: 3,
+      refetchRetryDelayMs: 1000,
+      ignoreQueryParams: [],
+      normalizeCacheKey: false,
     },
     mutationQueue: { ...defaultMutationQueue },
     backgroundSync: false,
@@ -268,20 +274,44 @@ export const defaultConfig: SwoffConfig = {
 };
 
 export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & { $schema: string } = {
-  ...defaultConfig,
   $schema: "https://swoff.netlify.app/schema/v1.json",
+  enabled: true,
+  framework: "vanilla",
   features: {
-    ...defaultConfig.features,
+    pwa: { enabled: true, preventDefaultInstall: false },
     serviceWorker: {
-      ...defaultConfig.features.serviceWorker,
-      version: {
-        ...defaultVersionConfig,
-        minSupportedVersion: "1.0.0",
-      },
+      version: { ...defaultVersionConfig, minSupportedVersion: "1.0.0" },
+      autoUpdate: true,
+      autoActivate: false,
+      defaultStrategy: "cache-first",
       strategies: {
         "/api/*": "network-first",
         "/static/*": "cache-first",
       },
+      cacheStrategy: "all",
+      clearRuntimeOnUpdate: false,
+      navigationPreload: true,
+      navigationMode: "spa",
+      spaEntry: "/index.html",
+      staleTime: 0,
+      refetchInterval: 0,
+      refetchOnReconnect: false,
+      refetchOnFocus: false,
+      refetchBatchSize: 5,
+      refetchBatchDelayMs: 1000,
+      refetchMaxRetries: 3,
+      refetchRetryDelayMs: 1000,
+      ignoreQueryParams: [],
+      normalizeCacheKey: false,
     },
+    mutationQueue: { ...defaultMutationQueue },
+    backgroundSync: false,
+    auth: { ...defaultAuth },
+    crossTabSync: true,
+    tagInvalidation: { ...defaultTagInvalidation },
+    graphql: { ...defaultGql },
+    pushNotifications: { enabled: false },
+    serverPush: { ...defaultServerPush },
   },
+  build: { outputDir: "dist", swFilename: "sw" },
 };

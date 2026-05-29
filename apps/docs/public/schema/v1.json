@@ -147,16 +147,6 @@
                         "type": "boolean",
                         "description": "Refetch when the browser tab gains focus. Only valid with 'reactive' strategy.",
                         "default": false
-                      },
-                      "maxCacheEntries": {
-                        "type": "integer",
-                        "description": "Maximum entries for this route pattern",
-                        "minimum": 0
-                      },
-                      "maxCacheAge": {
-                        "type": "integer",
-                        "description": "Maximum age in milliseconds for this route pattern",
-                        "minimum": 0
                       }
                     },
                     "required": ["strategy"]
@@ -175,24 +165,6 @@
               "description": "Delay in ms between batches of background refetches (reactive strategy). Use to rate-limit refetch bursts.",
               "default": 0,
               "minimum": 0
-            },
-            "maxCacheEntries": {
-              "type": "integer",
-              "description": "Maximum number of cached entries (0 disables trimming)",
-              "default": 0,
-              "minimum": 0
-            },
-            "maxCacheAge": {
-              "type": "integer",
-              "description": "Maximum age of cached entries in milliseconds (0 disables trimming)",
-              "default": 0,
-              "minimum": 0
-            },
-            "runtimeCacheName": {
-              "type": "string",
-              "description": "Custom runtime cache name",
-              "default": "swoff-runtime",
-              "pattern": "^[a-zA-Z0-9-_]+$"
             },
             "clearRuntimeOnUpdate": {
               "type": "boolean",

@@ -28,9 +28,7 @@ Full schema at `https://swoff.netlify.app/schema/v1.json`.
 | `clearRuntimeOnUpdate` | boolean | `false` | Delete runtime cache on SW activate. Use as a security measure — cached API responses are cleared on every SW update, preventing poisoned data from persisting |
 | `navigationMode` | string | `"spa"` | How navigation requests are handled. `"spa"` falls back to `spaEntry` on cache miss. `"default"` uses the strategy as-is |
 | `spaEntry` | string | `"/index.html"` | Fallback URL for navigation requests when `navigationMode` is `"spa"` |
-| `maxCacheEntries` | integer | `0` | Max runtime cache entries (`0` disables trimming) |
-| `maxCacheAge` | integer | `0` | Max cache age in ms (`0` disables trimming) |
-| `runtimeCacheName` | string | `"swoff-runtime"` | Runtime cache storage name |
+
 
 ### Strategy Values
 
@@ -114,10 +112,7 @@ The generated manifest includes full PWA fields (name, short_name, icons, start_
     },
     "clearRuntimeOnUpdate": false,
     "navigationMode": "spa",
-    "spaEntry": "/index.html",
-    "maxCacheEntries": 100,
-    "maxCacheAge": 604800000,
-    "runtimeCacheName": "swoff-runtime"
+    "spaEntry": "/index.html"
   },
   "features": {
     "versionedSw": true,

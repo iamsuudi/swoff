@@ -61,25 +61,6 @@ Configure via `swoff.config.json`:
 | `navigationMode` | string | `"spa"` | SPA navigation fallback or default strategy |
 | `spaEntry` | string | `"/index.html"` | Fallback URL for SPA navigation mode |
 
-## Cache Trimming
-
-Control runtime cache size without writing code:
-
-```json
-{
-  "serviceWorker": {
-    "maxCacheEntries": 200,
-    "maxCacheAge": 604800000
-  }
-}
-```
-
-| Field | Default | Description |
-|---|---|---|
-| `maxCacheEntries` | `0` | Evict oldest entries when count exceeds limit (`0` disables) |
-| `maxCacheAge` | `0` | Evict entries older than this many ms (`0` disables) |
-| `runtimeCacheName` | `"swoff-runtime"` | Runtime cache storage name |
-
 ## Invalidation Tags
 
 The `invalidation-tags.js` helper parses REST URLs into cache tags:

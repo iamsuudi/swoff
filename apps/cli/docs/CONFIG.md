@@ -32,15 +32,18 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
         "/static/*": "cache-first"
       },
       "cacheStrategy": "all",
-      "maxCacheEntries": 100,
-      "maxCacheAge": 86400000,
-      "runtimeCacheName": "swoff-runtime",
       "clearRuntimeOnUpdate": false,
       "navigationPreload": true,
       "navigationMode": "spa",
       "spaEntry": "/index.html",
+      "staleTime": 0,
+      "refetchInterval": 0,
+      "refetchOnReconnect": false,
+      "refetchOnFocus": false,
       "refetchBatchSize": 5,
       "refetchBatchDelayMs": 1000,
+      "refetchMaxRetries": 3,
+      "refetchRetryDelayMs": 1000,
       "ignoreQueryParams": [],
       "normalizeCacheKey": false
     },
@@ -105,15 +108,18 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | `defaultStrategy` | `string` | `"cache-first"` | Default caching strategy (lowest priority in 3-tier resolution). One of: `cache-first`, `network-first`, `stale-while-revalidate`, `cache-only`, `network-only`, `reactive` |
 | `strategies` | `object` | `{}` | Per-route strategy overrides. Keys are URL patterns (e.g. `/api/*`). Values can be a strategy name string or a `StrategyEntry` object |
 | `cacheStrategy` | `"all"` \| `"explicit-only"` | `"all"` | When to apply caching strategies. `"all"`: every GET/HEAD request; `"explicit-only"`: only requests with `X-SW-Cache-Strategy` header |
-| `maxCacheEntries` | `number` | — | Max entries in runtime cache (0 or undefined = unlimited). Oldest entries evicted first. |
-| `maxCacheAge` | `number` | — | Max age of cache entries in ms (0 or undefined = no limit) |
-| `runtimeCacheName` | `string` | `"swoff-runtime"` | Name of the runtime cache in the Cache Storage API |
 | `clearRuntimeOnUpdate` | `boolean` | `false` | Clear runtime cache when a new SW version activates |
 | `navigationPreload` | `boolean` | `true` | Enable Navigation Preload API — reduces SW startup latency |
 | `navigationMode` | `"spa"` \| `"default"` | `"spa"` | SPA mode sends unmatched navigation requests to `spaEntry` |
 | `spaEntry` | `string` | `"/index.html"` | Fallback HTML for SPA navigation requests |
-| `refetchBatchSize` | `number` | `5` | Max stale cache entries to refetch per batch in the background refresh queue (applies across all strategies) |
+| `staleTime` | `number` | `0` | Global default stale time in seconds. **Reactive-only** — only valid when `strategy` is `"reactive"`. Data is considered fresh for this long; after expiry, SW serves cached but triggers a background refresh. 0 = always stale. |
+| `refetchInterval` | `number` | `0` | Global default auto-refetch interval in seconds. **Reactive-only**. SW periodically re-fetches matching routes in the background. 0 disables. |
+| `refetchOnReconnect` | `boolean` | `false` | Global default for refetch on reconnect. **Reactive-only**. |
+| `refetchOnFocus` | `boolean` | `false` | Global default for refetch on focus. **Reactive-only**. |
+| `refetchBatchSize` | `number` | `5` | Max stale cache entries to refetch per batch in the background refresh queue |
 | `refetchBatchDelayMs` | `number` | `1000` | Delay between batch cycles when processing stale refreshes (rate limiting) |
+| `refetchMaxRetries` | `number` | `3` | Max retries for background refetches (exponential backoff) |
+| `refetchRetryDelayMs` | `number` | `1000` | Base delay in ms for retry backoff (delay × 2^retryCount) |
 | `ignoreQueryParams` | `string[]` | `[]` | Query params to strip from cache keys (e.g. `["_t", "utm_source"]`). Prevents cache-busting params from creating duplicate cache entries. |
 | `normalizeCacheKey` | `boolean` | `false` | When `true`, query params are sorted alphabetically in cache keys so `?b=1&a=2` and `?a=2&b=1` resolve to the same entry. |
 
@@ -132,8 +138,6 @@ When a strategy value is an object instead of a string:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `strategy` | `string` | (required) | Caching strategy name. One of: `cache-first`, `network-first`, `stale-while-revalidate`, `cache-only`, `network-only`, `reactive` |
-| `maxCacheEntries` | `number` | inherited from top-level | Per-route max cache entries |
-| `maxCacheAge` | `number` | inherited from top-level | Per-route max cache age in ms |
 | `staleTime` | `number` | — | Stale time in seconds. **Reactive-only** — only valid when `strategy` is `"reactive"`. Data is considered fresh for this long; after expiry, SW serves cached but triggers a background refresh. 0 = always stale. |
 | `refetchInterval` | `number` | — | Auto-refetch interval in seconds. **Reactive-only**. The SW periodically re-fetches this route in the background. 0 disables. |
 | `refetchOnReconnect` | `boolean` | `false` | Refetch when the browser comes back online. **Reactive-only**. |
@@ -143,11 +147,11 @@ When a strategy value is an object instead of a string:
 
 The following settings resolve in 3 tiers (highest to lowest priority):
 
-1. **Per-request** — passed as options to `fetchWithCache({ strategy })` or `useCachedFetch()`, or via `X-SW-Strategy` header
+1. **Per-request** — passed as options to `fetchWithCache({ strategy })` or `useCachedFetch()`, or via `X-SW-Strategy` / `X-SW-Stale-Time` / `X-SW-Refetch-Interval` / `X-SW-Refetch-On-Reconnect` / `X-SW-Refetch-On-Focus` headers
 2. **Route pattern** — configured in `features.serviceWorker.strategies`
-3. **Global default** — configured at `features.serviceWorker.defaultStrategy`
+3. **Global default** — configured at `features.serviceWorker.defaultStrategy` (for `strategy`) or `features.serviceWorker.staleTime` / `features.serviceWorker.refetchInterval` / etc. (for reactive-only fields)
 
-This applies to: `strategy`. Reactive-only fields (`staleTime`, `refetchInterval`, `refetchOnReconnect`, `refetchOnFocus`) resolve via tiers 1 and 2 only (per-request header or route pattern) — there is no global default for reactive settings.
+This applies to: `strategy`and reactive-only fields (`staleTime`, `refetchInterval`, `refetchOnReconnect`, `refetchOnFocus`).
 
 ---
 
@@ -203,13 +207,28 @@ This applies to: `strategy`. Reactive-only fields (`staleTime`, `refetchInterval
 
 ---
 
+## `features.tagInvalidation`
+
+When set to `true`, uses defaults. When set to an object, supports:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `boolean` | `true` | Enable tag-based cache invalidation |
+| `prefixes` | `string[]` | `["api","v1","v2","v3","rest","graphql","gql"]` | URL path prefixes to skip during tag generation |
+| `patterns` | `object` | `{}` | Custom glob patterns for tag generation. Keys are URL patterns (`/api/:id`), values are tag template arrays (`["{id}"]`) |
+| `singularization` | `object` | `{}` | Custom plural→singular mapping (e.g. `{"categories": "category"}`). Default: strips trailing `s`. |
+| `cascading` | `object` | `{}` | Cascading tag dependencies. `{"todos": ["categories"]}` — invalidating `todos` also invalidates `categories` |
+| `invalidation.debounceMs` | `number` | `0` | Debounce window for coalescing rapid invalidations |
+| `invalidation.optimistic` | `boolean` | `false` | When true, immediately serve stale cache while invalidation is in flight |
+
+---
+
 ## Boolean features
 
 | Feature | Config path | Default |
 |---------|-------------|---------|
 | Background Sync | `features.backgroundSync` | `false` |
 | Cross-tab Sync | `features.crossTabSync` | `true` |
-| Tag Invalidation | `features.tagInvalidation` | `true` |
 
 ---
 

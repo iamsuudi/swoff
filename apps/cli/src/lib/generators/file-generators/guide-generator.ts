@@ -53,8 +53,7 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("When data is stale, the SW serves the cached copy but triggers a **background refresh**,");
   w("so the next read returns fresh data.");
   w("");
-  w("This is different from `maxCacheAge` (which **evicts** old entries entirely). StaleTime keeps the");
-  w("entry usable while silently refreshing it — the user never sees a loading spinner.");
+  w("StaleTime keeps the entry usable while silently refreshing it — the user never sees a loading spinner.");
   w("");
   w("**3-tier staleTime resolution (like strategies):**");
   w("1. **Per-request** — `fetchWithCache(url, { staleTime: 30 })` overrides everything");
@@ -832,8 +831,6 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("- `serviceWorker.strategies` — per-route strategy overrides");
   w("- `serviceWorker.staleTime` — global stale time in seconds (data considered fresh for N seconds). Applies to cache-first and network-first only.");
   w("- `serviceWorker.refetchBatchSize` — max stale cache entries to refetch per batch");
-  w("- `serviceWorker.maxCacheEntries` — max entries in runtime cache (oldest evicted)");
-  w("- `serviceWorker.maxCacheAge` — max age of cache entries in ms");
   w("");
 
   w("---");

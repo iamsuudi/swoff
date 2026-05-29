@@ -23,10 +23,10 @@
  */
 
 export function generateFetchHandler(
-  swConfig: { defaultStrategy: string; strategies: Record<string, string | { strategy: string; maxCacheEntries?: number; maxCacheAge?: number; staleTime?: number; refetchInterval?: number; refetchOnReconnect?: boolean; refetchOnFocus?: boolean }>; cacheStrategy?: "all" | "explicit-only"; maxCacheEntries?: number; maxCacheAge?: number; navigationPreload?: boolean; navigationMode?: string; spaEntry?: string; refetchBatchSize?: number; refetchBatchDelayMs?: number; ignoreQueryParams?: string[]; normalizeCacheKey?: boolean },
+  swConfig: { defaultStrategy: string; strategies: Record<string, string | { strategy: string; staleTime?: number; refetchInterval?: number; refetchOnReconnect?: boolean; refetchOnFocus?: boolean }>; cacheStrategy?: "all" | "explicit-only"; navigationPreload?: boolean; navigationMode?: string; spaEntry?: string; staleTime?: number; refetchInterval?: number; refetchOnReconnect?: boolean; refetchOnFocus?: boolean; refetchBatchSize?: number; refetchBatchDelayMs?: number; refetchMaxRetries?: number; refetchRetryDelayMs?: number; ignoreQueryParams?: string[]; normalizeCacheKey?: boolean },
   tagInvalidation: boolean,
 ): string {
-  const { defaultStrategy, strategies, cacheStrategy = "all", maxCacheEntries, maxCacheAge, navigationPreload, navigationMode, spaEntry, refetchBatchSize = 5, refetchBatchDelayMs = 1000, ignoreQueryParams, normalizeCacheKey } = swConfig;
+  const { defaultStrategy, strategies, cacheStrategy = "all", navigationPreload, navigationMode, spaEntry, staleTime: globalStaleTime, refetchInterval: globalRefetchInterval, refetchOnReconnect: globalRefetchOnReconnect, refetchOnFocus: globalRefetchOnFocus, refetchBatchSize = 5, refetchBatchDelayMs = 1000, refetchMaxRetries = 3, refetchRetryDelayMs = 1000, ignoreQueryParams, normalizeCacheKey } = swConfig;
 
   const navMode = navigationMode ?? "spa";
   const spaPath = spaEntry ?? "/index.html";
@@ -46,6 +46,13 @@ export function generateFetchHandler(
     await cacheTagUrl(cacheKeyUrl, actualUrl, tags);
   }` : "";
 
+  const reactGlobalDefaults = {
+    staleTime: globalStaleTime,
+    refetchInterval: globalRefetchInterval,
+    refetchOnReconnect: globalRefetchOnReconnect,
+    refetchOnFocus: globalRefetchOnFocus,
+  };
+
   const reactivePatterns = Object.entries(strategies)
     .filter(([, entry]) => {
       const resolved = typeof entry === "string" ? { strategy: entry } : entry;
@@ -53,13 +60,19 @@ export function generateFetchHandler(
     })
     .map(([pattern, entry]) => {
       const resolved = typeof entry === "string" ? { strategy: entry } : entry;
-      return { pattern, staleTime: resolved.staleTime, refetchInterval: resolved.refetchInterval, refetchOnReconnect: resolved.refetchOnReconnect, refetchOnFocus: resolved.refetchOnFocus };
+      return {
+        pattern,
+        staleTime: resolved.staleTime ?? reactGlobalDefaults.staleTime,
+        refetchInterval: resolved.refetchInterval ?? reactGlobalDefaults.refetchInterval,
+        refetchOnReconnect: resolved.refetchOnReconnect ?? reactGlobalDefaults.refetchOnReconnect,
+        refetchOnFocus: resolved.refetchOnFocus ?? reactGlobalDefaults.refetchOnFocus,
+      };
     });
 
-  const trimDecl = `const GLOBAL_MAX_ENTRIES = ${maxCacheEntries ?? 0};
-const GLOBAL_MAX_AGE = ${maxCacheAge ?? 0};
-const REFETCH_BATCH_SIZE = ${refetchBatchSize};
-const REFETCH_BATCH_DELAY_MS = ${refetchBatchDelayMs};`;
+  const trimDecl = `const REFETCH_BATCH_SIZE = ${refetchBatchSize};
+const REFETCH_BATCH_DELAY_MS = ${refetchBatchDelayMs};
+const REFRESH_MAX_RETRIES = ${refetchMaxRetries};
+const REFRESH_RETRY_DELAY_MS = ${refetchRetryDelayMs};`;
 
   const GLOB_CODE = "\n" +
 "// --- Glob Pattern Matching ---\n" +
@@ -125,7 +138,7 @@ let _refreshQueuePromise = null;
 
 function queueRefresh(cacheKeyUrl, actualUrl) {
   // Use Map keyed by cacheKey for proper deduplication
-  _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl });
+  _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl, retryCount: 0 });
   if (!_refreshQueuePromise) {
     _refreshQueuePromise = _processRefreshQueue().finally(() => {
       _refreshQueuePromise = null;
@@ -172,7 +185,21 @@ async function _processRefreshQueue() {
           }
         }
       } catch {
-        // Refresh failed — stale cache remains usable
+        // Refresh failed — retry with exponential backoff
+        if (entry.retryCount < REFRESH_MAX_RETRIES) {
+          entry.retryCount++;
+          const delay = REFRESH_RETRY_DELAY_MS * Math.pow(2, entry.retryCount - 1);
+          _refreshQueue.set(entry.cacheKey, entry);
+          // Schedule re-processing after delay
+          setTimeout(() => {
+            if (!_refreshQueuePromise) {
+              _refreshQueuePromise = _processRefreshQueue().finally(() => {
+                _refreshQueuePromise = null;
+                if (_refreshQueue.size > 0) queueRefresh();
+              });
+            }
+          }, delay);
+        }
       }
     }));
 
@@ -361,28 +388,16 @@ function resolveStrategyEntry(entry) {
 function determineCacheStrategy(request, customStrategies, globalDefaults) {
   const override = request.headers.get("X-SW-Strategy");
   if (override) {
-    return {
-      strategy: override,
-      maxCacheEntries: Number(request.headers.get("X-SW-Max-Entries")) || globalDefaults.maxCacheEntries,
-      maxCacheAge: Number(request.headers.get("X-SW-Max-Age")) || globalDefaults.maxCacheAge,
-    };
+    return { strategy: override };
   }
   const path = new URL(request.url).pathname;
   for (const [pattern, entry] of Object.entries(customStrategies)) {
     if (matchGlob(path, pattern)) {
       const resolved = resolveStrategyEntry(entry);
-      return {
-        strategy: resolved.strategy,
-        maxCacheEntries: resolved.maxCacheEntries ?? globalDefaults.maxCacheEntries,
-        maxCacheAge: resolved.maxCacheAge ?? globalDefaults.maxCacheAge,
-      };
+      return { strategy: resolved.strategy };
     }
   }
-  return {
-    strategy: globalDefaults.defaultStrategy,
-    maxCacheEntries: globalDefaults.maxCacheEntries,
-    maxCacheAge: globalDefaults.maxCacheAge,
-  };
+  return { strategy: globalDefaults.defaultStrategy };
 }
 
 function determineCacheStrategyForUrl(url, customStrategies, globalDefaults) {
@@ -397,20 +412,20 @@ function determineCacheStrategyForUrl(url, customStrategies, globalDefaults) {
 }
 
 function applyStrategy(event, request, config) {
-  const { strategy, maxCacheEntries, maxCacheAge } = config;
+  const { strategy } = config;
   if (strategy === "reactive") {
     const reactiveCfg = findReactiveConfig(new URL(request.url).href);
-    event.respondWith(reactiveStrategy(event, request, reactiveCfg?.staleTime, maxCacheEntries, maxCacheAge));
+    event.respondWith(reactiveStrategy(event, request, reactiveCfg?.staleTime));
   } else if (strategy === "stale-while-revalidate") {
-    event.respondWith(staleWhileRevalidate(event, request, maxCacheEntries, maxCacheAge));
+    event.respondWith(staleWhileRevalidate(event, request));
   } else if (strategy === "network-first") {
-    event.respondWith(networkFirst(event, request, maxCacheEntries, maxCacheAge));
+    event.respondWith(networkFirst(event, request));
   } else if (strategy === "cache-only") {
-    event.respondWith(cacheOnly(event, request, maxCacheEntries, maxCacheAge));
+    event.respondWith(cacheOnly(event, request));
   } else if (strategy === "network-only") {
     event.respondWith(networkOnly(event, request));
   } else {
-    event.respondWith(cacheFirst(event, request, maxCacheEntries, maxCacheAge));
+    event.respondWith(cacheFirst(event, request));
   }
 }
 
@@ -420,7 +435,7 @@ self.addEventListener("fetch", (event) => {
     if (!request.headers.get("X-SW-Cache-Key")) return;
   }
   ${cacheStrategy === "explicit-only" ? `if (!request.headers.get("X-SW-Cache-Strategy")) return;` : ""}
-  applyStrategy(event, request, determineCacheStrategy(event.request, ${JSON.stringify(strategies)}, { defaultStrategy: "${defaultStrategy}", maxCacheEntries: GLOBAL_MAX_ENTRIES, maxCacheAge: GLOBAL_MAX_AGE }));
+  applyStrategy(event, request, determineCacheStrategy(event.request, ${JSON.stringify(strategies)}, { defaultStrategy: "${defaultStrategy}" }));
 });
 
 // --- Strategies ---
@@ -435,12 +450,7 @@ async function fetchWithPreload(event, request) {
 }
 ` : ""}const _fetch = ${navigationPreload ? "fetchWithPreload" : `(event, request) => fetch(request)`};
 
-${generateTrimCode(maxCacheEntries, maxCacheAge)}
-function _trim(cacheName, maxEntries, maxAge) {
-${maxCacheEntries || maxCacheAge ? `  trimRuntimeCache(cacheName, maxEntries, maxAge);` : ""}
-}
-
-async function cacheFirst(event, request, maxEntries, maxAge) {
+async function cacheFirst(event, request) {
   const cached = await fromRuntime(request);
   if (cached) {${staleVersionCode}
     return markFromCache(cached);
@@ -455,27 +465,17 @@ async function cacheFirst(event, request, maxEntries, maxAge) {
   const response = await _fetch(event, request);
   if (response.ok) {
     const responseToCache = response.clone();
-    event.waitUntil(
-      (async () => {
-        await cacheResponse(request, responseToCache);
-        _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
-      })(),
-    );
+    event.waitUntil(cacheResponse(request, responseToCache));
   }
   return response;
 }
 
-async function networkFirst(event, request, maxEntries, maxAge) {
+async function networkFirst(event, request) {
   try {
     const response = await _fetch(event, request);
     if (response.ok) {
       const responseToCache = response.clone();
-      event.waitUntil(
-        (async () => {
-          await cacheResponse(request, responseToCache);
-          _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
-        })(),
-      );
+      event.waitUntil(cacheResponse(request, responseToCache));
     }
     return response;
   } catch {
@@ -494,7 +494,7 @@ async function networkFirst(event, request, maxEntries, maxAge) {
   }
 }
 
-async function staleWhileRevalidate(event, request, maxEntries, maxAge) {
+async function staleWhileRevalidate(event, request) {
   const cached = await fromRuntime(request);
   if (cached) {
     event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
@@ -511,15 +511,17 @@ async function staleWhileRevalidate(event, request, maxEntries, maxAge) {
   if (response.ok) {
     const responseToCache = response.clone();
     await cacheResponse(request, responseToCache);
-    _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
   }
   return response;
 }
 
-async function reactiveStrategy(event, request, staleTime, maxEntries, maxAge) {
+async function reactiveStrategy(event, request, staleTime) {
   const cached = await fromRuntime(request);
+  // Per-request staleTime header overrides config-level staleTime
+  const headerStale = request.headers.get("X-SW-Stale-Time");
+  const effectiveStaleTime = headerStale !== null ? Number(headerStale) : staleTime;
   if (cached) {${staleVersionCode}
-    if (shouldReactiveRefresh(cached, { staleTime })) {
+    if (shouldReactiveRefresh(cached, { staleTime: effectiveStaleTime })) {
       event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
     }
     return markFromCache(cached);
@@ -535,12 +537,11 @@ async function reactiveStrategy(event, request, staleTime, maxEntries, maxAge) {
   if (response.ok) {
     const responseToCache = response.clone();
     await cacheResponse(request, responseToCache);
-    _trim(CACHE_NAME_RUNTIME, maxEntries, maxAge);
   }
   return response;
 }
 
-async function cacheOnly(event, request, maxEntries, maxAge) {
+async function cacheOnly(event, request) {
   const cached = await fromRuntime(request);
   if (cached) {${staleVersionCode}
     return markFromCache(cached);
@@ -555,39 +556,4 @@ async function cacheOnly(event, request, maxEntries, maxAge) {
 async function networkOnly(event, request) {
   return _fetch(event, request);
 }`;
-}
-
-function generateTrimCode(maxCacheEntries: number | undefined, maxCacheAge: number | undefined): string {
-  if (!maxCacheEntries && !maxCacheAge) return "";
-
-  return `
-async function trimRuntimeCache(cacheName, maxEntries, maxAge) {
-  const _maxEntries = maxEntries ?? GLOBAL_MAX_ENTRIES;
-  const _maxAge = maxAge ?? GLOBAL_MAX_AGE;
-  const cache = await caches.open(cacheName);
-
-  if (_maxEntries > 0) {
-    const keys = await cache.keys();
-    if (keys.length >= _maxEntries) {
-      const toDelete = keys.slice(0, keys.length - _maxEntries + 1);
-      await Promise.all(toDelete.map((key) => cache.delete(key)));
-    }
-  }
-
-  if (_maxAge > 0) {
-    const keys = await cache.keys();
-    const now = Date.now();
-    for (const request of keys) {
-      const response = await cache.match(request);
-      const cachedAt = response?.headers.get("X-SW-Cached-At");
-      if (cachedAt) {
-        const age = now - Number(cachedAt);
-        if (age > _maxAge) {
-          await cache.delete(request);
-        }
-      }
-    }
-  }
-}
-`;
 }

@@ -50,6 +50,9 @@ export interface FetchWithCacheOptions extends RequestInit {
   type?: 'read' | 'mutation';
   strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only';
   staleTime?: number;
+  refetchInterval?: number;
+  refetchOnReconnect?: boolean;
+  refetchOnFocus?: boolean;
   /** Custom response validation for mutation success. Default: res.ok. Use this when your API returns 200 with { success: false } for logical failures. */
   validateSuccess?: (response: Response) => boolean | Promise<boolean>;
   /** Override the URL used for auto-invalidation. Defaults to the request URL. Useful when the mutation URL differs from the cache tag URL. */
@@ -253,6 +256,15 @@ ${autoTagsBlock}
   }
   if (options.staleTime !== undefined) {
     headers.set("X-SW-Stale-Time", String(options.staleTime));
+  }
+  if (options.refetchInterval !== undefined) {
+    headers.set("X-SW-Refetch-Interval", String(options.refetchInterval));
+  }
+  if (options.refetchOnReconnect !== undefined) {
+    headers.set("X-SW-Refetch-On-Reconnect", String(options.refetchOnReconnect));
+  }
+  if (options.refetchOnFocus !== undefined) {
+    headers.set("X-SW-Refetch-On-Focus", String(options.refetchOnFocus));
   }
 ${authBlock}${authUrlsBlock}
   const fetchOptions${T("RequestInit")} = { ...options, headers };

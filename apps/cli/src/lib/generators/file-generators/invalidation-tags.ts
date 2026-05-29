@@ -242,6 +242,45 @@ export function expandCascading(tags${T("string[]")})${R("string[]")}{
   }
   return [...result];
 }
+
+/** Introspect: get all URLs cached under a given tag. */
+export async function getUrlsForTag(tag${T("string")})${R("Promise<{ url: string; actualUrl: string }[]>")}{
+  if (!navigator.serviceWorker?.controller) return [];
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = (event) => {
+      resolve(event.data.urls || []);
+    };
+    navigator.serviceWorker.controller.postMessage(
+      { type: "GET_URLS_FOR_TAG", tag },
+      [channel.port2],
+    );
+  });
+}
+
+/** Introspect: get all tags associated with a given URL. */
+export async function getTagsForUrl(url${T("string")})${R("Promise<string[]>")}{
+  if (!navigator.serviceWorker?.controller) return [];
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = (event) => {
+      resolve(event.data.tags || []);
+    };
+    navigator.serviceWorker.controller.postMessage(
+      { type: "GET_TAGS_FOR_URL", url },
+      [channel.port2],
+    );
+  });
+}
+
+/** Invalidate all cached responses whose URL matches the given glob pattern. */
+export async function invalidateMatching(glob${T("string")})${R("Promise<void>")}{
+  if (!navigator.serviceWorker?.controller) return;
+  navigator.serviceWorker.controller.postMessage({
+    type: "INVALIDATE_MATCHING",
+    glob,
+  });
+}
 `;
 
   writeFile(ctx, `invalidation-tags.${ext}`, code);

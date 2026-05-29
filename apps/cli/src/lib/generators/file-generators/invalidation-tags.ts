@@ -230,7 +230,7 @@ export async function invalidateByMethod(method${T("string")}, url${T("string | 
 }
 
 /** Expand tags with their cascading dependencies, deduplicated. */
-function expandCascading(tags${T("string[]")})${R("string[]")}{
+export function expandCascading(tags${T("string[]")})${R("string[]")}{
   const result = new Set(tags);
   for (const tag of tags) {
     const deps = CASCADING[tag];

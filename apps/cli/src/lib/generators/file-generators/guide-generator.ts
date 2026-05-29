@@ -461,58 +461,176 @@ export function generateGuide(ctx: GeneratorContext): void {
   if (tagInvalidationEnabled(config)) {
     wb("## 🏷️ Tag Invalidation — keep cached data fresh");
     w("When data changes on the server, cached responses in the SW become stale. Tag invalidation");
-    w("lets you mark related cache entries as stale so they're re-fetched on next request.");
+    w("marks related cache entries as stale so they're re-fetched on next request.");
     w("");
 
-    w("### How it works");
-    w("1. When fetching, attach tags: `fetchWithCache(url, { tags: generateTags(url) })`");
-    w("2. After a mutation, invalidate: `await invalidateUrl(url)`");
-    w("3. The SW removes all cached responses that were tagged with the related tags");
+    w("### How it works (end-to-end)");
+    w("1. **Tag on read** — `fetchWithCache` automatically attaches tags to outgoing requests");
+    w("   via the `X-SW-Cache-Tags` header. The SW stores `url → tags[]` in IndexedDB.");
+    w("2. **Invalidate on write** — after a successful mutation, `fetchWithCache` calls");
+    w("   `invalidateUrl(url)` which generates tags from the URL, expands cascading deps,");
+    w("   and sends `INVALIDATE_TAG` messages to the SW.");
+    w("3. **SW deletes cache** — the SW queries IndexedDB by tag (multiEntry index), deletes");
+    w("   matching entries from cache storage, and enqueues background refetches.");
     w("");
 
-    w("### `invalidation-tags.ts` — Tag generation helpers");
+    w("### `fetchWithCache` options for invalidation");
+    w("");
+
+    w("| Option | Type | Description |");
+    w("|--------|------|-------------|");
+    w("| `tags` | `string[]` | **(read only)** Custom tags attached to the cached response via `X-SW-Cache-Tags`. Auto-generated from URL if omitted. |");
+    w("| `invalidate` | `'auto' \\| string[] \\| false` | Controls post-mutation invalidation. `'auto'` (default): generate tags from URL + expand cascading. `string[]`: invalidate these exact tags. `false`: skip invalidation. |");
+    w("| `validateSuccess` | `(res) => boolean` | Custom success check for mutations. Default: `res.ok`. Return `false` to skip invalidation (e.g., `(res) => res.status === 200`). |");
+    w("");
+
+    w("**Examples:**");
     w("```ts");
-    w(`import { generateTags, invalidateUrl } from "./swoff/invalidation-tags.${ext}";`);
+    w(`import { fetchWithCache } from "./swoff/fetch-wrapper.${ext}";`);
     w("");
-    w('// Tag reads');
-    w('const data = await fetchWithCache("/api/todos", { tags: generateTags("/api/todos") });');
+    w('// Auto: generate tags, auto-invalidate on mutation');
+    w('await fetchWithCache("/api/todos", { method: "POST", body: {...} });');
     w("");
-    w('// Invalidate after writing');
-    w('await invalidateUrl("/api/todos/42");');
+    w('// Explicit tags — invalidate these exact tags after mutation');
+    w('await fetchWithCache("/api/todos", {');
+    w('  method: "POST",');
+    w('  tags: ["custom-tag"],');
+    w('  invalidate: ["custom-tag"],');
+    w('});');
+    w("");
+    w('// Skip auto-invalidation; invalidate manually later');
+    w('await fetchWithCache("/api/todos", { method: "POST", invalidate: false });');
+    w('// ... later:');
+    w('await invalidateUrl("/api/todos");');
+    w("");
+    w('// Custom success validation (API returns 200 { success: false })');
+    w('await fetchWithCache("/api/todos", {');
+    w('  method: "POST",');
+    w('  body: {...},');
+    w('  validateSuccess: (res) => res.status === 200,');
+    w('});');
     w("```");
     w("");
 
-    w("**Functions:**");
-    w("- `generateTags(url)` — extract tags from a URL path. e.g. `/api/todos/42` → `[\"todos\", \"todo:42\"]`");
-    w("- `generateTagsFromMethod(method, url)` — method-prefixed tags. e.g. `post-todos`");
-    w("- `invalidateUrl(url)` — extract tags and invalidate all matching cache entries");
-    w("- `invalidateByMethod(method, url)` — invalidate using method-prefixed tags");
-    w("");
-
-    w("### `cache.ts` — Low-level invalidation");
-    w("```ts");
-    w(`import { invalidateByTag, invalidateByTags } from "./swoff/cache.${ext}";`);
-    w("");
-    w('await invalidateByTag("todos");');
-    w('await invalidateByTags(["todos", "categories"]);');
+    w("### Decision tree — which function to call?");
+    w("```");
+    w("After a write (POST / PUT / PATCH / DELETE):");
+    w("  │");
+    w("  ├─ You used fetchWithCache() with invalidate: 'auto' (default)");
+    w("  │   → Nothing extra needed — auto-invalidation triggers on success");
+    w("  │");
+    w("  ├─ You used fetchWithCache() with invalidate: ['tag1', 'tag2']");
+    w("  │   → Nothing extra needed — those exact tags are invalidated");
+    w("  │");
+    w("  ├─ You need to invalidate by URL (generate tags from path):");
+    w("  │   → await invalidateUrl('/api/todos/42')");
+    w("  │");
+    w("  ├─ You need to invalidate by method + URL:");
+    w("  │   → await invalidateByMethod('POST', '/api/todos')");
+    w("  │");
+    w("  ├─ You know the exact tag name:");
+    w("  │   → await invalidateByTag('todos')");
+    w("  │");
+    w("  └─ You need to invalidate multiple tags:");
+    w("      → await invalidateByTags(['todos', 'categories'])");
     w("```");
     w("");
 
-    w("**Functions:**");
-    w("- `invalidateByTag(tag)` — invalidate a single tag. Dispatches `cache-invalidated` event.");
-    w("- `invalidateByTags(tags)` — invalidate multiple tags.");
+    w("### Tag generation — URL → tags");
+    w("Tags can be generated from URLs in two ways:");
+    w("");
+
+    w("#### 1. Segment-based fallback (default)");
+    w("When no patterns match, tags are generated by splitting the URL path:");
+    w("```");
+    w("/api/todos        →  ['todos']");
+    w("/api/todos/42     →  ['todos', 'todo:42']");
+    w("/api/todos/42/cmt →  ['todos', 'todo:42', 'cmt']");
+    w("```");
+    w("Prefix matching skips `/api`, `/v1`, `/v2`, `/graphql`, etc.");
+    w("Collection names ending in `s` are singularized for the ID tag.");
+    w("");
+
+    w("#### 2. Glob pattern matching (configurable)");
+    w("Define patterns in your config for custom tag generation:");
+    w("```json");
+    w('"tagInvalidation": {');
+    w('  "patterns": {');
+    w('    "/api/users/:id": ["users", "user:{id}"],');
+    w('    "/api/**": ["api"],');
+    w('    "/api/{users,posts}/*": ["{resource}", "{resource}:{id}"],');
+    w('    "/api/projects/*/tasks": ["projects", "tasks"]');
+    w('  },');
+    w('  "singularization": { "people": "person" },');
+    w('  "prefixes": ["api", "v1"]');
+    w('}');
+    w("```");
+    w("| Pattern | Matches | Tags |");
+    w("|---------|---------|------|");
+    w("| `:param` | `/api/users/42` | Named capture group |");
+    w("| `*` | `/api/users/abc` | Single path segment (no `/`) |");
+    w("| `**` | `/api/users/123/posts` | Any number of segments |");
+    w("| `{a,b}` | `/api/users/42` or `/api/posts/42` | Alternation |");
+    w("");
+
+    w("### Cascading invalidation — tag A → tags B, C");
+    w("When you invalidate a tag, its cascading dependencies are also invalidated automatically.");
+    w("Configured in the `tagInvalidation` config:");
+    w("```json");
+    w('"tagInvalidation": {');
+    w('  "cascading": {');
+    w('    "users": ["sessions", "permissions"],');
+    w('    "todos": ["categories", "stats"]');
+    w('  }');
+    w('}');
+    w("```");
+    w("Now `invalidateUrl('/api/users')` invalidates `users`, `sessions`, and `permissions`.");
+    w("");
+
+    w("### Functions reference");
+    w("");
+
+    w("**`invalidation-tags.ts` — tag generation and URL-level invalidation**");
+    w("| Function | Purpose | Example |");
+    w("|----------|---------|---------|");
+    w("| `generateTags(url)` | URL → tags (patterns + segment fallback) | `generateTags('/api/todos/42') → ['todos', 'todo:42']` |");
+    w("| `generateTagsFromMethod(method, url)` | URL → method-prefixed tags | `generateTagsFromMethod('POST', '/api/todos') → ['post-todos']` |");
+    w("| `invalidateUrl(url)` | Generate tags + expand cascading + invalidate | `await invalidateUrl('/api/todos/42')` |");
+    w("| `invalidateByMethod(method, url)` | Method-prefixed tags + cascading + invalidate | `await invalidateByMethod('DELETE', '/api/todos/42')` |");
+    w("| `expandCascading(tags)` | Expand cascading deps, dedup | `expandCascading(['users']) → ['users', 'sessions', 'permissions']` |");
+    w("");
+
+    w("**`cache.ts` — low-level tag invalidation**");
+    w("| Function | Purpose | Example |");
+    w("|----------|---------|---------|");
+    w("| `invalidateByTag(tag)` | Send INVALIDATE_TAG to SW + fire `cache-invalidated` event | `await invalidateByTag('todos')` |");
+    w("| `invalidateByTags(tags)` | Invalidate multiple tags in parallel | `await invalidateByTags(['todos', 'categories'])` |");
+    w("");
+
+    w("**`fetch-wrapper.ts` — automatic invalidation**");
+    w("| Function | Purpose |");
+    w("|----------|---------|");
+    w("| `fetchWithCache(input, options)` | Auto-tags reads via `X-SW-Cache-Tags`. Auto-invalidates after mutation success using `options.invalidate`. |");
+    w("| `prefetchCache(input, options)` | Fire-and-forget cache warming; inherits all tag behavior. |");
     w("");
 
     if (ctx.frameworkName === "react") {
+      w("**React Hooks**");
+      w("| Hook | Returns | Description |");
+      w("|------|---------|-------------|");
+      w("| `useCacheInvalidation()` | `{ invalidateByTag, invalidateByTags, invalidateUrl }` | Stable `useCallback`-wrapped invalidation functions. |");
+      w("| `useCachedFetch(url, options?)` | `{ data, error, loading, refetch }` | Auto-refetches when the SW dispatches `cache-invalidated` events matching the URL's tags. |");
+      w("");
+
       w("### React Hook: `useCacheInvalidation`");
-      w("Reactive wrapper around cache invalidation functions.");
       w("```tsx");
       w(`import { useCacheInvalidation } from "./swoff/hooks/useCacheInvalidation.${ext}x";`);
       w("");
       w('const { invalidateByTag, invalidateByTags, invalidateUrl } = useCacheInvalidation();');
-      w("```");
       w("");
-      w("Returns stable `useCallback`-wrapped versions of each invalidation function.");
+      w('// Invalidate after manual mutation');
+      w('await invalidateUrl("/api/todos");');
+      w("```");
       w("");
     }
   }
@@ -705,7 +823,7 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("- `backgroundSync` — Background Sync API (Chrome/Edge only)");
   w("- `auth.enabled` — auth module (bearer/cookie/custom)");
   w("- `crossTabSync` — broadcast changes across tabs");
-  w("- `tagInvalidation` — cache invalidation by tags");
+  w("- `tagInvalidation` — cache invalidation by tags with glob patterns, cascading, and configurable singularization. Object: `{ enabled, prefixes, patterns, singularization, cascading }`");
   w("- `graphql.enabled` — GraphQL wrapper with body-hash caching. Object: `{ enabled, endpoint }`");
   w("- `pwa.enabled` — PWA install prompt and manifest");
   w("- `serverPush.enabled` — real-time cache invalidation via SSE/WebSocket. Object: `{ enabled, type, endpoint, reconnectDelayMs }`");

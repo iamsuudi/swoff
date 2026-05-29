@@ -28,6 +28,9 @@ export function generateCache(ctx: GeneratorContext): void {
  * Swoff Cache Invalidation
  * Framework-agnostic cache tag invalidation with cascading support.
  *
+ * Cascading is resolved at the client level before dispatching to the SW.
+ * Each received tag is sent as a separate INVALIDATE_TAG message.
+ *
  * Usage:
  *   import { invalidateByTag } from './swoff/cache.${ext}';
  *
@@ -36,6 +39,7 @@ export function generateCache(ctx: GeneratorContext): void {
  */
 
 // Cascading invalidation map (tag → dependent tags)
+// Used to expand window events so hooks know which tags were affected.
 const CASCADING = ${cascadingCode};
 
 /** Expand tags with cascading dependencies, deduplicated. */
@@ -53,37 +57,25 @@ function expandCascading(tags${T("string[]")})${R("string[]")}{
   return [...result];
 }
 
-/** Invalidate all cached responses tagged with the given tag. Dispatches cache-invalidated event. Also invalidates cascading dependencies. */
+/** Invalidate all cached responses tagged with the given tag. Dispatches cache-invalidated event with cascading dependencies expanded. */
 export async function invalidateByTag(tag${T("string")})${R("Promise<void>")}{
   if (!navigator.serviceWorker?.controller) return;
-
-  const allTags = CASCADING ? expandCascading([tag]) : [tag];
 
   navigator.serviceWorker.controller.postMessage({
     type: "INVALIDATE_TAG",
     tag,
   });
 
-  // Invalidate cascading dependencies separately
-  if (allTags.length > 1) {
-    const cascadingTags = allTags.filter((t) => t !== tag);
-    for (const dep of cascadingTags) {
-      navigator.serviceWorker.controller.postMessage({
-        type: "INVALIDATE_TAG",
-        tag: dep,
-      });
-    }
-  }
-
+  // Expand cascading for the window event so hooks know all affected tags
+  const allTags = CASCADING ? expandCascading([tag]) : [tag];
   window.dispatchEvent(
     new CustomEvent("cache-invalidated", { detail: { tags: allTags } })
   );
 }
 
-/** Invalidate all cached responses matching any of the given tags, including cascading dependencies. */
+/** Invalidate all cached responses matching any of the given tags. Cascading should be expanded by the caller (e.g., invalidateUrl in invalidation-tags) before passing here. */
 export async function invalidateByTags(tags${T("string[]")})${R("Promise<void>")}{
-  const allTags = CASCADING ? expandCascading(tags) : tags;
-  await Promise.all(allTags.map((tag) => invalidateByTag(tag)));
+  await Promise.all(tags.map((tag) => invalidateByTag(tag)));
 }
 `;
 

@@ -49,13 +49,12 @@ function applyReplacements(sw: string, config: SwoffConfig, assetsToCache: { url
   const refetchBatchDelayMs = serviceWorker.refetchBatchDelayMs ?? 1000;
   const ti = features.tagInvalidation;
   const tagInvalidationEnabled = typeof ti === "boolean" ? ti : ti.enabled;
-  const cascadingMap: Record<string, string[]> = typeof ti === "boolean" ? {} : (ti.cascading ?? {});
   sw = sw.replace("// [[FETCH_HANDLER]]", generateFetchHandler({ ...serviceWorker, refetchBatchSize, refetchBatchDelayMs, strategies: serviceWorker.strategies }, tagInvalidationEnabled));
   sw = sw.replace("// [[ACTIVATE_HANDLER]]", generateActivateHandler(serviceWorker.clearRuntimeOnUpdate, serviceWorker.navigationPreload));
   sw = sw.replace("// [[INSTALL_HANDLER]]", generateInstallHandler());
   sw = sw.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(tagInvalidationEnabled, features.auth.enabled));
   sw = tagInvalidationEnabled
-    ? sw.replace("// [[TAG_MANAGEMENT]]", generateTagManagement(cascadingMap))
+    ? sw.replace("// [[TAG_MANAGEMENT]]", generateTagManagement())
     : sw.replace("// [[TAG_MANAGEMENT]]", "");
 
   sw = features.pushNotifications?.enabled

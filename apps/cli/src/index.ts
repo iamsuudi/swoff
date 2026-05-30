@@ -20,8 +20,13 @@ import { initCommand } from "./lib/commands/init.js";
 import { generateCommand } from "./lib/commands/generate.js";
 import { validateCommand } from "./lib/commands/validate.js";
 import { addCommand } from "./lib/commands/add.js";
-import { infoCommand } from "./lib/commands/info.js";
 import { cleanCommand } from "./lib/commands/clean.js";
+
+function getArgValue(name: string): string | undefined {
+  const idx = options.indexOf(name);
+  if (idx === -1 || idx + 1 >= options.length) return undefined;
+  return options[idx + 1];
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageDir = join(__dirname, "..");
@@ -53,16 +58,14 @@ async function main() {
 
   switch (command) {
     case "init": {
-      const frameworkIdx = options.indexOf("--framework");
-      const framework = frameworkIdx !== -1 ? options[frameworkIdx + 1] : undefined;
+      const framework = getArgValue("--framework");
       await initCommand(projectRoot, framework);
       break;
     }
     case "generate": {
       const swOnly = options.includes("--sw-only");
       const filesOnly = options.includes("--files-only");
-      const langIdx = options.indexOf("--language");
-      const language = langIdx !== -1 ? options[langIdx + 1] : undefined;
+      const language = getArgValue("--language");
       await generateCommand(projectRoot, { swOnly, filesOnly, language });
       break;
     }
@@ -80,9 +83,6 @@ async function main() {
       await addCommand(projectRoot, feature);
       break;
     }
-    case "info":
-      await infoCommand(projectRoot, options[0]);
-      break;
     case "clean":
       await cleanCommand(projectRoot);
       break;

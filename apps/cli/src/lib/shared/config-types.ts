@@ -129,46 +129,6 @@ export const VALID_STRATEGIES = [
 
 export const API_PREFIXES = ["api", "v1", "v2", "v3", "rest", "graphql", "gql"];
 
-export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>): SwoffConfig {
-  return {
-    ...base,
-    ...override,
-    features: {
-      ...base.features,
-      ...override.features,
-      pwa: { ...base.features.pwa, ...override.features?.pwa },
-      serviceWorker: {
-        ...base.features.serviceWorker,
-        ...override.features?.serviceWorker,
-        version: override.features?.serviceWorker?.version ?? base.features.serviceWorker.version,
-        minSupportedVersion: override.features?.serviceWorker?.minSupportedVersion ?? base.features.serviceWorker.minSupportedVersion,
-        strategy: {
-          ...base.features.serviceWorker.strategy,
-          ...override.features?.serviceWorker?.strategy,
-          reactive: {
-            defaults: {
-              ...base.features.serviceWorker.strategy.reactive.defaults,
-              ...override.features?.serviceWorker?.strategy?.reactive?.defaults,
-            },
-          },
-        },
-        navigation: {
-          ...base.features.serviceWorker.navigation,
-          ...override.features?.serviceWorker?.navigation,
-        },
-      },
-      refetchQueue: { ...defaultRefetchQueue, ...base.features.refetchQueue, ...override.features?.refetchQueue },
-      mutationQueue: { ...defaultMutationQueue, ...base.features.mutationQueue, ...override.features?.mutationQueue },
-      auth: { ...defaultAuth, ...base.features.auth, ...override.features?.auth },
-      graphql: { ...defaultGql, ...base.features.graphql, ...override.features?.graphql },
-      tagInvalidation: { ...defaultTagInvalidation, ...base.features.tagInvalidation, ...override.features?.tagInvalidation },
-      pushNotifications: { ...base.features.pushNotifications, ...override.features?.pushNotifications },
-      serverPush: { ...defaultServerPush, ...base.features.serverPush, ...override.features?.serverPush },
-    },
-    build: { ...base.build, ...override.build },
-  };
-}
-
 export const defaultAuth: AuthConfig = {
   enabled: false,
   type: "bearer",
@@ -211,6 +171,46 @@ export const defaultTagInvalidation: TagInvalidationConfig = {
   singularization: {},
   cascading: {},
 };
+
+export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>): SwoffConfig {
+  return {
+    ...base,
+    ...override,
+    features: {
+      ...base.features,
+      ...override.features,
+      pwa: { ...base.features.pwa, ...override.features?.pwa },
+      serviceWorker: {
+        ...base.features.serviceWorker,
+        ...override.features?.serviceWorker,
+        version: override.features?.serviceWorker?.version ?? base.features.serviceWorker.version,
+        minSupportedVersion: override.features?.serviceWorker?.minSupportedVersion ?? base.features.serviceWorker.minSupportedVersion,
+        strategy: {
+          ...base.features.serviceWorker.strategy,
+          ...override.features?.serviceWorker?.strategy,
+          reactive: {
+            defaults: {
+              ...base.features.serviceWorker.strategy.reactive.defaults,
+              ...override.features?.serviceWorker?.strategy?.reactive?.defaults,
+            },
+          },
+        },
+        navigation: {
+          ...base.features.serviceWorker.navigation,
+          ...override.features?.serviceWorker?.navigation,
+        },
+      },
+      refetchQueue: { ...defaultRefetchQueue, ...base.features.refetchQueue, ...override.features?.refetchQueue },
+      mutationQueue: { ...defaultMutationQueue, ...base.features.mutationQueue, ...override.features?.mutationQueue },
+      auth: { ...defaultAuth, ...base.features.auth, ...override.features?.auth },
+      graphql: { ...defaultGql, ...base.features.graphql, ...override.features?.graphql },
+      tagInvalidation: { ...defaultTagInvalidation, ...base.features.tagInvalidation, ...override.features?.tagInvalidation },
+      pushNotifications: { ...base.features.pushNotifications, ...override.features?.pushNotifications },
+      serverPush: { ...defaultServerPush, ...base.features.serverPush, ...override.features?.serverPush },
+    },
+    build: { ...base.build, ...override.build },
+  };
+}
 
 export const defaultConfig: SwoffConfig = {
   enabled: true,

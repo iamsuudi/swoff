@@ -110,7 +110,7 @@ export function assembleSW(config: SwoffConfig, version: string, projectRoot?: s
   if (features.backgroundSync) {
     const authType = features.auth.enabled ? features.auth.type : undefined;
     const mq = features.mutationQueue;
-    sw += `\n\n${generateBackgroundSyncHandler(authType, mq.batchSize, mq.batchDelayMs, mq.maxRetries, mq.retryBackoffMs)}`;
+    sw += `\n\n${generateBackgroundSyncHandler(authType, mq.batchSize, mq.batchDelayMs, mq.maxRetries, mq.retryBackoffMs, config.features.tagInvalidation.enabled)}`;
   }
 
   return sw;

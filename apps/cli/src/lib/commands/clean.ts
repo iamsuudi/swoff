@@ -1,26 +1,16 @@
 /**
- * clean command - removes Swoff trace from the project (swoff/, config, version info).
+ * clean command - removes Swoff from the project (swoff/ dir + config).
  */
 
 import { rmSync, existsSync } from "fs";
 import { join } from "path";
 import { log } from "../cli/logger.js";
-import { loadConfigAsync } from "../config/loader.js";
-import { removeGeneratorFromBuildScript } from "../utils/build-script.js";
 
 export async function cleanCommand(projectRoot: string) {
   log.header("Removing Swoff");
 
-  const { config, configPath } = await loadConfigAsync(projectRoot);
   const configFiles = ["swoff.config.json", "swoff.config.js"];
-  const outputDir = config?.build?.outputDir || "dist";
-
   let count = 0;
-
-  if (removeGeneratorFromBuildScript(projectRoot)) {
-    log.info("Removed SW generator from package.json build script");
-    count++;
-  }
 
   const swoffDir = join(projectRoot, "swoff");
   if (existsSync(swoffDir)) {
@@ -33,13 +23,6 @@ export async function cleanCommand(projectRoot: string) {
   if (existingConfig) {
     rmSync(join(projectRoot, existingConfig));
     log.info(`Removed ${existingConfig}`);
-    count++;
-  }
-
-  const versionPath = join(projectRoot, outputDir, "version.json");
-  if (existsSync(versionPath)) {
-    rmSync(versionPath);
-    log.info(`Removed ${outputDir}/version.json`);
     count++;
   }
 

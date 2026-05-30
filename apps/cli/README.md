@@ -20,33 +20,33 @@ initServiceWorker();
 
 ## Features
 
-| Category               | Feature                                             | API                                                                       | Architecture                                                                     |
-| ---------------------- | --------------------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Caching                | staleTime, auto-refetch, 5 strategies               | [API: fetch-wrapper](./docs/API.md#fetch-wrapperts)                       | [Arch: staleTime + 3-tier](./docs/ARCHITECTURE.md#staletime-fresh-vs-stale-data) |
-| Mutations              | useState-style tracking, offline queue, concurrency | [API: mutation-state + mutation-queue](./docs/API.md#mutation-statets)    | [Arch: queue concurrency](./docs/ARCHITECTURE.md#mutation-queue-concurrency)     |
-| Prefetching            | Cache warming on hover/navigation                   | [API: usePrefetch](./docs/API.md#useprefetch)                             | —                                                                                |
-| Dependent queries      | enabled option, nullable URL                        | [API: useCachedFetch](./docs/API.md#usecachedfetcht-url-options)          | —                                                                                |
-| Query cancellation     | AbortController integration                         | [API: fetch-wrapper options](./docs/API.md#fetchwithcachet-input-options) | [Arch: dedup map](./docs/ARCHITECTURE.md#dedup-map--abortcontroller)             |
-| Real-time invalidation | SSE / WebSocket push events                         | [API: server-push](./docs/API.md#server-pushts)                           | [Arch: SSE vs WS](./docs/ARCHITECTURE.md#server-push-transport-sse-vs-websocket) |
-| Tag invalidation       | URL-derived cache tags                              | [API: invalidation-tags](./docs/API.md#invalidation-tagsts)               | —                                                                                |
-| Auth                   | memory-only tokens, bearer/cookie/custom            | [API: auth module](./docs/API.md#auth-module)                             | [Arch: security](./docs/ARCHITECTURE.md#auth-memory-only-tokens)                 |
-| GraphQL                | body-hash caching, auto-tags                        | [API: gql-wrapper](./docs/API.md#gql-wrapperts)                           | [Arch: body-hash](./docs/ARCHITECTURE.md#body-hash-graphql-caching)              |
-| PWA                    | install prompt, manifest, SW update hooks           | [API: pwa](./docs/API.md#pwainstallts)                                    | —                                                                                |
-| Push notifications     | VAPID subscription management                       | [API: push](./docs/API.md#pushts)                                         | —                                                                                |
-| Background Sync        | process mutations after tab close                   | [API: background-sync](./docs/API.md#background-syncts)                   | —                                                                                |
-| Cross-tab sync         | broadcast invalidation across tabs                  | handled by client-injector                                                | —                                                                                |
+| Category               | Feature                                             |
+| ---------------------- | --------------------------------------------------- |
+| Caching                | 6 strategies                                        |
+| Mutations              | useState-style tracking, offline queue, concurrency |
+| Prefetching            | Cache warming on hover/navigation                   |
+| Dependent queries      | enabled option, nullable URL                        |
+| Query cancellation     | AbortController integration                         |
+| Real-time invalidation | SSE / WebSocket push events                         |
+| Tag invalidation       | URL-derived cache tags                              |
+| Auth                   | memory-only tokens, bearer/cookie/custom            |
+| GraphQL                | body-hash caching, auto-tags                        |
+| PWA                    | install prompt, manifest, SW update hooks           |
+| Push notifications     | VAPID subscription management                       |
+| Background Sync        | process mutations after tab close                   |
+| Cross-tab sync         | broadcast invalidation across tabs                  |
 
 ## CLI Commands
 
-| Command          | Description                                    | Details                                 |
-| ---------------- | ---------------------------------------------- | --------------------------------------- |
-| `init`           | Create `swoff.config.json` with auto-detection | [CLI: init](./docs/CLI.md#init)         |
-| `generate`       | Generate SW + all supporting files             | [CLI: generate](./docs/CLI.md#generate) |
-| `add <feature>`  | Enable a feature and regenerate                | [CLI: add](./docs/CLI.md#add-feature)   |
-| `validate`       | Validate `swoff.config.json`                   | [CLI: validate](./docs/CLI.md#validate) |
-| `info [feature]` | Show summary or per-feature details            | [CLI: info](./docs/CLI.md#info-feature) |
-| `clean`          | Remove all generated files and config          | [CLI: clean](./docs/CLI.md#clean)       |
-| `help [command]` | Show help for a specific command               | [CLI: help](./docs/CLI.md#help-command) |
+| Command          | Description                                    |
+| ---------------- | ---------------------------------------------- |
+| `init`           | Create `swoff.config.json` with auto-detection |
+| `generate`       | Generate SW + all supporting files             |
+| `add <feature>`  | Enable a feature and regenerate                |
+| `validate`       | Validate `swoff.config.json`                   |
+| `info [feature]` | Show summary or per-feature details            |
+| `clean`          | Remove all generated files and config          |
+| `help [command]` | Show help for a specific command               |
 
 ## Configuration
 
@@ -68,6 +68,10 @@ Read the [architecture](./docs/ARCHITECTURE.md) for detailed information on the 
 ## Comparison With Other Popular Tools
 
 Read the [comparison](./docs/COMPARISON.md) for a comprehensive comparison with popular tools.
+
+## Ecosystem
+
+Read the [ecosystem](./docs/ECOSYSTEM.md) to see how swoff integrates with any web framework you can work with.
 
 ---
 

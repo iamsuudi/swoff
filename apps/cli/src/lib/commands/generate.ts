@@ -6,7 +6,6 @@
 import { log } from "../cli/logger.js";
 import { loadConfig } from "../config/loader.js";
 import { detectProjectLanguage } from "../utils/detect-language.js";
-import { appendGeneratorToBuildScript } from "../utils/build-script.js";
 import { statusLine, clearStatusLine } from "../utils/tty-status.js";
 import { generateSW } from "../generators/sw-generator.js";
 import { generateFiles } from "../generators/swoff-files-generator.js";
@@ -87,11 +86,11 @@ export async function generateCommand(
 
   log.success("Generation complete!");
 
-  if (appendGeneratorToBuildScript(projectRoot)) {
-    log.info("Added SW generator to package.json build script");
-  }
-
   log.normal("");
-  log.help("📖  Read swoff/GUIDE.md for the full integration guide");
-  log.help("📖  Read swoff/README.md for quick reference");
+  log.help("📖  Read swoff/GUIDE.md for documentation links");
+  log.help("📖  Run swoff info <feature> for targeted help");
+  log.normal("");
+  log.help("⚙️  After each build, run the SW generator:");
+  log.help("   node swoff/sw/generator.js");
+  log.help("   (Add this to your build script if you want it automated)");
 }

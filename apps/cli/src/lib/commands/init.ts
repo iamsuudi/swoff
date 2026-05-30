@@ -1,8 +1,8 @@
 /**
- * init command - creates swoff.config.json and swoff/ directory.
+ * init command - creates swoff.config.json.
  */
 
-import { writeFileSync, existsSync, mkdirSync } from "fs";
+import { writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { log } from "../cli/logger.js";
 import { defaultInitConfig, type SwoffConfig } from "../shared/config-types.js";
@@ -34,15 +34,6 @@ export async function initCommand(projectRoot: string, framework?: string) {
   const configPath = join(projectRoot, "swoff.config.json");
   writeFileSync(configPath, JSON.stringify(config, null, 2));
   log.info("Created swoff.config.json");
-
-  const dirs = ["swoff", "swoff/hooks"];
-  for (const dir of dirs) {
-    const dirPath = join(projectRoot, dir);
-    if (!existsSync(dirPath)) {
-      mkdirSync(dirPath, { recursive: true });
-      log.info(`Created ${dir}/`);
-    }
-  }
 
   log.success("Swoff initialized successfully!");
   log.normal("\nNext steps:");

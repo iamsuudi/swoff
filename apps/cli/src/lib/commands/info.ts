@@ -178,7 +178,7 @@ export async function infoCommand(projectRoot: string, feature?: string) {
 
   log.help("\n  swoff info <feature>  — detailed info for a feature");
   log.help("  Features: mutation-queue, background-sync, auth, tag-invalidation, cross-tab, graphql, push-notification, pwa, stale-time, auto-refetch, mutation-state, prefetch");
-  log.help("  Read swoff/GUIDE.md for the full integration guide");
+  log.help("  Read swoff/GUIDE.md for documentation links");
 }
 
 function showFeatureDetail(feature: string) {
@@ -200,7 +200,7 @@ function showFeatureDetail(feature: string) {
   log.normal("\nFunctions:");
   info.functions.forEach((f) => log.help(`  ${f}`));
 
-  log.help("\n  Read swoff/GUIDE.md for code examples and usage details.");
+  log.help("\n  Read swoff/GUIDE.md for documentation links.");
 }
 
 function countFilesRecursive(dir: string): number {

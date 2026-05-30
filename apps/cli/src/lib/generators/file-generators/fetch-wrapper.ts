@@ -100,7 +100,7 @@ export interface FetchWithCacheOptions extends RequestInit {
 
   const offlineTagComp = tagInvalidation
     ? `      // Pre-compute invalidation tags for replay
-      let queueTags = [];
+      let queueTags: string[] = [];
       const invalidateSetting = options.invalidate !== false ? (options.invalidate || 'auto') : false;
       if (invalidateSetting !== false) {
         if (Array.isArray(invalidateSetting)) {

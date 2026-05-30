@@ -88,7 +88,7 @@ export function generateReadme(ctx: GeneratorContext): void {
     w("## Push notifications");
     w("```ts");
     w(`import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push.${ext}";`);
-    w('const sub = await subscribeToPush("YOUR_VAPID_PUBLIC_KEY");');
+    w("const sub = await subscribeToPush();");
     w("```");
     w("");
   }

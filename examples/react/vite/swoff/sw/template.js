@@ -3,7 +3,7 @@
  * Generated from swoff.config.json
  * DO NOT EDIT MANUALLY
  * Version: 0.0.0
- * Features: version=package, mutationQueue=false, backgroundSync=false, tagInvalidation=true
+ * Features: version=package, mutationQueue=true, backgroundSync=true, tagInvalidation=true
  * Default Strategy: cache-first
  * See: https://swoff.netlify.app/docs
  */
@@ -85,6 +85,13 @@ self.addEventListener("message", (event) => {
   }
   if (event.data.type === "INVALIDATE_MATCHING" && event.data.glob) {
     event.waitUntil(invalidateMatching(event.data.glob));
+  }
+  if (event.data.type === "CLEAR_RUNTIME_CACHE") {
+    event.waitUntil(
+      caches.delete(CACHE_NAME_RUNTIME).then(() => {
+        return caches.open(CACHE_NAME_RUNTIME);
+      }),
+    );
   }
   if (event.data.type === "ONLINE") {
     event.waitUntil(handleOnline());
@@ -686,6 +693,248 @@ async function invalidateMatching(globPattern) {
   await Promise.all([...tags].map((tag) => invalidateByTag(tag)));
 }
 
+// --- Push Notification Handlers ---
 
+self.addEventListener("push", (event) => {
+  let data;
+
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: "New Update", body: event.data?.text() || "" };
+  }
+
+  const options = {
+    body: data.body || "",
+    icon: data.icon || "/icon-192.png",
+    badge: data.badge || "",
+    image: data.image || undefined,
+    vibrate: data.vibrate || [200, 100, 200],
+    data: {
+      url: data.url || "/",
+      ...(data.data || {}),
+    },
+    actions: data.actions || [],
+    tag: data.tag || undefined,
+    requireInteraction: data.requireInteraction || false,
+  };
+
+  event.waitUntil(self.registration.showNotification(data.title || "Update", options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const url = event.notification.data?.url || "/";
+  const action = event.action;
+
+  event.waitUntil(
+    (async () => {
+      if (action) {
+        // Handle action clicks (e.g., "reply", "dismiss")
+      }
+
+      const clients = await self.clients.matchAll({ type: "window" });
+
+      for (const client of clients) {
+        const clientUrl = new URL(client.url);
+        const targetUrl = new URL(url, self.location.origin);
+
+        if (clientUrl.pathname === targetUrl.pathname && "focus" in client) {
+          return client.focus();
+        }
+      }
+
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+    })(),
+  );
+});
+
+
+
+
+self.addEventListener("sync", (event) => {
+  if (event.tag === "sync-mutations") {
+    event.waitUntil(processMutationQueueInSW());
+  }
+});
+
+const SW_BATCH_SIZE = 1;
+const SW_BATCH_DELAY_MS = 0;
+const SW_MAX_RETRIES = 5;
+const SW_RETRY_BACKOFF_MS = 1000;
+
+function swSleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function processMutationQueueInSW() {
+  // If client pages are open, check if a client is already processing the queue
+  const activeClients = await self.clients.matchAll();
+  if (activeClients.length > 0) {
+    try {
+      const db = await new Promise((resolve, reject) => {
+        const request = indexedDB.open("swoff-queue", 1);
+        request.onupgradeneeded = (e) => {
+          const d = e.target.result;
+          if (!d.objectStoreNames.contains("mutations")) {
+            d.createObjectStore("mutations", { keyPath: "id" });
+          }
+        };
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e.target.error);
+      });
+      const tx = db.transaction("mutations", "readonly");
+      const store = tx.objectStore("mutations");
+      const lock = await new Promise((resolve, reject) => {
+        const req = store.get("_processing_lock");
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      if (lock && Date.now() - lock.timestamp < 5000) {
+        return; // Client is handling it
+      }
+    } catch {
+      // If lock check fails, proceed with processing
+    }
+  }
+
+  let succeeded = 0;
+  let failed = 0;
+  const tagsToInvalidate = new Set();
+
+  try {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open("swoff-queue", 1);
+      request.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains("mutations")) {
+          const store = db.createObjectStore("mutations", { keyPath: "id" });
+          store.createIndex("by-timestamp", "timestamp");
+        }
+      };
+      request.onsuccess = (e) => resolve(e.target.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+
+    const tx = db.transaction("mutations", "readonly");
+    const store = tx.objectStore("mutations");
+    const index = store.index("by-timestamp");
+    const queue = await new Promise((resolve, reject) => {
+      const request = index.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+
+    const total = queue.length;
+    for (const item of queue) {
+      if (item.retryCount >= SW_MAX_RETRIES) {
+        await removeFromSWQueue(db, item.id);
+        failed++;
+        continue;
+      }
+
+      // Skip items whose backoff delay hasn't elapsed yet
+      if (item.nextRetryAt && Date.now() < item.nextRetryAt) {
+        continue;
+      }
+
+      // Stop processing if browser went offline during sync
+      if (!self.navigator.onLine) break;
+
+      // Reconstruct request body based on stored bodyType
+      let replayBody = null;
+      let contentType;
+      const bt = item.bodyType || "json";
+      if (bt === "formdata") {
+        replayBody = new FormData();
+        const entries = item.body || [];
+        for (let i = 0; i < entries.length; i++) {
+          replayBody.append(entries[i][0], entries[i][1]);
+        }
+      } else if (bt === "blob") {
+        replayBody = item.body;
+      } else if (bt === "buffer") {
+        replayBody = item.body instanceof ArrayBuffer ? new Uint8Array(item.body) : item.body;
+      } else {
+        replayBody = JSON.stringify(item.body);
+        contentType = "application/json";
+      }
+
+      try {
+        const response = await fetch(item.url, {
+          method: item.method,
+          headers: {
+            ...(contentType ? { "Content-Type": contentType } : {}),
+            ...item.headers,
+          },
+          body: replayBody,
+          credentials: "same-origin",        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        if (item.tags) {
+          item.tags.forEach((tag) => {
+            tagsToInvalidate.add(tag);
+            invalidateByTag(tag);
+          });
+        }
+
+        await removeFromSWQueue(db, item.id);
+        succeeded++;
+      } catch {
+        item.retryCount++;
+        item.nextRetryAt = Date.now() + SW_RETRY_BACKOFF_MS * Math.pow(2, item.retryCount - 1);
+        await updateInSWQueue(db, item);
+        failed++;
+      }
+
+      // Rate limiting delay between mutations
+      if (SW_BATCH_DELAY_MS > 0 && succeeded + failed < total) {
+        await swSleep(SW_BATCH_DELAY_MS);
+      }
+
+      // Emit progress after every SW_BATCH_SIZE mutations
+      if ((succeeded + failed) % SW_BATCH_SIZE === 0 || succeeded + failed === total) {
+        const clients = await self.clients.matchAll();
+        for (const client of clients) {
+          client.postMessage({
+            type: "BACKGROUND_SYNC_PROGRESS",
+            detail: { succeeded, failed, total, current: succeeded + failed },
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Background sync failed:", err);
+  }
+
+  const clients = await self.clients.matchAll();
+  for (const client of clients) {
+    client.postMessage({
+      type: "BACKGROUND_SYNC_COMPLETE",
+      detail: { succeeded, failed, tags: [...tagsToInvalidate] },
+    });
+  }
+}
+
+async function removeFromSWQueue(db, id) {
+  const tx = db.transaction("mutations", "readwrite");
+  tx.objectStore("mutations").delete(id);
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function updateInSWQueue(db, item) {
+  const tx = db.transaction("mutations", "readwrite");
+  tx.objectStore("mutations").put(item);
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
 // Dev mode fallback
 if (!CACHE_NAME) CACHE_NAME = "sw-dev-cache";

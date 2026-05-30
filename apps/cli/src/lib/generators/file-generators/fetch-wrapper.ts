@@ -47,7 +47,7 @@ export interface FetchWithCacheOptions extends RequestInit {
   queueOffline?: boolean;
   invalidate?: 'auto' | string[] | false;
   type?: 'read' | 'mutation';
-  strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only';
+  strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only' | 'reactive';
   staleTime?: number;
   refetchInterval?: number;
   refetchOnReconnect?: boolean;

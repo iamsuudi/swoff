@@ -40,7 +40,6 @@ import { generateGqlWrapper } from "./file-generators/gql-wrapper.js";
 import { generateTypeDefinitions } from "./file-generators/type-definitions.js";
 import { generateHooks } from "./file-generators/generate-hooks.js";
 import { generateGuide } from "./file-generators/guide-generator.js";
-import { generateReadme } from "./file-generators/quick-readme.js";
 interface Step {
   name: string;
   gen: () => void;
@@ -70,7 +69,6 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
     { name: "server-push", gen: () => generateServerPush(ctx), enabled: ctx.config.features.serverPush.enabled },
     { name: "hooks", gen: () => generateHooks(ctx), enabled: ctx.config.framework === "react" },
     { name: "GUIDE.md", gen: () => generateGuide(ctx), enabled: true },
-    { name: "README.md", gen: () => generateReadme(ctx), enabled: true },
   ];
 
   for (const step of steps) {

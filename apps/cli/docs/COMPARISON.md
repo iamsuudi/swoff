@@ -259,6 +259,18 @@ the cumulative bundle and integration complexity grows quickly.
 
 ---
 
+## Ecosystem reach
+
+Swoff's architecture is fundamentally different from every library in this comparison —
+it operates at the **browser infrastructure layer** (Service Worker + `fetch` event), not
+the application layer. This means it works with **any** backend (PHP, Laravel, Django, Rails,
+Go, Java), **any** frontend (React, Vue, Svelte, HTMX, vanilla JS), and **any** rendering
+strategy (SSR, SSG, SPA, islands, HTML-over-the-wire).
+
+See [ECOSYSTEM.md](./ECOSYSTEM.md) for the full breakdown by ecosystem category.
+
+---
+
 ## Honest Assessment
 
 Swoff is **early** compared to most libraries in this comparison. TanStack Query has years

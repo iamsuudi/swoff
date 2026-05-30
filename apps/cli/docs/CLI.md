@@ -23,8 +23,7 @@ swoff init --framework react   # override auto-detection
 
 ## `generate`
 
-Generates the service worker and all supporting files into `swoff/`. Also appends the SW generator
-to your `package.json` build script (e.g. `"build": "vite build && node swoff/sw/generator.js"`).
+Generates the service worker and all supporting files into `swoff/`.
 
 ```
 swoff generate
@@ -38,7 +37,7 @@ swoff generate --files-only   # regenerate only supporting files (not SW)
 | `--files-only` | Skip SW regeneration; regenerate all client-side files (fetch-wrapper, hooks, etc.) |
 | `--language` | `"ts"` \| `"js"` — override language auto-detection; forces `.tsx`/`.ts` or `.jsx`/`.js` output |
 
-After generation, read `swoff/GUIDE.md` for the full integration guide customised to your config.
+After generation, read `swoff/GUIDE.md` for documentation links or run `swoff info <feature>` for targeted help.
 
 ### What is generated
 
@@ -65,8 +64,7 @@ All files land in `swoff/`. See [API.md](./API.md) for the full reference.
 | `sw/injector.ts` | always | SW registration logic |
 | `sw/generator.js` | always | Build-time script — embeds asset hashes |
 | `swoff.d.ts` | always | TypeScript declarations |
-| `GUIDE.md` | always | Full integration walkthrough |
-| `README.md` | always | Quick reference |
+| `GUIDE.md` | always | Documentation links and quick-start info |
 | `manifest.json` | `pwa.enabled` | Web app manifest |
 
 ---
@@ -121,7 +119,7 @@ swoff validate
 
 ## `clean`
 
-Removes every generated Swoff file and config:
+Removes generated Swoff files and config:
 
 ```
 swoff clean
@@ -130,8 +128,6 @@ swoff clean
 This deletes:
 - `swoff/` directory (all generated files)
 - `swoff.config.json`
-- `version.json`
-- SW generator suffix from `package.json` build script
 
 ---
 
@@ -149,24 +145,22 @@ swoff help generate
 
 ## Build script integration
 
-After `swoff generate`, the SW generator is appended to your build script:
+The SW generator (`sw/generator.js`) must run after every build to produce the final
+service worker file. Add it to your `package.json` build script:
 
 ```json
 "build": "vite build && node swoff/sw/generator.js"
 ```
 
-The generator (`sw/generator.js`) runs after every build:
+Or run it manually after each build:
 
+```bash
+node swoff/sw/generator.js
+```
+
+The generator:
 1. Reads `swoff.config.json` for output dir, version, and strategy config
 2. Reads `sw/template.js` — the service worker source code
 3. Collects all built assets from the output directory
 4. Replaces placeholders (`[[CACHE_NAME]]`, `[[ASSETS_LIST]]`, `[[AUTO_SKIP_WAITING]]`) with actual values
 5. Writes the final versioned SW file (e.g. `dist/sw-v1.2.3.js`) and `version.json`
-
-Running `swoff clean` removes the generator suffix from your build script.
-
-You can also run the generator independently:
-
-```bash
-node swoff/sw/generator.js
-```

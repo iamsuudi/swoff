@@ -78,7 +78,7 @@ export interface FetchWithCacheOptions extends RequestInit {
   queueOffline?: boolean;
   invalidate?: 'auto' | string[] | false;
   type?: 'read' | 'mutation';
-  strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only';
+  strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only' | 'reactive';
   staleTime?: number;
   refetchInterval?: number;
   refetchOnReconnect?: boolean;
@@ -161,7 +161,7 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
         headerObj[key] = value;
       });
       // Pre-compute invalidation tags for replay
-      let queueTags = [];
+      let queueTags: string[] = [];
       const invalidateSetting = options.invalidate !== false ? (options.invalidate || 'auto') : false;
       if (invalidateSetting !== false) {
         if (Array.isArray(invalidateSetting)) {

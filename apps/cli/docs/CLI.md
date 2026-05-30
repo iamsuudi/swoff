@@ -37,7 +37,7 @@ swoff generate --files-only   # regenerate only supporting files (not SW)
 | `--files-only` | Skip SW regeneration; regenerate all client-side files (fetch-wrapper, hooks, etc.) |
 | `--language` | `"ts"` \| `"js"` — override language auto-detection; forces `.tsx`/`.ts` or `.jsx`/`.js` output |
 
-After generation, read `swoff/GUIDE.md` for documentation links or run `swoff info <feature>` for targeted help.
+After generation, read `swoff/GUIDE.md` for documentation links.
 
 ### What is generated
 
@@ -87,22 +87,6 @@ swoff add server-push
 
 For object-type features (auth, mutation-queue, graphql, push-notifications, server-push),
 this sets `enabled: true` with defaults. Tweak the config file afterwards for fine-grained options.
-
----
-
-## `info [feature]`
-
-Shows enabled features and generated file count, or detailed documentation for a specific feature.
-
-```
-swoff info                    # summary: enabled features + file count
-swoff info auth               # auth module details + exported functions
-swoff info mutation-queue     # mutation queue details + exported functions
-```
-
-Available feature keys: `mutation-queue`, `background-sync`, `auth`, `tag-invalidation`,
-`cross-tab`, `graphql`, `push-notification`, `server-push`, `pwa`, `stale-time`,
-`auto-refetch`, `mutation-state`, `prefetch`.
 
 ---
 

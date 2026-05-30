@@ -254,7 +254,7 @@ export async function processMutationQueue()${R("Promise<void>")}{
       }
 
       // Rate limiting delay between mutations
-      if (BATCH_DELAY_MS > 0 && succeeded + (failed - succeeded) < total) {
+      if (BATCH_DELAY_MS > 0 && succeeded + failed < total) {
         await sleep(BATCH_DELAY_MS);
       }
 

@@ -1,4 +1,4 @@
-export function generateBackgroundSyncHandler(authType: string | undefined, batchSize: number, batchDelayMs: number, maxRetries: number, retryBackoffMs: number): string {
+export function generateBackgroundSyncHandler(authType: string | undefined, batchSize: number, batchDelayMs: number, maxRetries: number, retryBackoffMs: number, tagInvalidationEnabled: boolean): string {
   const DB_NAME = "swoff-queue";
   const STORE_NAME = "mutations";
 
@@ -129,7 +129,7 @@ ${credentialsLine}        });
         if (item.tags) {
           item.tags.forEach((tag) => {
             tagsToInvalidate.add(tag);
-            invalidateByTag(tag);
+            if (typeof invalidateByTag !== "undefined") invalidateByTag(tag);
           });
         }
 

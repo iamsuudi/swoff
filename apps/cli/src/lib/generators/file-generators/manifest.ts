@@ -2,13 +2,13 @@
  * Generates manifest.json - PWA web app manifest.
  */
 
-import { GeneratorContext } from "./context.js";
+import { GeneratorContext, ensureDir } from "./context.js";
 import { existsSync, writeFileSync } from "fs";
 import { join } from "path";
 
 export function generateManifest(ctx: GeneratorContext): void {
   const outputDir = join(ctx.projectRoot, "public");
-  if (!existsSync(outputDir)) return;
+  ensureDir(outputDir);
 
   const manifestPath = join(outputDir, "manifest.json");
   if (existsSync(manifestPath)) return;

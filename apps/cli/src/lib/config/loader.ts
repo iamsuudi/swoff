@@ -5,10 +5,7 @@
 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
-import { createRequire } from "module";
 import { defaultConfig, mergeConfigs, type SwoffConfig } from "../shared/config-types.js";
-
-const require = createRequire(import.meta.url);
 
 export interface LoadConfigResult {
   config: SwoffConfig;
@@ -57,20 +54,10 @@ export function loadConfig(projectRoot: string, explicitPath?: string): LoadConf
       }
     }
 
-    // Load JS config synchronously via createRequire
+    // JS configs are loaded asynchronously — defer to loadConfigAsync.
+    // Return the path so the async variant can retry with dynamic import.
     if (file.endsWith(".js")) {
-      try {
-        const raw = require(path) as Partial<SwoffConfig>;
-        return {
-          config: mergeConfigs(defaultConfig, raw),
-          configPath: path,
-          configSource: "JavaScript",
-        };
-      } catch {
-        // Sync load may fail for ESM-only JS files.
-        // Return path so loadConfigAsync can retry with dynamic import.
-        return { config: defaultConfig, configPath: path, configSource: "JavaScript" };
-      }
+      return { config: defaultConfig, configPath: path, configSource: "JavaScript" };
     }
   }
 

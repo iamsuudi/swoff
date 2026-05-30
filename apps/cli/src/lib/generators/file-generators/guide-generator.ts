@@ -16,7 +16,7 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("");
   w("For the full documentation, visit:");
   w("");
-  w("- **Documentation** — *URL TBD*");
+  w("- **Documentation** — https://swoff.dev/docs");
   w("");
   w("Or run `swoff info <feature>` for targeted help.");
   w("```");

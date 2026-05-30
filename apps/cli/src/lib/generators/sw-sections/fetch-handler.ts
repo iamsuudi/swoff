@@ -74,6 +74,8 @@ const REFRESH_RETRY_DELAY_MS = ${refetchRetryDelayMs};`;
 
   const GLOB_CODE = "\n" +
 "// --- Glob Pattern Matching ---\n" +
+"// NOTE: This is an inline copy of the algorithm in shared/glob-matcher.ts.\n" +
+"// Keep the two implementations in sync when making changes.\n" +
 "\n" +
 "function escapeGlobMeta(s) {\n" +
 "  return s.replace(/[.+^${}()|[\\]\\\\]/g, \"\\\\$$&\");\n" +

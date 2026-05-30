@@ -64,6 +64,8 @@
 
 import { generateTags, invalidateUrl, expandCascading } from "./invalidation-tags.ts";
 import { invalidateByTags } from "./cache.ts";
+import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, AUTH_WITH_CREDENTIALS } from "./auth/store.ts";
+import { queueMutation } from "./mutation-queue.ts";
 
 export interface FetchWithCacheResult<T> {
   response: Response & { json(): Promise<T> };
@@ -130,8 +132,19 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
     headers.set("X-SW-Refetch-On-Focus", String(options.refetchOnFocus));
   }
 
+  if (options.auth) {
+    const auth = await getAuth();
+    withAuthHeaders(headers, auth);
+  }
+  // Auth endpoints bypass SW cache
+  if (options.auth && isAuthUrl(url) && !headers.has("X-SW-Cache-Strategy")) {
+    headers.set("X-SW-Cache-Strategy", "mutation");
+  }
   const fetchOptions: RequestInit = { ...options, headers };
 
+  if (AUTH_WITH_CREDENTIALS) {
+    fetchOptions.credentials = "include";
+  }
 
   // Offline handling
   if (!navigator.onLine) {
@@ -140,6 +153,36 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
       const cached = await caches.match(input);
       if (cached) return { response: cached, fromCache: true };
       throw new Error("Offline: no cached data available");
+    }
+    // Write offline — auto-queue
+    if (options.queueOffline !== false) {
+      const headerObj: Record<string, string> = {};
+      headers.forEach((value, key) => {
+        headerObj[key] = value;
+      });
+      // Pre-compute invalidation tags for replay
+      let queueTags = [];
+      const invalidateSetting = options.invalidate !== false ? (options.invalidate || 'auto') : false;
+      if (invalidateSetting !== false) {
+        if (Array.isArray(invalidateSetting)) {
+          queueTags = invalidateSetting;
+        } else {
+          queueTags = generateTags(url);
+          queueTags = expandCascading(queueTags);
+        }
+      }
+      await queueMutation({
+        method,
+        url,
+        body: options.body,
+        headers: headerObj,
+        tags: queueTags,
+        timestamp: Date.now(),
+      });
+      return {
+        response: new Response(null, { status: 202, statusText: "Queued" }),
+        fromCache: false,
+      };
     }
     throw new Error("Offline: write operation failed");
   }
@@ -186,6 +229,10 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
         await invalidateUrl(invalidateTarget);
       }
     }
+  }
+  if (options.auth && response.status === 401) {
+    await clearAuth();
+    window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
   }
   const fromCache = response.headers.get("X-SW-From-Cache") === "true";
   return { response, fromCache };

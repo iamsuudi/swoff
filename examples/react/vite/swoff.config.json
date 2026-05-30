@@ -48,16 +48,16 @@
       "retryDelayMs": 1000
     },
     "mutationQueue": {
-      "enabled": false,
+      "enabled": true,
       "batchSize": 1,
       "batchDelayMs": 0,
       "maxRetries": 5,
       "retryBackoffMs": 1000
     },
-    "backgroundSync": false,
+    "backgroundSync": true,
     "auth": {
-      "enabled": false,
-      "type": "bearer",
+      "enabled": true,
+      "type": "cookie",
       "refreshPath": "/api/refresh",
       "userEndpoint": "/api/me"
     },
@@ -65,25 +65,17 @@
     "tagInvalidation": {
       "enabled": true,
       "debounceMs": 0,
-      "prefixes": [
-        "api",
-        "v1",
-        "v2",
-        "v3",
-        "rest",
-        "graphql",
-        "gql"
-      ],
+      "prefixes": ["api", "v1", "v2", "v3", "rest", "graphql", "gql"],
       "patterns": {},
       "singularization": {},
       "cascading": {}
     },
     "graphql": {
-      "enabled": false,
+      "enabled": true,
       "endpoint": "/graphql"
     },
     "pushNotifications": {
-      "enabled": false
+      "enabled": true
     },
     "serverPush": {
       "enabled": false,

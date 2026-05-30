@@ -67,13 +67,14 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("| `stale-while-revalidate` | Serve from cache, no refresh | Serve + background refresh (was always-refresh) |");
   w("| `cache-only` | Serve from cache | Serve from cache + best-effort refresh |");
   w("| `network-only` | No effect | No effect |");
+  w("| `reactive` | Serve from cache + bg refresh on all triggers | Fresh: pure cache (no refresh). Stale: cache + bg refresh | Data that needs auto-fresh via interval, focus, or reconnect |");
   w("");
 
   // ── Online Refetch ──
   wb("## 🔄 Online refetch — recover stale cache after connectivity loss");
   w("When the browser fires the `online` event, `client-injector` forwards it to the SW.");
   w("The SW iterates its runtime cache and refetches any stale entries (batched & rate-limited).");
-  w("This is the only refetch trigger — no window focus, no intervals, no polling.");
+  w("For non-reactive strategies, this is the only refetch trigger. With the **reactive** strategy, the SW additionally supports \`refetchInterval\`, \`refetchOnFocus\`, and \`refetchOnReconnect\` — see the [Stale Time section](#-stale-time--fresh-vs-stale-data).");
   w("");
 
   if (ctx.frameworkName === "react") {
@@ -220,6 +221,7 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("| `stale-while-revalidate` | Return cached immediately, refresh in background | Fresh: pure cache (no refresh). Stale: cache + bg refresh | Fast UI, non-critical data |");
   w("| `cache-only` | Serve from cache only (404 if missing) | Fresh: pure cache. Stale: cache + best-effort refresh | Offline-critical assets |");
   w("| `network-only` | Always fetch, never cache | No effect | Sensitive or real-time data |");
+  w("| `reactive` | Serve from cache + bg refresh on staleTime | Fresh: pure cache. Stale: cache + bg refresh + interval/focus/reconnect triggers | Data that needs proactive auto-refresh |");
   w("");
 
   // ── GraphQL ──
@@ -723,7 +725,7 @@ export function generateGuide(ctx: GeneratorContext): void {
     w(`import { subscribeToPush, unsubscribeFromPush, isSubscribed } from "./swoff/push.${ext}";`);
     w("");
     w("// Subscribe (triggers permission prompt)");
-    w('const sub = await subscribeToPush("YOUR_VAPID_PUBLIC_KEY");');
+    w("const sub = await subscribeToPush();");
     w("if (sub) {");
     w('  await fetch("/api/push/subscribe", {');
     w('    method: "POST",');
@@ -737,7 +739,7 @@ export function generateGuide(ctx: GeneratorContext): void {
     w("");
 
     w("**Functions:**");
-    w("- `subscribeToPush(vapidPublicKey)` — request permission and subscribe");
+    w("- `subscribeToPush()` — request permission and subscribe (uses VAPID key from config)");
     w("- `unsubscribeFromPush()` — unsubscribe and clear stored subscription");
     w("- `isSubscribed()` — check if subscribed");
     w("- `getPushSubscription()` — get current PushSubscription object");
@@ -750,7 +752,7 @@ export function generateGuide(ctx: GeneratorContext): void {
       w(`import { usePushSubscription } from "./swoff/hooks/usePushSubscription.${ext}x";`);
       w("");
       w('const { subscribed, subscription, permission, loading, subscribe, unsubscribe } =');
-      w('  usePushSubscription("YOUR_VAPID_PUBLIC_KEY");');
+      w("  usePushSubscription();");
       w("```");
       w("");
 
@@ -828,7 +830,10 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("- `serviceWorker.strategy.mode` — caching strategy mode (`\"all\"` or `\"explicit-only\"`)");
   w("- `serviceWorker.strategy.default` — default caching strategy");
   w("- `serviceWorker.strategy.patterns` — per-route strategy overrides");
-  w("- `serviceWorker.strategy.reactive.defaults.staleTime` — global stale time in seconds (data considered fresh for N seconds). Applies to cache-first and network-first only.");
+  w("- `serviceWorker.strategy.reactive.defaults.staleTime` — global stale time in seconds for reactive strategy");
+  w("- `serviceWorker.strategy.reactive.defaults.refetchInterval` — global auto-refetch interval in seconds for reactive strategy (0 disables)");
+  w("- `serviceWorker.strategy.reactive.defaults.refetchOnReconnect` — refetch reactive entries when the browser comes back online");
+  w("- `serviceWorker.strategy.reactive.defaults.refetchOnFocus` — refetch reactive entries when the tab gains focus");
   w("- `features.refetchQueue.batchSize` — max stale cache entries to refetch per batch");
   w("");
 

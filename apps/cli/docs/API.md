@@ -532,7 +532,7 @@ const { status, progress } = useSWProgress();
 
 `progress` = `{ percent: number, downloaded: number, total: number }` during SW download.
 
-### `usePushSubscription(vapidPublicKey)`
+### `usePushSubscription()`
 
 ```ts
 const {
@@ -542,7 +542,7 @@ const {
   loading,
   subscribe,
   unsubscribe,
-} = usePushSubscription("VAPID_KEY");
+} = usePushSubscription();
 ```
 
 Generated when `pushNotifications.enabled`.

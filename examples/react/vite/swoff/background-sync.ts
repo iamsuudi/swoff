@@ -48,4 +48,6 @@ export async function retrySync(): Promise<void> {
   }
 }
 
-window.addEventListener("mutation-sync-complete", retrySync);
+if (typeof window !== "undefined") {
+  window.addEventListener("mutation-sync-complete", retrySync);
+}

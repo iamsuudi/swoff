@@ -188,6 +188,12 @@
                   "description": "Delete runtime cache on SW activate. Use as a security measure: when true, cached API responses are cleared on every SW update, preventing poisoned data from persisting.",
                   "default": false
                 },
+                "maxRuntimeCacheAge": {
+                  "type": "integer",
+                  "description": "Maximum age in seconds for runtime cache entries. Entries older than this are evicted. 0 disables eviction. Default 2592000 (30 days).",
+                  "default": 2592000,
+                  "minimum": 0
+                },
                 "normalizeKey": {
                   "type": "boolean",
                   "description": "Normalize cache keys by lowercasing and sorting query params. Reduces cache fragmentation.",
@@ -200,6 +206,12 @@
                   "uniqueItems": true
                 }
               }
+            },
+            "requestBatchWindowMs": {
+              "type": "integer",
+              "description": "Time window in ms to coalesce concurrent GET requests to the same URL before dispatching to the SW. 0 disables batching. Default 50ms.",
+              "default": 50,
+              "minimum": 0
             },
             "navigation": {
               "type": "object",
@@ -313,11 +325,6 @@
           "type": "object",
           "description": "Tag-based cache invalidation configuration. Object-only (boolean shorthand not supported).",
           "properties": {
-            "enabled": {
-              "type": "boolean",
-              "description": "Enable tag-based cache invalidation",
-              "default": true
-            },
             "debounceMs": {
               "type": "integer",
               "description": "Debounce window (ms) for coalescing rapid invalidations. When > 0, repeated INVALIDATE_TAG messages within the window are batched and processed once, reducing redundant cache scans.",

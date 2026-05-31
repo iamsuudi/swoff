@@ -62,10 +62,9 @@
  *   // When back online, processMutationQueue() replays them
  */
 
-import { generateTags, invalidateUrl, expandCascading } from "./invalidation-tags.ts";
+import { generateTags, invalidateUrl } from "./invalidation-tags.ts";
 import { invalidateByTags } from "./cache.ts";
-import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, AUTH_WITH_CREDENTIALS } from "./auth/store.ts";
-import { queueMutation } from "./mutation-queue.ts";
+import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, ensureValidAuth, AUTH_WITH_CREDENTIALS } from "./auth/store.ts";
 
 export interface FetchWithCacheResult<T> {
   response: Response & { json(): Promise<T> };
@@ -81,6 +80,9 @@ export interface FetchWithCacheOptions extends RequestInit {
   type?: 'read' | 'mutation';
   strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only' | 'reactive';
   staleTime?: number;
+  refetchInterval?: number;
+  refetchOnFocus?: boolean;
+  refetchOnReconnect?: boolean;
   /** Custom response validation for mutation success. Default: res.ok. Use this when your API returns 200 with { success: false } for logical failures. */
   validateSuccess?: (response: Response) => boolean | Promise<boolean>;
   /** Override the URL used for auto-invalidation. Defaults to the request URL. Useful when the mutation URL differs from the cache tag URL. */
@@ -88,6 +90,8 @@ export interface FetchWithCacheOptions extends RequestInit {
 }
 
 const inFlightRequests = new Map<string, Promise<Response>>();
+const pendingBatches = new Map<string, { resolvers: Array<(r: Response) => void>; rejectors: Array<(e: unknown) => void>; timer: ReturnType<typeof setTimeout> }>();
+const BATCH_WINDOW_MS = 50;
 
 /** Fetch with caching, auth, offline queue, auto-invalidation, and per-request strategy override. Returns { response, fromCache }. Use { auth: true } for authenticated requests — works with bearer, cookie, and custom auth types. */
 export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit & FetchWithCacheOptions = {}): Promise<FetchWithCacheResult<T>> {
@@ -120,6 +124,15 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
   if (options.staleTime !== undefined) {
     headers.set("X-SW-Stale-Time", String(options.staleTime));
   }
+  if (options.refetchInterval !== undefined) {
+    headers.set("X-SW-Refetch-Interval", String(options.refetchInterval));
+  }
+  if (options.refetchOnFocus !== undefined) {
+    headers.set("X-SW-Refetch-On-Focus", String(options.refetchOnFocus));
+  }
+  if (options.refetchOnReconnect !== undefined) {
+    headers.set("X-SW-Refetch-On-Reconnect", String(options.refetchOnReconnect));
+  }
 
   if (options.auth) {
     const auth = await getAuth();
@@ -144,24 +157,16 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
   if (options.signal?.aborted) {
     throw new DOMException("The operation was aborted", "AbortError");
   }
-  // Pre-compute invalidation tags for SW-side IDB storage
-  let mutationTags: string[] = [];
-  if (!isRead) {
-    const invalidateSetting = options.invalidate !== false ? (options.invalidate || 'auto') : false;
-    if (invalidateSetting !== false) {
-      if (Array.isArray(invalidateSetting)) {
-        mutationTags = invalidateSetting;
-      } else {
-        mutationTags = generateTags(url);
-        mutationTags = expandCascading(mutationTags);
-      }
-      headers.set("X-SW-Invalidate-Tags", mutationTags.join(","));
-    }
-  }
-  // Deduplicate in-flight GET requests
+
+  // Request batching + dedup for concurrent reads
   let responsePromise: Promise<Response>;
   if (isRead && inFlightRequests.has(url)) {
     responsePromise = inFlightRequests.get(url)!.then((r) => r.clone());
+  } else if (isRead && pendingBatches.has(url)) {
+    responsePromise = new Promise((resolve, reject) => {
+      pendingBatches.get(url)!.resolvers.push(resolve);
+      pendingBatches.get(url)!.rejectors.push(reject);
+    });
   } else {
     const abortHandler = () => {
       inFlightRequests.delete(url);
@@ -169,15 +174,31 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
     if (options.signal) {
       options.signal.addEventListener("abort", abortHandler, { once: true });
     }
-    responsePromise = fetch(input, fetchOptions);
-    if (isRead) {
-      const cleanup = () => {
-        inFlightRequests.delete(url);
-        if (options.signal) {
-          options.signal.removeEventListener("abort", abortHandler);
-        }
-      };
-      inFlightRequests.set(url, responsePromise.finally(cleanup));
+    if (isRead && BATCH_WINDOW_MS > 0) {
+      const batch: { resolvers: Array<(r: Response) => void>; rejectors: Array<(e: unknown) => void>; timer: ReturnType<typeof setTimeout> } = { resolvers: [], rejectors: [], timer: 0 };
+      pendingBatches.set(url, batch);
+      batch.timer = setTimeout(() => {
+        pendingBatches.delete(url);
+        const promise = fetch(input, fetchOptions);
+        const cleanup = () => {
+          inFlightRequests.delete(url);
+          if (options.signal) {
+            options.signal.removeEventListener("abort", abortHandler);
+          }
+        };
+        inFlightRequests.set(url, promise.finally(cleanup));
+        promise.then((r) => {
+          batch.resolvers.forEach((res) => res(r.clone()));
+        }).catch((err) => {
+          batch.rejectors.forEach((rej) => rej(err));
+        });
+      }, BATCH_WINDOW_MS);
+      responsePromise = new Promise((resolve, reject) => {
+        batch.resolvers.push(resolve);
+        batch.rejectors.push(reject);
+      });
+    } else {
+      responsePromise = fetch(input, fetchOptions);
     }
   }
 
@@ -190,25 +211,11 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
     if (options.signal?.aborted) throw new DOMException("The operation was aborted", "AbortError");
       const cached = await caches.match(input);
       if (cached) return { response: cached, fromCache: true, queued: false };
-      throw new Error("Offline: no cached data available");
+      throw new Error("Offline: no cached data available", { cause: err });
       }
       // SW not controlling — fallback to client-side queue
       if (!navigator.serviceWorker?.controller) {
-    if (options.queueOffline !== false) {
-      await queueMutation({
-        method,
-        url,
-        body: options.body,
-        headers: {},
-        tags: mutationTags,
-        timestamp: Date.now(),
-      });
-      return {
-        response: new Response(JSON.stringify({ queued: true }), { status: 202, headers: { "Content-Type": "application/json" } }),
-        fromCache: false,
-        queued: true,
-      };
-    }
+
       }
     }
     throw err;
@@ -229,8 +236,30 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
     }
   }
   if (options.auth && response.status === 401) {
-    await clearAuth();
-    window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
+    // Check if the token is actually expired by probing the user endpoint
+    try {
+      const authCheck = await fetch("/api/me", {
+        headers: { "Authorization": headers.get("Authorization") } as HeadersInit,
+        credentials: AUTH_WITH_CREDENTIALS ? "include" : undefined,
+      });
+      if (authCheck.status === 401) {
+        // Token expired — try silent refresh
+        const refreshed = await ensureValidAuth();
+        if (refreshed?.token) {
+          // Retry original request with fresh token
+          const retryHeaders = new Headers(options.headers);
+          withAuthHeaders(retryHeaders, refreshed);
+          response = await fetch(input, { ...fetchOptions, headers: retryHeaders });
+        } else {
+          await clearAuth();
+          window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
+        }
+      }
+      // authCheck 200: user IS authenticated but lacks permission — let original 401 propagate
+    } catch {
+      await clearAuth();
+      window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
+    }
   }
   const fromCache = response.headers.get("X-SW-From-Cache") === "true";
   const queued = response.headers.get("X-SW-Mutation-Queued") === "true";

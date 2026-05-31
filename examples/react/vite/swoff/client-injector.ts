@@ -26,21 +26,19 @@
  *   sw-version-detected   - Version info available
  */
 import { setupPwaInstall } from "./pwa/install.ts";
-import { processMutationQueue } from "./mutation-queue.ts";
 import { initServiceWorker as swInit } from "./sw/injector.ts";
 
 setupPwaInstall();
 
-// --- Mutation Queue Online Listener ---
-window.addEventListener("online", processMutationQueue);
-
 // --- Online Refetch Listener ---
 // When connectivity returns, the SW checks stale cache entries and refetches them.
-window.addEventListener("online", () => {
-  if (navigator.serviceWorker.controller) {
-    navigator.serviceWorker.controller.postMessage({ type: "ONLINE" });
-  }
-});
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => {
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: "ONLINE" });
+    }
+  });
+}
 
 // --- Focus Listener for Reactive Strategy ---
 // Notifies the SW when the tab gains focus so it can refresh stale reactive entries.

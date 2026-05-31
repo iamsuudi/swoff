@@ -28,6 +28,7 @@
 | Configurable mode (all/explicit)  | ✅                  | ❌                 | ❌             | ❌               | ❌             | ❌                      |
 | Cache key normalization           | ✅                  | ❌                 | ❌             | ❌               | ❌             | ❌                      |
 | Ignore query params in cache key  | ✅                  | ❌                 | ❌             | ❌               | ❌             | ❌                      |
+| Request batching (coalescing)     | ✅ 50 ms window     | ❌                 | ❌             | ❌               | ❌             | ❌                      |
 | Precaching at install time        | ✅                  | ✅                 | ❌             | ❌               | ❌             | ❌                      |
 
 ### Invalidation
@@ -105,17 +106,20 @@
 
 | Feature                           | Swoff               | Workbox            | TanStack Query | Apollo           | RxDB           | TanStack DB             |
 | --------------------------------- | ------------------- | ------------------ | -------------- | ---------------- | -------------- | ----------------------- |
-| Zero runtime dependencies         | ✅ generated code   | ❌ Workbox         | ❌ 3.8 kB      | ❌ 32 kB         | ❌ 40 kB       | ❌ + Query + DB         |
-| Config-driven setup               | ✅ single file      | ✅ workbox-config  | ❌ code-only   | ❌ code-only     | ❌ code-only   | ❌ code-only            |
+| Zero runtime dependencies         | ✅ generated code   | ❌ Workbox         | ❌ 3.8 kB      | ❌ 32 kB         | ❌ 40 kB       | ❌ + Query + DB + SQLite WASM |
+| Config-driven setup               | ✅ single file      | ✅ workbox-config  | ❌ code-only   | ❌ code-only     | ❌ code-only   | ❌ code-only + schema defs |
 | Build-tool agnostic               | ✅ any              | ✅ any             | ✅ any         | ✅ any           | ✅ any         | ✅ any                  |
 | React hooks                       | ✅ 11               | 🟡 minimal         | ✅ extensive   | ✅               | ✅             | ✅ useLiveQuery         |
 | TypeScript declarations generated | ✅                  | ❌                 | ✅ built-in    | ✅ built-in      | ✅ built-in    | ✅ built-in             |
 | Auditable generated code          | ✅ every file       | 🟡 only SW        | ❌             | ❌               | ❌             | ❌                      |
+| Lines of setup code               | ✅ 0 (1 config)     | 🟡 config + imports| ❌ query client + hooks setup | ❌ ApolloClient + link chain | ❌ schema + RxDB creation | ❌ schema + DB + sync engine + server adapter |
+| Dual database management          | ✅ none (native Cache API) | ✅ none      | ❌ not offline | ❌ not offline   | 🟡 client-only | ❌ client SQLite + server DB like a distributed system |
 
 ## Edge Case Handling
 
-| Edge Case                         | Swoff                                    | TanStack Query / SWR | Workbox                     |
-| --------------------------------- | ---------------------------------------- | -------------------- | --------------------------- |
+| Edge Case                         | Swoff                                    | TanStack Query / SWR | TanStack DB / Workbox        |
+| --------------------------------- | ---------------------------------------- | -------------------- | ---------------------------- |
+| **Concurrent identical GET requests** | 50 ms batch window coalesces all into one fetch; in-flight dedup catches late arrivals | ❌ multiple requests | ❌ per-request only |
 | **Concurrent invalidation + SWR refresh** | Tagless refresh never clobbers invalidation entry in queue | N/A (no SW) | No tag system |
 | **SW update during offline write** | Cache API + Tag IDB survive SW restart; refresh queue recreated on next fetch | N/A | Cached assets survive; runtime cache cleared if configured |
 | **Tab crash mid-mutation replay** | SW detects no clients → replays via Background Sync | N/A (no SW) | No mutation system |
@@ -124,6 +128,7 @@
 | **Query param cache-busting** | Configurable ignore params + sorted normalization | N/A | No SW-level caching |
 | **Network flicker on reconnect** | Batch delay + retry backoff prevent stampede | ❌ no SW batching | ❌ per-request only |
 | **staleVersions memory limit** | Max 100 entries, 30 min TTL; lost entries just skip stale fallback | N/A | N/A |
+| **Data persists after logout** | `clearAuth()` wipes tokens + user cache; mutation queue cleared; session is clean slate | N/A (no auth) | ❌ TanStack DB: SQLite retains all data — developer must manually purge on logout or stale user data persists |
 | **Tag IDB deleted mid-refresh** | Refresh re-populates tag IDB from queue entry's stored tags | N/A | N/A |
 | **Dual-replay client + SW race** | SW checks clients.open() → skips entirely if any client page is open | N/A | No mutation system |
 | **Background sync after all tabs close** | SW wakes via sync event, processes queue, IndexedDB persists | N/A | N/A |
@@ -160,32 +165,100 @@
 - **Auth across the stack** — token injection, 401 handling, refresh, offline user caching, and state detection built into fetch wrapper, mutation queue, and SW.
 - **Generated auditable code** — every line visible in `swoff/`. Read, edit, and commit it.
 - **Config-driven resolution** — 3-tier priority for strategy (per-request → route pattern → global default).
+- **Request batching** — concurrent GETs to the same URL within a 50 ms window coalesce into one network request. No other offline-first toolkit batches at the fetch level.
 - **SW confirmation-driven events** — `cache-invalidated` fires only after SW confirms via `TAG_INVALIDATED`, not before SW clears cache. Eliminates the "event before action" race.
 - **Tag registry repopulation on refresh** — after invalidation deletes tag→URL mappings from IDB, the background refresh re-populates them. Subsequent invalidations still find the URL.
 - **SW-broadcast cross-tab invalidation** — `TAG_INVALIDATED` is posted to every connected client via `self.clients.matchAll()`. No BroadcastChannel needed.
+- **SSR-safe generated code** — all generated modules guard browser globals; `fetchWithCache` and hooks work in Node.js server rendering without crashing or stubbing.
 
 **Where TanStack DB leads (and Swoff still needs to catch up):**
 
-- **Optimistic updates** — instant local writes with automatic rollback on failure.
 - **Normalized collections** — query across related data with joins, filters, and aggregates.
 - **Differential dataflow** — sub-millisecond incremental query re-computation even with 100k+ items.
 - **SSR support** — works with server rendering (TanStack DB is actively developing this).
 
 **Where Swoff still leads vs TanStack DB:**
 
-- **SW-level caching** — Swoff intercepts at the `fetch` event, caching even third-party and plain `fetch()` calls. TanStack DB operates at the application layer only.
-- **Auth across the stack** — token injection, 401 handling, refresh in SW + client.
-- **Zero runtime deps** — generated code vs TanStack DB's ~6 kB core + Query + optional SQLite WASM.
-- **Config-driven setup** — one config file vs code-only setup.
+- **Native browser API layer** — Swoff intercepts at the `fetch` event, caching even third-party and plain `fetch()` calls. TanStack DB operates at the application layer with a client-side SQLite database requiring schema definitions and a sync engine.
+- **No dual database management** — TanStack DB forces developers to manage a client-side database (SQLite via WASM) alongside their server database, with the complexity of schema drift, sync conflict resolution, and data migration. Swoff uses the browser's native Cache Storage API — no schemas, no sync, no WASM downloads.
+- **Auth across the stack** — token injection, 401 handling, refresh in SW + client. TanStack DB has no auth integration — developer must layer it manually.
+- **Privacy-safe logout** — `clearAuth()` wipes auth tokens + user cache from memory and IDB. TanStack DB's SQLite persists all data indefinitely — developers must manually purge on logout or risk exposing stale user data.
+- **Zero runtime deps** — generated code vs TanStack DB's ~6 kB core + Query + optional SQLite WASM (~800 kB decompressed).
+- **Config-driven setup** — one config file vs schema definitions + Query setup + sync engine configuration.
 - **PWA + push notifications** — built into the generated output.
 
 **Where Swoff still needs to catch up:**
 
 - **Framework hooks** — React only. Vue, Svelte, Solid adapters planned.
-- **Infinite queries / pagination** — not yet built.
-- **Optimistic updates** — not yet built.
 - **Normalized GraphQL cache** — body-hash caching is simple but cannot merge overlapping query results like Apollo/Relay.
 - **Devtools** — no browser extension yet.
+
+## Design Decisions
+
+Swoff operates at the **browser infrastructure layer** (Service Worker + `fetch` event), not the application layer. This boundary shapes several deliberate exclusions.
+
+### Optimistic updates (intentionally excluded)
+
+Optimistic updates (instant local writes with rollback on failure) are an application-layer concern. Swoff does not implement them for the following reasons:
+
+**1. Phantom ID problem during offline mutation window.**  
+A note is created offline via the mutation queue. The app shows it optimistically with a temporary client-side ID. The user edits this note — that edit is also queued as a mutation referencing the temporary ID. When the queue replays, the create mutation reaches the server, gets a real ID, but the edit mutation still references the old temporary ID. The server rejects it or applies it to the wrong resource. Resolving this requires either:
+- A client-side ID mapping layer that translates temp → real IDs across dependent mutations.
+- A schema-aware system that knows which fields are IDs and needs to rewrite mutation bodies.
+
+Both approaches couple Swoff to the application's data model — a boundary Swoff deliberately does not cross.
+
+**2. Complex data relationships.**  
+Real-world UIs display the same underlying data through multiple derived views (aggregations, filtered lists, computed totals, cross-references). An optimistic update must revert all of these consistently on failure. Libraries like TanStack Query solve this by coupling query keys to a normalized cache — every query key maps to the same underlying entity, so a rollback updates all derived queries atomically. This requires a schema-aware normalized store that Swoff's infrastructure layer does not (and should not) provide.
+
+**3. Telegram-style offline pattern (pending state over optimistic UI).**  
+
+The most successful offline-first consumer app — Telegram — does not use optimistic updates for edits. When you send a message offline, it appears as pending (with a clock icon). You cannot edit or interact with that message until it is synced with the server. This constraint exists for the same reason Swoff avoids optimistic UI: phantom IDs. A pending message has no server-assigned ID, so any dependent action (edit, reply, delete) cannot reference it reliably.
+
+Swoff's mutation queue follows this same pattern:
+```
+mutation → queued in IDB (pending state)
+         → mutation shows as pending in UI
+         → SW replays when online
+         → SW invalidates cache → refetches
+         → useCachedFetch receives fresh data → re-renders
+         → pending state replaced by confirmed server state
+```
+
+This is simpler, more robust, and avoids phantom ID reconciliation entirely. If the developer wants transient optimistic UI on top (e.g., showing the text immediately while marking it pending), that's an application-layer concern using standard React state — Swoff handles the infrastructure, the app handles UX.
+
+**4. Separation of concerns.**  
+Swoff's role is to cache, serve, invalidate, and refetch data reliably. When fresh data arrives (via SW refetch, invalidation, or server push), the application layer re-renders. The SW handles data freshness; the app handles UI optimism. This boundary is clean, composable, and doesn't require Swoff to understand the shape or relationships of the application's data.
+
+### Infinite queries / pagination (intentionally excluded as a built-in feature)
+
+**Why not a `useInfiniteQuery` hook?**
+
+Pagination APIs vary wildly in their interface:
+- **Cursor-based:** `{ cursor, data, nextCursor }`
+- **Offset-based:** `{ offset, limit, total, data }`
+- **Page-based:** `{ page, totalPages, items }`
+- **Keyset-based:** `{ data, lastSeenId }`
+- **Custom:** any combination of the above
+
+Swoff cannot generate a generic pagination hook because it has no schema information about the API response shape. A generated hook would either:
+- Be so generic it adds no value over `useCachedFetch(nextPageUrl)`.
+- Require the developer to manually specify field mappings (`getNextPageParam`, `totalPagesField`, etc.) — at which point a purpose-built library like TanStack Query's `useInfiniteQuery` is a better fit.
+
+**What Swoff already provides:**
+
+Swoff caches every URL independently in the Cache Storage API. For pagination, the developer simply constructs the page URL and calls `useCachedFetch`:
+
+```tsx
+const { data } = useCachedFetch(`/api/items?page=${page}`);
+// SW caches each page URL separately
+// Navigating back to page 1 loads instantly from cache
+// Next-page prefetching is a one-liner:
+const { refetch } = useCachedFetch(`/api/items?page=${page + 1}`, { enabled: false });
+// Call refetch() when the user scrolls near the bottom
+```
+
+Each page URL is cached independently by the SW. Request batching coalesces simultaneous page fetches. Navigation between pages is instant from cache. The developer retains full control over pagination UX while the SW handles caching, offline serving, and stale-while-revalidate — which covers the 90% case without schema coupling.
 
 ## Architecture fit
 

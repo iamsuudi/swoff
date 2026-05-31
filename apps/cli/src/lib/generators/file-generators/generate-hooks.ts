@@ -42,7 +42,5 @@ export function generateHooks(ctx: GeneratorContext): void {
   if (config.features.backgroundSync) {
     copyHook(hooksDir, "useBackgroundSync", ext);
   }
-  if (config.features.tagInvalidation.enabled) {
-    copyHook(hooksDir, "useCacheInvalidation", ext);
-  }
+  copyHook(hooksDir, "useCacheInvalidation", ext);
 }

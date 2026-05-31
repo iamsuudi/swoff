@@ -33,13 +33,15 @@ export function generatePush(ctx: GeneratorContext): void {
 
 const SUBSCRIPTION_DB = "swoff-push";
 const SUBSCRIPTION_STORE = "subscription";
+// Bump this when adding new indexes/stores for schema migration
+const DB_VERSION = 1;
 const VAPID_PUBLIC_KEY = ${JSON.stringify(vapidKey)};
 
-let permissionState = Notification.permission;
+let permissionState${T("NotificationPermission | undefined")} = typeof Notification !== "undefined" ? Notification.permission : undefined;
 
 function openPushDB()${R("Promise<IDBDatabase>")}{
   return new Promise${PT("IDBDatabase")}((resolve, reject) => {
-    const request = indexedDB.open(SUBSCRIPTION_DB, 1);
+    const request = indexedDB.open(SUBSCRIPTION_DB, DB_VERSION);
     request.onupgradeneeded = (e) => {
       const db = (e.target${AS("IDBOpenDBRequest")}).result;
       if (!db.objectStoreNames.contains(SUBSCRIPTION_STORE)) {

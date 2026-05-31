@@ -66,13 +66,42 @@ export function isAuthUrl(url${T("string")})${R("boolean")}{
 }
 
 function generateEnsureValidAuth(cookieAuth: boolean, ts: boolean, R: (t: string) => string, T: (t: string) => string, PT: (t: string) => string, refreshPath: string, ext: string): string {
-  const cr = cookieAuth ? `  credentials: "include" as RequestCredentials,` : "";
-  return `/** Refresh the auth token via the refresh endpoint. Uses plain fetch to bypass SW cache. */
+  const cr = cookieAuth ? `  credentials: "include" as RequestCredentials,` : `  credentials: "include" as RequestCredentials,`;
+  return `/** Try to restore the session after page refresh — POSTs to refresh endpoint and merges the new token with cached user data. */
+let restorePromise${T("Promise<AuthData | null> | null")} = null;
+
+async function tryRestoreSession()${R("Promise<AuthData | null>")}{
+  if (restorePromise) {
+    try { return await restorePromise; } finally { restorePromise = null; }
+  }
+  restorePromise = (async () => {
+    try {
+      const response = await fetch("${refreshPath}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+${cr}      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      const userData = await loadUserData();
+      const auth = { ...userData, token: data.token, expiresAt: data.expiresAt };
+      await setAuth(auth);
+      return auth;
+    } catch { return null; }
+  })();
+  try { return await restorePromise; } finally { restorePromise = null; }
+}
+
 let refreshPromise${T("Promise<AuthData | null> | null")} = null;
 
 export async function ensureValidAuth()${R("Promise<AuthData | null>")}{
   const auth = await getAuth();
   if (!auth) return null;
+
+  // Token missing after page refresh — try silent session restoration
+  if (!auth.token) {
+    return tryRestoreSession();
+  }
+
   if (!auth.expiresAt || Date.now() < auth.expiresAt) return auth;
 
   if (!refreshPromise) {
@@ -183,13 +212,15 @@ export function createAuthFromResponse(response) {
 
 ${authDataInterface}const DB_NAME = "swoff-auth";
 const STORE_NAME = "auth";
+// Bump this when adding new indexes/stores for schema migration
+const DB_VERSION = 1;
 
 let memoryAuth${T("AuthData | null")} = null;
 
 ${createAuthFromResponseBlock}
 function openAuthDB()${R("Promise<IDBDatabase>")}{
   return new Promise${PT("IDBDatabase")}((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = (e) => {
       const db = (e.target${AS("IDBOpenDBRequest")}).result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {

@@ -29,6 +29,8 @@ export interface AuthResponse extends Record<string, unknown> {
 
 const DB_NAME = "swoff-auth";
 const STORE_NAME = "auth";
+// Bump this when adding new indexes/stores for schema migration
+const DB_VERSION = 1;
 
 let memoryAuth: AuthData | null = null;
 
@@ -46,7 +48,7 @@ export function createAuthFromResponse(response: AuthResponse): AuthData {
 
 function openAuthDB(): Promise<IDBDatabase> {
   return new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = (e) => {
       const db = (e.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
@@ -143,12 +145,41 @@ export function isAuthUrl(url: string): boolean {
   ];
   return authPaths.some((path) => url.includes(path));
 }
-/** Refresh the auth token via the refresh endpoint. Uses plain fetch to bypass SW cache. */
+/** Try to restore the session after page refresh — POSTs to refresh endpoint and merges the new token with cached user data. */
+let restorePromise: Promise<AuthData | null> | null = null;
+
+async function tryRestoreSession(): Promise<AuthData | null> {
+  if (restorePromise) {
+    try { return await restorePromise; } finally { restorePromise = null; }
+  }
+  restorePromise = (async () => {
+    try {
+      const response = await fetch("/api/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+  credentials: "include" as RequestCredentials,      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      const userData = await loadUserData();
+      const auth = { ...userData, token: data.token, expiresAt: data.expiresAt };
+      await setAuth(auth);
+      return auth;
+    } catch { return null; }
+  })();
+  try { return await restorePromise; } finally { restorePromise = null; }
+}
+
 let refreshPromise: Promise<AuthData | null> | null = null;
 
 export async function ensureValidAuth(): Promise<AuthData | null> {
   const auth = await getAuth();
   if (!auth) return null;
+
+  // Token missing after page refresh — try silent session restoration
+  if (!auth.token) {
+    return tryRestoreSession();
+  }
+
   if (!auth.expiresAt || Date.now() < auth.expiresAt) return auth;
 
   if (!refreshPromise) {

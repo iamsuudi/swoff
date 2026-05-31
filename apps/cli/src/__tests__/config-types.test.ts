@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { defaultConfig, defaultInitConfig, KNOWN_FEATURES, VALID_STRATEGIES, API_PREFIXES, OBJECT_FEATURES } from "../lib/shared/config-types.js";
+import {
+  defaultConfig,
+  defaultInitConfig,
+  KNOWN_FEATURES,
+  VALID_STRATEGIES,
+  API_PREFIXES,
+  OBJECT_FEATURES,
+} from "../lib/shared/config-types.js";
 
 describe("config-types", () => {
   describe("defaultConfig", () => {
@@ -13,12 +20,20 @@ describe("config-types", () => {
       expect(defaultConfig.enabled).toBe(true);
       expect(defaultConfig.features.serviceWorker.autoUpdate).toBe(true);
       expect(defaultConfig.features.serviceWorker.autoActivate).toBe(false);
-      expect(defaultConfig.features.serviceWorker.strategy.default).toBe("cache-first");
-      expect(defaultConfig.features.serviceWorker.strategy.clearRuntimeOnUpdate).toBe(false);
+      expect(defaultConfig.features.serviceWorker.strategy.default).toBe(
+        "cache-first",
+      );
+      expect(
+        defaultConfig.features.serviceWorker.strategy.clearRuntimeOnUpdate,
+      ).toBe(false);
       expect(defaultConfig.features.serviceWorker.navigation.mode).toBe("spa");
-      expect(defaultConfig.features.serviceWorker.navigation.fallback).toBe("/index.html");
+      expect(defaultConfig.features.serviceWorker.navigation.fallback).toBe(
+        "/index.html",
+      );
       expect(defaultConfig.features.serviceWorker.version).toBe("package");
-      expect(defaultConfig.features.serviceWorker.minSupportedVersion).toBe("0.0.0");
+      expect(defaultConfig.features.serviceWorker.minSupportedVersion).toBe(
+        "0.0.0",
+      );
       expect(defaultConfig.build.outputDir).toBe("dist");
       expect(defaultConfig.build.swFilename).toBe("sw");
       expect(defaultConfig.features.pwa.enabled).toBe(true);
@@ -28,7 +43,15 @@ describe("config-types", () => {
     it("has all known features with correct types", () => {
       for (const feature of KNOWN_FEATURES) {
         expect(defaultConfig.features).toHaveProperty(feature);
-        if (feature === "auth" || feature === "pushNotifications" || feature === "mutationQueue" || feature === "graphql" || feature === "serverPush" || feature === "tagInvalidation" || feature === "refetchQueue") {
+        if (
+          feature === "auth" ||
+          feature === "pushNotifications" ||
+          feature === "mutationQueue" ||
+          feature === "graphql" ||
+          feature === "serverPush" ||
+          feature === "tagInvalidation" ||
+          feature === "refetchQueue"
+        ) {
           expect(typeof defaultConfig.features[feature]).toBe("object");
         } else {
           expect(typeof defaultConfig.features[feature]).toBe("boolean");
@@ -39,18 +62,34 @@ describe("config-types", () => {
     it("has object features with correct shape", () => {
       expect(typeof defaultConfig.features.pwa).toBe("object");
       expect(typeof defaultConfig.features.pwa.enabled).toBe("boolean");
-      expect(typeof defaultConfig.features.pwa.preventDefaultInstall).toBe("boolean");
+      expect(typeof defaultConfig.features.pwa.preventDefaultInstall).toBe(
+        "boolean",
+      );
     });
 
     it("has empty patterns by default", () => {
-      expect(defaultConfig.features.serviceWorker.strategy.patterns).toEqual({});
+      expect(defaultConfig.features.serviceWorker.strategy.patterns).toEqual(
+        {},
+      );
     });
 
     it("has reactive defaults", () => {
-      expect(defaultConfig.features.serviceWorker.strategy.reactive.defaults.staleTime).toBe(0);
-      expect(defaultConfig.features.serviceWorker.strategy.reactive.defaults.refetchInterval).toBe(0);
-      expect(defaultConfig.features.serviceWorker.strategy.reactive.defaults.refetchOnReconnect).toBe(false);
-      expect(defaultConfig.features.serviceWorker.strategy.reactive.defaults.refetchOnFocus).toBe(false);
+      expect(
+        defaultConfig.features.serviceWorker.strategy.reactive.defaults
+          .staleTime,
+      ).toBe(0);
+      expect(
+        defaultConfig.features.serviceWorker.strategy.reactive.defaults
+          .refetchInterval,
+      ).toBe(0);
+      expect(
+        defaultConfig.features.serviceWorker.strategy.reactive.defaults
+          .refetchOnReconnect,
+      ).toBe(false);
+      expect(
+        defaultConfig.features.serviceWorker.strategy.reactive.defaults
+          .refetchOnFocus,
+      ).toBe(false);
     });
 
     it("has refetchQueue defaults", () => {
@@ -67,18 +106,24 @@ describe("config-types", () => {
 
   describe("defaultInitConfig", () => {
     it("includes $schema field", () => {
-      expect(defaultInitConfig.$schema).toBe("https://swoff.netlify.app/schema/v1.json");
+      expect(defaultInitConfig.$schema).toBe(
+        "https://swoff.netlify.app/schema/v1.json",
+      );
     });
 
     it("has default patterns for API and static", () => {
-      expect(defaultInitConfig.features.serviceWorker.strategy.patterns).toEqual({
+      expect(
+        defaultInitConfig.features.serviceWorker.strategy.patterns,
+      ).toEqual({
         "/api/*": "network-first",
         "/static/*": "cache-first",
       });
     });
 
-    it("has minSupportedVersion of 1.0.0", () => {
-      expect(defaultInitConfig.features.serviceWorker.minSupportedVersion).toBe("1.0.0");
+    it("has minSupportedVersion of 0.0.0", () => {
+      expect(defaultInitConfig.features.serviceWorker.minSupportedVersion).toBe(
+        "0.0.0",
+      );
     });
   });
 

@@ -38,7 +38,7 @@ describe("validateConfig", () => {
       backgroundSync: false,
       auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
       crossTabSync: true,
-      tagInvalidation: { enabled: true },
+      tagInvalidation: {},
       graphql: { enabled: false, endpoint: "/graphql" },
     },
     build: { outputDir: "dist", swFilename: "sw" },
@@ -288,15 +288,6 @@ describe("validateConfig", () => {
       };
       const errors = validateConfig(config);
       expect(errors).toContain("features.pwa.preventDefaultInstall must be a boolean");
-    });
-
-    it("rejects crossTabSync without tagInvalidation", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, crossTabSync: true, tagInvalidation: { enabled: false } },
-      };
-      const errors = validateConfig(config);
-      expect(errors).toContain("crossTabSync requires tagInvalidation to be enabled");
     });
 
     it("rejects backgroundSync without mutationQueue enabled", () => {

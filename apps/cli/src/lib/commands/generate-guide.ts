@@ -135,33 +135,25 @@ export function generateGuide(ctx: GuideContext): string[] {
     }
   }
 
-  if (config.features.tagInvalidation.enabled) {
+  lines.push("");
+  lines.push("  ── Tag Invalidation ──");
+  lines.push(`  Generate tags and invalidate after mutations:`);
+  lines.push(`    import { generateTags, invalidateUrl } from "./swoff/invalidation-tags.${ext}";`);
+  lines.push("");
+  lines.push(`    // Tag reads`);
+  lines.push(`    const data = await fetchWithCache("/api/todos", { tags: generateTags("/api/todos") });`);
+  lines.push("");
+  lines.push(`    // Invalidate after mutations`);
+  lines.push('    await invalidateUrl("/api/todos/42");');
+  if (isReact) {
     lines.push("");
-    lines.push("  ── Tag Invalidation ──");
-    lines.push(`  Generate tags and invalidate after mutations:`);
-    lines.push(`    import { generateTags, invalidateUrl } from "./swoff/invalidation-tags.${ext}";`);
+    lines.push("  React hook generated in swoff/hooks/useCacheInvalidation.tsx:");
+    lines.push(`    import { useCacheInvalidation } from "../swoff/hooks/useCacheInvalidation.${ext}x";`);
     lines.push("");
-    lines.push(`    // Tag reads`);
-    lines.push(`    const data = await fetchWithCache("/api/todos", { tags: generateTags("/api/todos") });`);
-    lines.push("");
-    lines.push(`    // Invalidate after mutations`);
-    lines.push('    await invalidateUrl("/api/todos/42");');
-    if (isReact) {
-      lines.push("");
-      lines.push("  React hook generated in swoff/hooks/useCacheInvalidation.tsx:");
-      lines.push(`    import { useCacheInvalidation } from "../swoff/hooks/useCacheInvalidation.${ext}x";`);
-      lines.push("");
-      lines.push("    function InvalidateButton() {");
-      lines.push('      const { invalidateUrl } = useCacheInvalidation();');
-      lines.push('      return <button onClick={() => invalidateUrl("/api/todos")}>Refresh</button>;');
-      lines.push("    }");
-    }
-  }
-
-  if (!config.features.tagInvalidation.enabled && config.features.crossTabSync) {
-    lines.push("");
-    lines.push("  ⚠️ crossTabSync requires tagInvalidation to be enabled.");
-    lines.push('     Run: npx @swoff/cli add tag-invalidation');
+    lines.push("    function InvalidateButton() {");
+    lines.push('      const { invalidateUrl } = useCacheInvalidation();');
+    lines.push('      return <button onClick={() => invalidateUrl("/api/todos")}>Refresh</button>;');
+    lines.push("    }");
   }
 
   return lines;

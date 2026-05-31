@@ -22,13 +22,15 @@
 
 const SUBSCRIPTION_DB = "swoff-push";
 const SUBSCRIPTION_STORE = "subscription";
+// Bump this when adding new indexes/stores for schema migration
+const DB_VERSION = 1;
 const VAPID_PUBLIC_KEY = "";
 
-let permissionState = Notification.permission;
+let permissionState: NotificationPermission | undefined = typeof Notification !== "undefined" ? Notification.permission : undefined;
 
 function openPushDB(): Promise<IDBDatabase> {
   return new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(SUBSCRIPTION_DB, 1);
+    const request = indexedDB.open(SUBSCRIPTION_DB, DB_VERSION);
     request.onupgradeneeded = (e) => {
       const db = (e.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains(SUBSCRIPTION_STORE)) {

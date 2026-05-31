@@ -17,6 +17,8 @@ const SW_BATCH_SIZE = ${batchSize};
 const SW_BATCH_DELAY_MS = ${batchDelayMs};
 const SW_MAX_RETRIES = ${maxRetries};
 const SW_RETRY_BACKOFF_MS = ${retryBackoffMs};
+// Bump this when adding new indexes/stores for schema migration
+const SW_DB_VERSION = 1;
 
 function swSleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -31,14 +33,15 @@ async function processMutationQueueInSW() {
   let succeeded = 0;
   let failed = 0;
   const tagsToInvalidate = new Set();
+  let db;
 
   try {
-    const db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open("${DB_NAME}", 1);
+    db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open("${DB_NAME}", SW_DB_VERSION);
       request.onupgradeneeded = (e) => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains("${STORE_NAME}")) {
-          const store = db.createObjectStore("${STORE_NAME}", { keyPath: "id" });
+        const idb = e.target.result;
+        if (!idb.objectStoreNames.contains("${STORE_NAME}")) {
+          const store = idb.createObjectStore("${STORE_NAME}", { keyPath: "id" });
           store.createIndex("by-timestamp", "timestamp");
         }
       };
@@ -135,6 +138,8 @@ ${credentialsLine}        });
     }
   } catch (err) {
     console.error("Background sync failed:", err);
+  } finally {
+    if (db) db.close();
   }
 
   const clients = await self.clients.matchAll();

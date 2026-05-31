@@ -13,6 +13,8 @@ const STALE_VERSIONS_MAX = 100;
 const STALE_VERSION_TTL = 30 * 60 * 1000;
 const TAG_DB_NAME = "swoff-cache-tags";
 const TAG_STORE_NAME = "tags";
+// Bump this when adding new indexes/stores for schema migration
+const TAG_DB_VERSION = 1;
 
 function cleanStaleVersions() {
   const now = Date.now();
@@ -25,7 +27,7 @@ function cleanStaleVersions() {
 
 function openTagDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(TAG_DB_NAME, 1);
+    const request = indexedDB.open(TAG_DB_NAME, TAG_DB_VERSION);
     request.onupgradeneeded = (e) => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains(TAG_STORE_NAME)) {

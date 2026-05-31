@@ -9,7 +9,6 @@ export function generateClientInjector(ctx: GeneratorContext): void {
   const ts = ext === "ts";
   const pwaEnabled = ctx.config.features.pwa.enabled;
   const mutationQueueEnabled = ctx.config.features.mutationQueue.enabled;
-  const tagInvalidation = ctx.config.features.tagInvalidation.enabled;
 
   const pwaImport = pwaEnabled
     ? `import { setupPwaInstall } from "./pwa/install.${ext}";
@@ -33,11 +32,13 @@ window.addEventListener("online", processMutationQueue);
   const onlineRefetchListener = `
 // --- Online Refetch Listener ---
 // When connectivity returns, the SW checks stale cache entries and refetches them.
-window.addEventListener("online", () => {
-  if (navigator.serviceWorker.controller) {
-    navigator.serviceWorker.controller.postMessage({ type: "ONLINE" });
-  }
-});
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => {
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: "ONLINE" });
+    }
+  });
+}
 `;
 
   const focusListener = `
@@ -53,8 +54,7 @@ if (typeof document !== "undefined") {
 }
 `;
 
-  const invalidationHandler = tagInvalidation
-    ? `
+  const invalidationHandler = `
     if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
       window.dispatchEvent(
         new CustomEvent("cache-invalidated", {
@@ -62,8 +62,7 @@ if (typeof document !== "undefined") {
         })
       );
     }
-`
-    : "";
+`;
 
   const swImport = `import { initServiceWorker as swInit } from "./sw/injector.${ext}";
 `;

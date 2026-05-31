@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import { retrySync } from "../background-sync.js";
 
 export function useBackgroundSync() {
-  const [state, setState] = useState({
-    supported: "serviceWorker" in navigator && "SyncManager" in window,
+  const [state, setState] = useState(() => ({
+    supported: typeof window !== "undefined" && typeof navigator !== "undefined"
+      ? "serviceWorker" in navigator && "SyncManager" in window
+      : false,
     registered: false,
     lastSync: null,
-  });
+  }));
 
   useEffect(() => {
     const onSyncComplete = (e) => {

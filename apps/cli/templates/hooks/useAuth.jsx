@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import { getAuthState } from "../auth/state.js";
 
 export function useAuth() {
-  const [state, setState] = useState({
+  const [state, setState] = useState(() => ({
     authenticated: false,
     user: null,
-    online: navigator.onLine,
-  });
+    online: typeof navigator !== "undefined" ? navigator.onLine : true,
+  }));
 
   useEffect(() => {
     getAuthState().then(setState).catch(() => {});

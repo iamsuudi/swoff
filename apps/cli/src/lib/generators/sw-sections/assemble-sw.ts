@@ -49,7 +49,7 @@ function applyReplacements(sw: string, config: SwoffConfig, assetsToCache: { url
     strategy,
     navigation,
     refetchQueue,
-  }, tagInvalidationEnabled));
+  }, tagInvalidationEnabled, features.mutationQueue.enabled));
 
   sw = sw.replace("// [[ACTIVATE_HANDLER]]", generateActivateHandler(strategy.clearRuntimeOnUpdate, navigation.preload));
   sw = sw.replace("// [[INSTALL_HANDLER]]", generateInstallHandler());

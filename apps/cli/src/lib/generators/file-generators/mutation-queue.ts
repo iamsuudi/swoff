@@ -138,13 +138,18 @@ export async function queueMutation(mutation${T("Partial<MutationQueueItem>")})$
     bodyType = "buffer";
   }
 
+  // Strip auth headers before storing — tokens must never persist in IDB
+  const safeHeaders${T("Record<string, string>")} = { ...(mutation.headers || {}) };
+  delete safeHeaders["authorization"];
+  delete safeHeaders["Authorization"];
+
   store.add({
     id: crypto.randomUUID(),
     method: mutation.method,
     url: mutation.url,
     body,
     bodyType,
-    headers: mutation.headers || {},
+    headers: safeHeaders,
     timestamp: Date.now(),
     retryCount: 0,
     nextRetryAt: 0,
@@ -182,8 +187,8 @@ ${authReplayHeaders}    let replayBody${T("BodyInit | null")}${ts ? " = null" : 
       method: item.method,
       headers: {
         ...(contentType ? { "Content-Type": contentType } : {}),
-${authHeaderSpread}        ...item.headers,
-      },
+        ...item.headers,
+${authHeaderSpread}      },
       body: replayBody,
     });
 

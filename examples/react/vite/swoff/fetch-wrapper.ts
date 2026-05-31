@@ -70,6 +70,7 @@ import { queueMutation } from "./mutation-queue.ts";
 export interface FetchWithCacheResult<T> {
   response: Response & { json(): Promise<T> };
   fromCache: boolean;
+  queued: boolean;
 }
 
 export interface FetchWithCacheOptions extends RequestInit {
@@ -94,7 +95,7 @@ const inFlightRequests = new Map<string, Promise<Response>>();
 /** Fetch with caching, auth, offline queue, auto-invalidation, and per-request strategy override. Returns { response, fromCache }. Use { auth: true } for authenticated requests — works with bearer, cookie, and custom auth types. */
 export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit & FetchWithCacheOptions = {}): Promise<FetchWithCacheResult<T>> {
   const method = (options.method || "GET").toUpperCase();
-  const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD"));
+  const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD" || method === "OPTIONS"));
   const url = typeof input === "string" ? input : input.url;
 
   const headers = new Headers(options.headers);
@@ -140,51 +141,15 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
   if (options.auth && isAuthUrl(url) && !headers.has("X-SW-Cache-Strategy")) {
     headers.set("X-SW-Cache-Strategy", "mutation");
   }
+  // Forward no-queue option to SW
+  if (options.queueOffline === false) {
+    headers.set("X-SW-No-Queue", "true");
+  }
+
   const fetchOptions: RequestInit = { ...options, headers };
 
   if (AUTH_WITH_CREDENTIALS) {
     fetchOptions.credentials = "include";
-  }
-
-  // Offline handling
-  if (!navigator.onLine) {
-    if (isRead) {
-      if (options.signal?.aborted) throw new DOMException("The operation was aborted", "AbortError");
-      const cached = await caches.match(input);
-      if (cached) return { response: cached, fromCache: true };
-      throw new Error("Offline: no cached data available");
-    }
-    // Write offline — auto-queue
-    if (options.queueOffline !== false) {
-      const headerObj: Record<string, string> = {};
-      headers.forEach((value, key) => {
-        headerObj[key] = value;
-      });
-      // Pre-compute invalidation tags for replay
-      let queueTags: string[] = [];
-      const invalidateSetting = options.invalidate !== false ? (options.invalidate || 'auto') : false;
-      if (invalidateSetting !== false) {
-        if (Array.isArray(invalidateSetting)) {
-          queueTags = invalidateSetting;
-        } else {
-          queueTags = generateTags(url);
-          queueTags = expandCascading(queueTags);
-        }
-      }
-      await queueMutation({
-        method,
-        url,
-        body: options.body,
-        headers: headerObj,
-        tags: queueTags,
-        timestamp: Date.now(),
-      });
-      return {
-        response: new Response(null, { status: 202, statusText: "Queued" }),
-        fromCache: false,
-      };
-    }
-    throw new Error("Offline: write operation failed");
   }
 
   // Check for abort before proceeding
@@ -215,11 +180,43 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
     }
   }
 
-  const response = await responsePromise;
+  let response: Response;
+  try {
+    response = await responsePromise;
+  } catch (err) {
+    if (err instanceof TypeError) {
+      if (isRead) {
+    if (options.signal?.aborted) throw new DOMException("The operation was aborted", "AbortError");
+      const cached = await caches.match(input);
+      if (cached) return { response: cached, fromCache: true };
+      throw new Error("Offline: no cached data available");
+      }
+      // SW not controlling — fallback to client-side queue
+      if (!navigator.serviceWorker?.controller) {
+    if (options.queueOffline !== false) {
+      await queueMutation({
+        method,
+        url,
+        body: options.body,
+        headers: {},
+        tags: mutationTags,
+        timestamp: Date.now(),
+      });
+      return {
+        response: new Response(JSON.stringify({ queued: true }), { status: 202, headers: { "Content-Type": "application/json" } }),
+        fromCache: false,
+        queued: true,
+      };
+    }
+      }
+    }
+    throw err;
+  }
 
-  // Auto-invalidate after mutation success
+  // Auto-invalidate after mutation success (skip if SW queued it)
   const mutationSuccess = options.validateSuccess ? await options.validateSuccess(response) : response.ok;
-  if (!isRead && mutationSuccess) {
+  const mutationQueued = response.headers.get("X-SW-Mutation-Queued") === "true";
+  if (!isRead && mutationSuccess && !mutationQueued) {
     const invalidateSetting = options.invalidate !== false ? (options.invalidate || 'auto') : false;
     if (invalidateSetting !== false) {
       const invalidateTarget = options.invalidateUrl || url;
@@ -235,7 +232,8 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
     window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
   }
   const fromCache = response.headers.get("X-SW-From-Cache") === "true";
-  return { response, fromCache };
+  const queued = response.headers.get("X-SW-Mutation-Queued") === "true";
+  return { response, fromCache, queued };
 }
 
 /** Fire-and-forget prefetch: warms the cache for a URL without blocking. Useful for route prefetching or link hover prefetching. */

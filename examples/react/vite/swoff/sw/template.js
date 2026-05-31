@@ -320,6 +320,8 @@ function isStale(response, staleTimeSeconds) {
 
 
 // --- Glob Pattern Matching ---
+// NOTE: This is an inline copy of the algorithm in shared/glob-matcher.ts.
+// Keep the two implementations in sync when making changes.
 
 function escapeGlobMeta(s) {
   return s.replace(/[.+^${}()|[\]\\]/g, "\\$&");
@@ -422,9 +424,94 @@ function applyStrategy(event, request, config) {
   }
 }
 
+// --- Mutation Queue IDB Helpers ---
+
+const MUTATION_DB_NAME = "swoff-queue";
+const MUTATION_STORE_NAME = "mutations";
+
+function openMutationQueueDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(MUTATION_DB_NAME, 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(MUTATION_STORE_NAME)) {
+        const store = db.createObjectStore(MUTATION_STORE_NAME, { keyPath: "id" });
+        store.createIndex("by-timestamp", "timestamp");
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function storeMutationInSW(request) {
+  const ct = (request.headers.get("Content-Type") || "").toLowerCase();
+  let body, bodyType;
+  try {
+    if (ct.includes("json")) {
+      body = await request.clone().json();
+      bodyType = "json";
+    } else if (ct.includes("form-data")) {
+      const fd = await request.clone().formData();
+      body = [...fd.entries()];
+      bodyType = "formdata";
+    } else {
+      body = await request.clone().text();
+      bodyType = "text";
+    }
+  } catch {
+    body = await request.clone().text();
+    bodyType = "text";
+  }
+
+  const tagsHeader = request.headers.get("X-SW-Invalidate-Tags");
+  const tags = tagsHeader ? tagsHeader.split(",").map(function(t) { return t.trim(); }) : [];
+
+  const db = await openMutationQueueDB();
+  const tx = db.transaction(MUTATION_STORE_NAME, "readwrite");
+  tx.objectStore(MUTATION_STORE_NAME).add({
+    id: crypto.randomUUID(),
+    method: request.method,
+    url: new URL(request.url).href,
+    body,
+    bodyType,
+    headers: {},
+    timestamp: Date.now(),
+    retryCount: 0,
+    nextRetryAt: 0,
+    tags,
+  });
+  await new Promise(function(resolve, reject) {
+    tx.oncomplete = function() { resolve(); };
+    tx.onerror = function() { reject(tx.error); };
+  });
+}
+
+async function handleMutation(event) {
+  const request = event.request;
+  if (request.headers.get("X-SW-No-Queue") === "true") {
+    return fetch(request.clone());
+  }
+  try {
+    return await fetch(request.clone());
+  } catch {
+    await storeMutationInSW(request);
+    const queuedBody = JSON.stringify({ queued: true });
+    return new Response(queuedBody, {
+      status: 202,
+      statusText: "Accepted",
+      headers: { "Content-Type": "application/json", "X-SW-Mutation-Queued": "true" },
+    });
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET" && request.method !== "HEAD") {
+    if (request.headers.get("X-SW-Cache-Strategy") === "mutation") {
+      event.respondWith(handleMutation(event));
+      return;
+    }
     if (!request.headers.get("X-SW-Cache-Key")) return;
   }
   
@@ -877,7 +964,7 @@ async function processMutationQueueInSW() {
         if (item.tags) {
           item.tags.forEach((tag) => {
             tagsToInvalidate.add(tag);
-            invalidateByTag(tag);
+            if (typeof invalidateByTag !== "undefined") invalidateByTag(tag);
           });
         }
 

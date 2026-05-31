@@ -99,13 +99,18 @@ export async function queueMutation(mutation: Partial<MutationQueueItem>): Promi
     bodyType = "buffer";
   }
 
+  // Strip auth headers before storing — tokens must never persist in IDB
+  const safeHeaders: Record<string, string> = { ...(mutation.headers || {}) };
+  delete safeHeaders["authorization"];
+  delete safeHeaders["Authorization"];
+
   store.add({
     id: crypto.randomUUID(),
     method: mutation.method,
     url: mutation.url,
     body,
     bodyType,
-    headers: mutation.headers || {},
+    headers: safeHeaders,
     timestamp: Date.now(),
     retryCount: 0,
     nextRetryAt: 0,
@@ -145,8 +150,8 @@ async function replayMutation(item: MutationQueueItem): Promise<boolean> {
       method: item.method,
       headers: {
         ...(contentType ? { "Content-Type": contentType } : {}),
-            ...authHeader,
         ...item.headers,
+            ...authHeader,
       },
       body: replayBody,
     });
@@ -218,7 +223,7 @@ export async function processMutationQueue(): Promise<void> {
       }
 
       // Rate limiting delay between mutations
-      if (BATCH_DELAY_MS > 0 && succeeded + (failed - succeeded) < total) {
+      if (BATCH_DELAY_MS > 0 && succeeded + failed < total) {
         await sleep(BATCH_DELAY_MS);
       }
 

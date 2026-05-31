@@ -4,7 +4,7 @@ Your project was generated with Swoff. All generated files live in `swoff/`.
 
 For the full documentation, visit:
 
-- **Documentation** — *URL TBD*
+- **Documentation** — https://swoff.dev/docs
 
 Or run `swoff info <feature>` for targeted help.
 ```

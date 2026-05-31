@@ -201,7 +201,9 @@ Generated when `features.serverPush.enabled` is `true`.
 
 ## `cache.ts`
 
-Low-level cache invalidation. Removes matching entries from the SW runtime cache.
+Low-level cache invalidation. Sends invalidation messages to the SW; the SW
+removes matching entries from the runtime cache and confirms back to the
+client-injector, which dispatches `cache-invalidated` on the window.
 
 ```ts
 import { invalidateByTag, invalidateByTags } from "swoff/cache";
@@ -211,8 +213,8 @@ import { invalidateByTag, invalidateByTags } from "swoff/cache";
 
 | Function           | Signature                           | Description                                                                               |
 | ------------------ | ----------------------------------- | ----------------------------------------------------------------------------------------- |
-| `invalidateByTag`  | `(tag: string) => Promise<void>`    | Invalidate all cache entries matching a single tag. Dispatches `cache-invalidated` event. |
-| `invalidateByTags` | `(tags: string[]) => Promise<void>` | Invalidate multiple tags at once                                                          |
+| `invalidateByTag`  | `(tag: string) => Promise<void>`    | Send `INVALIDATE_TAG` to the SW; the SW removes matching cache entries and confirms via `TAG_INVALIDATED` (client-injector dispatches `cache-invalidated` on the window). |
+| `invalidateByTags` | `(tags: string[]) => Promise<void>` | Invalidate multiple tags at once. Cascading is expanded by callers before calling this function. |
 
 Generated when `features.tagInvalidation` is `true`.
 

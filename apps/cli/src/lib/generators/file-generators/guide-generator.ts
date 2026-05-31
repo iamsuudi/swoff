@@ -18,13 +18,8 @@ export function generateGuide(ctx: GeneratorContext): void {
   w("");
   w("- **Documentation** — https://swoff.dev/docs");
   w("");
-  w("Or run `swoff info <feature>` for targeted help.");
-  w("```");
-  w("swoff info mutation-queue");
-  w("swoff info auth");
-  w("swoff info tag-invalidation");
-  w("swoff info stale-time");
-  w("```");
+  w("- **CLI Reference** — `swoff generate`, `swoff validate`, etc. See [CLI.md](./CLI.md)");
+  w("");
 
   writeFile(ctx, "GUIDE.md", lines.join("\n"));
 }

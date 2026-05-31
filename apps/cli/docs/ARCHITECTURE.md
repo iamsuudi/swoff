@@ -220,17 +220,19 @@ The mutation queue stores writes in IndexedDB and replays them when online. Each
 
 ## Dual-replay coordination
 
-Mutations queued while offline can be replayed by **both** the service worker (via Background Sync) and the client (when `online` fires). Swoff uses a shared IndexedDB `_processing_lock` to prevent double-execution:
+Mutations queued while offline can be replayed by **both** the service worker (via Background Sync) and the client (when `online` fires). Swoff prevents double-execution with a simple rule:
 
-1. Before processing, the client/SW writes a lock entry with a unique instance ID + timestamp
-2. The SW first checks for active clients via `self.clients.matchAll()`. If clients exist, it checks the lock timestamp — if it's recent (written within the last 3 seconds by a client), the SW skips processing entirely
-3. The lock is released when processing completes (success or fail)
-4. The lock survives tab crashes — if the client dies mid-replay, the SW eventually finds no recent lock and processes the remaining mutations
+1. The SW checks for active clients via `self.clients.matchAll()`
+2. If any client page is open, the SW **skips processing entirely** — the client always wins when open
+3. If no client is open, the SW processes silently via Background Sync
 
-This ensures:
-- **Page is open**: client handles replay (preferred — has DOM access for progress events)
-- **Page is closed or crashed**: SW handles replay via Background Sync (no data loss)
-- **Both race**: only one processes; the other sees the lock and backs off
+This avoids the complexity of shared locks and timestamps:
+
+- **Page is open**: client handles replay (preferred — has DOM access for progress events, can show real-time UI updates)
+- **Page is closed**: SW handles replay via Background Sync (no data loss)
+- **Both race**: only the client processes; the SW never interferes when clients exist
+
+Mutations stored client-side go into the same IndexedDB store that the SW reads from (`swoff-queue`). When the SW stores a mutation offline (from `fetch-handler.ts`), it also writes to this store and notifies clients via `MUTATION_STORED` so they can attempt immediate replay.
 
 ## Online-status awareness during mutation replay
 

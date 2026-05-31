@@ -25,6 +25,7 @@
 export function generateFetchHandler(
   swConfig: { strategy: { default: string; patterns: Record<string, string | { strategy: string; staleTime?: number; refetchInterval?: number; refetchOnReconnect?: boolean; refetchOnFocus?: boolean }>; reactive?: { defaults: { staleTime?: number; refetchInterval?: number; refetchOnReconnect?: boolean; refetchOnFocus?: boolean } }; mode?: "all" | "explicit-only"; normalizeKey?: boolean; ignoreQueryParams?: string[] }; navigation: { mode?: "spa" | "default"; preload?: boolean; fallback?: string }; refetchQueue: { batchSize?: number; batchDelayMs?: number; maxRetries?: number; retryDelayMs?: number } },
   tagInvalidation: boolean,
+  mutationQueueEnabled: boolean,
 ): string {
   const { strategy: { default: defaultStrategy, patterns: strategies, mode: cacheStrategy = "all", normalizeKey: normalizeCacheKey, ignoreQueryParams }, navigation: { mode: navMode = "spa", preload: navigationPreload, fallback: spaPath = "/index.html" }, refetchQueue: { batchSize: refetchBatchSize = 5, batchDelayMs: refetchBatchDelayMs = 1000, maxRetries: refetchMaxRetries = 3, retryDelayMs: refetchRetryDelayMs = 1000 } } = swConfig;
   const { staleTime: globalStaleTime, refetchInterval: globalRefetchInterval, refetchOnReconnect: globalRefetchOnReconnect, refetchOnFocus: globalRefetchOnFocus } = swConfig.strategy.reactive?.defaults || {};
@@ -136,9 +137,17 @@ const _refreshQueue = new Map();
 let _refreshQueueProcessing = false;
 let _refreshQueuePromise = null;
 
-function queueRefresh(cacheKeyUrl, actualUrl) {
-  // Use Map keyed by cacheKey for proper deduplication
-  _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl, retryCount: 0 });
+function queueRefresh(cacheKeyUrl, actualUrl${
+  tagInvalidation ? ", tags" : ""
+}) {
+  // Use Map keyed by cacheKey for proper deduplication${
+  tagInvalidation ? `
+  // Don't let a tagless (SWR/reactive) refresh override an invalidation-triggered entry with tags
+  if (_refreshQueue.has(cacheKeyUrl) && !tags) return;` : ""
+}
+  _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl, retryCount: 0${
+    tagInvalidation ? ", tags: tags || null" : ""
+  } });
   if (!_refreshQueuePromise) {
     _refreshQueuePromise = _processRefreshQueue().finally(() => {
       _refreshQueuePromise = null;
@@ -175,7 +184,12 @@ async function _processRefreshQueue() {
         const response = await fetch(fetchUrl);
         if (response.ok) {
           const request = new Request(entry.cacheKey);
-          await storeRuntime(request, response);
+          await storeRuntime(request, response);${
+  tagInvalidation ? `
+          if (entry.tags && typeof cacheTagUrl !== "undefined") {
+            await cacheTagUrl(entry.cacheKey, fetchUrl, entry.tags);
+          }` : ""
+}
           // Clean up stale version tracking on successful refresh
           if (typeof staleVersions !== "undefined" && staleVersions.has(entry.cacheKey)) {
             staleVersions.delete(entry.cacheKey);
@@ -429,11 +443,94 @@ function applyStrategy(event, request, config) {
   }
 }
 
-self.addEventListener("fetch", (event) => {
-  const { request } = event;
+${mutationQueueEnabled ? `// --- Mutation Queue IDB Helpers ---
+
+const MUTATION_DB_NAME = "swoff-queue";
+const MUTATION_STORE_NAME = "mutations";
+
+function openMutationQueueDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(MUTATION_DB_NAME, 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(MUTATION_STORE_NAME)) {
+        const store = db.createObjectStore(MUTATION_STORE_NAME, { keyPath: "id" });
+        store.createIndex("by-timestamp", "timestamp");
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function storeMutationInSW(request) {
+  let body, bodyType;
+  try {
+    body = await request.clone().json();
+    bodyType = "json";
+  } catch {
+    body = await request.clone().text();
+    bodyType = "text";
+  }
+
+  const tagsHeader = request.headers.get("X-SW-Invalidate-Tags");
+  const tags = tagsHeader ? tagsHeader.split(",").map(function(t) { return t.trim(); }) : [];
+
+  const db = await openMutationQueueDB();
+  const tx = db.transaction(MUTATION_STORE_NAME, "readwrite");
+  tx.objectStore(MUTATION_STORE_NAME).add({
+    id: crypto.randomUUID(),
+    method: request.method,
+    url: new URL(request.url).href,
+    body,
+    bodyType,
+    headers: {},
+    timestamp: Date.now(),
+    retryCount: 0,
+    nextRetryAt: 0,
+    tags,
+  });
+  await new Promise(function(resolve, reject) {
+    tx.oncomplete = function() { resolve(); };
+    tx.onerror = function() { reject(tx.error); };
+  });
+}
+
+async function handleMutation(event) {
+  const request = event.request;
+  if (request.headers.get("X-SW-No-Queue") === "true") {
+    return fetch(request.clone());
+  }
+  try {
+    return await fetch(request.clone());
+  } catch {
+    await storeMutationInSW(request);
+    // Notify open clients that a mutation was stored so they can try to process
+    const clients = await self.clients.matchAll();
+    clients.forEach(function(client) {
+      client.postMessage({ type: "MUTATION_STORED" });
+    });
+    const queuedBody = JSON.stringify({ queued: true });
+    return new Response(queuedBody, {
+      status: 202,
+      statusText: "Accepted",
+      headers: { "Content-Type": "application/json", "X-SW-Mutation-Queued": "true" },
+    });
+  }
+}
+
+` : ""}self.addEventListener("fetch", (event) => {
+  const { request } = event;${mutationQueueEnabled ? `
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    if (request.headers.get("X-SW-Cache-Strategy") === "mutation") {
+      event.respondWith(handleMutation(event));
+      return;
+    }
+    if (!request.headers.get("X-SW-Cache-Key")) return;
+  }` : `
   if (request.method !== "GET" && request.method !== "HEAD") {
     if (!request.headers.get("X-SW-Cache-Key")) return;
-  }
+  }`}
   ${cacheStrategy === "explicit-only" ? `if (!request.headers.get("X-SW-Cache-Strategy")) return;` : ""}
   applyStrategy(event, request, determineCacheStrategy(event.request, ${JSON.stringify(strategies)}, { defaultStrategy: "${defaultStrategy}" }));
 });

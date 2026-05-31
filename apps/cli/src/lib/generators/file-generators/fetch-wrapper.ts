@@ -17,7 +17,7 @@ export function generateFetchWrapper(ctx: GeneratorContext): void {
 
   const importLines = [
     tagInvalidation
-      ? `import { generateTags, invalidateUrl, expandCascading } from "./invalidation-tags.${ext}";`
+      ? `import { generateTags, invalidateUrl${tagInvalidation && mutationQueue ? ", expandCascading" : ""} } from "./invalidation-tags.${ext}";`
       : "",
     tagInvalidation ? `import { invalidateByTags } from "./cache.${ext}";` : "",
     authEnabled
@@ -35,6 +35,7 @@ export function generateFetchWrapper(ctx: GeneratorContext): void {
 export interface FetchWithCacheResult${G("T")} {
   response${T("Response & { json(): Promise<T> }")};
   fromCache${T("boolean")};
+  queued${T("boolean")};
 }
 `
     : "";
@@ -49,9 +50,6 @@ export interface FetchWithCacheOptions extends RequestInit {
   type?: 'read' | 'mutation';
   strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only' | 'reactive';
   staleTime?: number;
-  refetchInterval?: number;
-  refetchOnReconnect?: boolean;
-  refetchOnFocus?: boolean;
   /** Custom response validation for mutation success. Default: res.ok. Use this when your API returns 200 with { success: false } for logical failures. */
   validateSuccess?: (response: Response) => boolean | Promise<boolean>;
   /** Override the URL used for auto-invalidation. Defaults to the request URL. Useful when the mutation URL differs from the cache tag URL. */
@@ -91,56 +89,52 @@ export interface FetchWithCacheOptions extends RequestInit {
   }`
     : "";
 
-  const offlineReadBlock = `    if (isRead) {
-      if (options.signal?.aborted) throw new DOMException("The operation was aborted", "AbortError");
+  const mutationTagsBlock = tagInvalidation && mutationQueue
+    ? `  // Pre-compute invalidation tags for SW-side IDB storage
+  let mutationTags: string[] = [];
+  if (!isRead) {
+    const invalidateSetting = options.invalidate !== false ? (options.invalidate || 'auto') : false;
+    if (invalidateSetting !== false) {
+      if (Array.isArray(invalidateSetting)) {
+        mutationTags = invalidateSetting;
+      } else {
+        mutationTags = generateTags(url);
+        mutationTags = expandCascading(mutationTags);
+      }
+      headers.set("X-SW-Invalidate-Tags", mutationTags.join(","));
+    }
+  }`
+    : `  let mutationTags: string[] = options.tags || [];`;
+
+  const offlineReadCatchBlock = `    if (options.signal?.aborted) throw new DOMException("The operation was aborted", "AbortError");
       const cached = await caches.match(input);
-      if (cached) return { response: cached, fromCache: true };
-      throw new Error("Offline: no cached data available");
-    }`;
+      if (cached) return { response: cached, fromCache: true, queued: false };
+      throw new Error("Offline: no cached data available");`;
 
-  const offlineTagComp = tagInvalidation
-    ? `      // Pre-compute invalidation tags for replay
-      let queueTags: string[] = [];
-      const invalidateSetting = options.invalidate !== false ? (options.invalidate || 'auto') : false;
-      if (invalidateSetting !== false) {
-        if (Array.isArray(invalidateSetting)) {
-          queueTags = invalidateSetting;
-        } else {
-          queueTags = generateTags(url);
-          queueTags = expandCascading(queueTags);
-        }
-      }`
-    : `      const queueTags = options.tags || [];`;
-
-  const offlineWriteBlock = mutationQueue
-    ? `    // Write offline — auto-queue
-    if (options.queueOffline !== false) {
-      const headerObj: Record<string, string> = {};
-      headers.forEach((value, key) => {
-        headerObj[key] = value;
-      });
-${offlineTagComp}
+  const offlineWriteFallbackBlock = mutationQueue
+    ? `    if (options.queueOffline !== false) {
       await queueMutation({
         method,
         url,
         body: options.body,
-        headers: headerObj,
-        tags: queueTags,
+        headers: {},
+        tags: mutationTags,
         timestamp: Date.now(),
       });
       return {
-        response: new Response(null, { status: 202, statusText: "Queued" }),
+        response: new Response(JSON.stringify({ queued: true }), { status: 202, headers: { "Content-Type": "application/json" } }),
         fromCache: false,
+        queued: true,
       };
-    }
-    throw new Error("Offline: write operation failed");`
-    : `    throw new Error("Offline: write operation failed");`;
+    }`
+    : ``;
 
   const autoInvalidateBlock = tagInvalidation
     ? `
-  // Auto-invalidate after mutation success
+  // Auto-invalidate after mutation success (skip if SW queued it)
   const mutationSuccess = options.validateSuccess ? await options.validateSuccess(response) : response.ok;
-  if (!isRead && mutationSuccess) {
+  const mutationQueued = response.headers.get("X-SW-Mutation-Queued") === "true";
+  if (!isRead && mutationSuccess && !mutationQueued) {
     const invalidateSetting = options.invalidate !== false ? (options.invalidate || 'auto') : false;
     if (invalidateSetting !== false) {
       const invalidateTarget = options.invalidateUrl || url;
@@ -256,30 +250,20 @@ ${autoTagsBlock}
   if (options.staleTime !== undefined) {
     headers.set("X-SW-Stale-Time", String(options.staleTime));
   }
-  if (options.refetchInterval !== undefined) {
-    headers.set("X-SW-Refetch-Interval", String(options.refetchInterval));
-  }
-  if (options.refetchOnReconnect !== undefined) {
-    headers.set("X-SW-Refetch-On-Reconnect", String(options.refetchOnReconnect));
-  }
-  if (options.refetchOnFocus !== undefined) {
-    headers.set("X-SW-Refetch-On-Focus", String(options.refetchOnFocus));
-  }
 ${authBlock}${authUrlsBlock}
+  // Forward no-queue option to SW
+  if (options.queueOffline === false) {
+    headers.set("X-SW-No-Queue", "true");
+  }
+
   const fetchOptions${T("RequestInit")} = { ...options, headers };
 ${authCredentialsBlock}
-
-  // Offline handling
-  if (!navigator.onLine) {
-${offlineReadBlock}
-${offlineWriteBlock}
-  }
 
   // Check for abort before proceeding
   if (options.signal?.aborted) {
     throw new DOMException("The operation was aborted", "AbortError");
   }
-
+${mutationTagsBlock}
   // Deduplicate in-flight GET requests
   let responsePromise${T("Promise<Response>")};
   if (isRead && inFlightRequests.has(url)) {
@@ -303,10 +287,25 @@ ${offlineWriteBlock}
     }
   }
 
-  const response = await responsePromise;
+  let response${T("Response")};
+  try {
+    response = await responsePromise;
+  } catch (err) {
+    if (err instanceof TypeError) {
+      if (isRead) {
+${offlineReadCatchBlock}
+      }
+      // SW not controlling — fallback to client-side queue
+      if (!navigator.serviceWorker?.controller) {
+${offlineWriteFallbackBlock}
+      }
+    }
+    throw err;
+  }
 ${autoInvalidateBlock}${auth401Block}
   const fromCache = response.headers.get("X-SW-From-Cache") === "true";
-  return { response, fromCache };
+  const queued = response.headers.get("X-SW-Mutation-Queued") === "true";
+  return { response, fromCache, queued };
 }
 
 /** Fire-and-forget prefetch: warms the cache for a URL without blocking. Useful for route prefetching or link hover prefetching. */

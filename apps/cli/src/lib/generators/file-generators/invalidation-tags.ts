@@ -15,7 +15,10 @@ function escapeRegex(str: string): string {
   return str.replace(/[.+^${}()|[\]\\]/g, "\\$&");
 }
 
-function compilePatternEntry(rawPattern: string, tagTemplates: string[]): PatternEntry | null {
+function compilePatternEntry(
+  rawPattern: string,
+  tagTemplates: string[],
+): PatternEntry | null {
   const rawParts = rawPattern.split("/");
   const parts = rawParts.filter((p) => p !== "");
   const paramNames: string[] = [];
@@ -89,8 +92,11 @@ function generatePatternCode(patterns: Record<string, string[]>): string {
   return "[\n" + entries.join(",\n") + "\n]";
 }
 
-function generateSingularizationCode(singularization: Record<string, string>): string {
-  if (!singularization || Object.keys(singularization).length === 0) return "null";
+function generateSingularizationCode(
+  singularization: Record<string, string>,
+): string {
+  if (!singularization || Object.keys(singularization).length === 0)
+    return "null";
   return JSON.stringify(singularization);
 }
 
@@ -107,7 +113,15 @@ export function generateInvalidationTags(ctx: GeneratorContext): void {
 
   const tiConfig = ctx.config.features.tagInvalidation;
 
-  const prefixes = tiConfig.prefixes ?? ["api", "v1", "v2", "v3", "rest", "graphql", "gql"];
+  const prefixes = tiConfig.prefixes ?? [
+    "api",
+    "v1",
+    "v2",
+    "v3",
+    "rest",
+    "graphql",
+    "gql",
+  ];
   const patterns = tiConfig.patterns ?? {};
   const singularization = tiConfig.singularization ?? {};
   const cascading = tiConfig.cascading ?? {};
@@ -139,18 +153,24 @@ export function generateInvalidationTags(ctx: GeneratorContext): void {
  */
 
 import { invalidateByTags } from "./cache.${ext}";
-
+${ts ? `
+interface TagPattern {
+  re: RegExp;
+  params: string[];
+  templates: string[];
+}
+` : ""}
 // Pattern entries compiled from swoff.config.json
-const TAG_PATTERNS = ${patternCode};
+const TAG_PATTERNS${T("TagPattern[]")} = ${patternCode};
 
 // URL path prefixes to skip during tag generation
 const SKIP_PREFIXES = ${prefixesCode};
 
 // Custom singularization map (plural → singular)
-const SINGULARIZATION = ${singularizationCode};
+const SINGULARIZATION${T("Record<string, string> | null")} = ${singularizationCode};
 
 // Cascading invalidation map (tag → dependent tags)
-const CASCADING = ${cascadingCode};
+const CASCADING${T("Record<string, string[]> | null")} = ${cascadingCode};
 
 /** Generate cache invalidation tags from a URL path. Tries configured patterns first, falls back to segment-based generation. */
 export function generateTags(url${T("string | URL")})${R("string[]")}{
@@ -227,6 +247,7 @@ export async function invalidateByMethod(method${T("string")}, url${T("string | 
 
 /** Expand tags with their cascading dependencies, deduplicated. */
 export function expandCascading(tags${T("string[]")})${R("string[]")}{
+  if (!CASCADING) return [...tags];
   const result = new Set(tags);
   for (const tag of tags) {
     const deps = CASCADING[tag];
@@ -241,13 +262,14 @@ export function expandCascading(tags${T("string[]")})${R("string[]")}{
 
 /** Introspect: get all URLs cached under a given tag. */
 export async function getUrlsForTag(tag${T("string")})${R("Promise<{ url: string; actualUrl: string }[]>")}{
-  if (!navigator.serviceWorker?.controller) return [];
+  const controller = navigator.serviceWorker?.controller;
+  if (!controller) return [];
   return new Promise((resolve) => {
     const channel = new MessageChannel();
     channel.port1.onmessage = (event) => {
       resolve(event.data.urls || []);
     };
-    navigator.serviceWorker.controller.postMessage(
+    controller.postMessage(
       { type: "GET_URLS_FOR_TAG", tag },
       [channel.port2],
     );
@@ -256,13 +278,14 @@ export async function getUrlsForTag(tag${T("string")})${R("Promise<{ url: string
 
 /** Introspect: get all tags associated with a given URL. */
 export async function getTagsForUrl(url${T("string")})${R("Promise<string[]>")}{
-  if (!navigator.serviceWorker?.controller) return [];
+  const controller = navigator.serviceWorker?.controller;
+  if (!controller) return [];
   return new Promise((resolve) => {
     const channel = new MessageChannel();
     channel.port1.onmessage = (event) => {
       resolve(event.data.tags || []);
     };
-    navigator.serviceWorker.controller.postMessage(
+    controller.postMessage(
       { type: "GET_TAGS_FOR_URL", url },
       [channel.port2],
     );
@@ -271,8 +294,9 @@ export async function getTagsForUrl(url${T("string")})${R("Promise<string[]>")}{
 
 /** Invalidate all cached responses whose URL matches the given glob pattern. */
 export async function invalidateMatching(glob${T("string")})${R("Promise<void>")}{
-  if (!navigator.serviceWorker?.controller) return;
-  navigator.serviceWorker.controller.postMessage({
+  const controller = navigator.serviceWorker?.controller;
+  if (!controller) return;
+  controller.postMessage({
     type: "INVALIDATE_MATCHING",
     glob,
   });

@@ -1,4 +1,4 @@
-export function generateMessageHandler(tagInvalidation: boolean, authEnabled: boolean, debounceMs: number = 0): string {
+export function generateMessageHandler(tagInvalidation: boolean, debounceMs: number = 0): string {
   const debouncePrologue = tagInvalidation && debounceMs > 0
     ? `
 const INVALIDATION_DEBOUNCE_MS = ${debounceMs};
@@ -57,17 +57,6 @@ self.addEventListener("message", (event) => {
   }
   if (event.data.type === "INVALIDATE_MATCHING" && event.data.glob) {
     event.waitUntil(invalidateMatching(event.data.glob));
-  }`;
-  }
-
-  if (authEnabled) {
-    code += `
-  if (event.data.type === "CLEAR_RUNTIME_CACHE") {
-    event.waitUntil(
-      caches.delete(CACHE_NAME_RUNTIME).then(() => {
-        return caches.open(CACHE_NAME_RUNTIME);
-      }),
-    );
   }`;
   }
 

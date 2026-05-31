@@ -52,7 +52,19 @@ export function useMutation<TData = unknown>(
       });
 
       try {
-        const { response } = await fetchWithCache<TData>(url, fetchOptions);
+        const { response, queued } = await fetchWithCache<TData>(url, fetchOptions);
+        if (queued) {
+          resolveMutation(mutationId, null);
+          setState({
+            data: null,
+            error: null,
+            isLoading: false,
+            isError: false,
+            isSuccess: false,
+          });
+          optionsRef.current.onSettled?.();
+          return null;
+        }
         const data: TData = await response.json();
         resolveMutation(mutationId, data);
         setState({

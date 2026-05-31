@@ -18,7 +18,7 @@ Swoff splits responsibilities between two scopes:
 
 **Client (window) scope** — runs in the page, has access to DOM, IndexedDB, and React hooks:
 - Tracks mutation state per-operation
-- Queues offline writes to IndexedDB (the SW can't write to IndexedDB)
+- Queues offline writes to IndexedDB (the SW could also write, but client-side queuing keeps mutation state accessible to UI components and avoids SW lifecycle complexity)
 - Provides reactive hooks (`useCachedFetch`, `useMutationQueue`)
 - Manages auth tokens in memory-only storage (never exposed to SW)
 - Detects online/offline state and triggers mutation replay
@@ -58,7 +58,7 @@ The reactive strategy bundles three optional refresh triggers that all gate thro
 | Trigger | Description | Gating |
 |---------|-------------|--------|
 | `refetchInterval` | Timer-based — re-fetches every N seconds in the background | Only fires if stale (past `staleTime`) |
-| `refetchOnFocus` | Fires when the tab regains focus (`visibilitychange` / `window.focus`) | Only fires if stale (past `staleTime`) |
+| `refetchOnFocus` | Fires when the tab regains focus (`visibilitychange`) | Only fires if stale (past `staleTime`) |
 | `refetchOnReconnect` | Fires when the browser comes back online | Only fires if stale (past `staleTime`) |
 
 ---
@@ -102,11 +102,14 @@ The `strategy` field resolves through three priority levels:
 2. **Route pattern** — configured in `features.serviceWorker.strategy.patterns` keyed by URL pattern
 3. **Global default (lowest)** — configured at `features.serviceWorker.strategy.default`
 
-**Reactive-only fields** (`staleTime`, `refetchInterval`, `refetchOnReconnect`, `refetchOnFocus`) now resolve through three tiers:
+**Reactive-only fields** (`staleTime`, `refetchInterval`, `refetchOnReconnect`, `refetchOnFocus`) resolve through tiers:
 
-1. **Per-request (highest)** — via `X-SW-Stale-Time` / `X-SW-Refetch-Interval` / `X-SW-Refetch-On-Reconnect` / `X-SW-Refetch-On-Focus` headers or per-request options on `fetchWithCache`
-2. **Route pattern** — configured in the patterns entry for the matching pattern (e.g. `{ "strategy": "reactive", "staleTime": 30 }`)
-3. **Global default (lowest)** — configured at `features.serviceWorker.strategy.reactive.defaults.staleTime` / `features.serviceWorker.strategy.reactive.defaults.refetchInterval` etc.
+| Field | Tier 1 (per-request) | Tier 2 (route pattern) | Tier 3 (global default) |
+|-------|---------------------|----------------------|------------------------|
+| `staleTime` | ✅ `X-SW-Stale-Time` header or `fetchWithCache({ staleTime })` | ✅ pattern entry | ✅ `reactive.defaults.staleTime` |
+| `refetchInterval` | ❌ SW-initiated timer — not per-request | ✅ pattern entry | ✅ `reactive.defaults.refetchInterval` |
+| `refetchOnReconnect` | ❌ SW-initiated — not per-request | ✅ pattern entry | ✅ `reactive.defaults.refetchOnReconnect` |
+| `refetchOnFocus` | ❌ SW-initiated — not per-request | ✅ pattern entry | ✅ `reactive.defaults.refetchOnFocus` |
 
 **Example resolution flow:**
 
@@ -217,17 +220,19 @@ The mutation queue stores writes in IndexedDB and replays them when online. Each
 
 ## Dual-replay coordination
 
-Mutations queued while offline can be replayed by **both** the service worker (via Background Sync) and the client (when `online` fires). Swoff uses a shared IndexedDB `_processing_lock` to prevent double-execution:
+Mutations queued while offline can be replayed by **both** the service worker (via Background Sync) and the client (when `online` fires). Swoff prevents double-execution with a simple rule:
 
-1. Before processing, the client/SW writes a lock entry with a unique instance ID + timestamp
-2. The SW first checks for active clients via `self.clients.matchAll()`. If clients exist, it checks the lock timestamp — if it's recent (written within the last 3 seconds by a client), the SW skips processing entirely
-3. The lock is released when processing completes (success or fail)
-4. The lock survives tab crashes — if the client dies mid-replay, the SW eventually finds no recent lock and processes the remaining mutations
+1. The SW checks for active clients via `self.clients.matchAll()`
+2. If any client page is open, the SW **skips processing entirely** — the client always wins when open
+3. If no client is open, the SW processes silently via Background Sync
 
-This ensures:
-- **Page is open**: client handles replay (preferred — has DOM access for progress events)
-- **Page is closed or crashed**: SW handles replay via Background Sync (no data loss)
-- **Both race**: only one processes; the other sees the lock and backs off
+This avoids the complexity of shared locks and timestamps:
+
+- **Page is open**: client handles replay (preferred — has DOM access for progress events, can show real-time UI updates)
+- **Page is closed**: SW handles replay via Background Sync (no data loss)
+- **Both race**: only the client processes; the SW never interferes when clients exist
+
+Mutations stored client-side go into the same IndexedDB store that the SW reads from (`swoff-queue`). When the SW stores a mutation offline (from `fetch-handler.ts`), it also writes to this store and notifies clients via `MUTATION_STORED` so they can attempt immediate replay.
 
 ## Online-status awareness during mutation replay
 

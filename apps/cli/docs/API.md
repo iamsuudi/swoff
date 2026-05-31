@@ -40,9 +40,6 @@ All `RequestInit` fields are supported (`method`, `body`, `headers`, `credential
 | `type`                 | `'read' \| 'mutation'`                                                                           | auto-detected           | Override read/mutation detection                         |
 | `strategy`             | `'cache-first' \| 'network-first' \| 'stale-while-revalidate' \| 'cache-only' \| 'network-only' \| 'reactive'` | —                       | Override caching strategy per-request (highest priority) |
 | `staleTime`            | `number`                                                                                         | —                       | Override stale time in seconds (reactive-only, per-request tier 1) |
-| `refetchInterval`      | `number`                                                                                         | —                       | Override refetch interval in seconds (reactive-only, per-request tier 1) |
-| `refetchOnReconnect`   | `boolean`                                                                                        | —                       | Override refetch-on-reconnect flag (reactive-only)       |
-| `refetchOnFocus`       | `boolean`                                                                                        | —                       | Override refetch-on-focus flag (reactive-only)           |
 | `validateSuccess`      | `(response: Response) => boolean \| Promise<boolean>`                                            | `res.ok`                | Custom mutation success check (e.g. when API returns 200 with `{ success: false }`) |
 | `invalidateUrl`        | `string`                                                                                         | the request URL         | Override the URL used for auto-invalidation tags. Useful when mutation URL differs from cache tag URL. |
 | `signal`               | `AbortSignal`                                                                                    | —                       | AbortController signal for cancellation                  |
@@ -204,7 +201,9 @@ Generated when `features.serverPush.enabled` is `true`.
 
 ## `cache.ts`
 
-Low-level cache invalidation. Removes matching entries from the SW runtime cache.
+Low-level cache invalidation. Sends invalidation messages to the SW; the SW
+removes matching entries from the runtime cache and confirms back to the
+client-injector, which dispatches `cache-invalidated` on the window.
 
 ```ts
 import { invalidateByTag, invalidateByTags } from "swoff/cache";
@@ -214,8 +213,8 @@ import { invalidateByTag, invalidateByTags } from "swoff/cache";
 
 | Function           | Signature                           | Description                                                                               |
 | ------------------ | ----------------------------------- | ----------------------------------------------------------------------------------------- |
-| `invalidateByTag`  | `(tag: string) => Promise<void>`    | Invalidate all cache entries matching a single tag. Dispatches `cache-invalidated` event. |
-| `invalidateByTags` | `(tags: string[]) => Promise<void>` | Invalidate multiple tags at once                                                          |
+| `invalidateByTag`  | `(tag: string) => Promise<void>`    | Send `INVALIDATE_TAG` to the SW; the SW removes matching cache entries and confirms via `TAG_INVALIDATED` (client-injector dispatches `cache-invalidated` on the window). |
+| `invalidateByTags` | `(tags: string[]) => Promise<void>` | Invalidate multiple tags at once. Cascading is expanded by callers before calling this function. |
 
 Generated when `features.tagInvalidation` is `true`.
 

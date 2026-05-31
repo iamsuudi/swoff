@@ -8,19 +8,20 @@
  *   initServiceWorker();
  *
  * Window events (dispatched by this module):
- *   sw-progress           - Download progress (detail: { percent, downloaded, total })
- *   sw-ready              - SW active and controlling page
- *   sw-error              - SW registration failed
- *   cache-invalidated     - Cache entries cleared (detail: { tags })
- *   mutation-sync-complete - Queued mutations synced (detail: { succeeded, failed })
- *   mutation-queue-changed - Queue modified
+ *   sw-progress              - Download progress (detail: { percent, downloaded, total })
+ *   sw-ready                 - SW active and controlling page
+ *   sw-error                 - SW registration failed
+ *   cache-invalidated        - Cache entries cleared on SW confirmation (detail: { tags })
+ *   swoff:cache-updated      - Background refresh completed (detail: { url })
+ *   mutation-sync-complete   - Queued mutations synced (detail: { succeeded, failed })
+ *   mutation-sync-progress   - Batch progress during sync (detail: { succeeded, failed, total, current })
+ *   mutation-queue-changed   - Queue modified
  *
  * Window events (dispatched by feature modules):
  *   pwa-installable       - PWA can be installed (detail: { isInstallable: true })
  *   pwa-installed         - User accepted install (detail: { outcome: 'accepted' })
  *   sw-auth-unauthorized  - 401 response received
  *   sw-auth-state-change  - Login or logout (detail: { authenticated: boolean })
- *   mutation-rollback     - Mutation exhausted retries
  *   sw-update-available   - New version ready (detail: { version })
  *   sw-version-detected   - Version info available
  */
@@ -43,14 +44,10 @@ window.addEventListener("online", () => {
 
 // --- Focus Listener for Reactive Strategy ---
 // Notifies the SW when the tab gains focus so it can refresh stale reactive entries.
+// Uses visibilitychange only (covers tab switch, window refocus, alt-tab) — single source avoids duplicate FOCUS messages.
 if (typeof document !== "undefined") {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({ type: "FOCUS" });
-    }
-  });
-  window.addEventListener("focus", () => {
-    if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: "FOCUS" });
     }
   });
@@ -60,11 +57,6 @@ if (typeof document !== "undefined") {
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (event) => {
     if (event.data.type === "CACHE_UPDATED") {
-      window.dispatchEvent(
-        new CustomEvent("cache-invalidated", {
-          detail: { tags: event.data.tags || [] },
-        })
-      );
       window.dispatchEvent(
         new CustomEvent("swoff:cache-updated", {
           detail: { url: event.data.url },
@@ -76,6 +68,13 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       window.dispatchEvent(
         new CustomEvent("sw-progress", {
           detail: { percent, downloaded, total },
+        })
+      );
+    }
+    if (event.data.type === "BACKGROUND_SYNC_PROGRESS") {
+      window.dispatchEvent(
+        new CustomEvent("mutation-sync-progress", {
+          detail: event.data.detail,
         })
       );
     }
@@ -92,6 +91,9 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
         );
       }
       window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
+    }
+    if (event.data.type === "MUTATION_STORED") {
+      processMutationQueue();
     }
     if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
       window.dispatchEvent(

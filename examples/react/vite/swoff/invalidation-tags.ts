@@ -21,8 +21,14 @@
 
 import { invalidateByTags } from "./cache.ts";
 
+interface TagPattern {
+  re: RegExp;
+  params: string[];
+  templates: string[];
+}
+
 // Pattern entries compiled from swoff.config.json
-const TAG_PATTERNS = [
+const TAG_PATTERNS: TagPattern[] = [
 
 ];
 
@@ -30,10 +36,10 @@ const TAG_PATTERNS = [
 const SKIP_PREFIXES = ["api","v1","v2","v3","rest","graphql","gql"];
 
 // Custom singularization map (plural → singular)
-const SINGULARIZATION = null;
+const SINGULARIZATION: Record<string, string> | null = null;
 
 // Cascading invalidation map (tag → dependent tags)
-const CASCADING = null;
+const CASCADING: Record<string, string[]> | null = null;
 
 /** Generate cache invalidation tags from a URL path. Tries configured patterns first, falls back to segment-based generation. */
 export function generateTags(url: string | URL): string[] {
@@ -110,6 +116,7 @@ export async function invalidateByMethod(method: string, url: string | URL): Pro
 
 /** Expand tags with their cascading dependencies, deduplicated. */
 export function expandCascading(tags: string[]): string[] {
+  if (!CASCADING) return [...tags];
   const result = new Set(tags);
   for (const tag of tags) {
     const deps = CASCADING[tag];
@@ -124,13 +131,14 @@ export function expandCascading(tags: string[]): string[] {
 
 /** Introspect: get all URLs cached under a given tag. */
 export async function getUrlsForTag(tag: string): Promise<{ url: string; actualUrl: string }[]> {
-  if (!navigator.serviceWorker?.controller) return [];
+  const controller = navigator.serviceWorker?.controller;
+  if (!controller) return [];
   return new Promise((resolve) => {
     const channel = new MessageChannel();
     channel.port1.onmessage = (event) => {
       resolve(event.data.urls || []);
     };
-    navigator.serviceWorker.controller.postMessage(
+    controller.postMessage(
       { type: "GET_URLS_FOR_TAG", tag },
       [channel.port2],
     );
@@ -139,13 +147,14 @@ export async function getUrlsForTag(tag: string): Promise<{ url: string; actualU
 
 /** Introspect: get all tags associated with a given URL. */
 export async function getTagsForUrl(url: string): Promise<string[]> {
-  if (!navigator.serviceWorker?.controller) return [];
+  const controller = navigator.serviceWorker?.controller;
+  if (!controller) return [];
   return new Promise((resolve) => {
     const channel = new MessageChannel();
     channel.port1.onmessage = (event) => {
       resolve(event.data.tags || []);
     };
-    navigator.serviceWorker.controller.postMessage(
+    controller.postMessage(
       { type: "GET_TAGS_FOR_URL", url },
       [channel.port2],
     );
@@ -154,8 +163,9 @@ export async function getTagsForUrl(url: string): Promise<string[]> {
 
 /** Invalidate all cached responses whose URL matches the given glob pattern. */
 export async function invalidateMatching(glob: string): Promise<void> {
-  if (!navigator.serviceWorker?.controller) return;
-  navigator.serviceWorker.controller.postMessage({
+  const controller = navigator.serviceWorker?.controller;
+  if (!controller) return;
+  controller.postMessage({
     type: "INVALIDATE_MATCHING",
     glob,
   });

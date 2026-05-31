@@ -1,9 +1,13 @@
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 import {
   getMutationState,
   onMutationStateChange,
 } from "../mutation-state.ts";
 import type { MutationState } from "../mutation-state.ts";
+
+function subscribeToMutations(cb: () => void) {
+  return onMutationStateChange(() => cb());
+}
 
 /**
  * Hook that subscribes to a specific mutation's state changes.
@@ -14,28 +18,8 @@ import type { MutationState } from "../mutation-state.ts";
  *   if (mutation?.status === "error") { ... }
  */
 export function useMutationState(id: string | null): MutationState | null {
-  const [state, setState] = useState<MutationState | null>(() =>
-    id ? getMutationState(id) ?? null : null,
+  return useSyncExternalStore(
+    subscribeToMutations,
+    () => (id ? getMutationState(id) ?? null : null),
   );
-
-  useEffect(() => {
-    if (!id) {
-      setState(null);
-      return;
-    }
-
-    // Initial state
-    setState(getMutationState(id) ?? null);
-
-    // Subscribe to changes
-    const unsub = onMutationStateChange((updated) => {
-      if (updated.id === id) {
-        setState(updated);
-      }
-    });
-
-    return unsub;
-  }, [id]);
-
-  return state;
 }

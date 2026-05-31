@@ -23,7 +23,7 @@
  *   window.swError               - Registration failed
  */
 const AUTO_UPDATE = true;
-const AUTO_ACTIVATE = false;
+const AUTO_ACTIVATE = true;
 
 function semverCompare(a: string, b: string): number {
   const pa = a.split('.').map(Number);

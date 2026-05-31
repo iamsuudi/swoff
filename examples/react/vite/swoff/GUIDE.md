@@ -4,12 +4,6 @@ Your project was generated with Swoff. All generated files live in `swoff/`.
 
 For the full documentation, visit:
 
-- **Documentation** — *URL TBD*
+- **Documentation** — https://swoff.dev/docs
 
-Or run `swoff info <feature>` for targeted help.
-```
-swoff info mutation-queue
-swoff info auth
-swoff info tag-invalidation
-swoff info stale-time
-```
+- **CLI Reference** — `swoff generate`, `swoff validate`, etc. See [CLI.md](./CLI.md)

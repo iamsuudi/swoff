@@ -6,7 +6,6 @@
  *   swoff generate      Generate service worker and files
  *   swoff validate      Validate swoff.config.json
  *   swoff add <feature> Add specific feature files
- *   swoff info          Show configuration summary
  *   swoff clean         Remove old versioned SW files
  *   swoff --help        Show help
  */

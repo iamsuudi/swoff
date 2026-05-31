@@ -34,15 +34,6 @@
       "createdAt": "2026-05-28T07:06:10.759Z",
       "updatedAt": "2026-05-28T07:06:10.759Z",
       "userId": 1
-    },
-    {
-      "id": 18,
-      "title": "888888",
-      "description": "a",
-      "priority": "high",
-      "createdAt": "2026-05-28T13:49:41.173Z",
-      "updatedAt": "2026-05-28T13:50:17.862Z",
-      "userId": 1
     }
   ],
   "nextNoteId": 19,

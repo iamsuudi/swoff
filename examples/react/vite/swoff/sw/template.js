@@ -86,13 +86,6 @@ self.addEventListener("message", (event) => {
   if (event.data.type === "INVALIDATE_MATCHING" && event.data.glob) {
     event.waitUntil(invalidateMatching(event.data.glob));
   }
-  if (event.data.type === "CLEAR_RUNTIME_CACHE") {
-    event.waitUntil(
-      caches.delete(CACHE_NAME_RUNTIME).then(() => {
-        return caches.open(CACHE_NAME_RUNTIME);
-      }),
-    );
-  }
   if (event.data.type === "ONLINE") {
     event.waitUntil(handleOnline());
   }
@@ -111,9 +104,11 @@ const _refreshQueue = new Map();
 let _refreshQueueProcessing = false;
 let _refreshQueuePromise = null;
 
-function queueRefresh(cacheKeyUrl, actualUrl) {
+function queueRefresh(cacheKeyUrl, actualUrl, tags) {
   // Use Map keyed by cacheKey for proper deduplication
-  _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl, retryCount: 0 });
+  // Don't let a tagless (SWR/reactive) refresh override an invalidation-triggered entry with tags
+  if (_refreshQueue.has(cacheKeyUrl) && !tags) return;
+  _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl, retryCount: 0, tags: tags || null });
   if (!_refreshQueuePromise) {
     _refreshQueuePromise = _processRefreshQueue().finally(() => {
       _refreshQueuePromise = null;
@@ -151,6 +146,9 @@ async function _processRefreshQueue() {
         if (response.ok) {
           const request = new Request(entry.cacheKey);
           await storeRuntime(request, response);
+          if (entry.tags && typeof cacheTagUrl !== "undefined") {
+            await cacheTagUrl(entry.cacheKey, fetchUrl, entry.tags);
+          }
           // Clean up stale version tracking on successful refresh
           if (typeof staleVersions !== "undefined" && staleVersions.has(entry.cacheKey)) {
             staleVersions.delete(entry.cacheKey);
@@ -320,6 +318,8 @@ function isStale(response, staleTimeSeconds) {
 
 
 // --- Glob Pattern Matching ---
+// NOTE: This is an inline copy of the algorithm in shared/glob-matcher.ts.
+// Keep the two implementations in sync when making changes.
 
 function escapeGlobMeta(s) {
   return s.replace(/[.+^${}()|[\]\\]/g, "\\$&");
@@ -422,9 +422,89 @@ function applyStrategy(event, request, config) {
   }
 }
 
+// --- Mutation Queue IDB Helpers ---
+
+const MUTATION_DB_NAME = "swoff-queue";
+const MUTATION_STORE_NAME = "mutations";
+
+function openMutationQueueDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(MUTATION_DB_NAME, 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(MUTATION_STORE_NAME)) {
+        const store = db.createObjectStore(MUTATION_STORE_NAME, { keyPath: "id" });
+        store.createIndex("by-timestamp", "timestamp");
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function storeMutationInSW(request) {
+  let body, bodyType;
+  try {
+    body = await request.clone().json();
+    bodyType = "json";
+  } catch {
+    body = await request.clone().text();
+    bodyType = "text";
+  }
+
+  const tagsHeader = request.headers.get("X-SW-Invalidate-Tags");
+  const tags = tagsHeader ? tagsHeader.split(",").map(function(t) { return t.trim(); }) : [];
+
+  const db = await openMutationQueueDB();
+  const tx = db.transaction(MUTATION_STORE_NAME, "readwrite");
+  tx.objectStore(MUTATION_STORE_NAME).add({
+    id: crypto.randomUUID(),
+    method: request.method,
+    url: new URL(request.url).href,
+    body,
+    bodyType,
+    headers: {},
+    timestamp: Date.now(),
+    retryCount: 0,
+    nextRetryAt: 0,
+    tags,
+  });
+  await new Promise(function(resolve, reject) {
+    tx.oncomplete = function() { resolve(); };
+    tx.onerror = function() { reject(tx.error); };
+  });
+}
+
+async function handleMutation(event) {
+  const request = event.request;
+  if (request.headers.get("X-SW-No-Queue") === "true") {
+    return fetch(request.clone());
+  }
+  try {
+    return await fetch(request.clone());
+  } catch {
+    await storeMutationInSW(request);
+    // Notify open clients that a mutation was stored so they can try to process
+    const clients = await self.clients.matchAll();
+    clients.forEach(function(client) {
+      client.postMessage({ type: "MUTATION_STORED" });
+    });
+    const queuedBody = JSON.stringify({ queued: true });
+    return new Response(queuedBody, {
+      status: 202,
+      statusText: "Accepted",
+      headers: { "Content-Type": "application/json", "X-SW-Mutation-Queued": "true" },
+    });
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET" && request.method !== "HEAD") {
+    if (request.headers.get("X-SW-Cache-Strategy") === "mutation") {
+      event.respondWith(handleMutation(event));
+      return;
+    }
     if (!request.headers.get("X-SW-Cache-Key")) return;
   }
   
@@ -636,7 +716,7 @@ async function invalidateByTag(tag) {
   // Enqueue background refetch through batched refresh queue
   for (const entry of entries) {
     staleVersions.set(entry.url, Date.now());
-    queueRefresh(entry.url, entry.actualUrl);
+    queueRefresh(entry.url, entry.actualUrl, entry.tags);
   }
 
   const clients = await self.clients.matchAll();
@@ -753,6 +833,70 @@ self.addEventListener("notificationclick", (event) => {
 });
 
 
+// --- Server Push Events (SSE) ---
+
+let pushReconnectTimer = null;
+let pushAbortController = null;
+
+async function connectPushEvents() {
+  try {
+    pushAbortController = new AbortController();
+    const response = await fetch("/api/events", {
+      headers: { Accept: "text/event-stream" },
+      signal: pushAbortController.signal,
+    });
+    if (!response.ok || !response.body) {
+      scheduleReconnect();
+      return;
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let eventType = "";
+    let dataStr = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (line.startsWith("event: ")) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith("data: ")) {
+          dataStr = line.slice(6);
+        } else if (line === "") {
+          if (eventType === "invalidate" && dataStr) {
+            try {
+              const parsed = JSON.parse(dataStr);
+              if (parsed.tags) {
+                parsed.tags.forEach((tag) => invalidateByTag(tag));
+              }
+            } catch {}
+          }
+          eventType = "";
+          dataStr = "";
+        }
+      }
+    }
+  } catch {
+    // Connection lost or aborted
+  }
+  scheduleReconnect();
+}
+
+function scheduleReconnect() {
+  if (pushReconnectTimer) clearTimeout(pushReconnectTimer);
+  pushReconnectTimer = setTimeout(connectPushEvents, 5000);
+}
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(connectPushEvents());
+});
+
 
 
 self.addEventListener("sync", (event) => {
@@ -771,35 +915,10 @@ function swSleep(ms) {
 }
 
 async function processMutationQueueInSW() {
-  // If client pages are open, check if a client is already processing the queue
+  // If any client pages are open, skip entirely — the client always wins when open.
+  // Only the SW processes the queue when all tabs are closed (background sync event).
   const activeClients = await self.clients.matchAll();
-  if (activeClients.length > 0) {
-    try {
-      const db = await new Promise((resolve, reject) => {
-        const request = indexedDB.open("swoff-queue", 1);
-        request.onupgradeneeded = (e) => {
-          const d = e.target.result;
-          if (!d.objectStoreNames.contains("mutations")) {
-            d.createObjectStore("mutations", { keyPath: "id" });
-          }
-        };
-        request.onsuccess = (e) => resolve(e.target.result);
-        request.onerror = (e) => reject(e.target.error);
-      });
-      const tx = db.transaction("mutations", "readonly");
-      const store = tx.objectStore("mutations");
-      const lock = await new Promise((resolve, reject) => {
-        const req = store.get("_processing_lock");
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
-      if (lock && Date.now() - lock.timestamp < 5000) {
-        return; // Client is handling it
-      }
-    } catch {
-      // If lock check fails, proceed with processing
-    }
-  }
+  if (activeClients.length > 0) return;
 
   let succeeded = 0;
   let failed = 0;
@@ -877,7 +996,7 @@ async function processMutationQueueInSW() {
         if (item.tags) {
           item.tags.forEach((tag) => {
             tagsToInvalidate.add(tag);
-            invalidateByTag(tag);
+            if (typeof invalidateByTag !== "undefined") invalidateByTag(tag);
           });
         }
 

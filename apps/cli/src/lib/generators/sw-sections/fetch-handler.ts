@@ -451,20 +451,10 @@ function openMutationQueueDB() {
 }
 
 async function storeMutationInSW(request) {
-  const ct = (request.headers.get("Content-Type") || "").toLowerCase();
   let body, bodyType;
   try {
-    if (ct.includes("json")) {
-      body = await request.clone().json();
-      bodyType = "json";
-    } else if (ct.includes("form-data")) {
-      const fd = await request.clone().formData();
-      body = [...fd.entries()];
-      bodyType = "formdata";
-    } else {
-      body = await request.clone().text();
-      bodyType = "text";
-    }
+    body = await request.clone().json();
+    bodyType = "json";
   } catch {
     body = await request.clone().text();
     bodyType = "text";
@@ -502,6 +492,11 @@ async function handleMutation(event) {
     return await fetch(request.clone());
   } catch {
     await storeMutationInSW(request);
+    // Notify open clients that a mutation was stored so they can try to process
+    const clients = await self.clients.matchAll();
+    clients.forEach(function(client) {
+      client.postMessage({ type: "MUTATION_STORED" });
+    });
     const queuedBody = JSON.stringify({ queued: true });
     return new Response(queuedBody, {
       status: 202,

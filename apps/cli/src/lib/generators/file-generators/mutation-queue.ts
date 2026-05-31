@@ -208,9 +208,9 @@ ${authHeaderSpread}      },
   }
 }
 
-/** Process all queued mutations in order. Sends them to the server. Runs automatically on the online event. Respects batchSize for progress reporting and batchDelayMs for rate limiting. */
+/** Process all queued mutations in order. Sends them to the server. Runs automatically when mutations are queued or on reconnection. Respects batchSize for progress reporting and batchDelayMs for rate limiting. */
 export async function processMutationQueue()${R("Promise<void>")}{
-  if (!navigator.onLine || isSyncing) return;
+  if (isSyncing) return;
   isSyncing = true;
 
   try {
@@ -225,9 +225,12 @@ export async function processMutationQueue()${R("Promise<void>")}{
       request.onerror = () => reject(request.error);
     });
 
+    if (queue.length === 0) return;
+
     let succeeded = 0;
     let failed = 0;
     const total = queue.length;
+    let earliestRetry = Infinity;
 
     for (const item of queue) {
       if (item.retryCount >= MAX_RETRIES) {
@@ -238,17 +241,8 @@ export async function processMutationQueue()${R("Promise<void>")}{
 
       // Skip items whose backoff delay hasn't elapsed yet
       if (item.nextRetryAt && Date.now() < item.nextRetryAt) {
+        if (item.nextRetryAt < earliestRetry) earliestRetry = item.nextRetryAt;
         continue;
-      }
-
-      // Stop processing if connection dropped mid-batch
-      if (!navigator.onLine) {
-        window.dispatchEvent(
-          new CustomEvent("mutation-sync-complete", {
-            detail: { succeeded, failed, total, current: succeeded + failed, interrupted: true },
-          })
-        );
-        break;
       }
 
       const ok = await replayMutation(item);
@@ -278,6 +272,13 @@ export async function processMutationQueue()${R("Promise<void>")}{
         detail: { succeeded, failed, total },
       })
     );
+
+    // Schedule retry when the earliest backoff timer expires
+    if (earliestRetry < Infinity && earliestRetry > Date.now()) {
+      setTimeout(() => {
+        if (!isSyncing) processMutationQueue();
+      }, earliestRetry - Date.now());
+    }
   } finally {
     await releaseProcessingLock();
     isSyncing = false;

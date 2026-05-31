@@ -93,6 +93,9 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       }
       window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
     }
+    if (event.data.type === "MUTATION_STORED") {
+      processMutationQueue();
+    }
     if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
       window.dispatchEvent(
         new CustomEvent("cache-invalidated", {

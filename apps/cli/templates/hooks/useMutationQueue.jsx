@@ -17,7 +17,8 @@ export function useMutationQueue() {
   }, []);
 
   useEffect(() => {
-    refresh();
+    // Defer initial data load to avoid cascading render warning
+    queueMicrotask(() => refresh());
 
     const onSync = (e) => {
       refresh();

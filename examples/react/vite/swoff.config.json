@@ -15,7 +15,7 @@
       "version": "package",
       "minSupportedVersion": "1.0.0",
       "autoUpdate": true,
-      "autoActivate": false,
+      "autoActivate": true,
       "strategy": {
         "default": "cache-first",
         "patterns": {
@@ -78,7 +78,7 @@
       "enabled": true
     },
     "serverPush": {
-      "enabled": false,
+      "enabled": true,
       "type": "sse",
       "endpoint": "/api/events",
       "reconnectDelayMs": 5000

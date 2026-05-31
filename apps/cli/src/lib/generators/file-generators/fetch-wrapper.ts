@@ -17,7 +17,7 @@ export function generateFetchWrapper(ctx: GeneratorContext): void {
 
   const importLines = [
     tagInvalidation
-      ? `import { generateTags, invalidateUrl, expandCascading } from "./invalidation-tags.${ext}";`
+      ? `import { generateTags, invalidateUrl${tagInvalidation && mutationQueue ? ", expandCascading" : ""} } from "./invalidation-tags.${ext}";`
       : "",
     tagInvalidation ? `import { invalidateByTags } from "./cache.${ext}";` : "",
     authEnabled
@@ -108,7 +108,7 @@ export interface FetchWithCacheOptions extends RequestInit {
 
   const offlineReadCatchBlock = `    if (options.signal?.aborted) throw new DOMException("The operation was aborted", "AbortError");
       const cached = await caches.match(input);
-      if (cached) return { response: cached, fromCache: true };
+      if (cached) return { response: cached, fromCache: true, queued: false };
       throw new Error("Offline: no cached data available");`;
 
   const offlineWriteFallbackBlock = mutationQueue
@@ -263,7 +263,7 @@ ${authCredentialsBlock}
   if (options.signal?.aborted) {
     throw new DOMException("The operation was aborted", "AbortError");
   }
-
+${mutationTagsBlock}
   // Deduplicate in-flight GET requests
   let responsePromise${T("Promise<Response>")};
   if (isRead && inFlightRequests.has(url)) {

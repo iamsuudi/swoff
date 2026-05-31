@@ -25,7 +25,7 @@ export function useCachedFetch<T>(
 
   useEffect(() => {
     if (!isEnabled) {
-      setLoading(false);
+      startTransition(() => setLoading(false));
       return;
     }
     let cancelled = false;

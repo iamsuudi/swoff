@@ -81,9 +81,6 @@ export interface FetchWithCacheOptions extends RequestInit {
   type?: 'read' | 'mutation';
   strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only' | 'reactive';
   staleTime?: number;
-  refetchInterval?: number;
-  refetchOnReconnect?: boolean;
-  refetchOnFocus?: boolean;
   /** Custom response validation for mutation success. Default: res.ok. Use this when your API returns 200 with { success: false } for logical failures. */
   validateSuccess?: (response: Response) => boolean | Promise<boolean>;
   /** Override the URL used for auto-invalidation. Defaults to the request URL. Useful when the mutation URL differs from the cache tag URL. */
@@ -123,15 +120,6 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
   if (options.staleTime !== undefined) {
     headers.set("X-SW-Stale-Time", String(options.staleTime));
   }
-  if (options.refetchInterval !== undefined) {
-    headers.set("X-SW-Refetch-Interval", String(options.refetchInterval));
-  }
-  if (options.refetchOnReconnect !== undefined) {
-    headers.set("X-SW-Refetch-On-Reconnect", String(options.refetchOnReconnect));
-  }
-  if (options.refetchOnFocus !== undefined) {
-    headers.set("X-SW-Refetch-On-Focus", String(options.refetchOnFocus));
-  }
 
   if (options.auth) {
     const auth = await getAuth();
@@ -156,7 +144,20 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
   if (options.signal?.aborted) {
     throw new DOMException("The operation was aborted", "AbortError");
   }
-
+  // Pre-compute invalidation tags for SW-side IDB storage
+  let mutationTags: string[] = [];
+  if (!isRead) {
+    const invalidateSetting = options.invalidate !== false ? (options.invalidate || 'auto') : false;
+    if (invalidateSetting !== false) {
+      if (Array.isArray(invalidateSetting)) {
+        mutationTags = invalidateSetting;
+      } else {
+        mutationTags = generateTags(url);
+        mutationTags = expandCascading(mutationTags);
+      }
+      headers.set("X-SW-Invalidate-Tags", mutationTags.join(","));
+    }
+  }
   // Deduplicate in-flight GET requests
   let responsePromise: Promise<Response>;
   if (isRead && inFlightRequests.has(url)) {
@@ -188,7 +189,7 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
       if (isRead) {
     if (options.signal?.aborted) throw new DOMException("The operation was aborted", "AbortError");
       const cached = await caches.match(input);
-      if (cached) return { response: cached, fromCache: true };
+      if (cached) return { response: cached, fromCache: true, queued: false };
       throw new Error("Offline: no cached data available");
       }
       // SW not controlling — fallback to client-side queue

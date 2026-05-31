@@ -86,13 +86,6 @@ self.addEventListener("message", (event) => {
   if (event.data.type === "INVALIDATE_MATCHING" && event.data.glob) {
     event.waitUntil(invalidateMatching(event.data.glob));
   }
-  if (event.data.type === "CLEAR_RUNTIME_CACHE") {
-    event.waitUntil(
-      caches.delete(CACHE_NAME_RUNTIME).then(() => {
-        return caches.open(CACHE_NAME_RUNTIME);
-      }),
-    );
-  }
   if (event.data.type === "ONLINE") {
     event.waitUntil(handleOnline());
   }
@@ -111,9 +104,11 @@ const _refreshQueue = new Map();
 let _refreshQueueProcessing = false;
 let _refreshQueuePromise = null;
 
-function queueRefresh(cacheKeyUrl, actualUrl) {
+function queueRefresh(cacheKeyUrl, actualUrl, tags) {
   // Use Map keyed by cacheKey for proper deduplication
-  _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl, retryCount: 0 });
+  // Don't let a tagless (SWR/reactive) refresh override an invalidation-triggered entry with tags
+  if (_refreshQueue.has(cacheKeyUrl) && !tags) return;
+  _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl, retryCount: 0, tags: tags || null });
   if (!_refreshQueuePromise) {
     _refreshQueuePromise = _processRefreshQueue().finally(() => {
       _refreshQueuePromise = null;
@@ -151,6 +146,9 @@ async function _processRefreshQueue() {
         if (response.ok) {
           const request = new Request(entry.cacheKey);
           await storeRuntime(request, response);
+          if (entry.tags && typeof cacheTagUrl !== "undefined") {
+            await cacheTagUrl(entry.cacheKey, fetchUrl, entry.tags);
+          }
           // Clean up stale version tracking on successful refresh
           if (typeof staleVersions !== "undefined" && staleVersions.has(entry.cacheKey)) {
             staleVersions.delete(entry.cacheKey);
@@ -718,7 +716,7 @@ async function invalidateByTag(tag) {
   // Enqueue background refetch through batched refresh queue
   for (const entry of entries) {
     staleVersions.set(entry.url, Date.now());
-    queueRefresh(entry.url, entry.actualUrl);
+    queueRefresh(entry.url, entry.actualUrl, entry.tags);
   }
 
   const clients = await self.clients.matchAll();
@@ -835,6 +833,70 @@ self.addEventListener("notificationclick", (event) => {
 });
 
 
+// --- Server Push Events (SSE) ---
+
+let pushReconnectTimer = null;
+let pushAbortController = null;
+
+async function connectPushEvents() {
+  try {
+    pushAbortController = new AbortController();
+    const response = await fetch("/api/events", {
+      headers: { Accept: "text/event-stream" },
+      signal: pushAbortController.signal,
+    });
+    if (!response.ok || !response.body) {
+      scheduleReconnect();
+      return;
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let eventType = "";
+    let dataStr = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (line.startsWith("event: ")) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith("data: ")) {
+          dataStr = line.slice(6);
+        } else if (line === "") {
+          if (eventType === "invalidate" && dataStr) {
+            try {
+              const parsed = JSON.parse(dataStr);
+              if (parsed.tags) {
+                parsed.tags.forEach((tag) => invalidateByTag(tag));
+              }
+            } catch {}
+          }
+          eventType = "";
+          dataStr = "";
+        }
+      }
+    }
+  } catch {
+    // Connection lost or aborted
+  }
+  scheduleReconnect();
+}
+
+function scheduleReconnect() {
+  if (pushReconnectTimer) clearTimeout(pushReconnectTimer);
+  pushReconnectTimer = setTimeout(connectPushEvents, 5000);
+}
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(connectPushEvents());
+});
+
 
 
 self.addEventListener("sync", (event) => {
@@ -853,35 +915,10 @@ function swSleep(ms) {
 }
 
 async function processMutationQueueInSW() {
-  // If client pages are open, check if a client is already processing the queue
+  // If any client pages are open, skip entirely — the client always wins when open.
+  // Only the SW processes the queue when all tabs are closed (background sync event).
   const activeClients = await self.clients.matchAll();
-  if (activeClients.length > 0) {
-    try {
-      const db = await new Promise((resolve, reject) => {
-        const request = indexedDB.open("swoff-queue", 1);
-        request.onupgradeneeded = (e) => {
-          const d = e.target.result;
-          if (!d.objectStoreNames.contains("mutations")) {
-            d.createObjectStore("mutations", { keyPath: "id" });
-          }
-        };
-        request.onsuccess = (e) => resolve(e.target.result);
-        request.onerror = (e) => reject(e.target.error);
-      });
-      const tx = db.transaction("mutations", "readonly");
-      const store = tx.objectStore("mutations");
-      const lock = await new Promise((resolve, reject) => {
-        const req = store.get("_processing_lock");
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
-      if (lock && Date.now() - lock.timestamp < 5000) {
-        return; // Client is handling it
-      }
-    } catch {
-      // If lock check fails, proceed with processing
-    }
-  }
+  if (activeClients.length > 0) return;
 
   let succeeded = 0;
   let failed = 0;

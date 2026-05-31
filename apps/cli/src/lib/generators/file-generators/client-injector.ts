@@ -9,7 +9,7 @@ export function generateClientInjector(ctx: GeneratorContext): void {
   const ts = ext === "ts";
   const pwaEnabled = ctx.config.features.pwa.enabled;
   const mutationQueueEnabled = ctx.config.features.mutationQueue.enabled;
-  const crossTabSync = ctx.config.features.crossTabSync;
+  const tagInvalidation = ctx.config.features.tagInvalidation.enabled;
 
   const pwaImport = pwaEnabled
     ? `import { setupPwaInstall } from "./pwa/install.${ext}";
@@ -53,7 +53,7 @@ if (typeof document !== "undefined") {
 }
 `;
 
-  const crossTabHandler = crossTabSync
+  const invalidationHandler = tagInvalidation
     ? `
     if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
       window.dispatchEvent(
@@ -81,7 +81,7 @@ if (typeof document !== "undefined") {
  *   sw-progress              - Download progress (detail: { percent, downloaded, total })
  *   sw-ready                 - SW active and controlling page
  *   sw-error                 - SW registration failed
- *   cache-invalidated        - Cache entries cleared (detail: { tags })
+ *   cache-invalidated        - Cache entries cleared on SW confirmation (detail: { tags })
  *   swoff:cache-updated      - Background refresh completed (detail: { url })
  *   mutation-sync-complete   - Queued mutations synced (detail: { succeeded, failed })
  *   mutation-sync-progress   - Batch progress during sync (detail: { succeeded, failed, total, current })
@@ -138,7 +138,7 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
     }
     if (event.data.type === "MUTATION_STORED") {
       processMutationQueue();
-    }${crossTabHandler}  });
+    }${invalidationHandler}  });
 }
 
 /** Initialize SW registration and all client-side features (PWA install, mutation queue, cross-tab sync). Call once at app startup. */

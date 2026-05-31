@@ -137,9 +137,17 @@ const _refreshQueue = new Map();
 let _refreshQueueProcessing = false;
 let _refreshQueuePromise = null;
 
-function queueRefresh(cacheKeyUrl, actualUrl) {
-  // Use Map keyed by cacheKey for proper deduplication
-  _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl, retryCount: 0 });
+function queueRefresh(cacheKeyUrl, actualUrl${
+  tagInvalidation ? ", tags" : ""
+}) {
+  // Use Map keyed by cacheKey for proper deduplication${
+  tagInvalidation ? `
+  // Don't let a tagless (SWR/reactive) refresh override an invalidation-triggered entry with tags
+  if (_refreshQueue.has(cacheKeyUrl) && !tags) return;` : ""
+}
+  _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl, retryCount: 0${
+    tagInvalidation ? ", tags: tags || null" : ""
+  } });
   if (!_refreshQueuePromise) {
     _refreshQueuePromise = _processRefreshQueue().finally(() => {
       _refreshQueuePromise = null;
@@ -176,7 +184,12 @@ async function _processRefreshQueue() {
         const response = await fetch(fetchUrl);
         if (response.ok) {
           const request = new Request(entry.cacheKey);
-          await storeRuntime(request, response);
+          await storeRuntime(request, response);${
+  tagInvalidation ? `
+          if (entry.tags && typeof cacheTagUrl !== "undefined") {
+            await cacheTagUrl(entry.cacheKey, fetchUrl, entry.tags);
+          }` : ""
+}
           // Clean up stale version tracking on successful refresh
           if (typeof staleVersions !== "undefined" && staleVersions.has(entry.cacheKey)) {
             staleVersions.delete(entry.cacheKey);

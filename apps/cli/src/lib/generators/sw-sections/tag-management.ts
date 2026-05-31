@@ -82,7 +82,7 @@ async function invalidateByTag(tag) {
   // Enqueue background refetch through batched refresh queue
   for (const entry of entries) {
     staleVersions.set(entry.url, Date.now());
-    queueRefresh(entry.url, entry.actualUrl);
+    queueRefresh(entry.url, entry.actualUrl, entry.tags);
   }
 
   const clients = await self.clients.matchAll();

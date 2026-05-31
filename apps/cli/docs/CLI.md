@@ -7,8 +7,6 @@ Full documentation for every `@swoff/cli` command and flag.
 Creates `swoff.config.json` in your project root. Auto-detects:
 
 - **Framework**: checks for react, vue, svelte dependencies in `package.json`; defaults to `"vanilla"`
-- **Language**: checks for TypeScript config files; defaults to JS
-- **Build tool**: reads the existing `package.json` build script
 
 ```
 swoff init

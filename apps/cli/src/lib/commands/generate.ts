@@ -88,7 +88,7 @@ export async function generateCommand(
 
   log.normal("");
   log.help("📖  Read swoff/GUIDE.md for documentation links");
-  log.help("📖  Run swoff info <feature> for targeted help");
+  log.help("📖  See docs/ files in swoff for targeted feature help");
   log.normal("");
   log.help("⚙️  After each build, run the SW generator:");
   log.help("   node swoff/sw/generator.js");

@@ -18,7 +18,7 @@ Swoff splits responsibilities between two scopes:
 
 **Client (window) scope** — runs in the page, has access to DOM, IndexedDB, and React hooks:
 - Tracks mutation state per-operation
-- Queues offline writes to IndexedDB (the SW can't write to IndexedDB)
+- Queues offline writes to IndexedDB (the SW could also write, but client-side queuing keeps mutation state accessible to UI components and avoids SW lifecycle complexity)
 - Provides reactive hooks (`useCachedFetch`, `useMutationQueue`)
 - Manages auth tokens in memory-only storage (never exposed to SW)
 - Detects online/offline state and triggers mutation replay

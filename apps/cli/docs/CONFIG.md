@@ -169,15 +169,18 @@ When a strategy value is an object instead of a string:
 
 ---
 
-### 3-tier resolution
+### Resolution tiers
 
-The following settings resolve in 3 tiers (highest to lowest priority):
+`strategy` and `staleTime` resolve in 3 tiers (highest to lowest priority):
 
-1. **Per-request** — passed as options to `fetchWithCache({ strategy })` or `useCachedFetch()`, or via `X-SW-Strategy` / `X-SW-Stale-Time` / `X-SW-Refetch-Interval` / `X-SW-Refetch-On-Reconnect` / `X-SW-Refetch-On-Focus` headers
+1. **Per-request** — passed as options to `fetchWithCache({ strategy })` or `useCachedFetch()`, or via `X-SW-Strategy` / `X-SW-Stale-Time` headers
 2. **Route pattern** — configured in `features.serviceWorker.strategy.patterns`
-3. **Global default** — configured at `features.serviceWorker.strategy.reactive.defaults.*` (for reactive-only fields) or `features.serviceWorker.strategy.default` (for strategy)
+3. **Global default** — configured at `features.serviceWorker.strategy.reactive.defaults.*` (for `staleTime`) or `features.serviceWorker.strategy.default` (for `strategy`)
 
-This applies to: `strategy` and reactive-only fields (`staleTime`, `refetchInterval`, `refetchOnReconnect`, `refetchOnFocus`).
+`refetchInterval`, `refetchOnReconnect`, and `refetchOnFocus` are SW-initiated (interval timers, online/focus event handlers) and resolve in 2 tiers only:
+
+1. **Route pattern** — configured in the pattern entry
+2. **Global default** — configured at `features.serviceWorker.strategy.reactive.defaults.*`
 
 ---
 

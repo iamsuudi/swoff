@@ -113,9 +113,17 @@ async function connect(options${T("PushEventOptions")} = {} as PushEventOptions)
   ${sp.type === "sse" ? sseConnect : wsConnect}
 }
 
-/** Start listening for server push events. Retries on connection loss with exponential backoff. */
+/** Start listening for server push events. Only connects when the SW is not active — the SW is the primary connection manager. Retries on connection loss with exponential backoff. */
 export async function startPushEvents(){
   if (active) return;
+
+  // If SW is already controlling the page, skip client-side connection — the SW handles push events.
+  if (navigator.serviceWorker.controller) return;
+
+  // Listen for SW activation — if SW takes over, disconnect the client fallback.
+  const onControllerChange = () => { stopPushEvents(); };
+  navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+
   active = true;
   let delay = ${reconnectDelayMs};
   while (active) {
@@ -124,6 +132,8 @@ export async function startPushEvents(){
     await new Promise((r) => { reconnectTimer = setTimeout(r, delay); });
     delay = Math.min(delay * 1.5, 30000); // cap at 30s
   }
+
+  navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
 }
 
 /** Stop listening for push events. */

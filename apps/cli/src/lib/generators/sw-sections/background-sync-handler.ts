@@ -23,35 +23,10 @@ function swSleep(ms) {
 }
 
 async function processMutationQueueInSW() {
-  // If client pages are open, check if a client is already processing the queue
+  // If any client pages are open, skip entirely — the client always wins when open.
+  // Only the SW processes the queue when all tabs are closed (background sync event).
   const activeClients = await self.clients.matchAll();
-  if (activeClients.length > 0) {
-    try {
-      const db = await new Promise((resolve, reject) => {
-        const request = indexedDB.open("${DB_NAME}", 1);
-        request.onupgradeneeded = (e) => {
-          const d = e.target.result;
-          if (!d.objectStoreNames.contains("${STORE_NAME}")) {
-            d.createObjectStore("${STORE_NAME}", { keyPath: "id" });
-          }
-        };
-        request.onsuccess = (e) => resolve(e.target.result);
-        request.onerror = (e) => reject(e.target.error);
-      });
-      const tx = db.transaction("${STORE_NAME}", "readonly");
-      const store = tx.objectStore("${STORE_NAME}");
-      const lock = await new Promise((resolve, reject) => {
-        const req = store.get("_processing_lock");
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
-      if (lock && Date.now() - lock.timestamp < 5000) {
-        return; // Client is handling it
-      }
-    } catch {
-      // If lock check fails, proceed with processing
-    }
-  }
+  if (activeClients.length > 0) return;
 
   let succeeded = 0;
   let failed = 0;

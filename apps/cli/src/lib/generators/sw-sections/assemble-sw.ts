@@ -53,7 +53,7 @@ function applyReplacements(sw: string, config: SwoffConfig, assetsToCache: { url
 
   sw = sw.replace("// [[ACTIVATE_HANDLER]]", generateActivateHandler(strategy.clearRuntimeOnUpdate, navigation.preload));
   sw = sw.replace("// [[INSTALL_HANDLER]]", generateInstallHandler());
-  sw = sw.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(tagInvalidationEnabled, features.auth.enabled, features.tagInvalidation.debounceMs));
+  sw = sw.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(tagInvalidationEnabled, features.tagInvalidation.debounceMs ?? 0));
   sw = tagInvalidationEnabled
     ? sw.replace("// [[TAG_MANAGEMENT]]", generateTagManagement())
     : sw.replace("// [[TAG_MANAGEMENT]]", "");

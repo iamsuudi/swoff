@@ -94,32 +94,7 @@ function openQueueDB()${R("Promise<IDBDatabase>")}{
   });
 }
 
-const LOCK_ID = "_processing_lock";
 let isSyncing = false;
-
-/** Acquire a processing lock so the SW knows this client is handling the queue. */
-async function acquireProcessingLock()${R("Promise<void>")}{
-  const db = await openQueueDB();
-  const tx = db.transaction(STORE_NAME, "readwrite");
-  const store = tx.objectStore(STORE_NAME);
-  store.put({ id: LOCK_ID, clientId: crypto.randomUUID(), timestamp: Date.now() });
-  await new Promise${PT("void")}((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-/** Release the processing lock after queue processing completes. */
-async function releaseProcessingLock()${R("Promise<void>")}{
-  const db = await openQueueDB();
-  const tx = db.transaction(STORE_NAME, "readwrite");
-  const store = tx.objectStore(STORE_NAME);
-  store.delete(LOCK_ID);
-  await new Promise${PT("void")}((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
 
 /** Store a write operation in IndexedDB for later sync. Works offline — use it for POST/PUT/PATCH/DELETE when the user might be offline. */
 export async function queueMutation(mutation${T("Partial<MutationQueueItem>")})${R("Promise<void>")}{
@@ -214,7 +189,6 @@ export async function processMutationQueue()${R("Promise<void>")}{
   isSyncing = true;
 
   try {
-    await acquireProcessingLock();
     const db = await openQueueDB();
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
@@ -280,7 +254,6 @@ export async function processMutationQueue()${R("Promise<void>")}{
       }, earliestRetry - Date.now());
     }
   } finally {
-    await releaseProcessingLock();
     isSyncing = false;
     window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
   }

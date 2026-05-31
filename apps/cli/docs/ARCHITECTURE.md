@@ -58,7 +58,7 @@ The reactive strategy bundles three optional refresh triggers that all gate thro
 | Trigger | Description | Gating |
 |---------|-------------|--------|
 | `refetchInterval` | Timer-based — re-fetches every N seconds in the background | Only fires if stale (past `staleTime`) |
-| `refetchOnFocus` | Fires when the tab regains focus (`visibilitychange` / `window.focus`) | Only fires if stale (past `staleTime`) |
+| `refetchOnFocus` | Fires when the tab regains focus (`visibilitychange`) | Only fires if stale (past `staleTime`) |
 | `refetchOnReconnect` | Fires when the browser comes back online | Only fires if stale (past `staleTime`) |
 
 ---
@@ -102,11 +102,14 @@ The `strategy` field resolves through three priority levels:
 2. **Route pattern** — configured in `features.serviceWorker.strategy.patterns` keyed by URL pattern
 3. **Global default (lowest)** — configured at `features.serviceWorker.strategy.default`
 
-**Reactive-only fields** (`staleTime`, `refetchInterval`, `refetchOnReconnect`, `refetchOnFocus`) now resolve through three tiers:
+**Reactive-only fields** (`staleTime`, `refetchInterval`, `refetchOnReconnect`, `refetchOnFocus`) resolve through tiers:
 
-1. **Per-request (highest)** — via `X-SW-Stale-Time` / `X-SW-Refetch-Interval` / `X-SW-Refetch-On-Reconnect` / `X-SW-Refetch-On-Focus` headers or per-request options on `fetchWithCache`
-2. **Route pattern** — configured in the patterns entry for the matching pattern (e.g. `{ "strategy": "reactive", "staleTime": 30 }`)
-3. **Global default (lowest)** — configured at `features.serviceWorker.strategy.reactive.defaults.staleTime` / `features.serviceWorker.strategy.reactive.defaults.refetchInterval` etc.
+| Field | Tier 1 (per-request) | Tier 2 (route pattern) | Tier 3 (global default) |
+|-------|---------------------|----------------------|------------------------|
+| `staleTime` | ✅ `X-SW-Stale-Time` header or `fetchWithCache({ staleTime })` | ✅ pattern entry | ✅ `reactive.defaults.staleTime` |
+| `refetchInterval` | ❌ SW-initiated timer — not per-request | ✅ pattern entry | ✅ `reactive.defaults.refetchInterval` |
+| `refetchOnReconnect` | ❌ SW-initiated — not per-request | ✅ pattern entry | ✅ `reactive.defaults.refetchOnReconnect` |
+| `refetchOnFocus` | ❌ SW-initiated — not per-request | ✅ pattern entry | ✅ `reactive.defaults.refetchOnFocus` |
 
 **Example resolution flow:**
 

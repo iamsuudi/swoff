@@ -59,20 +59,10 @@ describe("assembleSW", () => {
     expect(sw).toContain("SKIP_WAITING");
   });
 
-  it("includes tag management when tagInvalidation is enabled", () => {
+  it("includes tag management", () => {
     const sw = assembleSW(config, "1.0.0");
     expect(sw).toContain("invalidateByTag");
     expect(sw).toContain("INVALIDATE_TAG");
-  });
-
-  it("excludes tag management when tagInvalidation is disabled", () => {
-    const configWithoutTags: SwoffConfig = {
-      ...config,
-      features: { ...config.features, tagInvalidation: { enabled: false } },
-    };
-    const sw = assembleSW(configWithoutTags, "1.0.0");
-    expect(sw).not.toContain("invalidateByTag");
-    expect(sw).not.toContain("INVALIDATE_TAG");
   });
 
   it("includes background sync handler when enabled", () => {
@@ -124,6 +114,22 @@ describe("assembleSW", () => {
       },
     };
     const sw = assembleSW(configNoVersion, "1.0.0");
+    expect(sw).toContain("CACHE_NAME = 'sw-cache-");
+    expect(sw).not.toContain("sw-v1.0.0");
+  });
+
+  it("uses hash-based cache name when version mode is 'hash'", () => {
+    const configHash: SwoffConfig = {
+      ...config,
+      features: {
+        ...config.features,
+        serviceWorker: {
+          ...config.features.serviceWorker,
+          version: "hash",
+        },
+      },
+    };
+    const sw = assembleSW(configHash, "1.0.0");
     expect(sw).toContain("CACHE_NAME = 'sw-cache-");
     expect(sw).not.toContain("sw-v1.0.0");
   });

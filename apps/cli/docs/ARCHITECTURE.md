@@ -161,26 +161,37 @@ Swoff's approach:
 
 ---
 
-## Dedup map + AbortController
+## Request batching + dedup map
 
-In-flight GET requests to the same URL are deduplicated using an in-memory `Map<string, Promise<Response>>`:
+Read requests (GET/HEAD/OPTIONS) to the same URL within a short time window are batched into a single network request via a two-phase system:
 
-1. When `fetchWithCache(url)` is called, check if a request to `url` is already in-flight
-2. If yes, return a clone of the shared response promise
-3. If no, start a new fetch, store the promise in the map
-4. On completion (or failure), remove the entry from the map
+**Phase 1 — Batch window (50 ms):** When the first caller requests a URL, a 50 ms timer starts. Any additional callers to the same URL within this window join a shared promise. When the timer fires, one fetch executes and the response is cloned to every caller in the batch.
+
+**Phase 2 — In-flight dedup:** After the batch window closes, the fetch promise is stored in `inFlightRequests` map. If another caller requests the same URL while the fetch is still in-flight, they receive a clone of the existing promise — no second network request.
+
+```
+caller A @ 0ms   → batch window starts
+caller B @ 10ms  → joins A's batch (single promise)
+caller C @ 30ms  → joins A's batch
+timer fires @ 50ms → fetch fires once
+                    → clone() to A, B, C
+caller D @ 80ms  → fetch still in-flight → dedup hit → clone
+fetch resolves @ 150ms → cleaned from inFlightRequests
+caller E @ 200ms → fresh fetch (no batch, no dedup)
+```
 
 **AbortController integration:**
 
 - If an `AbortSignal` is provided, a one-time listener is registered on the signal
-- On abort, the entry is removed from the dedup map so subsequent requests don't get a cancelled promise
+- On abort, the entry is removed from the batch/in-flight map so subsequent requests don't get a cancelled promise
 - The listener is cleaned up on completion via `responsePromise.finally(cleanup)`
 - Before reading from cache in offline mode, `signal.aborted` is checked and throws `AbortError`
 
-**Why dedup?**
-- Prevents multiple React components mounting simultaneously from firing duplicate network requests
-- Reduces server load
-- Each caller gets a clone — reading the body doesn't affect other consumers
+**Why batching + dedup?**
+- **Batching** handles the "component mount storm" — 10 components mounting in the same render cycle and independently fetching the same URL. Without batching they each fire their own request because none is in-flight yet.
+- **Dedup** handles the "late arrival" — a component that mounts moments after the initial fetch has started. Piggybacks on the in-flight request.
+- Together they prevent duplicate network requests across the entire component lifecycle.
+- Each caller gets a clone — reading the body doesn't affect other consumers.
 
 ---
 

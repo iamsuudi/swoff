@@ -52,8 +52,7 @@ All `RequestInit` fields are supported (`method`, `body`, `headers`, `credential
   **Abort check**: if `signal.aborted`, throws `AbortError` before cache lookup.
 - **Offline writes**: queues to IndexedDB (when `mutationQueue` enabled). Replays on `online` event.
   Disable per-request with `queueOffline: false`.
-- **Dedup**: in-flight GETs to the same URL return a single promise (cloned response).
-  AbortController integration: cleaned up on completion or abort.
+- **Request batching + dedup**: concurrent GETs to the same URL within a 50 ms window coalesce into one network request. After the batch window closes, in-flight requests are deduplicated (late arrivals piggyback on the active promise). Each caller receives a cloned response. AbortController integration: cleaned up on completion or abort.
 - **Auto-tags**: when `tagInvalidation` enabled, tags derived from URL path for read requests.
 - **Auto-invalidate**: after a successful mutation, matching cache tags are invalidated. Mutation success is determined by `response.ok` by default, or `validateSuccess` if provided. The auto-invalidation target URL can be overridden with `invalidateUrl` (useful when mutation URL differs from the cache tag URL).
 - **Auth**: when `auth: true`, attaches auth headers. Dispatches `sw-auth-unauthorized` on 401.

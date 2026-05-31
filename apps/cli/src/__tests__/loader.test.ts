@@ -31,7 +31,7 @@ describe("loadConfig", () => {
         serviceWorker: { version: "2.0.0", autoUpdate: false, autoActivate: true, strategy: { default: "network-first", patterns: {} } },
         mutationQueue: { enabled: true, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
         backgroundSync: false, pwa: { enabled: true, preventDefaultInstall: true }, auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
-        crossTabSync: true, tagInvalidation: { enabled: true },
+        crossTabSync: true, tagInvalidation: {},
       },
       build: { outputDir: "build", swFilename: "service-worker" },
     };

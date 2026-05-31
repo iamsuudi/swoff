@@ -7,12 +7,12 @@ import {
 } from "../push.js";
 
 export function usePushSubscription() {
-  const [state, setState] = useState({
+  const [state, setState] = useState(() => ({
     subscribed: false,
     subscription: null,
-    permission: Notification.permission,
+    permission: typeof Notification !== "undefined" ? Notification.permission : "denied",
     loading: true,
-  });
+  }));
 
   useEffect(() => {
     let cancelled = false;

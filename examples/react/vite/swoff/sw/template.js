@@ -3,7 +3,7 @@
  * Generated from swoff.config.json
  * DO NOT EDIT MANUALLY
  * Version: 0.0.0
- * Features: version=package, mutationQueue=true, backgroundSync=true, tagInvalidation=true
+ * Features: version=package, mutationQueue=false, backgroundSync=true, tagInvalidation=true
  * Default Strategy: cache-first
  * See: https://swoff.netlify.app/docs
  */
@@ -49,6 +49,25 @@ self.addEventListener("install", (event) => {
   );
 });
 
+const MAX_RUNTIME_CACHE_AGE = 2592000;
+
+async function evictStaleRuntimeCache() {
+  const cache = await caches.open(CACHE_NAME_RUNTIME);
+  const keys = await cache.keys();
+  const cutoff = Date.now() - MAX_RUNTIME_CACHE_AGE * 1000;
+  const promises = [];
+  for (const request of keys) {
+    promises.push((async () => {
+      const response = await cache.match(request);
+      const cachedAt = response?.headers.get("X-SW-Cached-At");
+      if (cachedAt && Number(cachedAt) < cutoff) {
+        await cache.delete(request);
+      }
+    })());
+  }
+  await Promise.all(promises);
+}
+
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
@@ -56,6 +75,7 @@ self.addEventListener("activate", (event) => {
       if (self.registration.navigationPreload) {
         await self.registration.navigationPreload.enable();
       }
+      await evictStaleRuntimeCache();
       const keys = await caches.keys();
       await Promise.all(
         keys.filter((key) => key !== CACHE_NAME && key !== CACHE_NAME_RUNTIME).map((key) => caches.delete(key))
@@ -101,7 +121,6 @@ const REFRESH_RETRY_DELAY_MS = 1000;
 // --- Batch Refresh Queue ---
 
 const _refreshQueue = new Map();
-let _refreshQueueProcessing = false;
 let _refreshQueuePromise = null;
 
 function queueRefresh(cacheKeyUrl, actualUrl, tags) {
@@ -110,77 +129,87 @@ function queueRefresh(cacheKeyUrl, actualUrl, tags) {
   if (_refreshQueue.has(cacheKeyUrl) && !tags) return;
   _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl, retryCount: 0, tags: tags || null });
   if (!_refreshQueuePromise) {
-    _refreshQueuePromise = _processRefreshQueue().finally(() => {
-      _refreshQueuePromise = null;
-      if (_refreshQueue.size > 0) queueRefresh();
-    });
+    _refreshQueuePromise = _processRefreshQueue();
   }
   return _refreshQueuePromise;
 }
 
-function resolveActualUrl(entry) {
-  const url = entry.actualUrl || entry.cacheKey;
+async function resolveActualUrl(entry) {
+  if (entry.actualUrl) return entry.actualUrl;
+  const url = entry.cacheKey;
   if (url.includes("/__swc/")) {
-    // Virtual cache key — use the stored actual URL from tag registry
-    return url;
+    // Virtual cache key — look up the real URL from tag registry
+    try {
+      const db = await openTagDB();
+      const tx = db.transaction(TAG_STORE_NAME, "readonly");
+      const store = tx.objectStore(TAG_STORE_NAME);
+      const stored = await new Promise((resolve) => {
+        const req = store.get(url);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+      });
+      db.close();
+      if (stored?.actualUrl) return stored.actualUrl;
+    } catch {}
   }
   return url;
 }
 
 async function _processRefreshQueue() {
-  while (_refreshQueue.size > 0) {
-    const batch = [];
-    for (const [cacheKey, entry] of _refreshQueue) {
-      if (batch.length >= REFETCH_BATCH_SIZE) break;
-      batch.push(entry);
-      _refreshQueue.delete(cacheKey);
-    }
-    if (batch.length === 0) break;
+  try {
+    while (_refreshQueue.size > 0) {
+      const batch = [];
+      for (const [cacheKey, entry] of _refreshQueue) {
+        if (batch.length >= REFETCH_BATCH_SIZE) break;
+        if (entry.nextRetryAt && entry.nextRetryAt > Date.now()) continue;
+        batch.push(entry);
+        _refreshQueue.delete(cacheKey);
+      }
+      if (batch.length === 0) break;
 
-    const clients = await self.clients.matchAll();
+      const clients = await self.clients.matchAll();
 
-    await Promise.allSettled(batch.map(async (entry) => {
-      const fetchUrl = resolveActualUrl(entry);
-      try {
-        const response = await fetch(fetchUrl);
-        if (response.ok) {
-          const request = new Request(entry.cacheKey);
-          await storeRuntime(request, response);
+      await Promise.allSettled(batch.map(async (entry) => {
+        const fetchUrl = await resolveActualUrl(entry);
+        try {
+          const response = await fetch(fetchUrl);
+          if (response.ok) {
+            const request = new Request(entry.cacheKey);
+            await storeRuntime(request, response);
           if (entry.tags && typeof cacheTagUrl !== "undefined") {
             await cacheTagUrl(entry.cacheKey, fetchUrl, entry.tags);
           }
-          // Clean up stale version tracking on successful refresh
-          if (typeof staleVersions !== "undefined" && staleVersions.has(entry.cacheKey)) {
-            staleVersions.delete(entry.cacheKey);
-          }
-          for (const client of clients) {
-            client.postMessage({ type: "CACHE_UPDATED", url: fetchUrl });
-          }
-        }
-      } catch {
-        // Refresh failed — retry with exponential backoff
-        if (entry.retryCount < REFRESH_MAX_RETRIES) {
-          entry.retryCount++;
-          const delay = REFRESH_RETRY_DELAY_MS * Math.pow(2, entry.retryCount - 1);
-          _refreshQueue.set(entry.cacheKey, entry);
-          // Schedule re-processing after delay
-          setTimeout(() => {
-            if (!_refreshQueuePromise) {
-              _refreshQueuePromise = _processRefreshQueue().finally(() => {
-                _refreshQueuePromise = null;
-                if (_refreshQueue.size > 0) queueRefresh();
-              });
+            // Clean up stale version tracking on successful refresh
+            if (typeof staleVersions !== "undefined" && staleVersions.has(entry.cacheKey)) {
+              staleVersions.delete(entry.cacheKey);
             }
-          }, delay);
+            for (const client of clients) {
+              client.postMessage({ type: "CACHE_UPDATED", url: fetchUrl });
+            }
+          }
+        } catch {
+          // Refresh failed — retry with exponential backoff
+          if (entry.retryCount < REFRESH_MAX_RETRIES) {
+            entry.retryCount++;
+            const delay = REFRESH_RETRY_DELAY_MS * Math.pow(2, entry.retryCount - 1);
+            entry.nextRetryAt = Date.now() + delay;
+            _refreshQueue.set(entry.cacheKey, entry);
+            setTimeout(() => {
+              if (!_refreshQueuePromise) {
+                _refreshQueuePromise = _processRefreshQueue();
+              }
+            }, delay);
+          }
         }
-      }
-    }));
+      }));
 
-    if (_refreshQueue.size > 0 && REFETCH_BATCH_DELAY_MS > 0) {
-      await new Promise(r => setTimeout(r, REFETCH_BATCH_DELAY_MS));
+      if (_refreshQueue.size > 0 && REFETCH_BATCH_DELAY_MS > 0) {
+        await new Promise(r => setTimeout(r, REFETCH_BATCH_DELAY_MS));
+      }
     }
+  } finally {
+    _refreshQueuePromise = null;
   }
-  _refreshQueueProcessing = false;
 }
 
 // --- Reactive Patterns (extracted for interval/focus/reconnect) ---
@@ -318,8 +347,6 @@ function isStale(response, staleTimeSeconds) {
 
 
 // --- Glob Pattern Matching ---
-// NOTE: This is an inline copy of the algorithm in shared/glob-matcher.ts.
-// Keep the two implementations in sync when making changes.
 
 function escapeGlobMeta(s) {
   return s.replace(/[.+^${}()|[\]\\]/g, "\\$&");
@@ -381,7 +408,14 @@ function resolveStrategyEntry(entry) {
 function determineCacheStrategy(request, customStrategies, globalDefaults) {
   const override = request.headers.get("X-SW-Strategy");
   if (override) {
-    return { strategy: override };
+    const cfg = { strategy: override };
+    const hStale = request.headers.get("X-SW-Stale-Time");
+    if (hStale !== null) cfg.staleTime = Number(hStale);
+    const hFocus = request.headers.get("X-SW-Refetch-On-Focus");
+    if (hFocus !== null) cfg.refetchOnFocus = hFocus !== "false";
+    const hReconnect = request.headers.get("X-SW-Refetch-On-Reconnect");
+    if (hReconnect !== null) cfg.refetchOnReconnect = hReconnect !== "false";
+    return cfg;
   }
   const path = new URL(request.url).pathname;
   for (const [pattern, entry] of Object.entries(customStrategies)) {
@@ -408,7 +442,8 @@ function applyStrategy(event, request, config) {
   const { strategy } = config;
   if (strategy === "reactive") {
     const reactiveCfg = findReactiveConfig(new URL(request.url).href);
-    event.respondWith(reactiveStrategy(event, request, reactiveCfg?.staleTime));
+    const staleTime = config.staleTime !== undefined ? config.staleTime : reactiveCfg?.staleTime;
+    event.respondWith(reactiveStrategy(event, request, staleTime));
   } else if (strategy === "stale-while-revalidate") {
     event.respondWith(staleWhileRevalidate(event, request));
   } else if (strategy === "network-first") {
@@ -422,89 +457,9 @@ function applyStrategy(event, request, config) {
   }
 }
 
-// --- Mutation Queue IDB Helpers ---
-
-const MUTATION_DB_NAME = "swoff-queue";
-const MUTATION_STORE_NAME = "mutations";
-
-function openMutationQueueDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(MUTATION_DB_NAME, 1);
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains(MUTATION_STORE_NAME)) {
-        const store = db.createObjectStore(MUTATION_STORE_NAME, { keyPath: "id" });
-        store.createIndex("by-timestamp", "timestamp");
-      }
-    };
-    request.onsuccess = (e) => resolve(e.target.result);
-    request.onerror = (e) => reject(e.target.error);
-  });
-}
-
-async function storeMutationInSW(request) {
-  let body, bodyType;
-  try {
-    body = await request.clone().json();
-    bodyType = "json";
-  } catch {
-    body = await request.clone().text();
-    bodyType = "text";
-  }
-
-  const tagsHeader = request.headers.get("X-SW-Invalidate-Tags");
-  const tags = tagsHeader ? tagsHeader.split(",").map(function(t) { return t.trim(); }) : [];
-
-  const db = await openMutationQueueDB();
-  const tx = db.transaction(MUTATION_STORE_NAME, "readwrite");
-  tx.objectStore(MUTATION_STORE_NAME).add({
-    id: crypto.randomUUID(),
-    method: request.method,
-    url: new URL(request.url).href,
-    body,
-    bodyType,
-    headers: {},
-    timestamp: Date.now(),
-    retryCount: 0,
-    nextRetryAt: 0,
-    tags,
-  });
-  await new Promise(function(resolve, reject) {
-    tx.oncomplete = function() { resolve(); };
-    tx.onerror = function() { reject(tx.error); };
-  });
-}
-
-async function handleMutation(event) {
-  const request = event.request;
-  if (request.headers.get("X-SW-No-Queue") === "true") {
-    return fetch(request.clone());
-  }
-  try {
-    return await fetch(request.clone());
-  } catch {
-    await storeMutationInSW(request);
-    // Notify open clients that a mutation was stored so they can try to process
-    const clients = await self.clients.matchAll();
-    clients.forEach(function(client) {
-      client.postMessage({ type: "MUTATION_STORED" });
-    });
-    const queuedBody = JSON.stringify({ queued: true });
-    return new Response(queuedBody, {
-      status: 202,
-      statusText: "Accepted",
-      headers: { "Content-Type": "application/json", "X-SW-Mutation-Queued": "true" },
-    });
-  }
-}
-
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET" && request.method !== "HEAD") {
-    if (request.headers.get("X-SW-Cache-Strategy") === "mutation") {
-      event.respondWith(handleMutation(event));
-      return;
-    }
     if (!request.headers.get("X-SW-Cache-Key")) return;
   }
   
@@ -647,6 +602,8 @@ const STALE_VERSIONS_MAX = 100;
 const STALE_VERSION_TTL = 30 * 60 * 1000;
 const TAG_DB_NAME = "swoff-cache-tags";
 const TAG_STORE_NAME = "tags";
+// Bump this when adding new indexes/stores for schema migration
+const TAG_DB_VERSION = 1;
 
 function cleanStaleVersions() {
   const now = Date.now();
@@ -659,7 +616,7 @@ function cleanStaleVersions() {
 
 function openTagDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(TAG_DB_NAME, 1);
+    const request = indexedDB.open(TAG_DB_NAME, TAG_DB_VERSION);
     request.onupgradeneeded = (e) => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains(TAG_STORE_NAME)) {
@@ -909,6 +866,8 @@ const SW_BATCH_SIZE = 1;
 const SW_BATCH_DELAY_MS = 0;
 const SW_MAX_RETRIES = 5;
 const SW_RETRY_BACKOFF_MS = 1000;
+// Bump this when adding new indexes/stores for schema migration
+const SW_DB_VERSION = 1;
 
 function swSleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -923,14 +882,15 @@ async function processMutationQueueInSW() {
   let succeeded = 0;
   let failed = 0;
   const tagsToInvalidate = new Set();
+  let db;
 
   try {
-    const db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open("swoff-queue", 1);
+    db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open("swoff-queue", SW_DB_VERSION);
       request.onupgradeneeded = (e) => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains("mutations")) {
-          const store = db.createObjectStore("mutations", { keyPath: "id" });
+        const idb = e.target.result;
+        if (!idb.objectStoreNames.contains("mutations")) {
+          const store = idb.createObjectStore("mutations", { keyPath: "id" });
           store.createIndex("by-timestamp", "timestamp");
         }
       };
@@ -1027,6 +987,8 @@ async function processMutationQueueInSW() {
     }
   } catch (err) {
     console.error("Background sync failed:", err);
+  } finally {
+    if (db) db.close();
   }
 
   const clients = await self.clients.matchAll();

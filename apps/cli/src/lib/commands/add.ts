@@ -13,22 +13,20 @@ import { generateCommand } from "./generate.js";
 const FEATURE_ALIASES: Record<string, string> = {
   mutationqueue: "mutation-queue",
   crosstab: "cross-tab",
-  taginvalidation: "tag-invalidation",
   backgroundsync: "background-sync",
   pushnotification: "push-notification",
 };
 
 const FEATURE_NAMES = [
   "mutation-queue", "pwa", "cross-tab", "auth",
-  "tag-invalidation", "background-sync", "graphql", "push-notification",
+  "background-sync", "graphql", "push-notification",
 ] as const;
 
 const FEATURE_CONFIG_UPDATES: Record<string, Record<string, unknown>> = {
   "mutation-queue": { mutationQueue: { enabled: true, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 } },
   pwa: { pwa: { enabled: true } },
-  "cross-tab": { crossTabSync: true, tagInvalidation: true },
+  "cross-tab": { crossTabSync: true },
   auth: { auth: { enabled: true, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" } },
-  "tag-invalidation": { tagInvalidation: true },
   "background-sync": { backgroundSync: true },
   graphql: { graphql: { enabled: true, endpoint: "/graphql" } },
   "push-notification": { pushNotifications: { enabled: true, vapidPublicKey: "" } },

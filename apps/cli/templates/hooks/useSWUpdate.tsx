@@ -2,14 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { handleUpdateApproved } from "../sw/injector.ts";
 
 export function useSWUpdate() {
-  const [state, setState] = useState({
+  const [state, setState] = useState(() => ({
     updateStatus: "idle" as "idle" | "available" | "downloading" | "ready",
-    currentVersion: (window.currentSWVersion as string | undefined) || null,
+    currentVersion: typeof window !== "undefined" ? (window.currentSWVersion as string | undefined) || null : null,
     availableVersion: null as string | null,
     progress: 0 as number,
     forceUpdate: false,
     error: null as string | null,
-  });
+  }));
 
   useEffect(() => {
     if (sessionStorage.getItem("sw-dismissed-update") === "true") return;

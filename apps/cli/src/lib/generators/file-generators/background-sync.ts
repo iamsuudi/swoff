@@ -60,7 +60,9 @@ export async function retrySync()${R("Promise<void>")}{
   }
 }
 
-window.addEventListener("mutation-sync-complete", retrySync);
+if (typeof window !== "undefined") {
+  window.addEventListener("mutation-sync-complete", retrySync);
+}
 `;
 
   writeFile(ctx, `background-sync.${ext}`, code);

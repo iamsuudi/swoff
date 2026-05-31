@@ -13,10 +13,12 @@ import { fetchWithCache } from "../fetch-wrapper.ts";
 
 const DB_NAME = "swoff-auth-user";
 const STORE_NAME = "current-user";
+// Bump this when adding new indexes/stores for schema migration
+const DB_VERSION = 1;
 
 function openAuthDB(): Promise<IDBDatabase> {
   return new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = (e) => {
       const db = (e.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {

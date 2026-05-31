@@ -47,7 +47,7 @@ describe("CLI commands integration", () => {
           backgroundSync: false,
           auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
           crossTabSync: true,
-          tagInvalidation: { enabled: true },
+          tagInvalidation: {},
         },
         build: { outputDir: "dist", swFilename: "sw" },
       };
@@ -177,7 +177,7 @@ describe("CLI commands integration", () => {
           backgroundSync: false,
           auth: { enabled: false, type: "bearer" as const, refreshPath: "/api/refresh", userEndpoint: "/api/me" },
           crossTabSync: true,
-          tagInvalidation: { enabled: true },
+          tagInvalidation: {},
           graphql: { enabled: false, endpoint: "/graphql" },
           pushNotifications: { enabled: false },
           serverPush: { enabled: false, type: "sse" as const, endpoint: "/api/events", reconnectDelayMs: 5000 },

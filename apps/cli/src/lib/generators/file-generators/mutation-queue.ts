@@ -8,7 +8,6 @@ export function generateMutationQueue(ctx: GeneratorContext): void {
   const PT = (type: string) => (ts ? `<${type}>` : "");
   const AS = (type: string) => (ts ? ` as ${type}` : "");
   const authEnabled = ctx.config.features.auth.enabled;
-  const tagInvalidation = ctx.config.features.tagInvalidation.enabled;
   const mqConfig = ctx.config.features.mutationQueue;
   const batchSize = mqConfig.batchSize;
   const batchDelayMs = mqConfig.batchDelayMs;
@@ -20,12 +19,8 @@ export function generateMutationQueue(ctx: GeneratorContext): void {
 `
     : "";
 
-  const invalidateImport = tagInvalidation
-    ? `import { invalidateByTags } from "./cache.${ext}";
-`
-    : "";
-  const additionalImports = `${invalidateImport}${
-  ts
+  const additionalImports = `import { invalidateByTags } from "./cache.${ext}";
+${  ts
     ? `import type { MutationQueueItem } from "./swoff.d.ts";
 `
     : ""
@@ -70,6 +65,8 @@ export function generateMutationQueue(ctx: GeneratorContext): void {
 
 ${importLines}${additionalImports}const DB_NAME = "swoff-queue";
 const STORE_NAME = "mutations";
+// Bump this when adding new indexes/stores for schema migration
+const DB_VERSION = 1;
 const BATCH_SIZE = ${batchSize};
 const BATCH_DELAY_MS = ${batchDelayMs};
 const MAX_RETRIES = ${maxRetries};
@@ -81,7 +78,7 @@ function sleep(ms${T("number")})${R("Promise<void>")}{
 
 function openQueueDB()${R("Promise<IDBDatabase>")}{
   return new Promise${PT("IDBDatabase")}((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = (e) => {
       const db = (e.target${AS("IDBOpenDBRequest")}).result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
@@ -139,8 +136,8 @@ export async function queueMutation(mutation${T("Partial<MutationQueueItem>")})$
   window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
 }
 
-/** Replay a single queued mutation. Returns true on success, false on failure. */
-async function replayMutation(item${T("MutationQueueItem")})${R("Promise<boolean>")}{
+/** Replay a single queued mutation. Uses the provided db connection if available. Returns true on success, false on failure. */
+async function replayMutation(item${T("MutationQueueItem")}, db${T("IDBDatabase | undefined")})${R("Promise<boolean>")}{
   try {
 ${authReplayHeaders}    let replayBody${T("BodyInit | null")}${ts ? " = null" : ""};
     let contentType${T("string | undefined")};
@@ -170,15 +167,15 @@ ${authHeaderSpread}      },
     if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
 
     if (item.tags && item.tags.length > 0) {
-      ${tagInvalidation ? "await invalidateByTags(item.tags);" : "// tagInvalidation disabled — skipping cache invalidation"}
+      await invalidateByTags(item.tags);
     }
 
-    await removeFromQueue(item.id);
+    await removeFromQueue(item.id, db);
     return true;
   } catch {
     item.retryCount++;
     item.nextRetryAt = Date.now() + RETRY_BACKOFF_MS * Math.pow(2, item.retryCount - 1);
-    await updateInQueue(item);
+    await updateInQueue(item, db);
     return false;
   }
 }
@@ -188,8 +185,8 @@ export async function processMutationQueue()${R("Promise<void>")}{
   if (isSyncing) return;
   isSyncing = true;
 
+  const db = await openQueueDB();
   try {
-    const db = await openQueueDB();
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
     const index = store.index("by-timestamp");
@@ -208,7 +205,7 @@ export async function processMutationQueue()${R("Promise<void>")}{
 
     for (const item of queue) {
       if (item.retryCount >= MAX_RETRIES) {
-        await removeFromQueue(item.id);
+        await removeFromQueue(item.id, db);
         failed++;
         continue;
       }
@@ -219,7 +216,7 @@ export async function processMutationQueue()${R("Promise<void>")}{
         continue;
       }
 
-      const ok = await replayMutation(item);
+      const ok = await replayMutation(item, db);
       if (ok) {
         succeeded++;
       } else {
@@ -254,6 +251,7 @@ export async function processMutationQueue()${R("Promise<void>")}{
       }, earliestRetry - Date.now());
     }
   } finally {
+    db.close();
     isSyncing = false;
     window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
   }
@@ -266,8 +264,8 @@ export async function flushMutations()${R("Promise<void>")}{
 `;
 
   const helpers = `
-async function removeFromQueue(id${T("string")})${R("Promise<void>")}{
-  const db = await openQueueDB();
+async function removeFromQueue(id${T("string")}, db${T("IDBDatabase | undefined")})${R("Promise<void>")}{
+  if (!db) db = await openQueueDB();
   const tx = db.transaction(STORE_NAME, "readwrite");
   tx.objectStore(STORE_NAME).delete(id);
   await new Promise${PT("void")}((resolve, reject) => {
@@ -276,8 +274,8 @@ async function removeFromQueue(id${T("string")})${R("Promise<void>")}{
   });
 }
 
-async function updateInQueue(item${T("MutationQueueItem")})${R("Promise<void>")}{
-  const db = await openQueueDB();
+async function updateInQueue(item${T("MutationQueueItem")}, db${T("IDBDatabase | undefined")})${R("Promise<void>")}{
+  if (!db) db = await openQueueDB();
   const tx = db.transaction(STORE_NAME, "readwrite");
   tx.objectStore(STORE_NAME).put(item);
   await new Promise${PT("void")}((resolve, reject) => {

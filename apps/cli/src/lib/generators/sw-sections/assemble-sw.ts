@@ -43,20 +43,16 @@ function applyReplacements(sw: string, config: SwoffConfig, assetsToCache: { url
 
   const { strategy, navigation } = serviceWorker;
   const { refetchQueue } = features;
-  const tagInvalidationEnabled = features.tagInvalidation.enabled;
-
   sw = sw.replace("// [[FETCH_HANDLER]]", generateFetchHandler({
     strategy,
     navigation,
     refetchQueue,
-  }, tagInvalidationEnabled, features.mutationQueue.enabled));
+  }, true, features.mutationQueue.enabled));
 
-  sw = sw.replace("// [[ACTIVATE_HANDLER]]", generateActivateHandler(strategy.clearRuntimeOnUpdate, navigation.preload));
+  sw = sw.replace("// [[ACTIVATE_HANDLER]]", generateActivateHandler(strategy.clearRuntimeOnUpdate, navigation.preload, strategy.maxRuntimeCacheAge));
   sw = sw.replace("// [[INSTALL_HANDLER]]", generateInstallHandler());
-  sw = sw.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(tagInvalidationEnabled, features.tagInvalidation.debounceMs ?? 0));
-  sw = tagInvalidationEnabled
-    ? sw.replace("// [[TAG_MANAGEMENT]]", generateTagManagement())
-    : sw.replace("// [[TAG_MANAGEMENT]]", "");
+  sw = sw.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(true, features.tagInvalidation.debounceMs ?? 0));
+  sw = sw.replace("// [[TAG_MANAGEMENT]]", generateTagManagement());
 
   sw = features.pushNotifications?.enabled
     ? sw.replace("// [[PUSH_HANDLERS]]", generateSwPushHandlers())
@@ -108,9 +104,12 @@ export function assembleSW(config: SwoffConfig, version: string, projectRoot?: s
   }
 
   if (features.backgroundSync) {
-    const authType = features.auth.enabled ? features.auth.type : undefined;
-    const mq = features.mutationQueue;
-    sw += `\n\n${generateBackgroundSyncHandler(authType, mq.batchSize, mq.batchDelayMs, mq.maxRetries, mq.retryBackoffMs, config.features.tagInvalidation.enabled)}`;
+    // Skip background sync for non-cookie auth (tokens must not persist in IndexedDB)
+    if (!features.auth.enabled || features.auth.type === "cookie") {
+      const authType = features.auth.enabled ? features.auth.type : undefined;
+      const mq = features.mutationQueue;
+      sw += `\n\n${generateBackgroundSyncHandler(authType, mq.batchSize, mq.batchDelayMs, mq.maxRetries, mq.retryBackoffMs, true)}`;
+    }
   }
 
   return sw;

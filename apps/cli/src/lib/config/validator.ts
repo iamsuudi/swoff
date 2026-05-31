@@ -127,6 +127,9 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         if (strategy.normalizeKey !== undefined && typeof strategy.normalizeKey !== "boolean") {
           errors.push("features.serviceWorker.strategy.normalizeKey must be a boolean");
         }
+        if (strategy.maxRuntimeCacheAge !== undefined && (typeof strategy.maxRuntimeCacheAge !== "number" || strategy.maxRuntimeCacheAge < 0 || !Number.isInteger(strategy.maxRuntimeCacheAge))) {
+          errors.push("features.serviceWorker.strategy.maxRuntimeCacheAge must be a non-negative integer");
+        }
         if (strategy.ignoreQueryParams !== undefined && (!Array.isArray(strategy.ignoreQueryParams) || !(strategy.ignoreQueryParams as unknown[]).every((p: unknown) => typeof p === "string"))) {
           errors.push("features.serviceWorker.strategy.ignoreQueryParams must be an array of strings");
         }
@@ -160,6 +163,9 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         if (navigation.preload !== undefined && typeof navigation.preload !== "boolean") {
           errors.push("features.serviceWorker.navigation.preload must be a boolean");
         }
+      }
+      if (sw.requestBatchWindowMs !== undefined && (typeof sw.requestBatchWindowMs !== "number" || sw.requestBatchWindowMs < 0 || !Number.isInteger(sw.requestBatchWindowMs))) {
+        errors.push("features.serviceWorker.requestBatchWindowMs must be a non-negative integer");
       }
     }
 
@@ -195,12 +201,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         errors.push("features.tagInvalidation.cascading must be an object");
       }
     }
-    const tagInvalidationObj = features.tagInvalidation as Record<string, unknown> | undefined;
-    const tagInvalidationEnabled = tagInvalidationObj?.enabled === true;
-    const crossTabSyncVal = features.crossTabSync;
-    if (crossTabSyncVal === true && !tagInvalidationEnabled) {
-      errors.push("crossTabSync requires tagInvalidation to be enabled");
-    }
 
     const backgroundSyncVal = features.backgroundSync;
     const mutationQueueVal = features.mutationQueue as Record<string, unknown> | undefined;
@@ -225,6 +225,12 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     const mqEnabled = mutationQueueVal?.enabled === true;
     if (backgroundSyncVal === true && !mqEnabled) {
       errors.push("backgroundSync requires mutationQueue to be enabled");
+    }
+    if (backgroundSyncVal === true) {
+      const authBg = features.auth as Record<string, unknown> | undefined;
+      if (authBg?.enabled === true && authBg?.type !== "cookie") {
+        errors.push("backgroundSync is not supported with auth type \"bearer\" or \"custom\" — tokens must not be stored in IndexedDB");
+      }
     }
 
     const auth = features.auth as Record<string, unknown> | undefined;

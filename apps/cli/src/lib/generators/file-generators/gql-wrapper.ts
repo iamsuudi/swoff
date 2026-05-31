@@ -115,6 +115,9 @@ export async function fetchWithGql${G("T")}(
     invalidate: options.invalidate,
   });
 
+  if (!response.ok) {
+    throw new Error("GraphQL request failed with status " + response.status);
+  }
   const result = await response.json();
   return { data: result.data${AS("T")}, fromCache };
 }

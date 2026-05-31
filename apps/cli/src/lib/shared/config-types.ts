@@ -25,7 +25,12 @@ export interface RefetchQueueConfig {
   retryDelayMs: number;
 }
 
-export const REACTIVE_FIELDS = ["staleTime", "refetchInterval", "refetchOnReconnect", "refetchOnFocus"] as const;
+export const REACTIVE_FIELDS = [
+  "staleTime",
+  "refetchInterval",
+  "refetchOnReconnect",
+  "refetchOnFocus",
+] as const;
 
 export interface StrategyEntry {
   strategy: string;
@@ -36,7 +41,6 @@ export interface StrategyEntry {
 }
 
 export interface TagInvalidationConfig {
-  enabled: boolean;
   debounceMs?: number;
   prefixes?: string[];
   patterns?: Record<string, string[]>;
@@ -58,6 +62,7 @@ export interface SwoffConfig {
       minSupportedVersion: string;
       autoUpdate: boolean;
       autoActivate: boolean;
+      requestBatchWindowMs: number;
       strategy: {
         default: string;
         patterns: Record<string, string | StrategyEntry>;
@@ -71,6 +76,7 @@ export interface SwoffConfig {
         };
         mode?: "all" | "explicit-only";
         clearRuntimeOnUpdate: boolean;
+        maxRuntimeCacheAge?: number;
         normalizeKey?: boolean;
         ignoreQueryParams?: string[];
       };
@@ -116,7 +122,17 @@ export const KNOWN_FEATURES = [
   "serverPush",
 ] as const;
 
-export const OBJECT_FEATURES = ["pwa", "serviceWorker", "auth", "pushNotifications", "graphql", "serverPush", "tagInvalidation", "mutationQueue", "refetchQueue"] as const;
+export const OBJECT_FEATURES = [
+  "pwa",
+  "serviceWorker",
+  "auth",
+  "pushNotifications",
+  "graphql",
+  "serverPush",
+  "tagInvalidation",
+  "mutationQueue",
+  "refetchQueue",
+] as const;
 
 export const VALID_STRATEGIES = [
   "cache-first",
@@ -164,7 +180,6 @@ export const defaultServerPush = {
 };
 
 export const defaultTagInvalidation: TagInvalidationConfig = {
-  enabled: true,
   debounceMs: 0,
   prefixes: [...API_PREFIXES],
   patterns: {},
@@ -172,7 +187,10 @@ export const defaultTagInvalidation: TagInvalidationConfig = {
   cascading: {},
 };
 
-export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>): SwoffConfig {
+export function mergeConfigs(
+  base: SwoffConfig,
+  override: Partial<SwoffConfig>,
+): SwoffConfig {
   return {
     ...base,
     ...override,
@@ -183,8 +201,12 @@ export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>):
       serviceWorker: {
         ...base.features.serviceWorker,
         ...override.features?.serviceWorker,
-        version: override.features?.serviceWorker?.version ?? base.features.serviceWorker.version,
-        minSupportedVersion: override.features?.serviceWorker?.minSupportedVersion ?? base.features.serviceWorker.minSupportedVersion,
+        version:
+          override.features?.serviceWorker?.version ??
+          base.features.serviceWorker.version,
+        minSupportedVersion:
+          override.features?.serviceWorker?.minSupportedVersion ??
+          base.features.serviceWorker.minSupportedVersion,
         strategy: {
           ...base.features.serviceWorker.strategy,
           ...override.features?.serviceWorker?.strategy,
@@ -200,13 +222,40 @@ export function mergeConfigs(base: SwoffConfig, override: Partial<SwoffConfig>):
           ...override.features?.serviceWorker?.navigation,
         },
       },
-      refetchQueue: { ...defaultRefetchQueue, ...base.features.refetchQueue, ...override.features?.refetchQueue },
-      mutationQueue: { ...defaultMutationQueue, ...base.features.mutationQueue, ...override.features?.mutationQueue },
-      auth: { ...defaultAuth, ...base.features.auth, ...override.features?.auth },
-      graphql: { ...defaultGql, ...base.features.graphql, ...override.features?.graphql },
-      tagInvalidation: { ...defaultTagInvalidation, ...base.features.tagInvalidation, ...override.features?.tagInvalidation },
-      pushNotifications: { ...base.features.pushNotifications, ...override.features?.pushNotifications },
-      serverPush: { ...defaultServerPush, ...base.features.serverPush, ...override.features?.serverPush },
+      refetchQueue: {
+        ...defaultRefetchQueue,
+        ...base.features.refetchQueue,
+        ...override.features?.refetchQueue,
+      },
+      mutationQueue: {
+        ...defaultMutationQueue,
+        ...base.features.mutationQueue,
+        ...override.features?.mutationQueue,
+      },
+      auth: {
+        ...defaultAuth,
+        ...base.features.auth,
+        ...override.features?.auth,
+      },
+      graphql: {
+        ...defaultGql,
+        ...base.features.graphql,
+        ...override.features?.graphql,
+      },
+      tagInvalidation: {
+        ...defaultTagInvalidation,
+        ...base.features.tagInvalidation,
+        ...override.features?.tagInvalidation,
+      },
+      pushNotifications: {
+        ...base.features.pushNotifications,
+        ...override.features?.pushNotifications,
+      },
+      serverPush: {
+        ...defaultServerPush,
+        ...base.features.serverPush,
+        ...override.features?.serverPush,
+      },
     },
     build: { ...base.build, ...override.build },
   };
@@ -224,8 +273,14 @@ export const defaultConfig: SwoffConfig = {
       minSupportedVersion: "0.0.0",
       autoUpdate: true,
       autoActivate: false,
+      requestBatchWindowMs: 50,
       strategy: {
         default: "cache-first",
+        mode: "all",
+        clearRuntimeOnUpdate: false,
+        maxRuntimeCacheAge: 2592000,
+        normalizeKey: false,
+        ignoreQueryParams: [],
         patterns: {},
         reactive: {
           defaults: {
@@ -235,10 +290,6 @@ export const defaultConfig: SwoffConfig = {
             refetchOnFocus: false,
           },
         },
-        mode: "all",
-        clearRuntimeOnUpdate: false,
-        normalizeKey: false,
-        ignoreQueryParams: [],
       },
       navigation: {
         mode: "spa",
@@ -262,7 +313,9 @@ export const defaultConfig: SwoffConfig = {
   },
 };
 
-export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & { $schema: string } = {
+export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
+  $schema: string;
+} = {
   $schema: "https://swoff.netlify.app/schema/v1.json",
   enabled: true,
   framework: "vanilla",
@@ -270,11 +323,22 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & { $schema: string
     pwa: { enabled: true, preventDefaultInstall: false },
     serviceWorker: {
       version: "package",
-      minSupportedVersion: "1.0.0",
+      minSupportedVersion: "0.0.0",
       autoUpdate: true,
       autoActivate: false,
+      requestBatchWindowMs: 50,
+      navigation: {
+        mode: "spa",
+        preload: true,
+        fallback: "/index.html",
+      },
       strategy: {
         default: "cache-first",
+        mode: "all",
+        clearRuntimeOnUpdate: false,
+        maxRuntimeCacheAge: 2592000,
+        normalizeKey: false,
+        ignoreQueryParams: [],
         patterns: {
           "/api/*": "network-first",
           "/static/*": "cache-first",
@@ -287,15 +351,6 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & { $schema: string
             refetchOnFocus: false,
           },
         },
-        mode: "all",
-        clearRuntimeOnUpdate: false,
-        normalizeKey: false,
-        ignoreQueryParams: [],
-      },
-      navigation: {
-        mode: "spa",
-        preload: true,
-        fallback: "/index.html",
       },
     },
     refetchQueue: { ...defaultRefetchQueue },

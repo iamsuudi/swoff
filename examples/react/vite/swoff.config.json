@@ -13,11 +13,22 @@
     },
     "serviceWorker": {
       "version": "package",
-      "minSupportedVersion": "1.0.0",
+      "minSupportedVersion": "0.0.0",
       "autoUpdate": true,
-      "autoActivate": true,
+      "autoActivate": false,
+      "requestBatchWindowMs": 50,
+      "navigation": {
+        "mode": "spa",
+        "preload": true,
+        "fallback": "/index.html"
+      },
       "strategy": {
         "default": "cache-first",
+        "mode": "all",
+        "clearRuntimeOnUpdate": false,
+        "maxRuntimeCacheAge": 2592000,
+        "normalizeKey": false,
+        "ignoreQueryParams": [],
         "patterns": {
           "/api/*": "network-first",
           "/static/*": "cache-first"
@@ -29,16 +40,7 @@
             "refetchOnReconnect": false,
             "refetchOnFocus": false
           }
-        },
-        "mode": "all",
-        "clearRuntimeOnUpdate": false,
-        "normalizeKey": false,
-        "ignoreQueryParams": []
-      },
-      "navigation": {
-        "mode": "spa",
-        "preload": true,
-        "fallback": "/index.html"
+        }
       }
     },
     "refetchQueue": {
@@ -48,7 +50,7 @@
       "retryDelayMs": 1000
     },
     "mutationQueue": {
-      "enabled": true,
+      "enabled": false,
       "batchSize": 1,
       "batchDelayMs": 0,
       "maxRetries": 5,
@@ -63,7 +65,6 @@
     },
     "crossTabSync": true,
     "tagInvalidation": {
-      "enabled": true,
       "debounceMs": 0,
       "prefixes": ["api", "v1", "v2", "v3", "rest", "graphql", "gql"],
       "patterns": {},

@@ -66,7 +66,7 @@ describe("generateSwTemplate", () => {
 
   it("includes config-driven strategy code", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, tagInvalidation: { enabled: true }, serviceWorker: { ...defaultConfig.features.serviceWorker, strategy: { ...defaultConfig.features.serviceWorker.strategy, patterns: { "/api/*": "network-first" } } } },
+      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, strategy: { ...defaultConfig.features.serviceWorker.strategy, patterns: { "/api/*": "network-first" } } } },
     });
     generateSwTemplate(ctx);
     const content = readFileSync(join(ctx.swoffDir, "sw", "template.js"), "utf8");

@@ -37,7 +37,7 @@ export function generateGuide(ctx: GeneratorContext): void {
     w("- Favicon: SVG + ICO (16×16, 32×32, 48×48)");
     w("- OG image: 1200×630 (also used for Twitter card)");
     w("");
-    w("The generator patches \`manifest.json\` and \`index.html\` automatically.");
+    w("After generation, reference these assets in your app manually. Run \`swoff generate-assets\` for a copy-paste guide with the exact <link> and <meta> tags.");
     w("");
     w("### Source logo requirements");
     w("");

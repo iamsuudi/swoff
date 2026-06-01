@@ -4,8 +4,6 @@ import { Jimp } from "jimp";
 import { rasterizeSource } from "./rasterize.js";
 import { createMaskable } from "./maskable.js";
 import { encodeIco } from "./ico-encoder.js";
-import { patchManifest, type GeneratedAssets } from "./manifest-patcher.js";
-import { patchHtml, type HtmlMeta } from "./html-patcher.js";
 import {
   PWA_ICONS,
   APPLE_ICONS,
@@ -20,8 +18,6 @@ export interface GenerateOptions {
   appName: string;
   themeColor: string;
   bgColor: string;
-  manifestPath?: string;
-  htmlPath?: string;
   appleSplash?: boolean;
 }
 
@@ -118,31 +114,6 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
       writePng(path, await canvas.getBuffer("image/png"));
       files.push(path);
     }
-  }
-
-  // 6. Patch manifest.json
-  if (options.manifestPath) {
-    const ga: GeneratedAssets = {
-      icons: PWA_ICONS,
-      appleIcon: APPLE_ICONS[0],
-      hasFaviconIco: true,
-      hasOgImage: true,
-    };
-    patchManifest(options.manifestPath, ga);
-  }
-
-  // 7. Patch index.html
-  if (options.htmlPath) {
-    const meta: HtmlMeta = {
-      appName,
-      themeColor,
-      bgColor,
-      ogImagePath: `/${OG_IMAGE.name}.png`,
-      appleTouchIconPath: `/${APPLE_ICONS[0].name}.png`,
-      splashPaths: appleSplash !== false ? APPLE_SPLASH_SCREENS.map((s) => `/${s.name}.png`) : [],
-      faviconIcoPath: "/favicon.ico",
-    };
-    patchHtml(options.htmlPath, meta);
   }
 
   return { files, warnings };

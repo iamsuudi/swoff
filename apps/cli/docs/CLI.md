@@ -84,7 +84,8 @@ automatically generates the following assets from the source logo:
 | `public/og-image.png` | Open Graph / social sharing image (1200×630) with centered logo |
 | `public/splash-*.png` | Apple splash screens (7 sizes for all iOS devices) |
 
-The generated assets are automatically patched into `manifest.json` and `index.html`.
+After generation, **manually reference these assets** in your app. Run `swoff generate-assets`
+for a copy-paste guide with the exact `<link>` and `<meta>` tags for your HTML `<head>`.
 
 ---
 

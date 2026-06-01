@@ -98,20 +98,24 @@ export async function generateCommand(
         statusLine("→ PWA assets...");
         try {
           const { generateAssets } = await import("../generators/asset-generator/generate.js");
-          const manifestPath = join(projectRoot, "public", "manifest.json");
-          const htmlPath = join(projectRoot, "index.html");
+          const { printAssetGuide } = await import("../generators/asset-generator/guide.js");
           const result = await generateAssets({
             source: sourcePath,
             outputDir: join(projectRoot, assets.outputDir),
             appName: config.framework || "App",
             themeColor: assets.themeColor,
             bgColor: assets.bgColor,
-            manifestPath: existsSync(manifestPath) ? manifestPath : undefined,
-            htmlPath: existsSync(htmlPath) ? htmlPath : undefined,
             appleSplash: true,
           });
           clearStatusLine();
           log.success(`PWA assets generated (${result.files.length} files)`);
+          printAssetGuide({
+            appName: config.framework || "App",
+            themeColor: assets.themeColor,
+            bgColor: assets.bgColor,
+            outputDir: assets.outputDir,
+            hasSplash: true,
+          });
         } catch (err: unknown) {
           clearStatusLine();
           log.warn(

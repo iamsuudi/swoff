@@ -128,7 +128,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | `themeColor` | `string` | `"#000000"` | Theme color for manifest, browser theme, and favicon placeholder |
 | `bgColor` | `string` | `"#ffffff"` | Background color for splash screens and OG image canvas |
 
-Generated assets are automatically linked in `manifest.json` and `index.html`.
+Generated assets are written to `outputDir`. Reference them manually in your manifest and HTML — run `swoff generate-assets` for a copy-paste guide.
 
 ---
 

@@ -1,8 +1,8 @@
-import { existsSync } from "fs";
 import { join } from "path";
 import { log } from "../cli/logger.js";
 import { loadConfigAsync } from "../config/loader.js";
 import { generateAssets } from "../generators/asset-generator/generate.js";
+import { printAssetGuide } from "../generators/asset-generator/guide.js";
 
 export async function generateAssetsCommand(projectRoot: string, args: string[]) {
   log.header("Generating PWA Assets");
@@ -23,17 +23,12 @@ export async function generateAssetsCommand(projectRoot: string, args: string[])
     process.exit(1);
   }
 
-  const manifestPath = join(projectRoot, assets.outputDir, "manifest.json");
-  const htmlPath = join(projectRoot, "index.html");
-
   const result = await generateAssets({
     source: sourceArg,
     outputDir: join(projectRoot, assets.outputDir),
     appName: config.framework || "App",
     themeColor: assets.themeColor,
     bgColor: assets.bgColor,
-    manifestPath: existsSync(manifestPath) ? manifestPath : undefined,
-    htmlPath: existsSync(htmlPath) ? htmlPath : undefined,
     appleSplash: !args.includes("--no-splash"),
   });
 
@@ -41,4 +36,12 @@ export async function generateAssetsCommand(projectRoot: string, args: string[])
   if (result.warnings.length > 0) {
     for (const w of result.warnings) log.warn(w);
   }
+
+  printAssetGuide({
+    appName: config.framework || "App",
+    themeColor: assets.themeColor,
+    bgColor: assets.bgColor,
+    outputDir: assets.outputDir,
+    hasSplash: !args.includes("--no-splash"),
+  });
 }

@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync, readFileSync, copyFileSync, statSync } from "fs";
+import { mkdirSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { Jimp } from "jimp";
 import { rasterizeSource } from "./rasterize.js";
@@ -77,21 +77,7 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
     files.push(path);
   }
 
-  // 3. Favicon SVG + ICO
-  const ext = source.toLowerCase().split(".").pop();
-  if (ext === "svg") {
-    const svgDest = join(outputDir, "favicon.svg");
-    copyFileSync(source, svgDest);
-    files.push(svgDest);
-  } else {
-    const svgPath = join(outputDir, "favicon.svg");
-    const simpleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
-  <rect width="48" height="48" rx="8" fill="${themeColor}"/>
-</svg>`;
-    writeFileSync(svgPath, simpleSvg);
-    files.push(svgPath);
-  }
-
+  // 3. Favicon ICO
   const icoPngs: Buffer[] = [];
   for (const size of FAVICON_SIZES) {
     icoPngs.push(await resizeToSquare(size.width));
@@ -122,7 +108,8 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
     for (const splash of APPLE_SPLASH_SCREENS) {
       const img = await Jimp.read(basePng);
       const canvas = new Jimp({ width: splash.width, height: splash.height, color: bgColorInt });
-      const scale = Math.max(splash.width / baseW, splash.height / baseH);
+      const maxLogoDim = Math.min(splash.width, splash.height) * 0.3;
+      const scale = Math.min(maxLogoDim / baseW, maxLogoDim / baseH);
       const newW = Math.round(baseW * scale);
       const newH = Math.round(baseH * scale);
       img.resize({ w: newW, h: newH });
@@ -153,7 +140,6 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
       ogImagePath: `/${OG_IMAGE.name}.png`,
       appleTouchIconPath: `/${APPLE_ICONS[0].name}.png`,
       splashPaths: appleSplash !== false ? APPLE_SPLASH_SCREENS.map((s) => `/${s.name}.png`) : [],
-      faviconSvgPath: "/favicon.svg",
       faviconIcoPath: "/favicon.ico",
     };
     patchHtml(options.htmlPath, meta);

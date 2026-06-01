@@ -7,7 +7,6 @@ export interface HtmlMeta {
   ogImagePath: string;
   appleTouchIconPath: string;
   splashPaths: string[];
-  faviconSvgPath: string;
   faviconIcoPath: string;
 }
 
@@ -29,9 +28,6 @@ export function patchHtml(htmlPath: string, meta: HtmlMeta): void {
 
   const tags: string[] = [];
 
-  if (meta.faviconSvgPath && !html.includes('rel="icon"') && !html.includes("rel='icon'")) {
-    tags.push(`  <link rel="icon" type="image/svg+xml" href="${meta.faviconSvgPath}">`);
-  }
   if (meta.faviconIcoPath && !html.includes("favicon.ico")) {
     tags.push(`  <link rel="icon" type="image/x-icon" href="${meta.faviconIcoPath}">`);
   }

@@ -29,7 +29,10 @@
   ],
   "author": "Swoff",
   "license": "MIT",
-  "dependencies": {},
+  "dependencies": {
+    "@resvg/resvg-wasm": "^2.6.2",
+    "jimp": "^1.6.0"
+  },
   "devDependencies": {
     "@types/node": "^25.9.1",
     "typescript": "^5.0.0",

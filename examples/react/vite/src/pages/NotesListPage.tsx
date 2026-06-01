@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useCachedFetch } from "../../swoff/hooks/useCachedFetch";
 import { useMutation } from "../../swoff/hooks/useMutation";
 import { useMutationQueue } from "../../swoff/hooks/useMutationQueue";
+import { usePrefetch } from "../../swoff/hooks/usePrefetch";
 import NoteCard from "../components/NoteCard";
 
 interface Note {
@@ -17,13 +18,22 @@ export default function NotesListPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const { data: notes, loading } = useCachedFetch<Note[]>("/api/notes", {
     auth: true,
+    keepPreviousData: true,
+    placeholderData: [],
   });
-  const { pending } = useMutationQueue();
-  const deleteMutation = useMutation();
+  const { pending, isProcessing, retryAll } = useMutationQueue();
+  const { prefetch } = usePrefetch();
+  const deleteMutation = useMutation({
+    onMutate: () => setSearchQuery(""),
+  });
 
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this note?")) return;
-    await deleteMutation.mutate(`/api/notes/${id}`, { method: "DELETE", auth: true });
+    await deleteMutation.mutate(`/api/notes/${id}`, {
+      method: "DELETE",
+      auth: true,
+      onSuccess: () => window.dispatchEvent(new CustomEvent("cache-invalidated", { detail: { tags: ["notes"] } })),
+    });
   };
 
   const items = notes ?? [];
@@ -70,6 +80,7 @@ export default function NotesListPage() {
           </div>
           <Link
             to="/notes/new"
+            onMouseEnter={() => prefetch("/api/notes")}
             className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-teal-500 to-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-teal-500/25 transition hover:shadow-xl hover:-translate-y-0.5"
           >
             <svg
@@ -90,8 +101,17 @@ export default function NotesListPage() {
         </div>
 
         {pending > 0 && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
-            {pending} change{pending !== 1 ? "s" : ""} saved offline — syncing when connection restores
+          <div className="mb-4 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm dark:border-amber-800 dark:bg-amber-900/20">
+            <span className="text-amber-700 dark:text-amber-400">
+              {pending} change{pending !== 1 ? "s" : ""} saved offline
+              {isProcessing ? " — syncing..." : " — queued"}
+            </span>
+            {!isProcessing && (
+              <button onClick={retryAll}
+                className="ml-2 rounded-md border border-amber-300 px-2 py-1 text-xs font-medium text-amber-700 transition hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/30">
+                Sync now
+              </button>
+            )}
           </div>
         )}
 
@@ -102,18 +122,19 @@ export default function NotesListPage() {
         ) : filtered.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((note) => (
-              <NoteCard
-                key={note.id}
-                id={note.id}
-                title={note.title}
-                description={note.description}
-                priority={note.priority}
-                updatedAt={note.updatedAt}
-                detailUrl={`/notes/${note.id}`}
-                editUrl={`/notes/${note.id}/edit`}
-                onDelete={handleDelete}
-                deleting={deleteMutation.isLoading}
-              />
+              <div key={note.id} onMouseEnter={() => prefetch(`/api/notes/${note.id}`)}>
+                <NoteCard
+                  id={note.id}
+                  title={note.title}
+                  description={note.description}
+                  priority={note.priority}
+                  updatedAt={note.updatedAt}
+                  detailUrl={`/notes/${note.id}`}
+                  editUrl={`/notes/${note.id}/edit`}
+                  onDelete={handleDelete}
+                  deleting={deleteMutation.isLoading}
+                />
+              </div>
             ))}
           </div>
         ) : (

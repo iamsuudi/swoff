@@ -93,20 +93,6 @@ export function useMutation<TData = unknown>(
       if (key && inFlightKeys.current.has(key)) return null;
       if (key) inFlightKeys.current.add(key);
 
-      let retriesLeft = options.retry ?? fetchOptions.retry ?? 0;
-      if (retriesLeft === true) retriesLeft = Infinity;
-
-      const mid = "mut-" + crypto.randomUUID();
-      setMutationId(mid);
-      trackMutation(mid, "pending");
-      setState({
-        data: null,
-        error: null,
-        isLoading: true,
-        isError: false,
-        isSuccess: false,
-      });
-
       let retriesLeft = (options.retry ?? fetchOptions.retry) === true
         ? Infinity
         : (options.retry ?? fetchOptions.retry) ?? 0;

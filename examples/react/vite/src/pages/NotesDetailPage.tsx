@@ -1,5 +1,5 @@
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { useCachedFetch } from "../../swoff/hooks/useCachedFetch";
+import { useSuspenseQuery } from "../../swoff/hooks/useSuspenseQuery";
 import { useMutation } from "../../swoff/hooks/useMutation";
 
 interface Note {
@@ -20,10 +20,7 @@ const priorityColors: Record<string, string> = {
 export default function NotesDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { data: note, loading } = useCachedFetch<Note>(
-    id ? `/api/notes/${id}` : null,
-    { auth: true },
-  );
+  const note = useSuspenseQuery<Note>(`/api/notes/${id}`, { auth: true });
   const deleteMutation = useMutation();
 
   const handleDelete = async () => {
@@ -31,14 +28,6 @@ export default function NotesDetailPage() {
     await deleteMutation.mutate(`/api/notes/${id}`, { method: "DELETE", auth: true });
     navigate("/notes");
   };
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent" />
-      </div>
-    );
-  }
 
   if (!note) {
     return (

@@ -10,7 +10,13 @@
   "features": {
     "pwa": {
       "enabled": true,
-      "preventDefaultInstall": false
+      "preventDefaultInstall": false,
+      "assets": {
+        "source": "./public/favicon.svg",
+        "outputDir": "public",
+        "themeColor": "#0d9488",
+        "bgColor": "#ffffff"
+      }
     },
     "serviceWorker": {
       "version": "package",

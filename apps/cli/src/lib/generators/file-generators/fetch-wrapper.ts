@@ -138,11 +138,12 @@ export interface FetchWithCacheOptions extends RequestInit {
 
   const offlineWriteFallbackBlock = mutationQueue
     ? `    if (options.queueOffline !== false) {
+      const ct = headers.get("Content-Type");
       await queueMutation({
         method,
         url,
         body: options.body,
-        headers: {},
+        headers: ct ? { "Content-Type": ct } : {},
         tags: mutationTags,
         timestamp: Date.now(),
       });

@@ -101,7 +101,9 @@ export async function queueMutation(mutation${T("Partial<MutationQueueItem>")})$
 
   let body = mutation.body;
   let bodyType = "json";
-  if (body instanceof FormData) {
+  if (typeof body === "string") {
+    bodyType = "text";
+  } else if (body instanceof FormData) {
     bodyType = "formdata";
     body = [...body.entries()];
   } else if (body instanceof Blob) {
@@ -151,6 +153,8 @@ ${authReplayHeaders}    let replayBody${T("BodyInit | null")}${ts ? " = null" : 
       replayBody = item.body${AS("BodyInit | null")};
     } else if (bt === "buffer") {
       replayBody = item.body instanceof ArrayBuffer ? new Uint8Array(item.body)${AS("BodyInit")} : item.body${AS("BodyInit")};
+    } else if (bt === "text") {
+      replayBody = item.body${AS("BodyInit | null")};
     } else if (item.body != null) {
       replayBody = JSON.stringify(item.body);
       contentType = "application/json";

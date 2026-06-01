@@ -88,6 +88,8 @@ async function processMutationQueueInSW() {
         replayBody = item.body;
       } else if (bt === "buffer") {
         replayBody = item.body instanceof ArrayBuffer ? new Uint8Array(item.body) : item.body;
+      } else if (bt === "text") {
+        replayBody = item.body;
       } else if (item.body != null) {
         replayBody = JSON.stringify(item.body);
         contentType = "application/json";

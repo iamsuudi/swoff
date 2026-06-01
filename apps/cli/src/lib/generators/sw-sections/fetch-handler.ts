@@ -583,7 +583,7 @@ async function storeMutationInSW(request) {
     url: new URL(request.url).href,
     body,
     bodyType,
-    headers: {},
+    headers: request.headers.get("Content-Type") ? { "Content-Type": request.headers.get("Content-Type") } : {},
     timestamp: Date.now(),
     retryCount: 0,
     nextRetryAt: 0,

@@ -3,6 +3,7 @@
  * Uses direct imports (no subprocess spawning) for a single status line.
  */
 
+import { existsSync } from "fs";
 import { log } from "../cli/logger.js";
 import { loadConfigAsync } from "../config/loader.js";
 import { detectProjectLanguage } from "../utils/detect-language.js";
@@ -81,6 +82,48 @@ export async function generateCommand(
       log.error(
         `File generation failed: ${err instanceof Error ? err.message : String(err)}`,
       );
+    }
+  }
+
+  // PWA asset generation
+  if (config.features.pwa.enabled) {
+    if (!config.features.pwa.assets.source) {
+      clearStatusLine();
+      log.help("PWA: no asset source configured. Provide a logo via swoff.config.json → pwa.assets.source");
+      log.help("     or run: swoff generate-assets --source ./path/to/logo.svg");
+    } else {
+      const assets = config.features.pwa.assets;
+      const sourcePath = join(projectRoot, assets.source);
+      if (existsSync(sourcePath)) {
+        statusLine("→ PWA assets...");
+        try {
+          const { generateAssets } = await import("../generators/asset-generator/generate.js");
+          const { printAssetGuide } = await import("../generators/asset-generator/guide.js");
+          const result = await generateAssets({
+            source: sourcePath,
+            outputDir: join(projectRoot, assets.outputDir),
+            appName: config.framework || "App",
+            themeColor: assets.themeColor,
+            bgColor: assets.bgColor,
+            appleSplash: true,
+          });
+          clearStatusLine();
+          log.success(`PWA assets generated (${result.files.length} files)`);
+          printAssetGuide({
+            appName: config.framework || "App",
+            themeColor: assets.themeColor,
+            bgColor: assets.bgColor,
+            outputDir: assets.outputDir,
+            hasSplash: true,
+          });
+        } catch (err: unknown) {
+          clearStatusLine();
+          log.warn(
+            `PWA assets generation skipped: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          log.help("Run manually: swoff generate-assets --source <path>");
+        }
+      }
     }
   }
 

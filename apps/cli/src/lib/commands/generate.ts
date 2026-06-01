@@ -4,7 +4,7 @@
  */
 
 import { log } from "../cli/logger.js";
-import { loadConfig } from "../config/loader.js";
+import { loadConfigAsync } from "../config/loader.js";
 import { detectProjectLanguage } from "../utils/detect-language.js";
 import { statusLine, clearStatusLine } from "../utils/tty-status.js";
 import { generateSW } from "../generators/sw-generator.js";
@@ -26,7 +26,7 @@ export async function generateCommand(
 
   log.header("Generating Swoff Files");
 
-  const { config, configPath } = loadConfig(projectRoot);
+  const { config, configPath } = await loadConfigAsync(projectRoot);
 
   if (!configPath) {
     log.warn('No swoff.config.json found. Run "swoff init" first.');

@@ -136,7 +136,7 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
     }
     if (event.data.type === "MUTATION_STORED") {
-      processMutationQueue();
+      typeof processMutationQueue !== "undefined" && processMutationQueue();
     }${invalidationHandler}  });
 }
 

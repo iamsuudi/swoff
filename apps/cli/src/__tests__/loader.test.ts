@@ -81,4 +81,9 @@ describe("loadConfig", () => {
     expect(result.configSource).toBe("defaults");
     expect(result.config.features.serviceWorker.version).toBe("package");
   });
+
+  it("throws on JS config with sync loader", () => {
+    writeFileSync(join(testDir, "swoff.config.js"), "export default { enabled: true };");
+    expect(() => loadConfig(testDir)).toThrow("async loader");
+  });
 });

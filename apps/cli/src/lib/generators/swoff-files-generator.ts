@@ -14,7 +14,7 @@
 
 import { join } from "path";
 import { fileURLToPath } from "url";
-import { loadConfig } from "../config/loader.js";
+import { loadConfigAsync } from "../config/loader.js";
 import { statusLine, clearStatusLine } from "../utils/tty-status.js";
 import type { GeneratorContext } from "./file-generators/context.js";
 import { generateSwTemplate } from "./file-generators/sw-template.js";
@@ -55,7 +55,7 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
     { name: "cache", gen: () => generateCache(ctx), enabled: true },
     { name: "mutation-queue", gen: () => generateMutationQueue(ctx), enabled: ctx.config.features.mutationQueue.enabled },
     { name: "mutation-state", gen: () => generateMutationState(ctx), enabled: ctx.config.features.mutationQueue.enabled },
-    { name: "background-sync", gen: () => generateBackgroundSync(ctx), enabled: ctx.config.features.backgroundSync && !(ctx.config.features.auth.enabled && ctx.config.features.auth.type !== "cookie") },
+    { name: "background-sync", gen: () => generateBackgroundSync(ctx), enabled: ctx.config.features.backgroundSync && ctx.config.features.mutationQueue.enabled && !(ctx.config.features.auth.enabled && ctx.config.features.auth.type !== "cookie") },
     { name: "auth-store", gen: () => generateAuthStore(ctx), enabled: ctx.config.features.auth.enabled },
     { name: "auth-user", gen: () => generateAuthUser(ctx), enabled: ctx.config.features.auth.enabled },
     { name: "auth-state", gen: () => generateAuthState(ctx), enabled: ctx.config.features.auth.enabled },
@@ -92,33 +92,36 @@ if (fileURLToPath(import.meta.url) === fileURLToPath(new URL(process.argv[1], "f
   const language = getArg("language") || "ts";
   const configPath = getArg("config-path") || join(projectRoot, "swoff.config.json");
 
-  const { config } = loadConfig(projectRoot, configPath);
+  loadConfigAsync(projectRoot, configPath).then(({ config }) => {
+    if (!config.enabled) {
+      console.log("Config generation disabled");
+      process.exit(0);
+    }
 
-  if (!config.enabled) {
-    console.log("Config generation disabled");
-    process.exit(0);
-  }
+    const ext = language === "ts" ? "ts" : "js";
+    const swoffDir = join(projectRoot, "swoff");
+    const generatedFiles: string[] = [];
 
-  const ext = language === "ts" ? "ts" : "js";
-  const swoffDir = join(projectRoot, "swoff");
-  const generatedFiles: string[] = [];
+    const ctx: GeneratorContext = {
+      config,
+      projectRoot,
+      swoffDir,
+      ext,
+      generatedFiles,
+      frameworkName: config.framework ?? "vanilla",
+    };
 
-  const ctx: GeneratorContext = {
-    config,
-    projectRoot,
-    swoffDir,
-    ext,
-    generatedFiles,
-    frameworkName: config.framework ?? "vanilla",
-  };
+    console.log(`Generating Swoff files (${language})...`);
 
-  console.log(`Generating Swoff files (${language})...`);
+    generateFiles(ctx, (name) => statusLine(`→ ${name}...`));
 
-  generateFiles(ctx, (name) => statusLine(`→ ${name}...`));
+    clearStatusLine();
 
-  clearStatusLine();
-
-  console.log("Generated files:");
-  generatedFiles.forEach((file) => console.log(`  ${file}`));
-  console.log(`\nTotal: ${generatedFiles.length} files`);
+    console.log("Generated files:");
+    generatedFiles.forEach((file) => console.log(`  ${file}`));
+    console.log(`\nTotal: ${generatedFiles.length} files`);
+  }).catch((err) => {
+    console.error("Failed to load config:", err.message);
+    process.exit(1);
+  });
 }

@@ -151,7 +151,7 @@ ${authReplayHeaders}    let replayBody${T("BodyInit | null")}${ts ? " = null" : 
       replayBody = item.body${AS("BodyInit | null")};
     } else if (bt === "buffer") {
       replayBody = item.body instanceof ArrayBuffer ? new Uint8Array(item.body)${AS("BodyInit")} : item.body${AS("BodyInit")};
-    } else {
+    } else if (item.body != null) {
       replayBody = JSON.stringify(item.body);
       contentType = "application/json";
     }
@@ -161,7 +161,7 @@ ${authReplayHeaders}    let replayBody${T("BodyInit | null")}${ts ? " = null" : 
         ...(contentType ? { "Content-Type": contentType } : {}),
         ...item.headers,
 ${authHeaderSpread}      },
-      body: replayBody,
+      ...(replayBody != null ? { body: replayBody } : {}),
     });
 
     if (!response.ok) throw new Error(\`HTTP \${response.status}\`);

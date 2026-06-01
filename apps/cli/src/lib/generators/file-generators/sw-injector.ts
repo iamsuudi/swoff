@@ -8,7 +8,7 @@ export function generateSwInjector(ctx: GeneratorContext): void {
   const autoUpdate = ctx.config.features.serviceWorker.autoUpdate;
   const autoActivate = ctx.config.features.serviceWorker.autoActivate;
   const v = ctx.config.features.serviceWorker.version;
-  const versionEnabled = v !== false && v !== "hash";
+  const versionEnabled = v !== "hash";
   const ext = ctx.ext;
   const ts = ext === "ts";
 
@@ -65,7 +65,11 @@ async function waitForController()${R("Promise<void>")}{
     if (navigator.serviceWorker.controller) {
       resolve();
     } else {
-      navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true });
+      const timeout = setTimeout(() => resolve(), 30000);
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        clearTimeout(timeout);
+        resolve();
+      }, { once: true });
     }
   });
 }
@@ -213,7 +217,11 @@ async function waitForController()${R("Promise<void>")}{
     if (navigator.serviceWorker.controller) {
       resolve();
     } else {
-      navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true });
+      const timeout = setTimeout(() => resolve(), 30000);
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        clearTimeout(timeout);
+        resolve();
+      }, { once: true });
     }
   });
 }

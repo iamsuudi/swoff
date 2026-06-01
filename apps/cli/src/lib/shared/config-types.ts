@@ -58,7 +58,7 @@ export interface SwoffConfig {
       preventDefaultInstall: boolean;
     };
     serviceWorker: {
-      version: string | false;
+      version: string;
       minSupportedVersion: string;
       autoUpdate: boolean;
       autoActivate: boolean;
@@ -203,7 +203,7 @@ export function mergeConfigs(
         ...override.features?.serviceWorker,
         version:
           override.features?.serviceWorker?.version ??
-          base.features.serviceWorker.version,
+          base.features.serviceWorker.version ?? "package",
         minSupportedVersion:
           override.features?.serviceWorker?.minSupportedVersion ??
           base.features.serviceWorker.minSupportedVersion,

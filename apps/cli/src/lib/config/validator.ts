@@ -44,15 +44,14 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     const sw = features.serviceWorker as Record<string, unknown> | undefined;
     if (sw) {
       const ver = sw.version;
-      if (ver !== false && typeof ver !== "string") {
-        errors.push('features.serviceWorker.version must be a string or false');
-      }
-      if (typeof ver === "string") {
+      if (typeof ver !== "string") {
+        errors.push('features.serviceWorker.version must be a string');
+      } else {
         const isSemver = /^\d+\.\d+\.\d+$/.test(ver);
         const isPackage = ver === "package";
         const isHash = ver === "hash";
         if (!isSemver && !isPackage && !isHash) {
-          errors.push(`features.serviceWorker.version must be "package", "hash", a semver string (e.g. "1.0.0"), or false`);
+          errors.push(`features.serviceWorker.version must be "package", "hash", or a semver string (e.g. "1.0.0")`);
         }
       }
       if (sw.minSupportedVersion !== undefined && typeof sw.minSupportedVersion === "string") {

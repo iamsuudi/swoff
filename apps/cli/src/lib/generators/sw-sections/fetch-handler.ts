@@ -474,7 +474,7 @@ function markFromCache(response) {
 }
 
 function isStale(response, staleTimeSeconds) {
-  if (!staleTimeSeconds || staleTimeSeconds <= 0) return false;
+  if (staleTimeSeconds == null || staleTimeSeconds <= 0) return false;
   const cachedAt = response.headers.get("X-SW-Cached-At");
   if (!cachedAt) return false;
   return Date.now() - Number(cachedAt) > staleTimeSeconds * 1000;

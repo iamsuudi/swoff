@@ -102,22 +102,6 @@ describe("assembleSW", () => {
     expect(sw2).toContain("const AUTO_SKIP_WAITING = false");
   });
 
-  it("uses hash-based cache name when version is disabled", () => {
-    const configNoVersion: SwoffConfig = {
-      ...config,
-      features: {
-        ...config.features,
-        serviceWorker: {
-          ...config.features.serviceWorker,
-          version: false,
-        },
-      },
-    };
-    const sw = assembleSW(configNoVersion, "1.0.0");
-    expect(sw).toContain("CACHE_NAME = 'sw-cache-");
-    expect(sw).not.toContain("sw-v1.0.0");
-  });
-
   it("uses hash-based cache name when version mode is 'hash'", () => {
     const configHash: SwoffConfig = {
       ...config,

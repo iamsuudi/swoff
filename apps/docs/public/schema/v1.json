@@ -49,8 +49,7 @@
             "version": {
               "oneOf": [
                 { "type": "string", "enum": ["package", "hash"], "description": "\"package\": reads version from package.json. \"hash\": uses SHA-256 hash of generated SW content (deterministic, fixed SW URL)." },
-                { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "description": "Explicit semver version string (e.g. \"1.2.3\")" },
-                { "type": "boolean", "const": false, "description": "Disable versioning — uses a fixed SW URL with hash-based cache naming (simple mode)" }
+                { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "description": "Explicit semver version string (e.g. \"1.2.3\")" }
               ],
               "default": "package"
             },
@@ -395,7 +394,7 @@
               "type": "integer",
               "description": "Delay in ms before reconnecting after connection loss",
               "default": 5000,
-              "minimum": 1000
+              "minimum": 0
             }
           },
           "required": ["enabled", "type", "endpoint"]

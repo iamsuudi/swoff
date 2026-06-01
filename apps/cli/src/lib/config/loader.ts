@@ -54,10 +54,11 @@ export function loadConfig(projectRoot: string, explicitPath?: string): LoadConf
       }
     }
 
-    // JS configs are loaded asynchronously — defer to loadConfigAsync.
-    // Return the path so the async variant can retry with dynamic import.
+    // JS configs require the async loader
     if (file.endsWith(".js")) {
-      return { config: defaultConfig, configPath: path, configSource: "JavaScript" };
+      throw new Error(
+        `JavaScript config files require the async loader. Use loadConfigAsync() instead of loadConfig() for "${path}".`
+      );
     }
   }
 

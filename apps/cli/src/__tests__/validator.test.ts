@@ -181,12 +181,13 @@ describe("validateConfig", () => {
       expect(validateConfig(config)).toEqual([]);
     });
 
-    it("accepts false version", () => {
+    it("rejects false version", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: false } },
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: false as unknown as string } },
       };
-      expect(validateConfig(config)).toEqual([]);
+      const errors = validateConfig(config);
+      expect(errors[0]).toContain("features.serviceWorker.version must be a string");
     });
 
     it("rejects invalid version string", () => {
@@ -195,16 +196,16 @@ describe("validateConfig", () => {
         features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: "latest" } },
       };
       const errors = validateConfig(config);
-      expect(errors[0]).toContain('version must be "package", "hash", a semver string');
+      expect(errors[0]).toContain('version must be "package", "hash", or a semver string');
     });
 
     it("rejects version with wrong type", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: true } },
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: true as unknown as string } },
       };
       const errors = validateConfig(config);
-      expect(errors[0]).toContain("features.serviceWorker.version must be a string or false");
+      expect(errors[0]).toContain("features.serviceWorker.version must be a string");
     });
   });
 

@@ -88,7 +88,7 @@ async function processMutationQueueInSW() {
         replayBody = item.body;
       } else if (bt === "buffer") {
         replayBody = item.body instanceof ArrayBuffer ? new Uint8Array(item.body) : item.body;
-      } else {
+      } else if (item.body != null) {
         replayBody = JSON.stringify(item.body);
         contentType = "application/json";
       }
@@ -100,7 +100,7 @@ async function processMutationQueueInSW() {
             ...(contentType ? { "Content-Type": contentType } : {}),
             ...item.headers,
           },
-          body: replayBody,
+          ...(replayBody != null ? { body: replayBody } : {}),
 ${credentialsLine}        });
         if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
 

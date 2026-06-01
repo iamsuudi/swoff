@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { loadConfig } from "../config/loader.js";
+import { loadConfigAsync } from "../config/loader.js";
 import { assembleSW } from "./sw-sections/assemble-sw.js";
 
 interface GeneratorOptions {
@@ -10,9 +10,9 @@ interface GeneratorOptions {
   onStatus?: (msg: string) => void;
 }
 
-function resolveVersion(config: { features: { serviceWorker: { version: string | false; minSupportedVersion: string } } }, pkgVersion: string): string {
+function resolveVersion(config: { features: { serviceWorker: { version: string; minSupportedVersion: string } } }, pkgVersion: string): string {
   const v = config.features.serviceWorker.version;
-  if (v === false || v === "hash") return pkgVersion || "1.0.0";
+  if (v === "hash") return "0.0.0";
   if (v === "package") return pkgVersion || "1.0.0";
   return v;
 }
@@ -33,7 +33,7 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ vers
     }
   }
 
-  const { config, configSource } = loadConfig(optProjectRoot, optConfigPath);
+  const { config, configSource } = await loadConfigAsync(optProjectRoot, optConfigPath);
 
   if (!config.enabled) {
     status("Swoff config generation disabled. Using custom code mode.");
@@ -41,7 +41,7 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ vers
   }
 
   const v = config.features.serviceWorker.version;
-  const versionEnabled = v !== false && v !== "hash";
+  const versionEnabled = v !== "hash";
   const version = resolveVersion(config, pkg.version || "1.0.0");
   const sw = assembleSW(config, version, optProjectRoot);
 

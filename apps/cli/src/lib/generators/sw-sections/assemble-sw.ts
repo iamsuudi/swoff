@@ -70,7 +70,7 @@ export function assembleSW(config: SwoffConfig, version: string, projectRoot?: s
   const { features } = config;
   const outputDir = config.build?.outputDir || "dist";
   const swFilename = config.build?.swFilename || "sw";
-  const versionEnabled = serviceWorker.version !== false && serviceWorker.version !== "hash";
+  const versionEnabled = serviceWorker.version !== "hash";
 
   const fallback: string[] = ["/index.html"];
   if (features.pwa.enabled) fallback.push("/manifest.json");

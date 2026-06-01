@@ -39,12 +39,12 @@ const template = readFileSync(templatePath, 'utf8');
 
 const swConfig = config.features?.serviceWorker || {};
 const versionField = swConfig.version;
-const versionEnabled = versionField !== false && versionField !== "hash";
+const versionEnabled = versionField !== "hash";
 const version = versionField === "package"
   ? (pkg.version || '1.0.0')
-  : versionField && versionField !== "hash"
-    ? versionField
-    : (pkg.version || '1.0.0');
+  : versionField === "hash"
+    ? "0.0.0"
+    : versionField || (pkg.version || '1.0.0');
 const outputDir = config.build?.outputDir || 'dist';
 const swFilename = config.build?.swFilename || 'sw';
 

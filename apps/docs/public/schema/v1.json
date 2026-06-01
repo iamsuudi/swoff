@@ -21,6 +21,12 @@
       "default": "vanilla",
       "enum": ["react", "vue", "svelte", "vanilla"]
     },
+    "apiBaseUrl": {
+      "type": "string",
+      "description": "Base URL prepended to all relative API URLs in generated code (fetch-wrapper, server-push, auth-store, config.ts). Set to your API server origin when the frontend and API are on different domains. Leave empty string when they share the same origin.",
+      "default": "",
+      "examples": ["", "https://api.example.com"]
+    },
     "features": {
       "type": "object",
       "description": "Feature toggles - enable/disable specific functionality",
@@ -208,7 +214,7 @@
             },
             "requestBatchWindowMs": {
               "type": "integer",
-              "description": "Time window in ms to coalesce concurrent GET requests to the same URL before dispatching to the SW. 0 disables batching. Default 50ms.",
+              "description": "Time window in ms to coalesce concurrent GET requests to the same URL before dispatching to the SW. 0 disables batching.",
               "default": 50,
               "minimum": 0
             },

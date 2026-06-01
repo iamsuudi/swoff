@@ -62,6 +62,7 @@
  *   // When back online, processMutationQueue() replays them
  */
 
+import { API_BASE } from "./config.ts";
 import { generateTags, invalidateUrl, expandCascading } from "./invalidation-tags.ts";
 import { invalidateByTags } from "./cache.ts";
 import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, ensureValidAuth, AUTH_WITH_CREDENTIALS } from "./auth/store.ts";
@@ -98,7 +99,8 @@ const BATCH_WINDOW_MS = 50;
 export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit & FetchWithCacheOptions = {}): Promise<FetchWithCacheResult<T>> {
   const method = (options.method || "GET").toUpperCase();
   const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD" || method === "OPTIONS"));
-  const url = typeof input === "string" ? input : input.url;
+  const resolvedInput = typeof input === "string" && !input.startsWith("http") && !input.startsWith("//") ? API_BASE + input : input;
+  const url = typeof resolvedInput === "string" ? resolvedInput : resolvedInput.url;
 
   const headers = new Headers(options.headers);
 
@@ -193,7 +195,7 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
       pendingBatches.set(url, batch);
       batch.timer = setTimeout(() => {
         pendingBatches.delete(url);
-        const promise = fetch(input, fetchOptions);
+        const promise = fetch(resolvedInput, fetchOptions);
         const cleanup = () => {
           inFlightRequests.delete(url);
           if (options.signal) {
@@ -212,7 +214,7 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
         batch.rejectors.push(reject);
       });
     } else {
-      responsePromise = fetch(input, fetchOptions);
+      responsePromise = fetch(resolvedInput, fetchOptions);
     }
   }
 
@@ -223,18 +225,19 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
     if (err instanceof TypeError) {
       if (isRead) {
     if (options.signal?.aborted) throw new DOMException("The operation was aborted", "AbortError");
-      const cached = await caches.match(input);
+      const cached = await caches.match(resolvedInput);
       if (cached) return { response: cached, fromCache: true, queued: false };
       throw new Error("Offline: no cached data available", { cause: err });
       }
       // SW not controlling — fallback to client-side queue
       if (!navigator.serviceWorker?.controller) {
     if (options.queueOffline !== false) {
+      const ct = headers.get("Content-Type");
       await queueMutation({
         method,
         url,
         body: options.body,
-        headers: {},
+        headers: ct ? { "Content-Type": ct } : {},
         tags: mutationTags,
         timestamp: Date.now(),
       });
@@ -266,7 +269,7 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
   if (options.auth && response.status === 401) {
     // Check if the token is actually expired by probing the user endpoint
     try {
-      const authCheck = await fetch("/api/me", {
+      const authCheck = await fetch(API_BASE + "/api/me", {
         headers: { "Authorization": headers.get("Authorization") } as HeadersInit,
         credentials: AUTH_WITH_CREDENTIALS ? "include" : undefined,
       });
@@ -277,7 +280,7 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
           // Retry original request with fresh token
           const retryHeaders = new Headers(options.headers);
           withAuthHeaders(retryHeaders, refreshed);
-          response = await fetch(input, { ...fetchOptions, headers: retryHeaders });
+          response = await fetch(resolvedInput, { ...fetchOptions, headers: retryHeaders });
         } else {
           await clearAuth();
           window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));

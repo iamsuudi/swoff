@@ -52,6 +52,7 @@ export interface SwoffConfig {
   $schema?: string;
   enabled: boolean;
   framework?: "react" | "vue" | "svelte" | "vanilla";
+  apiBaseUrl?: string;
   features: {
     pwa: {
       enabled: boolean;
@@ -194,6 +195,7 @@ export function mergeConfigs(
   return {
     ...base,
     ...override,
+    apiBaseUrl: override.apiBaseUrl ?? base.apiBaseUrl,
     features: {
       ...base.features,
       ...override.features,
@@ -263,6 +265,7 @@ export function mergeConfigs(
 
 export const defaultConfig: SwoffConfig = {
   enabled: true,
+  apiBaseUrl: "",
   features: {
     pwa: {
       enabled: true,
@@ -319,6 +322,7 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
   $schema: "https://swoff.netlify.app/schema/v1.json",
   enabled: true,
   framework: "vanilla",
+  apiBaseUrl: "",
   features: {
     pwa: { enabled: true, preventDefaultInstall: false },
     serviceWorker: {

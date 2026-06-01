@@ -58,8 +58,9 @@ function applyReplacements(sw: string, config: SwoffConfig, assetsToCache: { url
     ? sw.replace("// [[PUSH_HANDLERS]]", generateSwPushHandlers())
     : sw.replace("// [[PUSH_HANDLERS]]", "");
 
+  const baseUrl = config.apiBaseUrl || "";
   sw = features.serverPush?.enabled
-    ? sw.replace("// [[SERVER_PUSH_HANDLER]]", generateServerPushHandler(features.serverPush.type, features.serverPush.endpoint, features.serverPush.reconnectDelayMs))
+    ? sw.replace("// [[SERVER_PUSH_HANDLER]]", generateServerPushHandler(features.serverPush.type, baseUrl + features.serverPush.endpoint, features.serverPush.reconnectDelayMs))
     : sw.replace("// [[SERVER_PUSH_HANDLER]]", "");
 
   return sw;

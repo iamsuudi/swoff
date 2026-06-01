@@ -8,6 +8,40 @@ import { fetchWithCache } from "../fetch-wrapper.ts";
 import { generateTags } from "../invalidation-tags.ts";
 import type { FetchWithCacheOptions } from "../fetch-wrapper.ts";
 
+/**
+ * Fetch and cache data with automatic invalidation, revalidation, and offline support.
+ *
+ * Caches responses through the service worker. Automatically refetches when the
+ * cache is invalidated (by tag, mutation, or explicit invalidateUrl call).
+ *
+ * Supports all fetchWithCache options: auth, strategy, staleTime, tags,
+ * invalidate, queueOffline, and AbortController via signal.
+ *
+ * Usage:
+ *   const { data, error, loading, refetch } = useCachedFetch<MyType>("/api/todos");
+ *
+ *   // With auth (works with cookie and bearer auth types):
+ *   const { data: user } = useCachedFetch("/api/me", { auth: true });
+ *
+ *   // Disable auto-fetch:
+ *   const { data } = useCachedFetch(url, { enabled: false });
+ *
+ *   // Manual refetch:
+ *   const { data, refetch } = useCachedFetch("/api/todos");
+ *   <button onClick={refetch}>Refresh</button>
+ *
+ *   // Auth behavior:
+ *   - Cookie auth: credentials are sent automatically, no extra config needed.
+ *   - Bearer auth: set `auth: true` to attach the token (from auth/store.ts).
+ *     The hook handles 401 → auto-refresh → retry via fetchWithCache.
+ *
+ *   // Network status: fetchWithCache falls back to cached data when offline.
+ *   // Use useNetworkStatus() separately to show offline UI.
+ *
+ * @param url - The URL to fetch. Pass null to skip fetching (e.g., when id is not ready).
+ * @param options - Fetch options, plus `enabled` to control auto-fetching.
+ * @returns { data, error, loading, refetch }
+ */
 export function useCachedFetch<T>(
   url: string | null,
   options: FetchWithCacheOptions & {

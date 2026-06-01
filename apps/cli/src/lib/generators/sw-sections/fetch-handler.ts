@@ -204,6 +204,8 @@ let _refreshQueuePromise = null;
 
 function queueRefresh(cacheKeyUrl, actualUrl${
     tagInvalidation ? ", tags" : ""
+  }${
+    tagInvalidation ? ", method, body, contentType" : ""
   }) {
   // Use Map keyed by cacheKey for proper deduplication${
     tagInvalidation
@@ -213,7 +215,7 @@ function queueRefresh(cacheKeyUrl, actualUrl${
       : ""
   }
   _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl, retryCount: 0${
-    tagInvalidation ? ", tags: tags || null" : ""
+    tagInvalidation ? ", tags: tags || null, method: method || null, body: body || null, contentType: contentType || null" : ""
   } });
   if (!_refreshQueuePromise) {
     _refreshQueuePromise = _processRefreshQueue();
@@ -259,14 +261,20 @@ async function _processRefreshQueue() {
       await Promise.allSettled(batch.map(async (entry) => {
         const fetchUrl = await resolveActualUrl(entry);
         try {
-          const response = await fetch(fetchUrl);
+          const fetchOpts = {};
+          if (entry.method && entry.method !== "GET" && entry.method !== "HEAD") {
+            fetchOpts.method = entry.method;
+            if (entry.body) fetchOpts.body = entry.body;
+            if (entry.contentType) fetchOpts.headers = { "Content-Type": entry.contentType };
+          }
+          const response = await fetch(fetchUrl, fetchOpts);
           if (response.ok) {
             const request = new Request(entry.cacheKey);
             await storeRuntime(request, response);${
               tagInvalidation
                 ? `
           if (entry.tags && typeof cacheTagUrl !== "undefined") {
-            await cacheTagUrl(entry.cacheKey, fetchUrl, entry.tags);
+            await cacheTagUrl(entry.cacheKey, fetchUrl, entry.tags, entry.method, entry.body, entry.contentType);
           }`
                 : ""
             }
@@ -451,7 +459,23 @@ async function storeRuntime(request, response) {
 }
 
 async function cacheResponse(request, response) {
-  await storeRuntime(request, response);${tagCode}
+  await storeRuntime(request, response);
+  const tagsHeader = request.headers.get("X-SW-Cache-Tags");
+  if (tagsHeader) {
+    const cacheKeyUrl = cacheKey(request);
+    const actualUrl = new URL(request.url).href;
+    const tags = tagsHeader.split(",").map((t) => t.trim());
+    const method = request.method;
+    let body = null;
+    let contentType = null;
+    if (method !== "GET" && method !== "HEAD") {
+      contentType = request.headers.get("Content-Type");
+      try {
+        body = await request.clone().text();
+      } catch {}
+    }
+    await cacheTagUrl(cacheKeyUrl, actualUrl, tags, method, body, contentType);
+  }
 }
 
 async function fromSpaFallback(request) {
@@ -668,20 +692,22 @@ async function cacheFirst(event, request) {
   const fallback = await fromSpaFallback(request);
   if (fallback) return fallback;
 
+  const reqForCache = request.clone();
   const response = await _fetch(event, request);
   if (response.ok) {
     const responseToCache = response.clone();
-    event.waitUntil(cacheResponse(request, responseToCache));
+    event.waitUntil(cacheResponse(reqForCache, responseToCache));
   }
   return response;
 }
 
 async function networkFirst(event, request) {
   try {
+    const reqForCache = request.clone();
     const response = await _fetch(event, request);
     if (response.ok) {
       const responseToCache = response.clone();
-      event.waitUntil(cacheResponse(request, responseToCache));
+      event.waitUntil(cacheResponse(reqForCache, responseToCache));
     }
     return response;
   } catch {
@@ -713,10 +739,11 @@ async function staleWhileRevalidate(event, request) {
     return markFromCache(precached);
   }
 
+  const reqForCache = request.clone();
   const response = await _fetch(event, request);
   if (response.ok) {
     const responseToCache = response.clone();
-    await cacheResponse(request, responseToCache);
+    await cacheResponse(reqForCache, responseToCache);
   }
   return response;
 }
@@ -739,10 +766,11 @@ async function reactiveStrategy(event, request, staleTime) {
   const fallback = await fromSpaFallback(request);
   if (fallback) return fallback;
 
+  const reqForCache = request.clone();
   const response = await _fetch(event, request);
   if (response.ok) {
     const responseToCache = response.clone();
-    await cacheResponse(request, responseToCache);
+    await cacheResponse(reqForCache, responseToCache);
   }
   return response;
 }

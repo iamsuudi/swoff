@@ -14,11 +14,14 @@
  *   data: {"tags": ["todos", "todo:42"]}
  */
 
+import { API_BASE } from "./config.ts";
+
 type PushEventOptions= {
   signal: AbortSignal;
 };
 
 let active: boolean = false;
+let swConnected: boolean = false;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 function handleInvalidation(tags: string[]): void{
@@ -35,11 +38,22 @@ function notifyStatus(connected: boolean): void{
   window.dispatchEvent(new CustomEvent("push-events-status", { detail: { connected } }));
 }
 
+// Listen for SSE status from the SW
+if (typeof navigator !== "undefined" && navigator.serviceWorker) {
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data?.type === "SSE_STATUS") {
+      swConnected = event.data.connected;
+      notifyStatus(swConnected);
+    }
+  });
+}
+
 async function connect(options: PushEventOptions = {} as PushEventOptions): Promise<void>{
   
   return new Promise((resolve) => {
-    fetch("/api/events", {
+    fetch(API_BASE + "/api/events", {
       headers: { Accept: "text/event-stream" },
+      credentials: "include",
       signal: options.signal,
     }).then(async (response) => {
       if (!response.ok || !response.body) { resolve(); return; }
@@ -107,5 +121,5 @@ export function stopPushEvents(){
 
 /** Check if the push connection is currently established. */
 export function isPushConnected(){
-  return active;
+  return active || swConnected;
 }

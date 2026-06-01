@@ -28,11 +28,13 @@
 import { setupPwaInstall } from "./pwa/install.ts";
 import { processMutationQueue } from "./mutation-queue.ts";
 import { initServiceWorker as swInit } from "./sw/injector.ts";
+import { startPushEvents } from "./server-push.ts";
 
 setupPwaInstall();
 
 // --- Mutation Queue Online Listener ---
 window.addEventListener("online", processMutationQueue);
+startPushEvents();
 
 // --- Online Refetch Listener ---
 // When connectivity returns, the SW checks stale cache entries and refetches them.

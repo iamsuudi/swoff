@@ -17,6 +17,13 @@ export function generateClientInjector(ctx: GeneratorContext): void {
 
   const pwaCall = pwaEnabled ? `setupPwaInstall();\n` : "";
 
+  const pushImport = ctx.config.features.serverPush?.enabled
+    ? `import { startPushEvents } from "./server-push.${ext}";
+`
+    : "";
+
+  const pushCall = ctx.config.features.serverPush?.enabled ? `startPushEvents();\n` : "";
+
   const mutationImport = mutationQueueEnabled
     ? `import { processMutationQueue } from "./mutation-queue.${ext}";
 `
@@ -94,8 +101,8 @@ if (typeof document !== "undefined") {
  *   sw-update-available   - New version ready (detail: { version })
  *   sw-version-detected   - Version info available
  */
-${pwaImport}${mutationImport}${swImport}
-${pwaCall}${mutationOnlineListener}${onlineRefetchListener}${focusListener}
+${pwaImport}${mutationImport}${swImport}${pushImport}
+${pwaCall}${mutationOnlineListener}${pushCall}${onlineRefetchListener}${focusListener}
 // --- SW Message Listener ---
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (event) => {

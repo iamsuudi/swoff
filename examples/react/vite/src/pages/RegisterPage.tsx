@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { API_BASE } from "../../swoff/config.ts";
 import { setAuth } from "../../swoff/auth/store";
 
 export default function RegisterPage() {
@@ -15,7 +16,7 @@ export default function RegisterPage() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("/api/register", {
+      const res = await fetch(API_BASE + "/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),

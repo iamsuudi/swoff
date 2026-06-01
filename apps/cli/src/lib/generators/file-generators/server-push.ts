@@ -25,8 +25,9 @@ export function generateServerPush(ctx: GeneratorContext): void {
 
   const sseConnect = `
   return new Promise((resolve) => {
-    fetch("${endpoint}", {
+    fetch(API_BASE + "${endpoint}", {
       headers: { Accept: "text/event-stream" },
+      credentials: "include",
       signal: options.signal,
     }).then(async (response) => {
       if (!response.ok || !response.body) { resolve(); return; }
@@ -65,7 +66,7 @@ export function generateServerPush(ctx: GeneratorContext): void {
   const wsConnect = `
   return new Promise((resolve) => {
     try {
-      const ws = new WebSocket("${endpoint}");
+      const ws = new WebSocket(API_BASE + "${endpoint}");
       ws.onopen = () => notifyStatus(true);
       ws.onmessage = (event) => {
         try { const d = JSON.parse(event.data); if (d.type === "invalidate" && d.tags) handleInvalidation(d.tags); } catch {}
@@ -94,11 +95,14 @@ export function generateServerPush(ctx: GeneratorContext): void {
  *   data: {"tags": ["todos", "todo:42"]}
  */
 
+import { API_BASE } from "./config.${ext}";
+
 type PushEventOptions= {
   signal${T("AbortSignal")};
 };
 
 let active${T("boolean")} = false;
+let swConnected${T("boolean")} = false;
 let reconnectTimer${T("ReturnType<typeof setTimeout> | null")} = null;
 
 function handleInvalidation(tags${T("string[]")})${R("void")}{${invalidate}
@@ -107,6 +111,16 @@ function handleInvalidation(tags${T("string[]")})${R("void")}{${invalidate}
 
 function notifyStatus(connected${T("boolean")})${R("void")}{
   window.dispatchEvent(new CustomEvent("push-events-status", { detail: { connected } }));
+}
+
+// Listen for SSE status from the SW
+if (typeof navigator !== "undefined" && navigator.serviceWorker) {
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data?.type === "SSE_STATUS") {
+      swConnected = event.data.connected;
+      notifyStatus(swConnected);
+    }
+  });
 }
 
 async function connect(options${T("PushEventOptions")} = {} as PushEventOptions)${R("Promise<void>")}{
@@ -144,7 +158,7 @@ export function stopPushEvents(){
 
 /** Check if the push connection is currently established. */
 export function isPushConnected(){
-  return active;
+  return active || swConnected;
 }
 `;
 

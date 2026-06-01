@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import { API_BASE } from "../../swoff/config.ts";
 import { useAuth } from "../../swoff/hooks/useAuth";
 import { clearAuth } from "../../swoff/auth/store";
 import { clearCachedUser } from "../../swoff/auth/user";
@@ -10,7 +11,7 @@ export default function Header() {
   const { authenticated, user } = useAuth();
 
   const handleLogout = async () => {
-    await fetch("/api/logout", { method: "POST" }).catch(() => {});
+    await fetch(API_BASE + "/api/logout", { method: "POST" }).catch(() => {});
     await clearAuth();
     await clearCachedUser();
     window.dispatchEvent(

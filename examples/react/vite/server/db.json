@@ -45,15 +45,6 @@
       "userId": 1
     },
     {
-      "id": 21,
-      "title": "Hey",
-      "description": "aaaa",
-      "priority": "low",
-      "createdAt": "2026-06-01T04:51:37.447Z",
-      "updatedAt": "2026-06-01T04:51:37.447Z",
-      "userId": 1
-    },
-    {
       "id": 22,
       "title": "SSE Test",
       "description": "Testing SSE broadcast",
@@ -63,7 +54,7 @@
       "userId": 1
     }
   ],
-  "nextNoteId": 23,
+  "nextNoteId": 24,
   "sessions": [
     {
       "id": "23d7f737-d325-4a0d-826b-5ce939ce9964",

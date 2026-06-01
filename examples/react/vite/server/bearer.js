@@ -8,7 +8,7 @@ const app = express();
 const JWT_SECRET = "swoff-demo-secret-key-2026";
 const PORT = 3001;
 
-app.use(cors());
+app.use(cors({ origin: ["http://localhost:5173", "http://localhost:4173"] }));
 app.use(express.json());
 setupLogger(app);
 

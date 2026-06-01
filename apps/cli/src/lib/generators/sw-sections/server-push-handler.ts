@@ -54,6 +54,14 @@ self.addEventListener("activate", (event) => {
   return `
 // --- Server Push Events (SSE) ---
 
+function notifyClientsSSE(connected) {
+  self.clients.matchAll().then(function(clients) {
+    clients.forEach(function(client) {
+      client.postMessage({ type: "SSE_STATUS", connected: !!connected });
+    });
+  });
+}
+
 let pushReconnectTimer = null;
 let pushAbortController = null;
 
@@ -62,12 +70,15 @@ async function connectPushEvents() {
     pushAbortController = new AbortController();
     const response = await fetch("${endpoint}", {
       headers: { Accept: "text/event-stream" },
+      credentials: "include",
       signal: pushAbortController.signal,
     });
     if (!response.ok || !response.body) {
+      notifyClientsSSE(false);
       scheduleReconnect();
       return;
     }
+    notifyClientsSSE(true);
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
@@ -104,6 +115,7 @@ async function connectPushEvents() {
   } catch {
     // Connection lost or aborted
   }
+  notifyClientsSSE(false);
   scheduleReconnect();
 }
 

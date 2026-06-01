@@ -1,3 +1,4 @@
+import { API_BASE } from "../../swoff/config.ts";
 import { usePushSubscription } from "../../swoff/hooks/usePushSubscription";
 
 export default function PushSubscribeButton() {
@@ -6,7 +7,7 @@ export default function PushSubscribeButton() {
 
   const handleToggle = async () => {
     if (subscribed) {
-      await fetch("/api/push/unsubscribe", {
+      await fetch(API_BASE + "/api/push/unsubscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endpoint: subscription?.endpoint }),
@@ -15,7 +16,7 @@ export default function PushSubscribeButton() {
     } else {
       const sub = await subscribe();
       if (sub) {
-        await fetch("/api/push/subscribe", {
+        await fetch(API_BASE + "/api/push/subscribe", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(sub.toJSON()),

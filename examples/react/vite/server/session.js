@@ -29,7 +29,7 @@ function saveSessions() {
 
 loadSessions();
 
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ origin: ["http://localhost:5173", "http://localhost:4173"], credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 setupLogger(app);
@@ -58,7 +58,7 @@ app.post("/api/login", (req, res) => {
   const sessionId = randomUUID();
   sessions.set(sessionId, { id: sessionId, userId: user.id, createdAt: new Date().toISOString() });
   saveSessions();
-  res.cookie("swoff_session", sessionId, { httpOnly: true, sameSite: "strict", maxAge: 86400000, path: "/" });
+  res.cookie("swoff_session", sessionId, { httpOnly: true, sameSite: "lax", maxAge: 86400000, path: "/" });
   res.json({ user: { id: user.id, email: user.email, name: user.name } });
 });
 
@@ -73,7 +73,7 @@ app.post("/api/register", (req, res) => {
   sessions.set(sessionId, { id: sessionId, userId: id, createdAt: new Date().toISOString() });
   writeDb(db);
   saveSessions();
-  res.cookie("swoff_session", sessionId, { httpOnly: true, sameSite: "strict", maxAge: 86400000, path: "/" });
+  res.cookie("swoff_session", sessionId, { httpOnly: true, sameSite: "lax", maxAge: 86400000, path: "/" });
   res.status(201).json({ user: { id, email, name } });
 });
 

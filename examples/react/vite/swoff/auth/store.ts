@@ -14,6 +14,9 @@
  *   await clearAuth();
  */
 
+import { API_BASE } from "../config.ts";
+import { refreshSession } from "./user.ts";
+
 export interface AuthData {
   token?: string;
   user?: Record<string, unknown>;
@@ -145,7 +148,7 @@ export function isAuthUrl(url: string): boolean {
   ];
   return authPaths.some((path) => url.includes(path));
 }
-/** Try to restore the session after page refresh — POSTs to refresh endpoint and merges the new token with cached user data. */
+/** Try to restore the session after page refresh — delegates to refreshSession() in ./user.ts. */
 let restorePromise: Promise<AuthData | null> | null = null;
 
 async function tryRestoreSession(): Promise<AuthData | null> {
@@ -154,10 +157,7 @@ async function tryRestoreSession(): Promise<AuthData | null> {
   }
   restorePromise = (async () => {
     try {
-      const response = await fetch("/api/refresh", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-  credentials: "include" as RequestCredentials,      });
+      const response = await refreshSession();
       if (!response.ok) return null;
       const data = await response.json();
       const userData = await loadUserData();
@@ -184,14 +184,8 @@ export async function ensureValidAuth(): Promise<AuthData | null> {
 
   if (!refreshPromise) {
     refreshPromise = (async () => {
-      const headers = new Headers({ "Content-Type": "application/json" });
-      withAuthHeaders(headers, auth);
       try {
-        const response = await fetch("/api/refresh", {
-          method: "POST",
-          headers,
-  credentials: "include" as RequestCredentials,      });
-
+          const response = await refreshSession();
         if (!response.ok) {
           await clearAuth();
           window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));

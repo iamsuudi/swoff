@@ -1,15 +1,31 @@
 /**
- * Current User — fetch, cache, and invalidate the current user for offline access.
+ * Auth User — refresh session and fetch current user.
+ *
+ * This file is YOUR control panel for auth HTTP calls. swoff generates sensible
+ * defaults based on your swoff.config.json auth type (cookie/bearer), then you
+ * edit the functions below to match your server exactly.
+ *
+ * Both functions are imported by swoff's auth store (auth/store.ts) so your
+ * edits flow through to session refresh, 401 retry, and user caching.
  *
  * Usage:
- *   import { fetchCurrentUser, cacheUser, getCachedUser, clearCachedUser } from "./auth/user.ts";
+ *   import { refreshSession, fetchCurrentUser, cacheUser, getCachedUser, clearCachedUser } from "./auth/user.ts";
  *
- *   await fetchCurrentUser();           // Fetch from server & cache
- *   const user = await getCachedUser(); // Get cached (offline-capable)
- *   await clearCachedUser();            // Clear on logout
+ *   // Refresh the session (called automatically by the auth store)
+ *   const response = await refreshSession();
+ *   const data = await response.json();
+ *
+ *   // Fetch and cache the current user
+ *   const user = await fetchCurrentUser();
+ *
+ *   // Get cached user (offline-capable)
+ *   const cached = await getCachedUser();
+ *
+ *   // Clear on logout
+ *   await clearCachedUser();
  */
 
-import { fetchWithCache } from "../fetch-wrapper.ts";
+import { API_BASE } from "../config.ts";
 
 const DB_NAME = "swoff-auth-user";
 const STORE_NAME = "current-user";
@@ -30,9 +46,45 @@ function openAuthDB(): Promise<IDBDatabase> {
   });
 }
 
-/** Fetch current user from the user endpoint and cache the result in IndexedDB. */
+/**
+ * Refresh the auth session.
+ *
+ * Called automatically by auth/store.{{ext}} when the access token expires
+ * (ensureValidAuth) or to restore a session after page reload (tryRestoreSession).
+ *
+ * cookie defaults: *
+ * Cookie auth: credentials ("include") are automatically sent with the request.
+ *   The browser attaches the session cookie — no token management needed.
+ *   Change method, URL, headers, or body below if your server expects something different.
+ *   Example: if your refresh endpoint expects a specific content-type, add:
+ *     headers: { "Content-Type": "application/x-www-form-urlencoded" },
+ *   Example: if your endpoint uses PUT instead of POST:
+ *     method: "PUT",
+ *
+ * 
+ * @returns A fetch Response. The auth store reads response.json() to extract
+ *          { token, expiresAt } and merges them with cached user data.
+ */
+export async function refreshSession(): Promise<Response> {
+  return fetch(API_BASE + "/api/refresh", {
+    method: "POST",
+    credentials: "include" as RequestCredentials,
+  });
+}
+
+/** *
+ * Cookie auth: credentials ("include") sends the session cookie automatically.
+ *   Edit the URL, method, or headers below if your user endpoint differs.
+ *   Example: if your server uses /api/v1/me with a different method:
+ *     const response = await fetch(API_BASE + "/api/v1/me", {
+ *       method: "GET",
+ *       credentials: "include",
+ *     });
+ */
 export async function fetchCurrentUser(): Promise<Record<string, unknown>> {
-  const { response } = await fetchWithCache("/api/me", { auth: true });
+  const response = await fetch(API_BASE + "/api/me", {
+    credentials: "include" as RequestCredentials,
+  });
   if (!response.ok) throw new Error("Failed to fetch user");
 
   const user = await response.json();

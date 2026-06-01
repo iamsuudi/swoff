@@ -13,6 +13,62 @@ export interface UseMutationOptions<TData> {
   onSettled?: () => void;
 }
 
+/**
+ * Hook for mutations (POST, PUT, PATCH, DELETE) with auto-invalidation, offline queuing,
+ * and mutation state tracking.
+ *
+ * Powered by fetchWithCache which handles:
+ *   - Auth headers (bearer/cookie — set `auth: true` for bearer)
+ *   - Auto-invalidation of cache entries (by URL or tags)
+ *   - Offline queueing (mutations are stored in IndexedDB and replayed when online)
+ *   - 401 detection → auto-refresh → retry
+ *
+ * Usage:
+ *   const { mutate, isLoading, error, data } = useMutation({
+ *     onSuccess: (data) => console.log("Done", data),
+ *     onError: (err) => console.error("Failed", err),
+ *   });
+ *
+ *   // POST with auto-invalidation:
+ *   await mutate("/api/todos", {
+ *     method: "POST",
+ *     body: JSON.stringify({ title: "New task" }),
+ *   });
+ *
+ *   // Mutation with auth (for bearer tokens):
+ *   await mutate("/api/profile", {
+ *     method: "PUT",
+ *     body: JSON.stringify({ name: "New" }),
+ *     auth: true,
+ *   });
+ *
+ *   // Skip auto-invalidation:
+ *   await mutate("/api/todos", {
+ *     method: "POST",
+ *     body,
+ *     invalidate: false,
+ *   });
+ *
+ *   // Custom invalidation tags:
+ *   await mutate("/api/todos", {
+ *     method: "POST",
+ *     body,
+ *     invalidate: ["todos", "projects"],
+ *   });
+ *
+ *   // Offline: mutation is queued and replayed when online
+ *   // Disable with: queueOffline: false
+ *
+ *   // Custom success validation (e.g., API returns 200 with { success: false }):
+ *   await mutate("/api/checkout", {
+ *     method: "POST",
+ *     body,
+ *     validateSuccess: (res) => res.ok,
+ *   });
+ *
+ * @param options - Callbacks for mutation lifecycle events.
+ * @returns { data, error, isLoading, isError, isSuccess, mutate, reset }
+ */
 export function useMutation<TData = unknown>(
   options: UseMutationOptions<TData> = {},
 ) {

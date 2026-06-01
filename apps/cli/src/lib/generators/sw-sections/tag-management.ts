@@ -40,11 +40,11 @@ function openTagDB() {
   });
 }
 
-async function cacheTagUrl(url, actualUrl, tags) {
+async function cacheTagUrl(url, actualUrl, tags, method, body, contentType) {
   const db = await openTagDB();
   const tx = db.transaction(TAG_STORE_NAME, "readwrite");
   const store = tx.objectStore(TAG_STORE_NAME);
-  store.put({ url, actualUrl, tags });
+  store.put({ url, actualUrl, tags, method: method || "GET", body: body || null, contentType: contentType || null });
   await new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
@@ -84,7 +84,7 @@ async function invalidateByTag(tag) {
   // Enqueue background refetch through batched refresh queue
   for (const entry of entries) {
     staleVersions.set(entry.url, Date.now());
-    queueRefresh(entry.url, entry.actualUrl, entry.tags);
+    queueRefresh(entry.url, entry.actualUrl, entry.tags, entry.method, entry.body, entry.contentType);
   }
 
   const clients = await self.clients.matchAll();

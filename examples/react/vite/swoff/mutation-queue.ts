@@ -1,47 +1,10 @@
-import { GeneratorContext, writeFile } from "./context.js";
-
-export function generateMutationQueue(ctx: GeneratorContext): void {
-  const ext = ctx.ext;
-  const ts = ext === "ts";
-  const T = (type: string) => (ts ? `: ${type}` : "");
-  const R = (type: string) => (ts ? `: ${type} ` : " ");
-  const PT = (type: string) => (ts ? `<${type}>` : "");
-  const AS = (type: string) => (ts ? ` as ${type}` : "");
-  const authEnabled = ctx.config.features.auth.enabled;
-  const mqConfig = ctx.config.features.mutationQueue;
-  const batchSize = mqConfig.batchSize;
-  const batchDelayMs = mqConfig.batchDelayMs;
-  const maxRetries = mqConfig.maxRetries;
-  const retryBackoffMs = mqConfig.retryBackoffMs;
-
-  const importLines = authEnabled
-    ? `import { getAuth } from "./auth/store.${ext}";
-`
-    : "";
-
-  const additionalImports = `import { invalidateByTags } from "./cache.${ext}";
-${  ts
-    ? `import type { MutationQueueItem } from "./swoff.d.ts";
-`
-    : ""
-}`;
-
-  const authReplayHeaders = authEnabled
-    ? `  const auth = await getAuth();
-  const authHeader${T("Record<string, string>")} = auth?.token ? { Authorization: \`Bearer \${auth.token}\` } : {};
-`
-    : "";
-  const authHeaderSpread = authEnabled
-    ? `            ...authHeader,\n`
-    : "            ";
-
-  const code = `/**
+/**
  * Swoff Mutation Queue
  * Queue offline writes and sync when connection returns.
  * Supports configurable batch size, rate limiting, and exponential backoff.
  *
  * Usage:
- *   import { queueMutation, processMutationQueue, flushMutations, getPendingCount } from './swoff/mutation-queue.${ext}';
+ *   import { queueMutation, processMutationQueue, flushMutations, getPendingCount } from './swoff/mutation-queue.ts';
  *
  *   // Queue a mutation
  *   await queueMutation({
@@ -57,44 +20,47 @@ ${  ts
  *   // Auto-processes on online event
  *
  * Config:
- *   batchSize: ${batchSize}      — mutations per progress event
- *   batchDelayMs: ${batchDelayMs} — delay between mutations (rate limiting)
- *   maxRetries: ${maxRetries}      — max retries before dropping
- *   retryBackoffMs: ${retryBackoffMs} — exponential backoff base
+ *   batchSize: 1      — mutations per progress event
+ *   batchDelayMs: 0 — delay between mutations (rate limiting)
+ *   maxRetries: 5      — max retries before dropping
+ *   retryBackoffMs: 1000 — exponential backoff base
  */
 
-${importLines}${additionalImports}const DB_NAME = "swoff-queue";
+import { getAuth } from "./auth/store.ts";
+import { invalidateByTags } from "./cache.ts";
+import type { MutationQueueItem } from "./swoff.d.ts";
+const DB_NAME = "swoff-queue";
 const STORE_NAME = "mutations";
 // Bump this when adding new indexes/stores for schema migration
 const DB_VERSION = 1;
-const BATCH_SIZE = ${batchSize};
-const BATCH_DELAY_MS = ${batchDelayMs};
-const MAX_RETRIES = ${maxRetries};
-const RETRY_BACKOFF_MS = ${retryBackoffMs};
+const BATCH_SIZE = 1;
+const BATCH_DELAY_MS = 0;
+const MAX_RETRIES = 5;
+const RETRY_BACKOFF_MS = 1000;
 
-function sleep(ms${T("number")})${R("Promise<void>")}{
+function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-function openQueueDB()${R("Promise<IDBDatabase>")}{
-  return new Promise${PT("IDBDatabase")}((resolve, reject) => {
+function openQueueDB(): Promise<IDBDatabase> {
+  return new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = (e) => {
-      const db = (e.target${AS("IDBOpenDBRequest")}).result;
+      const db = (e.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         const store = db.createObjectStore(STORE_NAME, { keyPath: "id" });
         store.createIndex("by-timestamp", "timestamp");
       }
     };
-    request.onsuccess = (e) => resolve((e.target${AS("IDBOpenDBRequest")}).result);
-    request.onerror = (e) => reject((e.target${AS("IDBRequest")}).error);
+    request.onsuccess = (e) => resolve((e.target as IDBOpenDBRequest).result);
+    request.onerror = (e) => reject((e.target as IDBRequest).error);
   });
 }
 
 let isSyncing = false;
 
 /** Store a write operation in IndexedDB for later sync. Works offline — use it for POST/PUT/PATCH/DELETE when the user might be offline. */
-export async function queueMutation(mutation${T("Partial<MutationQueueItem>")})${R("Promise<void>")}{
+export async function queueMutation(mutation: Partial<MutationQueueItem>): Promise<void> {
   const db = await openQueueDB();
   const tx = db.transaction(STORE_NAME, "readwrite");
   const store = tx.objectStore(STORE_NAME);
@@ -113,7 +79,7 @@ export async function queueMutation(mutation${T("Partial<MutationQueueItem>")})$
   }
 
   // Strip auth headers before storing — tokens must never persist in IDB
-  const safeHeaders${T("Record<string, string>")} = { ...(mutation.headers || {}) };
+  const safeHeaders: Record<string, string> = { ...(mutation.headers || {}) };
   delete safeHeaders["authorization"];
   delete safeHeaders["Authorization"];
 
@@ -139,22 +105,24 @@ export async function queueMutation(mutation${T("Partial<MutationQueueItem>")})$
 }
 
 /** Replay a single queued mutation. Uses the provided db connection if available. Returns true on success, false on failure. */
-async function replayMutation(item${T("MutationQueueItem")}, db${T("IDBDatabase | undefined")})${R("Promise<boolean>")}{
+async function replayMutation(item: MutationQueueItem, db: IDBDatabase | undefined): Promise<boolean> {
   try {
-${authReplayHeaders}    let replayBody${T("BodyInit | null")}${ts ? " = null" : ""};
-    let contentType${T("string | undefined")};
+  const auth = await getAuth();
+  const authHeader: Record<string, string> = auth?.token ? { Authorization: `Bearer ${auth.token}` } : {};
+    let replayBody: BodyInit | null = null;
+    let contentType: string | undefined;
     const bt = item.bodyType || "json";
     if (bt === "formdata") {
       replayBody = new FormData();
-      for (const [key, value] of (item.body || [])${AS("[string, FormDataEntryValue][]")}) {
+      for (const [key, value] of (item.body || []) as [string, FormDataEntryValue][]) {
         replayBody.append(key, value);
       }
     } else if (bt === "blob") {
-      replayBody = item.body${AS("BodyInit | null")};
+      replayBody = item.body as BodyInit | null;
     } else if (bt === "buffer") {
-      replayBody = item.body instanceof ArrayBuffer ? new Uint8Array(item.body)${AS("BodyInit")} : item.body${AS("BodyInit")};
+      replayBody = item.body instanceof ArrayBuffer ? new Uint8Array(item.body) as BodyInit : item.body as BodyInit;
     } else if (bt === "text") {
-      replayBody = item.body${AS("BodyInit | null")};
+      replayBody = item.body as BodyInit | null;
     } else if (item.body != null) {
       replayBody = JSON.stringify(item.body);
       contentType = "application/json";
@@ -164,11 +132,12 @@ ${authReplayHeaders}    let replayBody${T("BodyInit | null")}${ts ? " = null" : 
       headers: {
         ...(contentType ? { "Content-Type": contentType } : {}),
         ...item.headers,
-${authHeaderSpread}      },
+            ...authHeader,
+      },
       ...(replayBody != null ? { body: replayBody } : {}),
     });
 
-    if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     if (item.tags && item.tags.length > 0) {
       await invalidateByTags(item.tags);
@@ -185,7 +154,7 @@ ${authHeaderSpread}      },
 }
 
 /** Process all queued mutations in order. Sends them to the server. Runs automatically when mutations are queued or on reconnection. Respects batchSize for progress reporting and batchDelayMs for rate limiting. */
-export async function processMutationQueue()${R("Promise<void>")}{
+export async function processMutationQueue(): Promise<void> {
   if (isSyncing) return;
   isSyncing = true;
 
@@ -194,7 +163,7 @@ export async function processMutationQueue()${R("Promise<void>")}{
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
     const index = store.index("by-timestamp");
-    const queue${T("MutationQueueItem[]")} = await new Promise${PT("MutationQueueItem[]")}((resolve, reject) => {
+    const queue: MutationQueueItem[] = await new Promise<MutationQueueItem[]>((resolve, reject) => {
       const request = index.getAll();
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
@@ -262,62 +231,56 @@ export async function processMutationQueue()${R("Promise<void>")}{
 }
 
 /** Immediately process all queued mutations. Call this after re-login to flush mutations that failed due to auth expiry. */
-export async function flushMutations()${R("Promise<void>")}{
+export async function flushMutations(): Promise<void> {
   await processMutationQueue();
 }
-`;
 
-  const helpers = `
-async function removeFromQueue(id${T("string")}, db${T("IDBDatabase | undefined")})${R("Promise<void>")}{
+async function removeFromQueue(id: string, db: IDBDatabase | undefined): Promise<void> {
   if (!db) db = await openQueueDB();
   const tx = db.transaction(STORE_NAME, "readwrite");
   tx.objectStore(STORE_NAME).delete(id);
-  await new Promise${PT("void")}((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
 }
 
-async function updateInQueue(item${T("MutationQueueItem")}, db${T("IDBDatabase | undefined")})${R("Promise<void>")}{
+async function updateInQueue(item: MutationQueueItem, db: IDBDatabase | undefined): Promise<void> {
   if (!db) db = await openQueueDB();
   const tx = db.transaction(STORE_NAME, "readwrite");
   tx.objectStore(STORE_NAME).put(item);
-  await new Promise${PT("void")}((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
 }
 
 /** Get the number of queued mutations waiting to be synced. Useful for showing a sync badge. */
-export async function getPendingCount()${R("Promise<number>")}{
+export async function getPendingCount(): Promise<number> {
   const db = await openQueueDB();
-  return new Promise${PT("number")}((resolve, reject) => {
+  return new Promise<number>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
     const request = tx.objectStore(STORE_NAME).count();
-    request.onsuccess = () => resolve((request${AS("IDBRequest<number>")}).result);
-    request.onerror = () => reject((request${AS("IDBRequest")}).error);
+    request.onsuccess = () => resolve((request as IDBRequest<number>).result);
+    request.onerror = () => reject((request as IDBRequest).error);
   });
 }
 
 /** Get the position of a mutation in the queue (0-based). Returns -1 if not found. */
-export async function getQueuePosition(id${T("string")})${R("Promise<number>")}{
+export async function getQueuePosition(id: string): Promise<number> {
   const items = await getQueueItems();
   return items.findIndex((item) => item.id === id);
 }
 
 /** Get all pending queue items with their details. */
-export async function getQueueItems()${R("Promise<MutationQueueItem[]>")}{
+export async function getQueueItems(): Promise<MutationQueueItem[]> {
   const db = await openQueueDB();
   const tx = db.transaction(STORE_NAME, "readonly");
   const store = tx.objectStore(STORE_NAME);
   const index = store.index("by-timestamp");
-  return new Promise${PT("MutationQueueItem[]")}((resolve, reject) => {
+  return new Promise<MutationQueueItem[]>((resolve, reject) => {
     const request = index.getAll();
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
-}
-`;
-
-  writeFile(ctx, `mutation-queue.${ext}`, code + helpers);
 }

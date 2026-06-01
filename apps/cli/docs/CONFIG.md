@@ -9,6 +9,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
   "$schema": "https://swoff.netlify.app/schema/v1.json",
   "enabled": true,
   "framework": "react",
+  "apiBaseUrl": "",
   "build": {
     "outputDir": "dist",
     "swFilename": "sw"
@@ -99,6 +100,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | `$schema` | `string` | — | JSON Schema URL (for IDE autocomplete) |
 | `enabled` | `boolean` | `true` | Master switch — disables all Swoff features |
 | `framework` | `"react"` \| `"vue"` \| `"svelte"` \| `"vanilla"` | auto-detected | Your UI framework. Controls whether React hooks are generated. |
+| `apiBaseUrl` | `string` | `""` | Base URL prepended to all relative API URLs. Set to your API server origin (e.g. `https://api.example.com`) when frontend and API are on different domains. Leave empty string when same origin. |
 | `build.outputDir` | `string` | `"dist"` | Build tool output directory |
 | `build.swFilename` | `string` | `"sw"` | Service worker filename prefix (e.g. `sw-v1.2.3.js`) |
 
@@ -112,6 +114,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | `minSupportedVersion` | `string` | `"0.0.0"` | Minimum supported SW version — clients below this are force-updated on page load |
 | `autoUpdate` | `boolean` | `true` | Automatically register new service worker versions when detected. When false, dispatches `sw-update-available` event for manual registration via `handleUpdateApproved()`. |
 | `autoActivate` | `boolean` | `false` | Automatically activate newly registered service workers (`skipWaiting`). Only applies when a new version is registered — use with `autoUpdate` for fully silent updates, or wait for user consent then call `handleUpdateApproved()`. |
+| `requestBatchWindowMs` | `number` | `50` | Time window in ms to coalesce concurrent GET requests to the same URL before dispatching to the SW. 0 disables batching. |
 
 ### `features.serviceWorker.strategy`
 

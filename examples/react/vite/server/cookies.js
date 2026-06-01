@@ -9,7 +9,12 @@ const app = express();
 const JWT_SECRET = "swoff-demo-secret-key-2026";
 const PORT = 3001;
 
-app.use(cors({ origin: true, credentials: true }));
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "http://localhost:4173"],
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.use(cookieParser());
 setupLogger(app);
@@ -41,7 +46,7 @@ app.post("/api/login", (req, res) => {
   const token = generateToken(user);
   res.cookie("swoff_token", token, {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: 3600000,
     path: "/",
   });
@@ -61,7 +66,7 @@ app.post("/api/register", (req, res) => {
   const token = generateToken({ id, email, name });
   res.cookie("swoff_token", token, {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: 3600000,
     path: "/",
   });
@@ -75,7 +80,7 @@ app.post("/api/refresh", authenticate, (req, res) => {
   const token = generateToken(user);
   res.cookie("swoff_token", token, {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: 3600000,
     path: "/",
   });

@@ -66,8 +66,8 @@ export function isAuthUrl(url${T("string")})${R("boolean")}{
 }
 
 function generateEnsureValidAuth(cookieAuth: boolean, ts: boolean, R: (t: string) => string, T: (t: string) => string, PT: (t: string) => string, refreshPath: string, ext: string): string {
-  const cr = cookieAuth ? `  credentials: "include" as RequestCredentials,` : `  credentials: "include" as RequestCredentials,`;
-  return `/** Try to restore the session after page refresh — POSTs to refresh endpoint and merges the new token with cached user data. */
+  const tokenArg = cookieAuth ? "" : "auth?.token";
+  return `/** Try to restore the session after page refresh — delegates to refreshSession() in ./user.${ext}. */
 let restorePromise${T("Promise<AuthData | null> | null")} = null;
 
 async function tryRestoreSession()${R("Promise<AuthData | null>")}{
@@ -76,10 +76,7 @@ async function tryRestoreSession()${R("Promise<AuthData | null>")}{
   }
   restorePromise = (async () => {
     try {
-      const response = await fetch("${refreshPath}", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-${cr}      });
+      const response = await refreshSession();
       if (!response.ok) return null;
       const data = await response.json();
       const userData = await loadUserData();
@@ -106,14 +103,8 @@ export async function ensureValidAuth()${R("Promise<AuthData | null>")}{
 
   if (!refreshPromise) {
     refreshPromise = (async () => {
-      const headers = new Headers({ "Content-Type": "application/json" });
-      withAuthHeaders(headers, auth);
       try {
-        const response = await fetch("${refreshPath}", {
-          method: "POST",
-          headers,
-${cr}      });
-
+          const response = await refreshSession(${tokenArg});
         if (!response.ok) {
           await clearAuth();
           window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
@@ -209,6 +200,9 @@ export function createAuthFromResponse(response) {
  *   const auth = await getAuth();
  *   await clearAuth();
  */
+
+import { API_BASE } from "../config.${ext}";
+import { refreshSession } from "./user.${ext}";
 
 ${authDataInterface}const DB_NAME = "swoff-auth";
 const STORE_NAME = "auth";

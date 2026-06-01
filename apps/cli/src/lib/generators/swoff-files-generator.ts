@@ -17,6 +17,7 @@ import { fileURLToPath } from "url";
 import { loadConfigAsync } from "../config/loader.js";
 import { statusLine, clearStatusLine } from "../utils/tty-status.js";
 import type { GeneratorContext } from "./file-generators/context.js";
+import { generateApiConfig } from "./file-generators/api-config.js";
 import { generateSwTemplate } from "./file-generators/sw-template.js";
 import { generateSwInjector } from "./file-generators/sw-injector.js";
 import { generateClientInjector } from "./file-generators/client-injector.js";
@@ -48,6 +49,7 @@ interface Step {
 
 export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => void): string[] {
   const steps: Step[] = [
+    { name: "api-config", gen: () => generateApiConfig(ctx), enabled: true },
     { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
     { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: true },
     { name: "client-injector", gen: () => generateClientInjector(ctx), enabled: true },
@@ -120,6 +122,27 @@ if (fileURLToPath(import.meta.url) === fileURLToPath(new URL(process.argv[1], "f
     console.log("Generated files:");
     generatedFiles.forEach((file) => console.log(`  ${file}`));
     console.log(`\nTotal: ${generatedFiles.length} files`);
+
+    if (config.features.auth.enabled) {
+      const authType = config.features.auth.type;
+      console.log(`\n--- Auth Setup ---`);
+      console.log(`  Auth type: ${authType}`);
+      console.log(`  1. Edit swoff/auth/user.ts to match your backend:`);
+      if (authType === "cookie") {
+        console.log(`     - refreshSession(): adjust method, URL, or body if your refresh endpoint differs`);
+        console.log(`     - fetchCurrentUser(): adjust method or URL for your /api/me endpoint`);
+        console.log(`     Cookie auth uses credentials: "include" — no token management needed.`);
+      } else {
+        console.log(`     - refreshSession(): add token header or body logic for your server`);
+        console.log(`     - fetchCurrentUser(): add the Authorization header using the user's token`);
+        console.log(`     Get the token from auth/store.ts via getAuth().`);
+      }
+      console.log(`  2. Edit swoff/auth/store.ts to match your login response shape:`);
+      console.log(`     - createAuthFromResponse(): map your backend's JSON fields to AuthData`);
+      console.log(`  3. Edit swoff/fetch-wrapper.ts options per-request as needed:`);
+      console.log(`     - Use { auth: true } for authenticated requests`);
+      console.log(`     - Use { invalidate: [...] } for custom cache invalidation`);
+    }
   }).catch((err) => {
     console.error("Failed to load config:", err.message);
     process.exit(1);

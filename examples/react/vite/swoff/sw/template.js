@@ -123,11 +123,11 @@ const REFRESH_RETRY_DELAY_MS = 1000;
 const _refreshQueue = new Map();
 let _refreshQueuePromise = null;
 
-function queueRefresh(cacheKeyUrl, actualUrl, tags) {
+function queueRefresh(cacheKeyUrl, actualUrl, tags, method, body, contentType) {
   // Use Map keyed by cacheKey for proper deduplication
   // Don't let a tagless (SWR/reactive) refresh override an invalidation-triggered entry with tags
   if (_refreshQueue.has(cacheKeyUrl) && !tags) return;
-  _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl, retryCount: 0, tags: tags || null });
+  _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl, retryCount: 0, tags: tags || null, method: method || null, body: body || null, contentType: contentType || null });
   if (!_refreshQueuePromise) {
     _refreshQueuePromise = _processRefreshQueue();
   }
@@ -172,12 +172,18 @@ async function _processRefreshQueue() {
       await Promise.allSettled(batch.map(async (entry) => {
         const fetchUrl = await resolveActualUrl(entry);
         try {
-          const response = await fetch(fetchUrl);
+          const fetchOpts = {};
+          if (entry.method && entry.method !== "GET" && entry.method !== "HEAD") {
+            fetchOpts.method = entry.method;
+            if (entry.body) fetchOpts.body = entry.body;
+            if (entry.contentType) fetchOpts.headers = { "Content-Type": entry.contentType };
+          }
+          const response = await fetch(fetchUrl, fetchOpts);
           if (response.ok) {
             const request = new Request(entry.cacheKey);
             await storeRuntime(request, response);
           if (entry.tags && typeof cacheTagUrl !== "undefined") {
-            await cacheTagUrl(entry.cacheKey, fetchUrl, entry.tags);
+            await cacheTagUrl(entry.cacheKey, fetchUrl, entry.tags, entry.method, entry.body, entry.contentType);
           }
             // Clean up stale version tracking on successful refresh
             if (typeof staleVersions !== "undefined" && staleVersions.has(entry.cacheKey)) {
@@ -315,7 +321,16 @@ async function cacheResponse(request, response) {
     const cacheKeyUrl = cacheKey(request);
     const actualUrl = new URL(request.url).href;
     const tags = tagsHeader.split(",").map((t) => t.trim());
-    await cacheTagUrl(cacheKeyUrl, actualUrl, tags);
+    const method = request.method;
+    let body = null;
+    let contentType = null;
+    if (method !== "GET" && method !== "HEAD") {
+      contentType = request.headers.get("Content-Type");
+      try {
+        body = await request.clone().text();
+      } catch {}
+    }
+    await cacheTagUrl(cacheKeyUrl, actualUrl, tags, method, body, contentType);
   }
 }
 
@@ -500,7 +515,7 @@ async function storeMutationInSW(request) {
     url: new URL(request.url).href,
     body,
     bodyType,
-    headers: {},
+    headers: request.headers.get("Content-Type") ? { "Content-Type": request.headers.get("Content-Type") } : {},
     timestamp: Date.now(),
     retryCount: 0,
     nextRetryAt: 0,
@@ -576,20 +591,22 @@ async function cacheFirst(event, request) {
   const fallback = await fromSpaFallback(request);
   if (fallback) return fallback;
 
+  const reqForCache = request.clone();
   const response = await _fetch(event, request);
   if (response.ok) {
     const responseToCache = response.clone();
-    event.waitUntil(cacheResponse(request, responseToCache));
+    event.waitUntil(cacheResponse(reqForCache, responseToCache));
   }
   return response;
 }
 
 async function networkFirst(event, request) {
   try {
+    const reqForCache = request.clone();
     const response = await _fetch(event, request);
     if (response.ok) {
       const responseToCache = response.clone();
-      event.waitUntil(cacheResponse(request, responseToCache));
+      event.waitUntil(cacheResponse(reqForCache, responseToCache));
     }
     return response;
   } catch {
@@ -621,10 +638,11 @@ async function staleWhileRevalidate(event, request) {
     return markFromCache(precached);
   }
 
+  const reqForCache = request.clone();
   const response = await _fetch(event, request);
   if (response.ok) {
     const responseToCache = response.clone();
-    await cacheResponse(request, responseToCache);
+    await cacheResponse(reqForCache, responseToCache);
   }
   return response;
 }
@@ -651,10 +669,11 @@ async function reactiveStrategy(event, request, staleTime) {
   const fallback = await fromSpaFallback(request);
   if (fallback) return fallback;
 
+  const reqForCache = request.clone();
   const response = await _fetch(event, request);
   if (response.ok) {
     const responseToCache = response.clone();
-    await cacheResponse(request, responseToCache);
+    await cacheResponse(reqForCache, responseToCache);
   }
   return response;
 }
@@ -711,11 +730,11 @@ function openTagDB() {
   });
 }
 
-async function cacheTagUrl(url, actualUrl, tags) {
+async function cacheTagUrl(url, actualUrl, tags, method, body, contentType) {
   const db = await openTagDB();
   const tx = db.transaction(TAG_STORE_NAME, "readwrite");
   const store = tx.objectStore(TAG_STORE_NAME);
-  store.put({ url, actualUrl, tags });
+  store.put({ url, actualUrl, tags, method: method || "GET", body: body || null, contentType: contentType || null });
   await new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
@@ -755,7 +774,7 @@ async function invalidateByTag(tag) {
   // Enqueue background refetch through batched refresh queue
   for (const entry of entries) {
     staleVersions.set(entry.url, Date.now());
-    queueRefresh(entry.url, entry.actualUrl, entry.tags);
+    queueRefresh(entry.url, entry.actualUrl, entry.tags, entry.method, entry.body, entry.contentType);
   }
 
   const clients = await self.clients.matchAll();
@@ -874,6 +893,14 @@ self.addEventListener("notificationclick", (event) => {
 
 // --- Server Push Events (SSE) ---
 
+function notifyClientsSSE(connected) {
+  self.clients.matchAll().then(function(clients) {
+    clients.forEach(function(client) {
+      client.postMessage({ type: "SSE_STATUS", connected: !!connected });
+    });
+  });
+}
+
 let pushReconnectTimer = null;
 let pushAbortController = null;
 
@@ -882,12 +909,15 @@ async function connectPushEvents() {
     pushAbortController = new AbortController();
     const response = await fetch("/api/events", {
       headers: { Accept: "text/event-stream" },
+      credentials: "include",
       signal: pushAbortController.signal,
     });
     if (!response.ok || !response.body) {
+      notifyClientsSSE(false);
       scheduleReconnect();
       return;
     }
+    notifyClientsSSE(true);
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
@@ -924,6 +954,7 @@ async function connectPushEvents() {
   } catch {
     // Connection lost or aborted
   }
+  notifyClientsSSE(false);
   scheduleReconnect();
 }
 
@@ -1019,6 +1050,8 @@ async function processMutationQueueInSW() {
         replayBody = item.body;
       } else if (bt === "buffer") {
         replayBody = item.body instanceof ArrayBuffer ? new Uint8Array(item.body) : item.body;
+      } else if (bt === "text") {
+        replayBody = item.body;
       } else if (item.body != null) {
         replayBody = JSON.stringify(item.body);
         contentType = "application/json";

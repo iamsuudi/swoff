@@ -2,6 +2,7 @@
   "$schema": "https://swoff.netlify.app/schema/v1.json",
   "enabled": true,
   "framework": "react",
+  "apiBaseUrl": "",
   "build": {
     "outputDir": "dist",
     "swFilename": "sw"

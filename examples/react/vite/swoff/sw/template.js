@@ -3,7 +3,7 @@
  * Generated from swoff.config.json
  * DO NOT EDIT MANUALLY
  * Version: 0.0.0
- * Features: version=package, mutationQueue=false, backgroundSync=true, tagInvalidation=true
+ * Features: version=package, mutationQueue=true, backgroundSync=true, tagInvalidation=true
  * Default Strategy: cache-first
  * See: https://swoff.netlify.app/docs
  */
@@ -339,7 +339,7 @@ function markFromCache(response) {
 }
 
 function isStale(response, staleTimeSeconds) {
-  if (!staleTimeSeconds || staleTimeSeconds <= 0) return false;
+  if (staleTimeSeconds == null || staleTimeSeconds <= 0) return false;
   const cachedAt = response.headers.get("X-SW-Cached-At");
   if (!cachedAt) return false;
   return Date.now() - Number(cachedAt) > staleTimeSeconds * 1000;
@@ -457,9 +457,91 @@ function applyStrategy(event, request, config) {
   }
 }
 
+// --- Mutation Queue IDB Helpers ---
+
+const MUTATION_DB_NAME = "swoff-queue";
+const MUTATION_STORE_NAME = "mutations";
+// Bump this when adding new indexes/stores for schema migration
+const MUTATION_DB_VERSION = 1;
+
+function openMutationQueueDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(MUTATION_DB_NAME, MUTATION_DB_VERSION);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(MUTATION_STORE_NAME)) {
+        const store = db.createObjectStore(MUTATION_STORE_NAME, { keyPath: "id" });
+        store.createIndex("by-timestamp", "timestamp");
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function storeMutationInSW(request) {
+  let body, bodyType;
+  try {
+    body = await request.clone().json();
+    bodyType = "json";
+  } catch {
+    body = await request.clone().text();
+    bodyType = "text";
+  }
+
+  const tagsHeader = request.headers.get("X-SW-Invalidate-Tags");
+  const tags = tagsHeader ? tagsHeader.split(",").map(function(t) { return t.trim(); }) : [];
+
+  const db = await openMutationQueueDB();
+  const tx = db.transaction(MUTATION_STORE_NAME, "readwrite");
+  tx.objectStore(MUTATION_STORE_NAME).add({
+    id: crypto.randomUUID(),
+    method: request.method,
+    url: new URL(request.url).href,
+    body,
+    bodyType,
+    headers: {},
+    timestamp: Date.now(),
+    retryCount: 0,
+    nextRetryAt: 0,
+    tags,
+  });
+  await new Promise(function(resolve, reject) {
+    tx.oncomplete = function() { resolve(); };
+    tx.onerror = function() { reject(tx.error); };
+  });
+}
+
+async function handleMutation(event) {
+  const request = event.request;
+  if (request.headers.get("X-SW-No-Queue") === "true") {
+    return fetch(request.clone());
+  }
+  try {
+    return await fetch(request.clone());
+  } catch {
+    await storeMutationInSW(request);
+    // Notify open clients that a mutation was stored so they can try to process
+    const clients = await self.clients.matchAll();
+    clients.forEach(function(client) {
+      client.postMessage({ type: "MUTATION_STORED" });
+    });
+    const queuedBody = JSON.stringify({ queued: true });
+    return new Response(queuedBody, {
+      status: 202,
+      statusText: "Accepted",
+      headers: { "Content-Type": "application/json", "X-SW-Mutation-Queued": "true" },
+    });
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET" && request.method !== "HEAD") {
+    if (request.headers.get("X-SW-Cache-Strategy") === "mutation") {
+      event.respondWith(handleMutation(event));
+      return;
+    }
     if (!request.headers.get("X-SW-Cache-Key")) return;
   }
   
@@ -937,7 +1019,7 @@ async function processMutationQueueInSW() {
         replayBody = item.body;
       } else if (bt === "buffer") {
         replayBody = item.body instanceof ArrayBuffer ? new Uint8Array(item.body) : item.body;
-      } else {
+      } else if (item.body != null) {
         replayBody = JSON.stringify(item.body);
         contentType = "application/json";
       }
@@ -949,7 +1031,7 @@ async function processMutationQueueInSW() {
             ...(contentType ? { "Content-Type": contentType } : {}),
             ...item.headers,
           },
-          body: replayBody,
+          ...(replayBody != null ? { body: replayBody } : {}),
           credentials: "same-origin",        });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 

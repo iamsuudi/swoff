@@ -34,9 +34,36 @@
       "createdAt": "2026-05-28T07:06:10.759Z",
       "updatedAt": "2026-05-28T07:06:10.759Z",
       "userId": 1
+    },
+    {
+      "id": 20,
+      "title": "check",
+      "description": "11111",
+      "priority": "low",
+      "createdAt": "2026-06-01T04:39:09.148Z",
+      "updatedAt": "2026-06-01T04:39:09.148Z",
+      "userId": 1
+    },
+    {
+      "id": 21,
+      "title": "Hey",
+      "description": "aaaa",
+      "priority": "low",
+      "createdAt": "2026-06-01T04:51:37.447Z",
+      "updatedAt": "2026-06-01T04:51:37.447Z",
+      "userId": 1
+    },
+    {
+      "id": 22,
+      "title": "SSE Test",
+      "description": "Testing SSE broadcast",
+      "priority": "medium",
+      "createdAt": "2026-06-01T05:11:36.314Z",
+      "updatedAt": "2026-06-01T05:11:36.314Z",
+      "userId": 1
     }
   ],
-  "nextNoteId": 19,
+  "nextNoteId": 23,
   "sessions": [
     {
       "id": "23d7f737-d325-4a0d-826b-5ce939ce9964",

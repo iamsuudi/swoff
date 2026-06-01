@@ -1,11 +1,12 @@
 import { Link, useNavigate } from "react-router-dom";
-import { fetchWithCache } from "../../swoff/fetch-wrapper";
-import { queueMutation } from "../../swoff/mutation-queue";
-import { generateTags } from "../../swoff/invalidation-tags";
+import { useMutation } from "../../swoff/hooks/useMutation";
 import NoteForm from "../components/NoteForm";
 
 export default function NotesCreatePage() {
   const navigate = useNavigate();
+  const createMutation = useMutation({
+    onSuccess: (note) => navigate(`/notes/${(note as Record<string, unknown>).id}`),
+  });
 
   const handleSubmit = async (data: Record<string, string>) => {
     const body = {
@@ -14,25 +15,13 @@ export default function NotesCreatePage() {
       updatedAt: new Date().toISOString(),
     };
 
-    if (!navigator.onLine) {
-      await queueMutation({
-        method: "POST",
-        url: "/api/notes",
-        body,
-        tags: generateTags("/api/notes"),
-      });
-      navigate("/notes");
-      return;
-    }
-
-    const { response: res } = await fetchWithCache("/api/notes", {
+    const note = await createMutation.mutate("/api/notes", {
       method: "POST",
       auth: true,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const note = await res.json();
-    navigate(`/notes/${note.id}`);
+    if (!note) navigate("/notes");
   };
 
   return (
@@ -67,6 +56,7 @@ export default function NotesCreatePage() {
             onSubmit={handleSubmit}
             onCancel={() => navigate("/notes")}
             submitLabel="Create Note"
+            loading={createMutation.isLoading}
           />
         </div>
       </div>

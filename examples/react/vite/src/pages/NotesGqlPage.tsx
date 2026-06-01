@@ -1,8 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { useCachedFetch } from "../../swoff/hooks/useCachedFetch";
-import { useMutation } from "../../swoff/hooks/useMutation";
-import { useMutationQueue } from "../../swoff/hooks/useMutationQueue";
+import { queryGql, mutateGql } from "../../swoff/gql-wrapper";
 import NoteCard from "../components/NoteCard";
 
 interface Note {
@@ -13,21 +11,54 @@ interface Note {
   updatedAt: string;
 }
 
-export default function NotesListPage() {
+const LIST_QUERY = `
+  query GetNotes {
+    notes { id title description priority updatedAt }
+  }
+`;
+
+const DELETE_MUTATION = `
+  mutation DeleteNote($id: Int!) {
+    deleteNote(id: $id)
+  }
+`;
+
+export default function NotesGqlPage() {
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const { data: notes, loading } = useCachedFetch<Note[]>("/api/notes", {
-    auth: true,
-  });
-  const { pending } = useMutationQueue();
-  const deleteMutation = useMutation();
+
+  const fetchNotes = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await queryGql<{ notes: Note[] }>(LIST_QUERY, undefined, { auth: true });
+      setNotes(data.notes ?? []);
+    } catch {
+      // Fetch error
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotes();
+  }, [fetchNotes]);
 
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this note?")) return;
-    await deleteMutation.mutate(`/api/notes/${id}`, { method: "DELETE", auth: true });
+    setDeletingId(id);
+    try {
+      await mutateGql<{ deleteNote: boolean }>(DELETE_MUTATION, { id }, { auth: true });
+      setNotes((prev) => prev.filter((n) => n.id !== id));
+    } catch {
+      // Delete error
+    } finally {
+      setDeletingId(null);
+    }
   };
 
-  const items = notes ?? [];
-  const filtered = items.filter(
+  const filtered = notes.filter(
     (n) =>
       n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       n.description.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -38,10 +69,10 @@ export default function NotesListPage() {
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8 text-center sm:text-left">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl dark:text-white">
-            Notes
+            Notes <span className="text-sm font-normal text-teal-500">(GraphQL)</span>
           </h1>
           <p className="mt-1 text-gray-500 dark:text-gray-400">
-            Capture your thoughts and ideas
+            Fetched via queryGql / mutateGql
           </p>
         </div>
 
@@ -89,11 +120,10 @@ export default function NotesListPage() {
           </Link>
         </div>
 
-        {pending > 0 && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
-            {pending} change{pending !== 1 ? "s" : ""} saved offline — syncing when connection restores
-          </div>
-        )}
+        <div className="mb-4 rounded-lg border border-purple-200 bg-purple-50 px-4 py-2 text-xs text-purple-600 dark:border-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
+          This page uses GraphQL via queryGql/mutateGql. Changes made on REST pages
+          auto-refresh here via SSE cache invalidation.
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -112,7 +142,7 @@ export default function NotesListPage() {
                 detailUrl={`/notes/${note.id}`}
                 editUrl={`/notes/${note.id}/edit`}
                 onDelete={handleDelete}
-                deleting={deleteMutation.isLoading}
+                deleting={deletingId === note.id}
               />
             ))}
           </div>

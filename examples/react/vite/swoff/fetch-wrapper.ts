@@ -62,9 +62,10 @@
  *   // When back online, processMutationQueue() replays them
  */
 
-import { generateTags, invalidateUrl } from "./invalidation-tags.ts";
+import { generateTags, invalidateUrl, expandCascading } from "./invalidation-tags.ts";
 import { invalidateByTags } from "./cache.ts";
 import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, ensureValidAuth, AUTH_WITH_CREDENTIALS } from "./auth/store.ts";
+import { queueMutation } from "./mutation-queue.ts";
 
 export interface FetchWithCacheResult<T> {
   response: Response & { json(): Promise<T> };
@@ -157,7 +158,20 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
   if (options.signal?.aborted) {
     throw new DOMException("The operation was aborted", "AbortError");
   }
-
+  // Pre-compute invalidation tags for SW-side IDB storage
+  let mutationTags: string[] = [];
+  if (!isRead) {
+    const invalidateSetting = options.invalidate !== false ? (options.invalidate || 'auto') : false;
+    if (invalidateSetting !== false) {
+      if (Array.isArray(invalidateSetting)) {
+        mutationTags = invalidateSetting;
+      } else {
+        mutationTags = generateTags(url);
+        mutationTags = expandCascading(mutationTags);
+      }
+      headers.set("X-SW-Invalidate-Tags", mutationTags.join(","));
+    }
+  }
   // Request batching + dedup for concurrent reads
   let responsePromise: Promise<Response>;
   if (isRead && inFlightRequests.has(url)) {
@@ -215,7 +229,21 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
       }
       // SW not controlling — fallback to client-side queue
       if (!navigator.serviceWorker?.controller) {
-
+    if (options.queueOffline !== false) {
+      await queueMutation({
+        method,
+        url,
+        body: options.body,
+        headers: {},
+        tags: mutationTags,
+        timestamp: Date.now(),
+      });
+      return {
+        response: new Response(JSON.stringify({ queued: true }), { status: 202, headers: { "Content-Type": "application/json" } }),
+        fromCache: false,
+        queued: true,
+      };
+    }
       }
     }
     throw err;

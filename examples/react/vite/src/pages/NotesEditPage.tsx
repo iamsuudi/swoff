@@ -1,49 +1,30 @@
-import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { fetchWithCache } from "../../swoff/fetch-wrapper";
-import { generateTags } from "../../swoff/invalidation-tags";
-import { queueMutation } from "../../swoff/mutation-queue";
+import { useCachedFetch } from "../../swoff/hooks/useCachedFetch";
+import { useMutation } from "../../swoff/hooks/useMutation";
 import NoteForm from "../components/NoteForm";
+
+interface Note {
+  id: number;
+  title: string;
+  description: string;
+  priority: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function NotesEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [note, setNote] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    if (!id) return;
-    (async () => {
-      try {
-        setIsLoading(true);
-        const { response: res } = await fetchWithCache(`/api/notes/${id}`, {
-          auth: true,
-          tags: generateTags(`/api/notes/${id}`),
-        });
-        setNote(await res.json());
-      } catch {
-        setNote(null);
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, [id]);
+  const { data: note, loading } = useCachedFetch<Note>(
+    id ? `/api/notes/${id}` : null,
+    { auth: true },
+  );
+  const updateMutation = useMutation();
 
   const handleSubmit = async (data: Record<string, string>) => {
     const body = { ...data, updatedAt: new Date().toISOString() };
 
-    if (!navigator.onLine) {
-      await queueMutation({
-        method: "PUT",
-        url: `/api/notes/${id}`,
-        body,
-        tags: generateTags(`/api/notes/${id}`),
-      });
-      navigate(`/notes/${id}`);
-      return;
-    }
-
-    await fetchWithCache(`/api/notes/${id}`, {
+    await updateMutation.mutate(`/api/notes/${id}`, {
       method: "PUT",
       auth: true,
       headers: { "Content-Type": "application/json" },
@@ -52,7 +33,7 @@ export default function NotesEditPage() {
     navigate(`/notes/${id}`);
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent" />
@@ -111,6 +92,7 @@ export default function NotesEditPage() {
             onSubmit={handleSubmit}
             onCancel={() => navigate(`/notes/${id}`)}
             submitLabel="Update Note"
+            loading={updateMutation.isLoading}
           />
         </div>
       </div>

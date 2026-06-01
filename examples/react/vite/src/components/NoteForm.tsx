@@ -11,9 +11,10 @@ interface NoteFormProps {
   onSubmit: (data: Record<string, string>) => void;
   onCancel?: () => void;
   submitLabel?: string;
+  loading?: boolean;
 }
 
-export default function NoteForm({ initialData, onSubmit, onCancel, submitLabel = "Save" }: NoteFormProps) {
+export default function NoteForm({ initialData, onSubmit, onCancel, submitLabel = "Save", loading }: NoteFormProps) {
   const [title, setTitle] = useState(initialData?.title || "");
   const [description, setDescription] = useState(initialData?.description || "");
   const [priority, setPriority] = useState(initialData?.priority || "low");
@@ -54,9 +55,9 @@ export default function NoteForm({ initialData, onSubmit, onCancel, submitLabel 
           <button type="button" onClick={onCancel}
             className="rounded-lg border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">Cancel</button>
         )}
-        <button type="submit"
-          className="flex-1 rounded-lg bg-gradient-to-r from-teal-500 to-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-500/25 transition hover:shadow-xl hover:-translate-y-0.5">
-          {submitLabel}
+        <button type="submit" disabled={loading}
+          className="flex-1 rounded-lg bg-gradient-to-r from-teal-500 to-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-500/25 transition hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0">
+          {loading ? "Saving..." : submitLabel}
         </button>
       </div>
     </form>

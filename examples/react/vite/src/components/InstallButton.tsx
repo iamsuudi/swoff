@@ -1,23 +1,24 @@
 import { useState, useEffect } from "react";
+import { isInstallable, promptInstall } from "../../swoff/pwa/install";
 
 export default function InstallButton() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [installable, setInstallable] = useState(() => isInstallable());
 
   useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as any);
+    const onInstallable = () => setInstallable(true);
+    const onInstalled = () => setInstallable(false);
+    window.addEventListener("pwa-installable", onInstallable);
+    window.addEventListener("pwa-installed", onInstalled);
+    return () => {
+      window.removeEventListener("pwa-installable", onInstallable);
+      window.removeEventListener("pwa-installed", onInstalled);
     };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
-  if (!deferredPrompt) return null;
+  if (!installable) return null;
 
   const handleInstall = async () => {
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") setDeferredPrompt(null);
+    await promptInstall();
   };
 
   return (

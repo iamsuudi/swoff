@@ -10,6 +10,14 @@ export default defineConfig({
         target: "http://localhost:3001",
         changeOrigin: true,
       },
+      "/graphql": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+      },
+      "/api/events": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+      },
     },
   },
 });

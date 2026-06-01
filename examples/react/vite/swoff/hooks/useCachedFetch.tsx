@@ -2,6 +2,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
   startTransition,
 } from "react";
 import { fetchWithCache } from "../fetch-wrapper.ts";
@@ -11,47 +12,68 @@ import type { FetchWithCacheOptions } from "../fetch-wrapper.ts";
 /**
  * Fetch and cache data with automatic invalidation, revalidation, and offline support.
  *
- * Caches responses through the service worker. Automatically refetches when the
- * cache is invalidated (by tag, mutation, or explicit invalidateUrl call).
- *
- * Supports all fetchWithCache options: auth, strategy, staleTime, tags,
- * invalidate, queueOffline, and AbortController via signal.
- *
  * Usage:
  *   const { data, error, loading, refetch } = useCachedFetch<MyType>("/api/todos");
  *
- *   // With auth (works with cookie and bearer auth types):
- *   const { data: user } = useCachedFetch("/api/me", { auth: true });
+ *   // Select/transform data — skips re-render if selected value hasn't changed
+ *   const { data: names } = useCachedFetch("/api/users", {
+ *     select: (users) => users.map(u => u.name),
+ *   });
  *
- *   // Disable auto-fetch:
- *   const { data } = useCachedFetch(url, { enabled: false });
+ *   // Keep previous data while fetching the next page
+ *   const { data } = useCachedFetch(`/api/items?page=${page}`, {
+ *     keepPreviousData: true,
+ *   });
  *
- *   // Manual refetch:
- *   const { data, refetch } = useCachedFetch("/api/todos");
- *   <button onClick={refetch}>Refresh</button>
+ *   // Retry on failure (default 0 retries)
+ *   const { data } = useCachedFetch("/api/todos", { retry: 3 });
  *
- *   // Auth behavior:
- *   - Cookie auth: credentials are sent automatically, no extra config needed.
- *   - Bearer auth: set `auth: true` to attach the token (from auth/store.ts).
- *     The hook handles 401 → auto-refresh → retry via fetchWithCache.
+ *   // Placeholder data while loading for the first time
+ *   const { data } = useCachedFetch("/api/todos", {
+ *     placeholderData: { items: [] },
+ *   });
  *
- *   // Network status: fetchWithCache falls back to cached data when offline.
- *   // Use useNetworkStatus() separately to show offline UI.
+ *   // Callbacks on success/error
+ *   const { data, refetch } = useCachedFetch("/api/todos", {
+ *     onSuccess: (data) => console.log("Loaded", data),
+ *   });
  *
- * @param url - The URL to fetch. Pass null to skip fetching (e.g., when id is not ready).
- * @param options - Fetch options, plus `enabled` to control auto-fetching.
- * @returns { data, error, loading, refetch }
+ * @param url - URL to fetch. Pass null to skip fetching.
+ * @param options - Fetch options plus: select, keepPreviousData, retry, placeholderData, onSuccess, onError
  */
-export function useCachedFetch<T>(
+export function useCachedFetch<T = unknown, R = T>(
   url: string | null,
   options: FetchWithCacheOptions & {
     enabled?: boolean;
+    select?: (data: T) => R;
+    keepPreviousData?: boolean;
+    retry?: number | boolean;
+    placeholderData?: R;
+    onSuccess?: (data: R) => void;
+    onError?: (error: Error) => void;
   } = {},
 ) {
-  const [data, setData] = useState<T | null>(null);
+  const {
+    select,
+    keepPreviousData,
+    retry: retryOpt,
+    placeholderData,
+    onSuccess,
+    onError,
+    ...fetchOptions
+  } = options;
+
+  const [data, setData] = useState<R | null>(placeholderData ?? null);
   const [error, setError] = useState<Error | null>(null);
   const [loading, setLoading] = useState(true);
   const [refetchCount, setRefetchCount] = useState(0);
+
+  const cachedRef = useRef<R | null>(placeholderData ?? null);
+  const prevSelectedRef = useRef<R | null>(null);
+  const onSuccessRef = useRef(onSuccess);
+  const onErrorRef = useRef(onError);
+  onSuccessRef.current = onSuccess;
+  onErrorRef.current = onError;
 
   const refetch = useCallback(() => setRefetchCount((c) => c + 1), []);
 
@@ -63,26 +85,42 @@ export function useCachedFetch<T>(
       return;
     }
     let cancelled = false;
+    let retriesLeft = retryOpt === true ? Infinity : retryOpt ?? 0;
     const controller = new AbortController();
     startTransition(() => setLoading(true));
 
-    const doFetch = async () => {
+    const doFetch = async (): Promise<void> => {
       try {
         const { response } = await fetchWithCache(url, {
-          ...options,
+          ...fetchOptions,
           signal: controller.signal,
         });
         if (cancelled) return;
         if (response) {
-          setData(await response.json());
+          const raw: T = await response.json();
+          const selected = select ? select(raw) : (raw as unknown as R);
+          setData(selected);
+          cachedRef.current = selected;
+          prevSelectedRef.current = selected;
         } else {
           setData(null);
+          cachedRef.current = null;
+          prevSelectedRef.current = null;
         }
         if (!cancelled) setError(null);
+        if (!cancelled) onSuccessRef.current?.(selected ?? null as unknown as R);
       } catch (err) {
         if (!cancelled && err instanceof DOMException && err.name === "AbortError") return;
-        if (!cancelled)
-          setError(err instanceof Error ? err : new Error(String(err)));
+        if (!cancelled && retriesLeft > 0) {
+          retriesLeft--;
+          await new Promise((r) => setTimeout(r, 1000));
+          return doFetch();
+        }
+        if (!cancelled) {
+          const e = err instanceof Error ? err : new Error(String(err));
+          setError(e);
+          onErrorRef.current?.(e);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }

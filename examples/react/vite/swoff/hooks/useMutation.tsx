@@ -7,7 +7,26 @@ import {
 } from "../mutation-state.ts";
 import type { FetchWithCacheOptions } from "../fetch-wrapper.ts";
 
+export interface MutateOptions extends FetchWithCacheOptions {
+  /** Deduplication key — if a mutation with the same key is already in-flight, this one is skipped. */
+  mutationKey?: string;
+  /** Retry count on failure (default 0). true = Infinity. */
+  retry?: number | boolean;
+}
+
 export interface UseMutationOptions<TData> {
+  onSuccess?: (data: TData) => void;
+  onError?: (error: Error) => void;
+  onSettled?: () => void;
+  /** Called before the mutation fires. Use for optimistic UI — set local state here, then rollback from onError. */
+  onMutate?: () => void;
+  /** Deduplication key — if a mutation with the same key is already in-flight, this one is skipped. */
+  mutationKey?: string;
+  /** Retry count on failure (default 0). true = Infinity. */
+  retry?: number | boolean;
+}
+
+export interface MutateCallbacks<TData> {
   onSuccess?: (data: TData) => void;
   onError?: (error: Error) => void;
   onSettled?: () => void;
@@ -15,59 +34,29 @@ export interface UseMutationOptions<TData> {
 
 /**
  * Hook for mutations (POST, PUT, PATCH, DELETE) with auto-invalidation, offline queuing,
- * and mutation state tracking.
- *
- * Powered by fetchWithCache which handles:
- *   - Auth headers (bearer/cookie — set `auth: true` for bearer)
- *   - Auto-invalidation of cache entries (by URL or tags)
- *   - Offline queueing (mutations are stored in IndexedDB and replayed when online)
- *   - 401 detection → auto-refresh → retry
+ * optimistic updates, and dual-level callbacks.
  *
  * Usage:
- *   const { mutate, isLoading, error, data } = useMutation({
- *     onSuccess: (data) => console.log("Done", data),
- *     onError: (err) => console.error("Failed", err),
+ *   const { mutate, isLoading, error, reset } = useMutation({
+ *     onSuccess: (data) => showToast("Saved!"),
+ *     onError: (err) => reportError(err),
  *   });
  *
- *   // POST with auto-invalidation:
- *   await mutate("/api/todos", {
- *     method: "POST",
- *     body: JSON.stringify({ title: "New task" }),
+ *   // Hook-level callbacks fire first, then per-call callbacks:
+ *   await mutate("/api/todos", { method: "POST", body }, {
+ *     onSuccess: (data) => navigate(`/item/${data.id}`),
  *   });
  *
- *   // Mutation with auth (for bearer tokens):
- *   await mutate("/api/profile", {
- *     method: "PUT",
- *     body: JSON.stringify({ name: "New" }),
- *     auth: true,
+ *   // Optimistic update with rollback:
+ *   const { mutate } = useMutation({
+ *     onMutate: () => { /* set optimistic state *\/ },
+ *     onError: () => { /* rollback *\/ },
  *   });
  *
- *   // Skip auto-invalidation:
- *   await mutate("/api/todos", {
- *     method: "POST",
- *     body,
- *     invalidate: false,
- *   });
+ *   // Deduplicate — skip if same mutation is already in flight:
+ *   await mutate(url, options, { mutationKey: "save-profile" });
  *
- *   // Custom invalidation tags:
- *   await mutate("/api/todos", {
- *     method: "POST",
- *     body,
- *     invalidate: ["todos", "projects"],
- *   });
- *
- *   // Offline: mutation is queued and replayed when online
- *   // Disable with: queueOffline: false
- *
- *   // Custom success validation (e.g., API returns 200 with { success: false }):
- *   await mutate("/api/checkout", {
- *     method: "POST",
- *     body,
- *     validateSuccess: (res) => res.ok,
- *   });
- *
- * @param options - Callbacks for mutation lifecycle events.
- * @returns { data, error, isLoading, isError, isSuccess, mutate, reset }
+ * @returns { data, error, isLoading, isError, isSuccess, mutate, reset, mutationId }
  */
 export function useMutation<TData = unknown>(
   options: UseMutationOptions<TData> = {},
@@ -86,7 +75,9 @@ export function useMutation<TData = unknown>(
     isSuccess: false,
   });
 
+  const [mutationId, setMutationId] = useState<string | null>(null);
   const optionsRef = useRef(options);
+  const inFlightKeys = useRef(new Set<string>());
 
   useEffect(() => {
     optionsRef.current = options;
@@ -95,10 +86,19 @@ export function useMutation<TData = unknown>(
   const mutate = useCallback(
     async (
       url: string,
-      fetchOptions: FetchWithCacheOptions = {},
+      fetchOptions: MutateOptions = {},
+      callbacks?: MutateCallbacks<TData>,
     ): Promise<TData | null> => {
-      const mutationId = "mut-" + crypto.randomUUID();
-      trackMutation(mutationId, "pending");
+      const key = callbacks?.mutationKey ?? fetchOptions.mutationKey ?? options.mutationKey;
+      if (key && inFlightKeys.current.has(key)) return null;
+      if (key) inFlightKeys.current.add(key);
+
+      let retriesLeft = options.retry ?? fetchOptions.retry ?? 0;
+      if (retriesLeft === true) retriesLeft = Infinity;
+
+      const mid = "mut-" + crypto.randomUUID();
+      setMutationId(mid);
+      trackMutation(mid, "pending");
       setState({
         data: null,
         error: null,
@@ -107,46 +107,69 @@ export function useMutation<TData = unknown>(
         isSuccess: false,
       });
 
-      try {
-        const { response, queued } = await fetchWithCache<TData>(url, fetchOptions);
-        if (queued) {
-          resolveMutation(mutationId, null);
+      let retriesLeft = (options.retry ?? fetchOptions.retry) === true
+        ? Infinity
+        : (options.retry ?? fetchOptions.retry) ?? 0;
+
+      optionsRef.current.onMutate?.();
+
+      const attempt = async (): Promise<TData | null> => {
+        try {
+          const { response, queued } = await fetchWithCache<TData>(url, fetchOptions);
+          if (queued) {
+            resolveMutation(mid, null);
+            setState({
+              data: null,
+              error: null,
+              isLoading: false,
+              isError: false,
+              isSuccess: false,
+            });
+            optionsRef.current.onSettled?.();
+            callbacks?.onSettled?.();
+            if (key) inFlightKeys.current.delete(key);
+            return null;
+          }
+          const data: TData = await response.json();
+          resolveMutation(mid, data);
           setState({
-            data: null,
+            data,
             error: null,
             isLoading: false,
             isError: false,
+            isSuccess: true,
+          });
+          optionsRef.current.onSuccess?.(data);
+          callbacks?.onSuccess?.(data);
+          optionsRef.current.onSettled?.();
+          callbacks?.onSettled?.();
+          if (key) inFlightKeys.current.delete(key);
+          return data;
+        } catch (err) {
+          if (retriesLeft > 0) {
+            retriesLeft--;
+            await new Promise((r) => setTimeout(r, 1000));
+            return attempt();
+          }
+          const error = err instanceof Error ? err : new Error(String(err));
+          rejectMutation(mid, error);
+          setState({
+            data: null,
+            error,
+            isLoading: false,
+            isError: true,
             isSuccess: false,
           });
+          optionsRef.current.onError?.(error);
+          callbacks?.onError?.(error);
           optionsRef.current.onSettled?.();
+          callbacks?.onSettled?.();
+          if (key) inFlightKeys.current.delete(key);
           return null;
         }
-        const data: TData = await response.json();
-        resolveMutation(mutationId, data);
-        setState({
-          data,
-          error: null,
-          isLoading: false,
-          isError: false,
-          isSuccess: true,
-        });
-        optionsRef.current.onSuccess?.(data);
-        optionsRef.current.onSettled?.();
-        return data;
-      } catch (err) {
-        const error = err instanceof Error ? err : new Error(String(err));
-        rejectMutation(mutationId, error);
-        setState({
-          data: null,
-          error,
-          isLoading: false,
-          isError: true,
-          isSuccess: false,
-        });
-        optionsRef.current.onError?.(error);
-        optionsRef.current.onSettled?.();
-        return null;
-      }
+      };
+
+      return attempt();
     },
     [],
   );
@@ -161,5 +184,10 @@ export function useMutation<TData = unknown>(
     });
   }, []);
 
-  return { ...state, mutate, reset };
+  return {
+    ...state,
+    mutate,
+    reset,
+    mutationId,
+  };
 }

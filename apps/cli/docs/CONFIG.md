@@ -17,7 +17,13 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
   "features": {
     "pwa": {
       "enabled": true,
-      "preventDefaultInstall": false
+      "preventDefaultInstall": false,
+      "assets": {
+        "source": "./path/to/logo.svg",
+        "outputDir": "public",
+        "themeColor": "#000000",
+        "bgColor": "#ffffff"
+      }
     },
     "serviceWorker": {
       "version": "package",
@@ -103,6 +109,26 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | `apiBaseUrl` | `string` | `""` | Base URL prepended to all relative API URLs. Set to your API server origin (e.g. `https://api.example.com`) when frontend and API are on different domains. Leave empty string when same origin. |
 | `build.outputDir` | `string` | `"dist"` | Build tool output directory |
 | `build.swFilename` | `string` | `"sw"` | Service worker filename prefix (e.g. `sw-v1.2.3.js`) |
+
+---
+
+## `features.pwa`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `boolean` | `true` | Enable PWA installability (generates `pwa/install.ts` + `manifest.json`) |
+| `preventDefaultInstall` | `boolean` | `false` | Suppress browser's native install prompt. When true, dev must call `promptInstall()` manually. |
+
+### `features.pwa.assets`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `source` | `string` | `""` | Path to source logo file (SVG/PNG/JPG). Set via `swoff init --logo-source`. When configured, PWA icons, favicon, Apple touch icon, OG image, and Apple splash screens are auto-generated during `swoff generate`. |
+| `outputDir` | `string` | `"public"` | Directory where generated assets are written |
+| `themeColor` | `string` | `"#000000"` | Theme color for manifest, browser theme, and favicon placeholder |
+| `bgColor` | `string` | `"#ffffff"` | Background color for splash screens and OG image canvas |
+
+Generated assets are automatically linked in `manifest.json` and `index.html`.
 
 ---
 

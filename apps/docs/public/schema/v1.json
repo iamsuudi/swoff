@@ -44,6 +44,40 @@
               "type": "boolean",
               "description": "Prevent browser's native install prompt. When false, browser prompt shows naturally while event is captured. When true, prompt is suppressed and dev must call promptInstall() manually.",
               "default": false
+            },
+            "assets": {
+              "type": "object",
+              "description": "PWA asset generation configuration (icons, splash screens, favicon, OG image)",
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "description": "Path to source logo file (SVG/PNG/JPG). Set via `swoff init --logo-source`. When configured, all PWA assets are auto-generated during `swoff generate`.",
+                  "default": ""
+                },
+                "outputDir": {
+                  "type": "string",
+                  "description": "Directory where generated assets are written",
+                  "default": "public"
+                },
+                "themeColor": {
+                  "type": "string",
+                  "description": "Theme color hex string used for manifest, browser theme, and favicon placeholder",
+                  "default": "#000000",
+                  "pattern": "^#[0-9a-fA-F]{6}$"
+                },
+                "bgColor": {
+                  "type": "string",
+                  "description": "Background color hex string used for splash screens and OG image canvas",
+                  "default": "#ffffff",
+                  "pattern": "^#[0-9a-fA-F]{6}$"
+                },
+                "generated": {
+                  "type": "boolean",
+                  "description": "Internal flag set to true after first asset generation",
+                  "default": false
+                }
+              },
+              "required": ["source", "outputDir", "themeColor", "bgColor", "generated"]
             }
           },
           "required": ["enabled", "preventDefaultInstall"]

@@ -16,6 +16,7 @@ swoff init --framework react   # override auto-detection
 | Flag | Type | Description |
 |------|------|-------------|
 | `--framework` | `"react"` \| `"vue"` \| `"svelte"` \| `"vanilla"` | Override framework auto-detection |
+| `--logo-source` | `string` | Path to a logo file (SVG/PNG/JPG) for PWA asset generation. Stored in `features.pwa.assets.source`. |
 
 ---
 
@@ -64,6 +65,44 @@ All files land in `swoff/`. See [API.md](./API.md) for the full reference.
 | `swoff.d.ts` | always | TypeScript declarations |
 | `GUIDE.md` | always | Documentation links and quick-start info |
 | `manifest.json` | `pwa.enabled` | Web app manifest |
+| `reset.ts` | always | `resetSwoff()` — wipes caches, IndexedDB databases, localStorage, unregisters SW, re-registers via `initServiceWorker` |
+| `fetch-state.ts` | always | Global fetch counter (`incrementFetchCount`/`decrementFetchCount`/`getFetchCount`) with `fetch-count-changed` custom events |
+
+### PWA assets
+
+When `features.pwa.enabled` is `true` and `features.pwa.assets.source` is configured, `swoff generate`
+automatically generates the following assets from the source logo:
+
+| File | Description |
+|------|-------------|
+| `public/icon-64.png` | Small PWA icon (64×64) |
+| `public/icon-192.png` | Standard PWA icon (192×192) |
+| `public/icon-512.png` | Large PWA icon (512×512) |
+| `public/maskable-icon-512.png` | Maskable PWA icon (512×512) with safe zone padding |
+| `public/apple-touch-icon.png` | Apple touch icon (180×180) |
+| `public/favicon.ico` | Multi-size favicon (16×16, 32×32, 48×48) |
+| `public/og-image.png` | Open Graph / social sharing image (1200×630) with centered logo |
+| `public/splash-*.png` | Apple splash screens (7 sizes for all iOS devices) |
+
+The generated assets are automatically patched into `manifest.json` and `index.html`.
+
+---
+
+## `generate-assets`
+
+Regenerates PWA assets from a source image without re-running the full generator.
+
+```
+swoff generate-assets --source ./logo.svg
+swoff generate-assets --source ./logo.png --no-splash
+```
+
+| Flag | Description |
+|------|-------------|
+| `--source` | Path to source image (SVG/PNG/JPG). Overrides `features.pwa.assets.source` if set. |
+| `--no-splash` | Skip Apple splash screen generation |
+
+If `--source` is omitted, uses `features.pwa.assets.source` from config.
 
 ---
 

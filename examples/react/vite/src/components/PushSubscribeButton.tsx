@@ -1,10 +1,8 @@
-import { usePushSubscription } from "../../swoff/hooks/usePushSubscription.tsx";
-
-const VAPID_PUBLIC_KEY = "BJUUaF0CZdvMgRCIFV3Mw6n8HvekMpB9uqdUcQqj4GqOkJr377pKLlZQ2j_rhIUe3jB87GOueZavBnvqmV9KDrM";
+import { usePushSubscription } from "../../swoff/hooks/usePushSubscription";
 
 export default function PushSubscribeButton() {
   const { subscribed, loading, permission, subscribe, unsubscribe, subscription } =
-    usePushSubscription(VAPID_PUBLIC_KEY);
+    usePushSubscription();
 
   const handleToggle = async () => {
     if (subscribed) {

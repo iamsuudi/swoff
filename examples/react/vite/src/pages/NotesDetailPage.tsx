@@ -1,8 +1,15 @@
-import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { fetchWithCache } from "../../swoff/fetch-wrapper";
-import { generateTags, invalidateUrl } from "../../swoff/invalidation-tags";
-import { queueMutation } from "../../swoff/mutation-queue";
+import { useCachedFetch } from "../../swoff/hooks/useCachedFetch";
+import { useMutation } from "../../swoff/hooks/useMutation";
+
+interface Note {
+  id: number;
+  title: string;
+  description: string;
+  priority: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 const priorityColors: Record<string, string> = {
   high: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800",
@@ -13,33 +20,19 @@ const priorityColors: Record<string, string> = {
 export default function NotesDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [note, setNote] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const loadNote = async (noteId: number) => {
-    try {
-      setIsLoading(true);
-      const { response: res } = await fetchWithCache(`/api/notes/${noteId}`, { auth: true, tags: generateTags(`/api/notes/${noteId}`) });
-      setNote(await res.json());
-    } catch { setNote(null); }
-    finally { setIsLoading(false); }
-  };
-
-  useEffect(() => { if (id) loadNote(Number(id)); }, [id]);
+  const { data: note, loading } = useCachedFetch<Note>(
+    id ? `/api/notes/${id}` : null,
+    { auth: true },
+  );
+  const deleteMutation = useMutation();
 
   const handleDelete = async () => {
     if (!confirm("Are you sure you want to delete this note?")) return;
-    if (!navigator.onLine) {
-      await queueMutation({ method: "DELETE", url: `/api/notes/${id}`, tags: generateTags(`/api/notes/${id}`) });
-      navigate("/notes");
-      return;
-    }
-    await fetchWithCache(`/api/notes/${id}`, { method: "DELETE", auth: true });
-    await invalidateUrl(`/api/notes/${id}`);
+    await deleteMutation.mutate(`/api/notes/${id}`, { method: "DELETE", auth: true });
     navigate("/notes");
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent" />
@@ -70,8 +63,8 @@ export default function NotesDetailPage() {
           <div className="flex items-center gap-2">
             <Link to={`/notes/${note.id}/edit`}
               className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">Edit</Link>
-            <button onClick={handleDelete}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-red-500 transition hover:bg-red-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-red-900/30">Delete</button>
+            <button onClick={handleDelete} disabled={deleteMutation.isLoading}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-red-500 transition hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-red-900/30">Delete</button>
           </div>
         </div>
 

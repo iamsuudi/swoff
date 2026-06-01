@@ -50,7 +50,7 @@
       "retryDelayMs": 1000
     },
     "mutationQueue": {
-      "enabled": false,
+      "enabled": true,
       "batchSize": 1,
       "batchDelayMs": 0,
       "maxRetries": 5,
@@ -75,14 +75,15 @@
       "enabled": true,
       "endpoint": "/graphql"
     },
-    "pushNotifications": {
-      "enabled": true
-    },
     "serverPush": {
       "enabled": true,
       "type": "sse",
       "endpoint": "/api/events",
       "reconnectDelayMs": 5000
+    },
+    "pushNotifications": {
+      "enabled": true,
+      "vapidPublicKey": "BJUUaF0CZdvMgRCIFV3Mw6n8HvekMpB9uqdUcQqj4GqOkJr377pKLlZQ2j_rhIUe3jB87GOueZavBnvqmV9KDrM"
     }
   }
 }

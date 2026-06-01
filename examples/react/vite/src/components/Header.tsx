@@ -1,44 +1,18 @@
-import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getAuthState } from "../../swoff/auth/state";
+import { useAuth } from "../../swoff/hooks/useAuth";
 import { clearAuth } from "../../swoff/auth/store";
 import { clearCachedUser } from "../../swoff/auth/user";
-import type { User } from "../types";
 import InstallButton from "./InstallButton";
 import PushSubscribeButton from "./PushSubscribeButton";
 
 export default function Header() {
   const navigate = useNavigate();
-  const [authenticated, setAuthenticated] = useState(false);
-  const [userName, setUserName] = useState("");
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    getAuthState().then((s) => {
-      setAuthenticated(s.authenticated);
-      const u = s.user as User | null;
-      setUser(u);
-      setUserName(u?.name || "");
-    });
-    const onChange = () =>
-      getAuthState().then((s) => {
-        setAuthenticated(s.authenticated);
-        const u = s.user as User | null;
-        setUser(u);
-        setUserName(u?.name || "");
-      });
-    window.addEventListener("sw-auth-state-change", onChange);
-    return () => window.removeEventListener("sw-auth-state-change", onChange);
-  }, []);
+  const { authenticated, user } = useAuth();
 
   const handleLogout = async () => {
     await fetch("/api/logout", { method: "POST" }).catch(() => {});
     await clearAuth();
     await clearCachedUser();
-    if ("serviceWorker" in navigator) {
-      const reg = await navigator.serviceWorker.getRegistration();
-      if (reg?.active) reg.active.postMessage({ type: "CLEAR_RUNTIME_CACHE" });
-    }
     window.dispatchEvent(
       new CustomEvent("sw-auth-state-change", {
         detail: { authenticated: false },
@@ -71,6 +45,12 @@ export default function Header() {
               >
                 Notes
               </Link>
+              <Link
+                to="/notes/gql"
+                className="text-gray-600 transition hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+              >
+                GraphQL
+              </Link>
             </>
           )}
           <Link
@@ -84,7 +64,7 @@ export default function Header() {
           {authenticated ? (
             <div className="flex items-center gap-3">
               <span className="hidden text-xs text-gray-500 sm:inline dark:text-gray-400">
-                {user?.name || userName}
+                {(user as { name?: string } | null)?.name ?? ""}
               </span>
               <button
                 onClick={handleLogout}

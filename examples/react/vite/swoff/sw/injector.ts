@@ -48,7 +48,11 @@ async function waitForController(): Promise<void> {
     if (navigator.serviceWorker.controller) {
       resolve();
     } else {
-      navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true });
+      const timeout = setTimeout(() => resolve(), 30000);
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        clearTimeout(timeout);
+        resolve();
+      }, { once: true });
     }
   });
 }

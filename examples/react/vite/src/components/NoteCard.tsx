@@ -15,9 +15,10 @@ interface NoteCardProps {
   detailUrl: string;
   editUrl: string;
   onDelete?: (id: number) => void;
+  deleting?: boolean;
 }
 
-export default function NoteCard({ id, title, description, priority, updatedAt, detailUrl, editUrl, onDelete }: NoteCardProps) {
+export default function NoteCard({ id, title, description, priority, updatedAt, detailUrl, editUrl, onDelete, deleting }: NoteCardProps) {
   return (
     <div className="group relative flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 dark:border-gray-700 dark:bg-gray-800">
       <div className="mb-3 flex items-start justify-between gap-3">
@@ -38,7 +39,8 @@ export default function NoteCard({ id, title, description, priority, updatedAt, 
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
           </Link>
           {onDelete && (
-            <button onClick={() => onDelete(id)} className="rounded-lg p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/30">
+            <button onClick={() => onDelete(id)} disabled={deleting}
+              className="rounded-lg p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed dark:hover:bg-red-900/30">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
             </button>
           )}

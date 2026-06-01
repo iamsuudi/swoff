@@ -24,7 +24,7 @@ const SUBSCRIPTION_DB = "swoff-push";
 const SUBSCRIPTION_STORE = "subscription";
 // Bump this when adding new indexes/stores for schema migration
 const DB_VERSION = 1;
-const VAPID_PUBLIC_KEY = "";
+const VAPID_PUBLIC_KEY = "BJUUaF0CZdvMgRCIFV3Mw6n8HvekMpB9uqdUcQqj4GqOkJr377pKLlZQ2j_rhIUe3jB87GOueZavBnvqmV9KDrM";
 
 let permissionState: NotificationPermission | undefined = typeof Notification !== "undefined" ? Notification.permission : undefined;
 

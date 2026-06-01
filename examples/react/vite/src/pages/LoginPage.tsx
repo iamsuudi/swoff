@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { setAuth } from "../../swoff/auth/store";
-import { fetchCurrentUser } from "../../swoff/auth/user";
-import { flushMutations } from "../../swoff/mutation-queue";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -31,20 +29,14 @@ export default function LoginPage() {
         ...(data.expiresAt && { expiresAt: data.expiresAt }),
         user: data.user,
       });
-      try {
-        await fetchCurrentUser();
-      } catch {
-        /* offline — use login response user */
-      }
-      await flushMutations();
       window.dispatchEvent(
         new CustomEvent("sw-auth-state-change", {
           detail: { authenticated: true },
         }),
       );
       navigate("/notes");
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }

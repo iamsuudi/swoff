@@ -6,7 +6,7 @@
  *   import { subscribeToPush, unsubscribeFromPush, isSubscribed } from './swoff/push.ts';
  *
  *   // Enable (triggers permission prompt)
- *   const subscription = await subscribeToPush("YOUR_VAPID_PUBLIC_KEY");
+ *   const subscription = await subscribeToPush();
  *   await fetch("/api/push/subscribe", {
  *     method: "POST",
  *     body: JSON.stringify(subscription.toJSON()),
@@ -22,12 +22,15 @@
 
 const SUBSCRIPTION_DB = "swoff-push";
 const SUBSCRIPTION_STORE = "subscription";
+// Bump this when adding new indexes/stores for schema migration
+const DB_VERSION = 1;
+const VAPID_PUBLIC_KEY = "BJUUaF0CZdvMgRCIFV3Mw6n8HvekMpB9uqdUcQqj4GqOkJr377pKLlZQ2j_rhIUe3jB87GOueZavBnvqmV9KDrM";
 
-let permissionState = Notification.permission;
+let permissionState: NotificationPermission | undefined = typeof Notification !== "undefined" ? Notification.permission : undefined;
 
 function openPushDB(): Promise<IDBDatabase> {
   return new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(SUBSCRIPTION_DB, 1);
+    const request = indexedDB.open(SUBSCRIPTION_DB, DB_VERSION);
     request.onupgradeneeded = (e) => {
       const db = (e.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains(SUBSCRIPTION_STORE)) {
@@ -62,15 +65,15 @@ export async function getPushSubscription(): Promise<PushSubscription | null> {
   }
 }
 
-/** Subscribe to push notifications. Returns the subscription or null if permission denied. */
-export async function subscribeToPush(vapidPublicKey: string): Promise<PushSubscription | null> {
+/** Subscribe to push notifications. Returns the subscription or null if permission denied. Uses the VAPID public key from your swoff.config.json. */
+export async function subscribeToPush(): Promise<PushSubscription | null> {
   const granted = await requestNotificationPermission();
   if (!granted) return null;
 
   const registration = await navigator.serviceWorker.ready;
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as BufferSource,
+    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
   });
 
   const db = await openPushDB();

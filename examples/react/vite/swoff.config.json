@@ -12,46 +12,78 @@
       "preventDefaultInstall": false
     },
     "serviceWorker": {
-      "version": {
-        "enabled": true,
-        "source": "from-package",
-        "minSupportedVersion": "1.0.0"
-      },
+      "version": "package",
+      "minSupportedVersion": "0.0.0",
       "autoUpdate": true,
-      "autoActivate": true,
-      "defaultStrategy": "cache-first",
-      "strategies": {
-        "/api/*": "network-first",
-        "/static/*": "cache-first"
+      "autoActivate": false,
+      "requestBatchWindowMs": 50,
+      "navigation": {
+        "mode": "spa",
+        "preload": true,
+        "fallback": "/index.html"
       },
-      "cacheStrategy": "all",
-      "clearRuntimeOnUpdate": false,
-      "navigationPreload": true,
-      "navigationMode": "spa",
-      "spaEntry": "/index.html"
+      "strategy": {
+        "default": "cache-first",
+        "mode": "all",
+        "clearRuntimeOnUpdate": false,
+        "maxRuntimeCacheAge": 2592000,
+        "normalizeKey": false,
+        "ignoreQueryParams": [],
+        "patterns": {
+          "/api/*": "network-first",
+          "/static/*": "cache-first"
+        },
+        "reactive": {
+          "defaults": {
+            "staleTime": 0,
+            "refetchInterval": 0,
+            "refetchOnReconnect": false,
+            "refetchOnFocus": false
+          }
+        }
+      }
     },
-    "mutationQueue": {
-      "enabled": true,
+    "refetchQueue": {
       "batchSize": 5,
       "batchDelayMs": 1000,
       "maxRetries": 3,
-      "retryBackoffMs": 2000
+      "retryDelayMs": 1000
+    },
+    "mutationQueue": {
+      "enabled": true,
+      "batchSize": 1,
+      "batchDelayMs": 0,
+      "maxRetries": 5,
+      "retryBackoffMs": 1000
     },
     "backgroundSync": true,
     "auth": {
       "enabled": true,
-      "type": "bearer",
+      "type": "cookie",
       "refreshPath": "/api/refresh",
       "userEndpoint": "/api/me"
     },
     "crossTabSync": true,
-    "tagInvalidation": true,
+    "tagInvalidation": {
+      "debounceMs": 0,
+      "prefixes": ["api", "v1", "v2", "v3", "rest", "graphql", "gql"],
+      "patterns": {},
+      "singularization": {},
+      "cascading": {}
+    },
     "graphql": {
       "enabled": true,
       "endpoint": "/graphql"
     },
+    "serverPush": {
+      "enabled": true,
+      "type": "sse",
+      "endpoint": "/api/events",
+      "reconnectDelayMs": 5000
+    },
     "pushNotifications": {
-      "enabled": true
+      "enabled": true,
+      "vapidPublicKey": "BJUUaF0CZdvMgRCIFV3Mw6n8HvekMpB9uqdUcQqj4GqOkJr377pKLlZQ2j_rhIUe3jB87GOueZavBnvqmV9KDrM"
     }
   }
 }

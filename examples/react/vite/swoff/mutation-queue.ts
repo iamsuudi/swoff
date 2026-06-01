@@ -122,7 +122,7 @@ async function replayMutation(item: MutationQueueItem): Promise<boolean> {
         item.body instanceof ArrayBuffer
           ? (new Uint8Array(item.body) as BodyInit)
           : (item.body as BodyInit);
-    } else {
+    } else if (item.body != null) {
       replayBody = JSON.stringify(item.body);
       contentType = "application/json";
     }
@@ -133,7 +133,7 @@ async function replayMutation(item: MutationQueueItem): Promise<boolean> {
         ...authHeader,
         ...item.headers,
       },
-      body: replayBody,
+      ...(replayBody != null ? { body: replayBody } : {}),
     });
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);

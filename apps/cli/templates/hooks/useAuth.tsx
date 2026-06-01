@@ -1,44 +1,57 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getAuthState } from "../auth/state.ts";
+import { setAuth, clearAuth, ensureValidAuth } from "../auth/store.ts";
+import type { AuthData } from "../auth/store.ts";
 
 /**
- * Reactive auth state across the 4-state matrix: online/offline × authenticated/not.
- *
- * Automatically re-evaluates on network changes (online/offline) and auth events
- * (sw-auth-state-change). The auth state is derived from auth/store.ts which
- * manages the token in memory with IndexedDB fallback for offline user display.
+ * Reactive auth state with actions: setAuth, clearAuth, ensureValid.
  *
  * Usage:
- *   const { authenticated, user, online } = useAuth();
+ *   const { authenticated, user, online, isLoading, error, setAuth, clearAuth, ensureValid } = useAuth();
  *
- *   // Show login prompt when:
- *   //   online && !authenticated  → needs login
- *   //   offline && !authenticated → strict offline (public content only)
- *   //   offline && authenticated  → show cached data
+ *   // Login — call setAuth with the response from your login endpoint:
+ *   const res = await fetch("/api/login", { method: "POST", body });
+ *   const data = await res.json();
+ *   await setAuth({ token: data.token, user: data.user, expiresAt: data.expiresAt });
+ *
+ *   // Logout — clears tokens from memory and user cache from IndexedDB:
+ *   await clearAuth();
+ *
+ *   // Silently refresh the session (page restore) — wraps ensureValidAuth():
+ *   const auth = await ensureValid();
  *
  * Auth behavior by type:
- *   - Cookie auth: session is maintained by the browser. Page refresh preserves
- *     the session. The auth store tries a silent refresh (POST to refresh endpoint)
- *     if the session appears expired.
- *   - Bearer auth: token lives in memory only (cleared on page refresh). The auth
- *     store attempts a silent session restore by calling refresh endpoint. If the
- *     server responds with a new token, the session resumes transparently.
+ *   - Cookie auth: credentials ("include") sent automatically by the browser.
+ *     setAuth still caches user data for offline display.
+ *   - Bearer auth: token lives in memory only. clearAuth wipes it.
+ *     ensureValid tries a silent refresh via refreshSession() in auth/user.ts.
  *
- * @returns {{ authenticated: boolean, user: Record<string,unknown>|null, online: boolean }}
+ * @returns {{ authenticated, user, online, isLoading, error, setAuth, clearAuth, ensureValid }}
  */
 export function useAuth() {
   const [state, setState] = useState(() => ({
     authenticated: false,
     user: null as Record<string, unknown> | null,
     online: typeof navigator !== "undefined" ? navigator.onLine : true,
+    isLoading: false,
+    error: null as Error | null,
   }));
 
+  const refreshState = useCallback(async () => {
+    try {
+      const authState = await getAuthState();
+      setState((s) => ({ ...s, ...authState, error: null }));
+    } catch {
+      // ignore — auth not initialized
+    }
+  }, []);
+
   useEffect(() => {
-    getAuthState().then(setState).catch(() => {});
+    refreshState();
 
     const onOnline = () => setState((s) => ({ ...s, online: true }));
     const onOffline = () => setState((s) => ({ ...s, online: false }));
-    const onAuthChange = () => getAuthState().then(setState).catch(() => {});
+    const onAuthChange = () => refreshState();
 
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
@@ -49,7 +62,57 @@ export function useAuth() {
       window.removeEventListener("offline", onOffline);
       window.removeEventListener("sw-auth-state-change", onAuthChange);
     };
-  }, []);
+  }, [refreshState]);
 
-  return state;
+  const doSetAuth = useCallback(async (authData: AuthData) => {
+    setState((s) => ({ ...s, isLoading: true, error: null }));
+    try {
+      await setAuth(authData);
+      await refreshState();
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setState((s) => ({ ...s, error }));
+    } finally {
+      setState((s) => ({ ...s, isLoading: false }));
+    }
+  }, [refreshState]);
+
+  const doClearAuth = useCallback(async () => {
+    setState((s) => ({ ...s, isLoading: true, error: null }));
+    try {
+      await clearAuth();
+      await refreshState();
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setState((s) => ({ ...s, error }));
+    } finally {
+      setState((s) => ({ ...s, isLoading: false }));
+    }
+  }, [refreshState]);
+
+  const doEnsureValid = useCallback(async (): Promise<AuthData | null> => {
+    setState((s) => ({ ...s, isLoading: true, error: null }));
+    try {
+      const auth = await ensureValidAuth();
+      await refreshState();
+      return auth;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setState((s) => ({ ...s, error }));
+      return null;
+    } finally {
+      setState((s) => ({ ...s, isLoading: false }));
+    }
+  }, [refreshState]);
+
+  return {
+    authenticated: state.authenticated,
+    user: state.user,
+    online: state.online,
+    isLoading: state.isLoading,
+    error: state.error,
+    setAuth: doSetAuth,
+    clearAuth: doClearAuth,
+    ensureValid: doEnsureValid,
+  };
 }

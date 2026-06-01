@@ -67,6 +67,7 @@ import { generateTags, invalidateUrl, expandCascading } from "./invalidation-tag
 import { invalidateByTags } from "./cache.ts";
 import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, ensureValidAuth, AUTH_WITH_CREDENTIALS } from "./auth/store.ts";
 import { queueMutation } from "./mutation-queue.ts";
+import { incrementFetchCount, decrementFetchCount } from "./fetch-state.ts";
 
 export interface FetchWithCacheResult<T> {
   response: Response & { json(): Promise<T> };
@@ -97,6 +98,8 @@ const BATCH_WINDOW_MS = 50;
 
 /** Fetch with caching, auth, offline queue, auto-invalidation, and per-request strategy override. Returns { response, fromCache }. Use { auth: true } for authenticated requests — works with bearer, cookie, and custom auth types. */
 export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit & FetchWithCacheOptions = {}): Promise<FetchWithCacheResult<T>> {
+  incrementFetchCount();
+  try {
   const method = (options.method || "GET").toUpperCase();
   const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD" || method === "OPTIONS"));
   const resolvedInput = typeof input === "string" && !input.startsWith("http") && !input.startsWith("//") ? API_BASE + input : input;
@@ -295,6 +298,9 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
   const fromCache = response.headers.get("X-SW-From-Cache") === "true";
   const queued = response.headers.get("X-SW-Mutation-Queued") === "true";
   return { response, fromCache, queued };
+  } finally {
+    decrementFetchCount();
+  }
 }
 
 /** Fire-and-forget prefetch: warms the cache for a URL without blocking. Useful for route prefetching or link hover prefetching. */

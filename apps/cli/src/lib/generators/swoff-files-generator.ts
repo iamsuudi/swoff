@@ -41,6 +41,8 @@ import { generateGqlWrapper } from "./file-generators/gql-wrapper.js";
 import { generateTypeDefinitions } from "./file-generators/type-definitions.js";
 import { generateHooks } from "./file-generators/generate-hooks.js";
 import { generateGuide } from "./file-generators/guide-generator.js";
+import { generateReset } from "./file-generators/reset.js";
+import { generateFetchState } from "./file-generators/fetch-state.js";
 interface Step {
   name: string;
   gen: () => void;
@@ -55,6 +57,8 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
     { name: "client-injector", gen: () => generateClientInjector(ctx), enabled: true },
     { name: "fetch-wrapper", gen: () => generateFetchWrapper(ctx), enabled: true },
     { name: "cache", gen: () => generateCache(ctx), enabled: true },
+    { name: "fetch-state", gen: () => generateFetchState(ctx), enabled: true },
+    { name: "reset", gen: () => generateReset(ctx), enabled: true },
     { name: "mutation-queue", gen: () => generateMutationQueue(ctx), enabled: ctx.config.features.mutationQueue.enabled },
     { name: "mutation-state", gen: () => generateMutationState(ctx), enabled: ctx.config.features.mutationQueue.enabled },
     { name: "background-sync", gen: () => generateBackgroundSync(ctx), enabled: ctx.config.features.backgroundSync && ctx.config.features.mutationQueue.enabled && !(ctx.config.features.auth.enabled && ctx.config.features.auth.type !== "cookie") },

@@ -25,6 +25,7 @@ export function generateFetchWrapper(ctx: GeneratorContext): void {
     mutationQueue
       ? `import { queueMutation } from "./mutation-queue.${ext}";`
       : "",
+    `import { incrementFetchCount, decrementFetchCount } from "./fetch-state.${ext}";`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -253,6 +254,8 @@ const BATCH_WINDOW_MS = ${ctx.config.features.serviceWorker.requestBatchWindowMs
 
 /** Fetch with caching, auth, offline queue, auto-invalidation, and per-request strategy override. Returns { response, fromCache }. Use { auth: true } for authenticated requests — works with bearer, cookie, and custom auth types. */
 export async function fetchWithCache${G("T")}(input${T("RequestInfo")}, options${T("RequestInit & FetchWithCacheOptions")} = {})${R("Promise<FetchWithCacheResult<T>>")}{
+  incrementFetchCount();
+  try {
   const method = (options.method || "GET").toUpperCase();
   const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD" || method === "OPTIONS"));
   const resolvedInput = typeof input === "string" && !input.startsWith("http") && !input.startsWith("//") ? API_BASE + input : input;
@@ -362,6 +365,9 @@ ${autoInvalidateBlock}${auth401Block}
   const fromCache = response.headers.get("X-SW-From-Cache") === "true";
   const queued = response.headers.get("X-SW-Mutation-Queued") === "true";
   return { response, fromCache, queued };
+  } finally {
+    decrementFetchCount();
+  }
 }
 
 /** Fire-and-forget prefetch: warms the cache for a URL without blocking. Useful for route prefetching or link hover prefetching. */

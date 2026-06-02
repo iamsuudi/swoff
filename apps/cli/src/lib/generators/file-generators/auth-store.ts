@@ -201,7 +201,6 @@ export function createAuthFromResponse(response) {
  *   await clearAuth();
  */
 
-import { API_BASE } from "../config.${ext}";
 import { refreshSession } from "./user.${ext}";
 
 ${authDataInterface}const DB_NAME = "swoff-auth";

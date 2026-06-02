@@ -3,6 +3,7 @@
  * Uses direct imports (no subprocess spawning) for a single status line.
  */
 
+import { join } from "path";
 import { log } from "../cli/logger.js";
 import { loadConfigAsync } from "../config/loader.js";
 import { detectProjectLanguage } from "../utils/detect-language.js";
@@ -10,7 +11,6 @@ import { statusLine, clearStatusLine } from "../utils/tty-status.js";
 import { generateSW } from "../generators/sw-generator.js";
 import { generateFiles } from "../generators/swoff-files-generator.js";
 import type { GeneratorContext } from "../generators/file-generators/context.js";
-import { join } from "path";
 
 export interface GenerateOptions {
   swOnly?: boolean;
@@ -82,6 +82,10 @@ export async function generateCommand(
         `File generation failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
+  }
+
+  if (config.features.pwa.enabled && !config.features.pwa.assets.source) {
+    log.help("PWA: no asset source configured. Run: swoff generate-assets --source ./path/to/logo.svg");
   }
 
   log.success("Generation complete!");

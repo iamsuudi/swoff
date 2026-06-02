@@ -424,6 +424,57 @@ Generated when `features.backgroundSync` is `true`.
 
 ---
 
+## `reset.ts`
+
+Nuclear reset for the entire Swoff system. Clears all caches, IndexedDB databases, localStorage,
+unregisters service workers, and re-registers via `initServiceWorker`.
+
+```ts
+import { resetSwoff } from "swoff/reset";
+```
+
+### `resetSwoff(options?)`
+
+```ts
+await resetSwoff({ clearStorage: true, reRegister: true });
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `clearStorage` | `boolean` | `true` | When true, clears all caches, IndexedDB (`swoff-*` databases), and localStorage |
+| `reRegister` | `boolean` | `true` | When true, re-registers the service worker after cleanup |
+
+Always generated.
+
+---
+
+## `fetch-state.ts`
+
+Global fetch activity state tracking. Reports the total number of in-flight fetch requests
+via a counter and custom events.
+
+```ts
+import {
+  incrementFetchCount,
+  decrementFetchCount,
+  getFetchCount,
+} from "swoff/fetch-state";
+```
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `incrementFetchCount()` | `void` | Increments global counter and dispatches `fetch-count-changed` |
+| `decrementFetchCount()` | `void` | Decrements global counter and dispatches `fetch-count-changed` |
+| `getFetchCount()` | `number` | Returns current in-flight fetch count |
+
+The `fetch-wrapper.ts` calls `incrementFetchCount()` before each request and
+`decrementFetchCount()` after each response, so the counter automatically tracks
+all active requests.
+
+Always generated.
+
+---
+
 ## React hooks
 
 Generated when `features.framework` is `"react"`. All hooks live in `swoff/hooks/`.
@@ -443,19 +494,110 @@ Returns `{ data: T \| null, error: unknown, loading: boolean, refetch: () => voi
 - **Dependent queries**: pass `enabled: false` or a nullable URL to skip until a condition is met
 - Stale data is automatically refreshed in the background by the SW (batched & rate-limited) when using the `reactive` strategy. On `online` event, reactive entries with `refetchOnReconnect` are recovered.
 
-### `useMutation()`
+#### Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `select` | `(data: T) => TSelected` | identity | Transform the response data. Uses `useRef` to skip re-renders when the selected value is equal (`Object.is`) to the previous one. |
+| `keepPreviousData` | `boolean` | `false` | When `true`, keeps the previous successful data during a background refetch instead of showing a loading state. The returned `data` is stable — it only updates when the new fetch completes. |
+| `placeholderData` | `T \| null` | `null` | Initial data to show while the first fetch is in-flight. Useful for skeleton UI. |
+| `onSuccess` | `(data: T) => void` | — | Callback fired when a fetch succeeds. Runs at the hook level (every successful fetch). |
+| `onError` | `(err: unknown) => void` | — | Callback fired when a fetch fails. Runs at the hook level (every failed fetch). |
+| `enabled` | `boolean` | `true` | When `false`, the fetch is skipped entirely. Useful for dependent queries. |
+
+### `useMutation(url, options?)` / `useMutation(options?)`
+
+Two overloaded signatures:
+
+- **`useMutation<TData>(url, options?)`** — URL fixed at hook level. `mutate(body?, callbacks?)`.
+  Use for a single endpoint with one configuration.
+- **`useMutation<TData>(options?)`** — URL passed per call. `mutate(url, fetchOptions?, callbacks?)`.
+  Use when the endpoint varies (e.g., delete-by-id in a list).
+
+#### Signature 1 — URL at hook level
 
 ```ts
-const { mutate, isLoading, isError, isSuccess, data, error, reset } =
-  useMutation({
-    onSuccess: (data) => console.log(data),
-    onError: (err) => console.error(err),
-  });
-mutate("/api/todos", {
+const { mutate, isLoading, data } = useMutation<{ id: number }>("/api/notes", {
   method: "POST",
-  body: JSON.stringify({ title: "New" }),
+  auth: true,
+  headers: { "Content-Type": "application/json" },
+  onSuccess: (note) => console.log("created", note.id),  // fully typed
+});
+await mutate(JSON.stringify({ title, description }), {
+  onSuccess: (note) => console.log("per-call", note.id),
 });
 ```
+
+Hook-level `fetchOptions` (`method`, `auth`, `headers`, etc.) are used as config.
+Per-call `mutate(body?, callbacks?)` only varies the request body — method/auth/headers
+cannot be overridden, keeping state (data, isLoading, error) bound 1:1 to this endpoint.
+
+#### Signature 2 — URL per call
+
+```ts
+const { mutate, isLoading } = useMutation({
+  onMutate: () => setOptimisticState(),
+});
+await mutate(`/api/notes/${id}`, { method: "DELETE", auth: true }, {
+  onSuccess: () => invalidateTags(["notes"]),
+});
+```
+
+Per-call `fetchOptions` are merged over hook-level options (per-call wins on conflict).
+
+#### Hook-level options (`UseMutationOptions<TData>`)
+
+All fields from `FetchWithCacheOptions` plus:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `onSuccess` | `(data: TData) => void` | — | Hook-level success callback. Runs for every successful mutation. |
+| `onError` | `(error: Error) => void` | — | Hook-level error callback. Runs for every failed mutation. |
+| `onSettled` | `() => void` | — | Hook-level settled callback. Runs after success or error. |
+| `onMutate` | `() => void` | — | Called before the mutation fires. Use for optimistic updates. |
+| `mutationKey` | `string` | — | Deduplication key. Skips if a mutation with the same key is in-flight. |
+| `retry` | `number \| boolean` | `0` | Retry count on failure. `true` = Infinity. 1s backoff between retries. |
+
+Full `FetchWithCacheOptions` accepted: `method`, `auth`, `headers`, `body`, `tags`,
+`invalidate`, `queueOffline`, `strategy`, `signal`, `staleTime`, `validateSuccess`, etc.
+
+#### Per-call arguments
+
+**Signature 1** — `mutate(body?, callbacks?)`:
+
+| Arg | Type | Description |
+|-----|------|-------------|
+| `body` | `BodyInit \| null` | Request body. Overrides hook-level `body`. |
+| `callbacks.onSuccess` | `(data: TData) => void` | Per-call success. Fires **after** hook-level. |
+| `callbacks.onError` | `(error: Error) => void` | Per-call error. Fires **after** hook-level. |
+| `callbacks.onSettled` | `() => void` | Per-call settled. Fires **after** hook-level. |
+| `callbacks.mutationKey` | `string` | Overrides hook-level `mutationKey`. |
+| `callbacks.retry` | `number \| boolean` | Overrides hook-level `retry`. |
+
+**Signature 2** — `mutate(url, fetchOptions?, callbacks?)`:
+
+| Arg | Type | Description |
+|-----|------|-------------|
+| `url` | `string` | Endpoint URL. |
+| `fetchOptions` | `MutateOptions` | Per-call fetch options. Merged over hook-level. |
+| `callbacks.onSuccess` | `(data: TData) => void` | Per-call success. Fires **after** hook-level. |
+| `callbacks.onError` | `(error: Error) => void` | Per-call error. Fires **after** hook-level. |
+| `callbacks.onSettled` | `() => void` | Per-call settled. Fires **after** hook-level. |
+| `callbacks.mutationKey` | `string` | Overrides `fetchOptions.mutationKey`. |
+| `callbacks.retry` | `number \| boolean` | Overrides `fetchOptions.retry`. |
+
+#### Callback order
+
+`onMutate` (hook) → fetch → `onSuccess`/`onError` (hook) → `onSuccess`/`onError` (per-call)
+→ `onSettled` (hook) → `onSettled` (per-call)
+
+#### Precedence
+
+| Field | Resolution order |
+|-------|-----------------|
+| `mutationKey` | callbacks > fetchOptions (Sig 2) > hook-level |
+| `retry` | callbacks > fetchOptions (Sig 2) > hook-level |
+| `method`, `auth`, `headers`, `body`, etc. | fetchOptions (Sig 2) > hook-level; fixed in Sig 1 |
 
 ### `usePrefetch()`
 
@@ -464,7 +606,30 @@ const prefetch = usePrefetch();
 <a onMouseEnter={() => prefetch("/api/todos")}>Todos</a>
 ```
 
-Returns a stable `prefetch(input, options?)` callback.
+Returns a stable `prefetch(input, options?)` callback. Internally tracks a `prefetchList`
+(string array of prefetched URLs) which is accessible for debugging. Call `clear()` to
+reset the list.
+
+### `useIsFetching()`
+
+```ts
+const isFetching = useIsFetching();
+```
+
+Returns `boolean` — `true` when any request tracked by `fetch-state.ts` is in-flight.
+Listens to `fetch-count-changed` custom events.
+
+### `useSwoffReset()`
+
+```ts
+const { reset, isResetting, error } = useSwoffReset();
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `reset` | `(options?) => Promise<void>` | Calls `resetSwoff()` with optional `{ clearStorage, reRegister }` |
+| `isResetting` | `boolean` | `true` while the reset is in progress |
+| `error` | `unknown` | Last error from a failed reset attempt, or `null` |
 
 ### `useMutationState(id)`
 
@@ -481,30 +646,47 @@ Pass `null` or empty string to disable.
 ### `useMutationQueue()`
 
 ```ts
-const { pending, items, lastSync } = useMutationQueue();
+const { pending, items, lastSync, isProcessing, retryAll } = useMutationQueue();
 ```
 
-| Field      | Type                                            | Description                                             |
-| ---------- | ----------------------------------------------- | ------------------------------------------------------- |
-| `pending`  | `number`                                        | Count of mutations waiting to sync                      |
-| `items`    | `MutationQueueItem[]`                           | All pending items with status, retry count, URL, method |
-| `lastSync` | `{ succeeded: number, failed: number } \| null` | Result of the last sync attempt                         |
+| Field | Type | Description |
+|-------|------|-------------|
+| `pending` | `number` | Count of mutations waiting to sync |
+| `items` | `MutationQueueItem[]` | All pending items with status, retry count, URL, method |
+| `lastSync` | `{ succeeded: number, failed: number } \| null` | Result of the last sync attempt |
+| `isProcessing` | `boolean` | `true` while the mutation queue is actively processing items (derived from `mutation-sync-complete` custom event) |
+| `retryAll` | `() => Promise<void>` | Manually trigger a full replay of all queued mutations |
 
 ### `useNetworkStatus()`
 
 ```ts
-const online = useNetworkStatus();
+const { online, wasOffline, lastChangedAt, effectiveType, downlink } = useNetworkStatus();
 ```
 
-Returns `boolean` — `true` when navigator is online.
+| Field | Type | Description |
+|-------|------|-------------|
+| `online` | `boolean` | Current online status |
+| `wasOffline` | `boolean` | `true` if the browser was offline at any point since the hook mounted |
+| `lastChangedAt` | `Date \| null` | Timestamp of the last online/offline transition |
+| `effectiveType` | `string` | Network effective type (`"slow-2g"`, `"2g"`, `"3g"`, `"4g"`) from `navigator.connection` |
+| `downlink` | `number` | Estimated downlink speed in Mb/s from `navigator.connection` |
 
 ### `useAuth()`
 
 ```ts
-const { authenticated, user, online } = useAuth();
+const { authenticated, user, online, isLoading, error, setAuth, clearAuth, ensureValid } = useAuth();
 ```
 
-Reactive auth + connectivity state. Listens to online/offline/auth changes.
+| Field | Type | Description |
+|-------|------|-------------|
+| `authenticated` | `boolean` | Whether the user is authenticated |
+| `user` | `Record<string, unknown> \| null` | Current user data (from IndexedDB cache) |
+| `online` | `boolean` | Current online status |
+| `isLoading` | `boolean` | `true` while checking auth state on mount |
+| `error` | `unknown` | Last auth error, or `null` |
+| `setAuth` | `(data: AuthData) => Promise<void>` | Manually set auth data |
+| `clearAuth` | `() => Promise<void>` | Clear auth data (logout) |
+| `ensureValid` | `() => Promise<boolean>` | Check auth validity and refresh if needed. Returns `true` if valid. |
 
 ### `useSWUpdate()`
 

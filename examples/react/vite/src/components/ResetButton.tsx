@@ -5,7 +5,7 @@ export default function ResetButton() {
 
   const handleReset = async () => {
     if (!confirm("This will clear all caches, local data, and re-register the service worker. Continue?")) return;
-    await reset({ clearStorage: true, reRegister: true });
+    await reset({ clearStorage: true, unregisterSW: true });
   };
 
   return (

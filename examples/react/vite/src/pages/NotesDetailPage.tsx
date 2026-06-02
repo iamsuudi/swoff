@@ -1,5 +1,5 @@
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { useSuspenseQuery } from "../../swoff/hooks/useSuspenseQuery";
+import { useCachedFetch } from "../../swoff/hooks/useCachedFetch";
 import { useMutation } from "../../swoff/hooks/useMutation";
 
 interface Note {
@@ -20,21 +20,32 @@ const priorityColors: Record<string, string> = {
 export default function NotesDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const note = useSuspenseQuery<Note>(`/api/notes/${id}`, { auth: true });
-  const deleteMutation = useMutation();
+  const { data: note, loading, error } = useCachedFetch<Note>(`/api/notes/${id}`, { auth: true });
+  const deleteMutation = useMutation(`/api/notes/${id}`, {
+    method: "DELETE",
+    auth: true,
+  });
 
   const handleDelete = async () => {
     if (!confirm("Are you sure you want to delete this note?")) return;
-    await deleteMutation.mutate(`/api/notes/${id}`, { method: "DELETE", auth: true });
+    await deleteMutation.mutate();
     navigate("/notes");
   };
 
-  if (!note) {
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error || !note) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Note not found</h1>
-          <p className="mt-2 text-gray-500 dark:text-gray-400">This note may have been deleted</p>
+          <p className="mt-2 text-gray-500 dark:text-gray-400">{error?.message || "This note may have been deleted"}</p>
           <Link to="/notes" className="mt-4 inline-flex items-center gap-2 rounded-lg border border-teal-500 px-5 py-2 text-sm font-medium text-teal-600 transition hover:bg-teal-50 dark:text-teal-400 dark:hover:bg-teal-900/30">Back to Notes</Link>
         </div>
       </div>

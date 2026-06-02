@@ -19,17 +19,16 @@ export default function NotesEditPage() {
     id ? `/api/notes/${id}` : null,
     { auth: true },
   );
-  const updateMutation = useMutation();
+  const updateMutation = useMutation(`/api/notes/${id}`, {
+    method: "PUT",
+    auth: true,
+    headers: { "Content-Type": "application/json" },
+  });
 
   const handleSubmit = async (data: Record<string, string>) => {
     const body = { ...data, updatedAt: new Date().toISOString() };
 
-    await updateMutation.mutate(`/api/notes/${id}`, {
-      method: "PUT",
-      auth: true,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    await updateMutation.mutate(JSON.stringify(body));
     navigate(`/notes/${id}`);
   };
 

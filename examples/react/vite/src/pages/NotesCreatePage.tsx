@@ -4,8 +4,11 @@ import NoteForm from "../components/NoteForm";
 
 export default function NotesCreatePage() {
   const navigate = useNavigate();
-  const createMutation = useMutation({
-    onSuccess: (note) => navigate(`/notes/${(note as Record<string, unknown>).id}`),
+  const createMutation = useMutation<{ id: number }>("/api/notes", {
+    method: "POST",
+    auth: true,
+    headers: { "Content-Type": "application/json" },
+    onSuccess: (note) => navigate(`/notes/${note.id}`),
   });
 
   const handleSubmit = async (data: Record<string, string>) => {
@@ -15,12 +18,7 @@ export default function NotesCreatePage() {
       updatedAt: new Date().toISOString(),
     };
 
-    const note = await createMutation.mutate("/api/notes", {
-      method: "POST",
-      auth: true,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const note = await createMutation.mutate(JSON.stringify(body));
     if (!note) navigate("/notes");
   };
 

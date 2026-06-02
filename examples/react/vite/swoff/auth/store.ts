@@ -14,7 +14,6 @@
  *   await clearAuth();
  */
 
-import { API_BASE } from "../config.ts";
 import { refreshSession } from "./user.ts";
 
 export interface AuthData {

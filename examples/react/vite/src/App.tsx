@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
 import GlobalLoadingBar from "./components/GlobalLoadingBar";
@@ -31,13 +30,7 @@ export default function App() {
           <Route path="/notes" element={<ProtectedRoute><NotesListPage /></ProtectedRoute>} />
           <Route path="/notes/new" element={<ProtectedRoute><NotesCreatePage /></ProtectedRoute>} />
           <Route path="/notes/gql" element={<ProtectedRoute><NotesGqlPage /></ProtectedRoute>} />
-          <Route path="/notes/:id" element={
-            <ProtectedRoute>
-              <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900"><div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent" /></div>}>
-                <NotesDetailPage />
-              </Suspense>
-            </ProtectedRoute>
-          } />
+          <Route path="/notes/:id" element={<ProtectedRoute><NotesDetailPage /></ProtectedRoute>} />
           <Route path="/notes/:id/edit" element={<ProtectedRoute><NotesEditPage /></ProtectedRoute>} />
           <Route path="/about" element={<AboutPage />} />
         </Routes>

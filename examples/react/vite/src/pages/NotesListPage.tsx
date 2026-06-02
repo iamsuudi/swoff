@@ -32,6 +32,7 @@ export default function NotesListPage() {
     await deleteMutation.mutate(`/api/notes/${id}`, {
       method: "DELETE",
       auth: true,
+    }, {
       onSuccess: () => window.dispatchEvent(new CustomEvent("cache-invalidated", { detail: { tags: ["notes"] } })),
     });
   };

@@ -23,9 +23,12 @@ export function useIsFetching(): boolean {
       setIsFetching(e.detail.count > 0);
     };
     window.addEventListener("fetch-count-changed", onChange as EventListener);
-    setIsFetching(getFetchCount() > 0);
+    queueMicrotask(() => setIsFetching(getFetchCount() > 0));
     return () => {
-      window.removeEventListener("fetch-count-changed", onChange as EventListener);
+      window.removeEventListener(
+        "fetch-count-changed",
+        onChange as EventListener,
+      );
     };
   }, []);
 

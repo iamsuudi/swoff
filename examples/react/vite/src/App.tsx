@@ -1,5 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
+import GlobalLoadingBar from "./components/GlobalLoadingBar";
+import NetworkStatusBanner from "./components/NetworkStatusBanner";
 import SWProgressBar from "./components/SWProgressBar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
@@ -16,7 +18,9 @@ import Footer from "./components/Footer";
 export default function App() {
   return (
     <>
+      <GlobalLoadingBar />
       <SWProgressBar />
+      <NetworkStatusBanner />
       <Header />
       <main>
         <Routes>

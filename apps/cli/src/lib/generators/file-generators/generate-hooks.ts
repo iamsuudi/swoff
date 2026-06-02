@@ -47,4 +47,5 @@ export function generateHooks(ctx: GeneratorContext): void {
   // Phase 2 — always generated
   copyHook(hooksDir, "useSwoffReset", ext);
   copyHook(hooksDir, "useIsFetching", ext);
+  copyHook(hooksDir, "useSuspenseQuery", ext);
 }

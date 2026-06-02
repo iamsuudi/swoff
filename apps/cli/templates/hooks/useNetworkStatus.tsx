@@ -19,7 +19,7 @@ export function useNetworkStatus() {
 
   const [state, setState] = useState(() => {
     const online = typeof navigator !== "undefined" ? navigator.onLine : true;
-    const connection = navigator.connection;
+    const connection = (navigator as any)?.connection;
     return {
       online,
       wasOffline: false,
@@ -47,7 +47,7 @@ export function useNetworkStatus() {
       }));
     };
 
-    const connection = navigator.connection;
+    const connection = (navigator as any)?.connection;
     const onTypeChange = () => {
       if (!connection) return;
       setState((s) => ({

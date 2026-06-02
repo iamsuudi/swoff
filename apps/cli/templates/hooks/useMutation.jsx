@@ -10,29 +10,30 @@ import {
  * Hook for mutations with auto-invalidation, offline queuing, optimistic updates,
  * dual-level callbacks, and deduplication.
  *
- * Usage — URL at hook level (recommended):
- *   const { mutate, isLoading } = useMutation("/api/notes", {
- *     method: "POST",
- *     auth: true,
- *     onSuccess: (note) => navigate(`/notes/${note.id}`),
+ * Usage:
+ *   const { mutate, isLoading, error, reset, mutationId } = useMutation({
+ *     onSuccess: (data) => showToast("Saved!"),
+ *     onError: (err) => reportError(err),
  *   });
- *   await mutate(JSON.stringify({ title, description }));
  *
- * Usage — URL per call (for varying endpoints like delete-by-id):
+ *   // Per-call callbacks fire after hook-level callbacks:
+ *   await mutate("/api/todos", { method: "POST", body }, {
+ *     onSuccess: (data) => navigate(`/item/${data.id}`),
+ *   });
+ *
+ *   // Optimistic update:
  *   const { mutate } = useMutation({
- *     onSuccess: (data) => showToast("done"),
- *   });
- *   await mutate(`/api/notes/${id}`, { method: "DELETE", auth: true }, {
- *     onSuccess: () => dispatchEvent(...),
+ *     onMutate: () => { /* set optimistic state *\/ },
+ *     onError: () => { /* rollback *\/ },
  *   });
  *
- * Callbacks fire in order: hook-level onMutate → hook onSuccess/onError → per-call onSuccess/onError → hook onSettled → per-call onSettled
+ *   // Dedup with key:
+ *   await mutate(url, { method: "POST", mutationKey: "save-profile" });
+ *
+ *   // Retry on failure:
+ *   await mutate(url, { method: "POST", retry: 3 });
  */
-export function useMutation(urlOrOptions, options) {
-  const hasHookUrl = typeof urlOrOptions === "string";
-  const hookUrl = hasHookUrl ? urlOrOptions : null;
-  const hookOptions = hasHookUrl ? (options ?? {}) : (urlOrOptions ?? {});
-
+export function useMutation(options = {}) {
   const [state, setState] = useState({
     data: null,
     error: null,
@@ -42,113 +43,93 @@ export function useMutation(urlOrOptions, options) {
   });
 
   const [mutationId, setMutationId] = useState(null);
-  const optionsRef = useRef(hookOptions);
+  const optionsRef = useRef(options);
   const inFlightKeys = useRef(new Set());
 
   useEffect(() => {
-    optionsRef.current = hookOptions;
-  });
+    optionsRef.current = options;
+  }, [options]);
 
-  const mutate = useCallback(
-    async (arg1, arg2, arg3) => {
-      const opts = optionsRef.current;
-      const { onSuccess: _onSuccess, onError: _onError, onSettled: _onSettled, onMutate: _onMutate, mutationKey: hookMutationKey, retry: hookRetry, ...hookFetchOpts } = opts;
+  const mutate = useCallback(async (url, fetchOptions = {}, callbacks) => {
+    const key = callbacks?.mutationKey ?? fetchOptions.mutationKey ?? options.mutationKey;
+    if (key && inFlightKeys.current.has(key)) return null;
+    if (key) inFlightKeys.current.add(key);
 
-      let url;
-      let fetchOptions;
-      let callbacks;
+    let retriesLeft = (options.retry ?? fetchOptions.retry) === true
+      ? Infinity
+      : (options.retry ?? fetchOptions.retry) ?? 0;
 
-      if (hasHookUrl) {
-        url = hookUrl;
-        fetchOptions = { ...hookFetchOpts };
-        if (arg1 !== undefined) fetchOptions.body = arg1;
-        callbacks = arg2;
-      } else {
-        url = arg1;
-        fetchOptions = { ...hookFetchOpts, ...(arg2 || {}) };
-        callbacks = arg3;
-      }
+    const mid = "mut-" + crypto.randomUUID();
+    setMutationId(mid);
+    trackMutation(mid, "pending");
+    setState({
+      data: null,
+      error: null,
+      isLoading: true,
+      isError: false,
+      isSuccess: false,
+    });
 
-      const key = callbacks?.mutationKey ?? fetchOptions.mutationKey ?? hookMutationKey;
-      if (key && inFlightKeys.current.has(key)) return null;
-      if (key) inFlightKeys.current.add(key);
+    optionsRef.current.onMutate?.();
 
-      const retrySetting = callbacks?.retry ?? fetchOptions.retry ?? hookRetry;
-      let retriesLeft = retrySetting === true ? Infinity : (typeof retrySetting === "number" ? retrySetting : 0);
-
-      const mid = "mut-" + crypto.randomUUID();
-      setMutationId(mid);
-      trackMutation(mid, "pending");
-      setState({
-        data: null,
-        error: null,
-        isLoading: true,
-        isError: false,
-        isSuccess: false,
-      });
-
-      opts.onMutate?.();
-
-      const attempt = async () => {
-        try {
-          const { response, queued } = await fetchWithCache(url, fetchOptions);
-          if (queued) {
-            resolveMutation(mid, null);
-            setState({
-              data: null,
-              error: null,
-              isLoading: false,
-              isError: false,
-              isSuccess: false,
-            });
-            opts.onSettled?.();
-            callbacks?.onSettled?.();
-            if (key) inFlightKeys.current.delete(key);
-            return null;
-          }
-          const data = await response.json();
-          resolveMutation(mid, data);
+    const attempt = async () => {
+      try {
+        const { response, queued } = await fetchWithCache(url, fetchOptions);
+        if (queued) {
+          resolveMutation(mid, null);
           setState({
-            data,
+            data: null,
             error: null,
             isLoading: false,
             isError: false,
-            isSuccess: true,
-          });
-          opts.onSuccess?.(data);
-          callbacks?.onSuccess?.(data);
-          opts.onSettled?.();
-          callbacks?.onSettled?.();
-          if (key) inFlightKeys.current.delete(key);
-          return data;
-        } catch (err) {
-          if (retriesLeft > 0) {
-            retriesLeft--;
-            await new Promise((r) => setTimeout(r, 1000));
-            return attempt();
-          }
-          const error = err instanceof Error ? err : new Error(String(err));
-          rejectMutation(mid, error);
-          setState({
-            data: null,
-            error,
-            isLoading: false,
-            isError: true,
             isSuccess: false,
           });
-          opts.onError?.(error);
-          callbacks?.onError?.(error);
-          opts.onSettled?.();
+          optionsRef.current.onSettled?.();
           callbacks?.onSettled?.();
           if (key) inFlightKeys.current.delete(key);
           return null;
         }
-      };
+        const data = await response.json();
+        resolveMutation(mid, data);
+        setState({
+          data,
+          error: null,
+          isLoading: false,
+          isError: false,
+          isSuccess: true,
+        });
+        optionsRef.current.onSuccess?.(data);
+        callbacks?.onSuccess?.(data);
+        optionsRef.current.onSettled?.();
+        callbacks?.onSettled?.();
+        if (key) inFlightKeys.current.delete(key);
+        return data;
+      } catch (err) {
+        if (retriesLeft > 0) {
+          retriesLeft--;
+          await new Promise((r) => setTimeout(r, 1000));
+          return attempt();
+        }
+        const error = err instanceof Error ? err : new Error(String(err));
+        rejectMutation(mid, error);
+        setState({
+          data: null,
+          error,
+          isLoading: false,
+          isError: true,
+          isSuccess: false,
+        });
+        optionsRef.current.onError?.(error);
+        callbacks?.onError?.(error);
+        optionsRef.current.onSettled?.();
+        callbacks?.onSettled?.();
+        if (key) inFlightKeys.current.delete(key);
+        return null;
+      }
+    };
 
-      return attempt();
-    },
-    [hasHookUrl, hookUrl],
-  );
+    return attempt();
+  }, []);
 
   const reset = useCallback(() => {
     setState({

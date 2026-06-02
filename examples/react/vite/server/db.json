@@ -27,24 +27,6 @@
       "userId": 1
     },
     {
-      "id": 16,
-      "title": "new",
-      "description": "wa78",
-      "priority": "high",
-      "createdAt": "2026-05-28T07:06:10.759Z",
-      "updatedAt": "2026-05-28T07:06:10.759Z",
-      "userId": 1
-    },
-    {
-      "id": 20,
-      "title": "check",
-      "description": "11111",
-      "priority": "low",
-      "createdAt": "2026-06-01T04:39:09.148Z",
-      "updatedAt": "2026-06-01T04:39:09.148Z",
-      "userId": 1
-    },
-    {
       "id": 22,
       "title": "SSE Test",
       "description": "Testing SSE broadcast",
@@ -54,7 +36,7 @@
       "userId": 1
     }
   ],
-  "nextNoteId": 24,
+  "nextNoteId": 31,
   "sessions": [
     {
       "id": "23d7f737-d325-4a0d-826b-5ce939ce9964",

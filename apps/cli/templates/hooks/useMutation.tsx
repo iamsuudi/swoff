@@ -7,17 +7,22 @@ import {
 } from "../mutation-state.ts";
 import type { FetchWithCacheOptions } from "../fetch-wrapper.ts";
 
-export interface UseMutationOptions<TData> extends FetchWithCacheOptions {
-  onSuccess?: (data: TData) => void;
-  onError?: (error: Error) => void;
-  onSettled?: () => void;
-  onMutate?: () => void;
+export interface MutateOptions extends FetchWithCacheOptions {
+  /** Deduplication key — if a mutation with the same key is already in-flight, this one is skipped. */
   mutationKey?: string;
+  /** Retry count on failure (default 0). true = Infinity. */
   retry?: number | boolean;
 }
 
-export interface MutateOptions extends FetchWithCacheOptions {
+export interface UseMutationOptions<TData> {
+  onSuccess?: (data: TData) => void;
+  onError?: (error: Error) => void;
+  onSettled?: () => void;
+  /** Called before the mutation fires. Use for optimistic UI — set local state here, then rollback from onError. */
+  onMutate?: () => void;
+  /** Deduplication key — if a mutation with the same key is already in-flight, this one is skipped. */
   mutationKey?: string;
+  /** Retry count on failure (default 0). true = Infinity. */
   retry?: number | boolean;
 }
 
@@ -25,69 +30,37 @@ export interface MutateCallbacks<TData> {
   onSuccess?: (data: TData) => void;
   onError?: (error: Error) => void;
   onSettled?: () => void;
-  mutationKey?: string;
-  retry?: number | boolean;
 }
 
 /**
  * Hook for mutations (POST, PUT, PATCH, DELETE) with auto-invalidation, offline queuing,
  * optimistic updates, and dual-level callbacks.
  *
- * Usage — URL at hook level (recommended):
- *   const { mutate, isLoading } = useMutation<Note>("/api/notes", {
- *     method: "POST",
- *     auth: true,
- *     onSuccess: (note) => navigate(`/notes/${note.id}`),
- *   });
- *   await mutate(JSON.stringify({ title, description }));
- *
- * Usage — URL per call (for varying endpoints like delete-by-id):
- *   const { mutate } = useMutation<Note>({
- *     onSuccess: (data) => showToast("done"),
- *   });
- *   await mutate(`/api/notes/${id}`, { method: "DELETE", auth: true }, {
- *     onSuccess: () => dispatchEvent(...),
+ * Usage:
+ *   const { mutate, isLoading, error, reset } = useMutation({
+ *     onSuccess: (data) => showToast("Saved!"),
+ *     onError: (err) => reportError(err),
  *   });
  *
- * Callbacks fire in order: hook-level onMutate → hook onSuccess/onError → per-call onSuccess/onError → hook onSettled → per-call onSettled
+ *   // Hook-level callbacks fire first, then per-call callbacks:
+ *   await mutate("/api/todos", { method: "POST", body }, {
+ *     onSuccess: (data) => navigate(`/item/${data.id}`),
+ *   });
+ *
+ *   // Optimistic update with rollback:
+ *   const { mutate } = useMutation({
+ *     onMutate: () => { /* set optimistic state *\/ },
+ *     onError: () => { /* rollback *\/ },
+ *   });
+ *
+ *   // Deduplicate — skip if same mutation is already in flight:
+ *   await mutate(url, options, { mutationKey: "save-profile" });
+ *
+ * @returns { data, error, isLoading, isError, isSuccess, mutate, reset, mutationId }
  */
 export function useMutation<TData = unknown>(
-  url: string,
-  options?: UseMutationOptions<TData>,
-): {
-  data: TData | null;
-  error: Error | null;
-  isLoading: boolean;
-  isError: boolean;
-  isSuccess: boolean;
-  mutate: (body?: BodyInit | null, callbacks?: MutateCallbacks<TData>) => Promise<TData | null>;
-  reset: () => void;
-  mutationId: string | null;
-};
-
-export function useMutation<TData = unknown>(
-  options?: UseMutationOptions<TData>,
-): {
-  data: TData | null;
-  error: Error | null;
-  isLoading: boolean;
-  isError: boolean;
-  isSuccess: boolean;
-  mutate: (url: string, fetchOptions?: MutateOptions, callbacks?: MutateCallbacks<TData>) => Promise<TData | null>;
-  reset: () => void;
-  mutationId: string | null;
-};
-
-export function useMutation<TData = unknown>(
-  urlOrOptions?: string | UseMutationOptions<TData>,
-  options?: UseMutationOptions<TData>,
+  options: UseMutationOptions<TData> = {},
 ) {
-  const hasHookUrl = typeof urlOrOptions === "string";
-  const hookUrl: string | null = hasHookUrl ? urlOrOptions : null;
-  const hookOptions: UseMutationOptions<TData> = hasHookUrl
-    ? (options ?? {})
-    : ((urlOrOptions as UseMutationOptions<TData>) ?? {});
-
   const [state, setState] = useState<{
     data: TData | null;
     error: Error | null;
@@ -103,56 +76,28 @@ export function useMutation<TData = unknown>(
   });
 
   const [mutationId, setMutationId] = useState<string | null>(null);
-  const optionsRef = useRef(hookOptions);
+  const optionsRef = useRef(options);
   const inFlightKeys = useRef(new Set<string>());
 
   useEffect(() => {
-    optionsRef.current = hookOptions;
-  });
+    optionsRef.current = options;
+  }, [options]);
 
   const mutate = useCallback(
     async (
-      arg1?: string | BodyInit | null,
-      arg2?: MutateOptions | MutateCallbacks<TData>,
-      arg3?: MutateCallbacks<TData>,
+      url: string,
+      fetchOptions: MutateOptions = {},
+      callbacks?: MutateCallbacks<TData>,
     ): Promise<TData | null> => {
-      const opts = optionsRef.current;
-      const { onSuccess: _onSuccess, onError: _onError, onSettled: _onSettled, onMutate: _onMutate, mutationKey: hookMutationKey, retry: hookRetry, ...hookFetchOpts } = opts;
-
-      let url: string;
-      let fetchOptions: MutateOptions;
-      let callbacks: MutateCallbacks<TData> | undefined;
-
-      if (hasHookUrl) {
-        url = hookUrl!;
-        fetchOptions = { ...hookFetchOpts };
-        if (arg1 !== undefined) fetchOptions.body = arg1 as BodyInit;
-        callbacks = arg2 as MutateCallbacks<TData> | undefined;
-      } else {
-        url = arg1 as string;
-        fetchOptions = { ...hookFetchOpts, ...(arg2 as MutateOptions | undefined) };
-        callbacks = arg3 as MutateCallbacks<TData> | undefined;
-      }
-
-      const key = callbacks?.mutationKey ?? fetchOptions.mutationKey ?? hookMutationKey;
+      const key = callbacks?.mutationKey ?? fetchOptions.mutationKey ?? options.mutationKey;
       if (key && inFlightKeys.current.has(key)) return null;
       if (key) inFlightKeys.current.add(key);
 
-      const retrySetting = callbacks?.retry ?? fetchOptions.retry ?? hookRetry;
-      let retriesLeft: number = retrySetting === true ? Infinity : (typeof retrySetting === "number" ? retrySetting : 0);
+      let retriesLeft = (options.retry ?? fetchOptions.retry) === true
+        ? Infinity
+        : (options.retry ?? fetchOptions.retry) ?? 0;
 
-      const mid = "mut-" + crypto.randomUUID();
-      setMutationId(mid);
-      trackMutation(mid, "pending");
-      setState({
-        data: null,
-        error: null,
-        isLoading: true,
-        isError: false,
-        isSuccess: false,
-      });
-
-      opts.onMutate?.();
+      optionsRef.current.onMutate?.();
 
       const attempt = async (): Promise<TData | null> => {
         try {
@@ -166,7 +111,7 @@ export function useMutation<TData = unknown>(
               isError: false,
               isSuccess: false,
             });
-            opts.onSettled?.();
+            optionsRef.current.onSettled?.();
             callbacks?.onSettled?.();
             if (key) inFlightKeys.current.delete(key);
             return null;
@@ -180,9 +125,9 @@ export function useMutation<TData = unknown>(
             isError: false,
             isSuccess: true,
           });
-          opts.onSuccess?.(data);
+          optionsRef.current.onSuccess?.(data);
           callbacks?.onSuccess?.(data);
-          opts.onSettled?.();
+          optionsRef.current.onSettled?.();
           callbacks?.onSettled?.();
           if (key) inFlightKeys.current.delete(key);
           return data;
@@ -201,9 +146,9 @@ export function useMutation<TData = unknown>(
             isError: true,
             isSuccess: false,
           });
-          opts.onError?.(error);
+          optionsRef.current.onError?.(error);
           callbacks?.onError?.(error);
-          opts.onSettled?.();
+          optionsRef.current.onSettled?.();
           callbacks?.onSettled?.();
           if (key) inFlightKeys.current.delete(key);
           return null;
@@ -212,7 +157,7 @@ export function useMutation<TData = unknown>(
 
       return attempt();
     },
-    [hasHookUrl, hookUrl],
+    [],
   );
 
   const reset = useCallback(() => {

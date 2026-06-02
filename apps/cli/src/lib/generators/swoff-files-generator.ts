@@ -28,6 +28,7 @@ import { generateMutationQueue } from "./file-generators/mutation-queue.js";
 
 import { generateBackgroundSync } from "./file-generators/background-sync.js";
 import { generatePwaInstall } from "./file-generators/pwa-install.js";
+import { generateManifest } from "./file-generators/manifest.js";
 import { generateInvalidationTags } from "./file-generators/invalidation-tags.js";
 import { generatePush } from "./file-generators/push.js";
 import { generateMutationState } from "./file-generators/mutation-state.js";
@@ -67,6 +68,7 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
     { name: "sw-generator", gen: () => generateSwGeneratorBuild(ctx), enabled: true },
     { name: "swoff.d.ts", gen: () => generateTypeDefinitions(ctx), enabled: ctx.ext === "ts" },
     { name: "pwa-install", gen: () => generatePwaInstall(ctx), enabled: ctx.config.features.pwa.enabled },
+    { name: "manifest.json", gen: () => generateManifest(ctx), enabled: ctx.config.features.pwa.enabled },
     { name: "invalidation-tags", gen: () => generateInvalidationTags(ctx), enabled: true },
     { name: "gql-wrapper", gen: () => generateGqlWrapper(ctx), enabled: ctx.config.features.graphql.enabled },
     { name: "push", gen: () => generatePush(ctx), enabled: ctx.config.features.pushNotifications?.enabled ?? false },

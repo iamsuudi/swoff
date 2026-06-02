@@ -38,7 +38,7 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
-    queueMicrotask(() => refreshState());
+    refreshState();
 
     const onOnline = () => setState((s) => ({ ...s, online: true }));
     const onOffline = () => setState((s) => ({ ...s, online: false }));
@@ -55,23 +55,17 @@ export function useAuth() {
     };
   }, [refreshState]);
 
-  const doSetAuth = useCallback(
-    async (authData) => {
-      setState((s) => ({ ...s, isLoading: true, error: null }));
-      try {
-        await setAuth(authData);
-        await refreshState();
-      } catch (err) {
-        setState((s) => ({
-          ...s,
-          error: err instanceof Error ? err : new Error(String(err)),
-        }));
-      } finally {
-        setState((s) => ({ ...s, isLoading: false }));
-      }
-    },
-    [refreshState],
-  );
+  const doSetAuth = useCallback(async (authData) => {
+    setState((s) => ({ ...s, isLoading: true, error: null }));
+    try {
+      await setAuth(authData);
+      await refreshState();
+    } catch (err) {
+      setState((s) => ({ ...s, error: err instanceof Error ? err : new Error(String(err)) }));
+    } finally {
+      setState((s) => ({ ...s, isLoading: false }));
+    }
+  }, [refreshState]);
 
   const doClearAuth = useCallback(async () => {
     setState((s) => ({ ...s, isLoading: true, error: null }));
@@ -79,10 +73,7 @@ export function useAuth() {
       await clearAuth();
       await refreshState();
     } catch (err) {
-      setState((s) => ({
-        ...s,
-        error: err instanceof Error ? err : new Error(String(err)),
-      }));
+      setState((s) => ({ ...s, error: err instanceof Error ? err : new Error(String(err)) }));
     } finally {
       setState((s) => ({ ...s, isLoading: false }));
     }
@@ -95,10 +86,7 @@ export function useAuth() {
       await refreshState();
       return auth;
     } catch (err) {
-      setState((s) => ({
-        ...s,
-        error: err instanceof Error ? err : new Error(String(err)),
-      }));
+      setState((s) => ({ ...s, error: err instanceof Error ? err : new Error(String(err)) }));
       return null;
     } finally {
       setState((s) => ({ ...s, isLoading: false }));

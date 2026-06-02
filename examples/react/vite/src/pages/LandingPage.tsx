@@ -1,16 +1,8 @@
-import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { getAuthState } from "../../swoff/auth/state";
+import { useAuth } from "../../swoff/hooks/useAuth";
 
 export default function LandingPage() {
-  const [authenticated, setAuthenticated] = useState(false);
-
-  useEffect(() => {
-    getAuthState().then((s) => setAuthenticated(s.authenticated));
-    const onChange = () => getAuthState().then((s) => setAuthenticated(s.authenticated));
-    window.addEventListener("sw-auth-state-change", onChange);
-    return () => window.removeEventListener("sw-auth-state-change", onChange);
-  }, []);
+  const { authenticated } = useAuth();
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

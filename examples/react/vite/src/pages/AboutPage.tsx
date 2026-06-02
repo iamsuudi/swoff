@@ -1,3 +1,5 @@
+import ResetButton from "../components/ResetButton";
+
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -24,6 +26,15 @@ export default function AboutPage() {
             <li>Express + JWT (development API with auth)</li>
             <li>Swoff: network-first cache, tag invalidation, offline mutation queue, background sync, auth integration</li>
           </ul>
+        </div>
+
+        <div className="mt-8 rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+          <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">Swoff Controls</h2>
+          <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+            If something goes wrong — corrupted cache, stale state — use the reset button to wipe
+            everything and start fresh.
+          </p>
+          <ResetButton />
         </div>
       </div>
     </div>

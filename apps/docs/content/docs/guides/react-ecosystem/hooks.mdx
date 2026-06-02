@@ -194,7 +194,7 @@ The hook listens for `cache-invalidated` events and automatically re-fetches whe
 
 **Implementation:**
 ```typescript
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, startTransition } from "react";
 import { fetchWithCache } from "../fetch-wrapper";
 import { generateTags } from "../invalidation-tags";
 
@@ -213,7 +213,7 @@ export function useCachedFetch<T = any>(
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    startTransition(() => setLoading(true));
 
     const doFetch = async () => {
       try {

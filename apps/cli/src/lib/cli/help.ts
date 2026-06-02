@@ -33,9 +33,9 @@ export const commands: Record<string, CommandDef> = {
     examples: ["swoff add pwa", "swoff add mutation-queue"],
   },
   "generate-assets": {
-    description: "Generate PWA assets (icons, favicon, OG image, splash screens, manifest.json) from source image",
-    usage: "swoff generate-assets [--source path] [--output-dir dir] [--app-name name] [--theme-color #hex] [--bg-color #hex] [--no-splash]",
-    examples: ["swoff generate-assets --source ./logo.svg", "swoff generate-assets --source ./logo.svg --output-dir ./public --app-name 'My App'"],
+    description: "Generate PWA assets (icons, favicon, OG image, splash screens) from source image",
+    usage: "swoff generate-assets [--source path]",
+    examples: ["swoff generate-assets", "swoff generate-assets --source ./src/assets/logo.svg"],
   },
   clean: {
     description: "Remove Swoff from the project (swoff/, config, version.json)",

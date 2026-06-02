@@ -1,4 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  startTransition,
+} from "react";
 import { fetchWithCache } from "../fetch-wrapper.ts";
 import { generateTags } from "../invalidation-tags.ts";
 import type { FetchWithCacheOptions } from "../fetch-wrapper.ts";
@@ -49,6 +55,7 @@ export function useCachedFetch<T = unknown, R = T>(
 ) {
   const {
     select,
+    keepPreviousData,
     retry: retryOpt,
     placeholderData,
     onSuccess,
@@ -61,19 +68,12 @@ export function useCachedFetch<T = unknown, R = T>(
   const [loading, setLoading] = useState(true);
   const [refetchCount, setRefetchCount] = useState(0);
 
+  const cachedRef = useRef<R | null>(placeholderData ?? null);
+  const prevSelectedRef = useRef<R | null>(null);
   const onSuccessRef = useRef(onSuccess);
   const onErrorRef = useRef(onError);
-  const fetchOptionsRef = useRef(fetchOptions);
-  const retryOptRef = useRef(retryOpt);
-  const selectRef = useRef(select);
-
-  useEffect(() => {
-    onSuccessRef.current = onSuccess;
-    onErrorRef.current = onError;
-    fetchOptionsRef.current = fetchOptions;
-    retryOptRef.current = retryOpt;
-    selectRef.current = select;
-  });
+  onSuccessRef.current = onSuccess;
+  onErrorRef.current = onError;
 
   const refetch = useCallback(() => setRefetchCount((c) => c + 1), []);
 
@@ -81,44 +81,36 @@ export function useCachedFetch<T = unknown, R = T>(
 
   useEffect(() => {
     if (!isEnabled) {
-      setLoading(false);
+      startTransition(() => setLoading(false));
       return;
     }
     let cancelled = false;
-    let retriesLeft: number =
-      retryOptRef.current === true
-        ? Infinity
-        : typeof retryOptRef.current === "number"
-          ? retryOptRef.current
-          : 0;
+    let retriesLeft = retryOpt === true ? Infinity : retryOpt ?? 0;
     const controller = new AbortController();
-    setLoading(true);
+    startTransition(() => setLoading(true));
 
     const doFetch = async (): Promise<void> => {
       try {
         const { response } = await fetchWithCache(url, {
-          ...fetchOptionsRef.current,
+          ...fetchOptions,
           signal: controller.signal,
         });
         if (cancelled) return;
-        let selected: R | null = null;
         if (response) {
           const raw: T = await response.json();
-          selected = selectRef.current ? selectRef.current(raw) : (raw as unknown as R);
+          const selected = select ? select(raw) : (raw as unknown as R);
           setData(selected);
+          cachedRef.current = selected;
+          prevSelectedRef.current = selected;
         } else {
           setData(null);
+          cachedRef.current = null;
+          prevSelectedRef.current = null;
         }
         if (!cancelled) setError(null);
-        if (!cancelled)
-          onSuccessRef.current?.(selected ?? (null as unknown as R));
+        if (!cancelled) onSuccessRef.current?.(selected ?? null as unknown as R);
       } catch (err) {
-        if (
-          !cancelled &&
-          err instanceof DOMException &&
-          err.name === "AbortError"
-        )
-          return;
+        if (!cancelled && err instanceof DOMException && err.name === "AbortError") return;
         if (!cancelled && retriesLeft > 0) {
           retriesLeft--;
           await new Promise((r) => setTimeout(r, 1000));

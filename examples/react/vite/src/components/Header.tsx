@@ -1,6 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
 import { API_BASE } from "../../swoff/config.ts";
 import { useAuth } from "../../swoff/hooks/useAuth";
+import { useNetworkStatus } from "../../swoff/hooks/useNetworkStatus";
+import { usePrefetch } from "../../swoff/hooks/usePrefetch";
 import { clearAuth } from "../../swoff/auth/store";
 import { clearCachedUser } from "../../swoff/auth/user";
 import InstallButton from "./InstallButton";
@@ -9,6 +11,8 @@ import PushSubscribeButton from "./PushSubscribeButton";
 export default function Header() {
   const navigate = useNavigate();
   const { authenticated, user } = useAuth();
+  const { online } = useNetworkStatus();
+  const { prefetch } = usePrefetch();
 
   const handleLogout = async () => {
     await fetch(API_BASE + "/api/logout", { method: "POST" }).catch(() => {});
@@ -42,6 +46,7 @@ export default function Header() {
             <>
               <Link
                 to="/notes"
+                onMouseEnter={() => prefetch("/api/notes")}
                 className="text-gray-600 transition hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
               >
                 Notes
@@ -62,6 +67,11 @@ export default function Header() {
           </Link>
           <InstallButton />
           {authenticated && <PushSubscribeButton />}
+          {!online && (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              Offline
+            </span>
+          )}
           {authenticated ? (
             <div className="flex items-center gap-3">
               <span className="hidden text-xs text-gray-500 sm:inline dark:text-gray-400">

@@ -47,7 +47,7 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
-    queueMicrotask(() => refreshState());
+    refreshState();
 
     const onOnline = () => setState((s) => ({ ...s, online: true }));
     const onOffline = () => setState((s) => ({ ...s, online: false }));
@@ -64,21 +64,18 @@ export function useAuth() {
     };
   }, [refreshState]);
 
-  const doSetAuth = useCallback(
-    async (authData: AuthData) => {
-      setState((s) => ({ ...s, isLoading: true, error: null }));
-      try {
-        await setAuth(authData);
-        await refreshState();
-      } catch (err) {
-        const error = err instanceof Error ? err : new Error(String(err));
-        setState((s) => ({ ...s, error }));
-      } finally {
-        setState((s) => ({ ...s, isLoading: false }));
-      }
-    },
-    [refreshState],
-  );
+  const doSetAuth = useCallback(async (authData: AuthData) => {
+    setState((s) => ({ ...s, isLoading: true, error: null }));
+    try {
+      await setAuth(authData);
+      await refreshState();
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setState((s) => ({ ...s, error }));
+    } finally {
+      setState((s) => ({ ...s, isLoading: false }));
+    }
+  }, [refreshState]);
 
   const doClearAuth = useCallback(async () => {
     setState((s) => ({ ...s, isLoading: true, error: null }));

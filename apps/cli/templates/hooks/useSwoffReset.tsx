@@ -3,7 +3,7 @@ import { resetSwoff } from "../reset";
 import type { ResetSwoffOptions } from "../reset";
 
 interface UseSwoffResetResult {
-  reset: (options?: Partial<ResetSwoffOptions>) => Promise<void>;
+  reset: (options?: ResetSwoffOptions) => Promise<void>;
   isResetting: boolean;
   error: Error | null;
 }
@@ -23,7 +23,7 @@ export function useSwoffReset(): UseSwoffResetResult {
   const [isResetting, setIsResetting] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const reset = useCallback(async (options?: Partial<ResetSwoffOptions>) => {
+  const reset = useCallback(async (options?: ResetSwoffOptions) => {
     setIsResetting(true);
     setError(null);
     try {

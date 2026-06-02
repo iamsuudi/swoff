@@ -505,99 +505,48 @@ Returns `{ data: T \| null, error: unknown, loading: boolean, refetch: () => voi
 | `onError` | `(err: unknown) => void` | — | Callback fired when a fetch fails. Runs at the hook level (every failed fetch). |
 | `enabled` | `boolean` | `true` | When `false`, the fetch is skipped entirely. Useful for dependent queries. |
 
-### `useMutation(url, options?)` / `useMutation(options?)`
-
-Two overloaded signatures:
-
-- **`useMutation<TData>(url, options?)`** — URL fixed at hook level. `mutate(body?, callbacks?)`.
-  Use for a single endpoint with one configuration.
-- **`useMutation<TData>(options?)`** — URL passed per call. `mutate(url, fetchOptions?, callbacks?)`.
-  Use when the endpoint varies (e.g., delete-by-id in a list).
-
-#### Signature 1 — URL at hook level
+### `useMutation(options?)`
 
 ```ts
-const { mutate, isLoading, data } = useMutation<{ id: number }>("/api/notes", {
+const { mutate, isLoading, isError, isSuccess, data, error, reset, mutationId } =
+  useMutation({
+    onSuccess: (data) => console.log(data),
+    onError: (err) => console.error(err),
+    onMutate: (variables) => { /* optimistic update */ },
+  });
+mutate("/api/todos", {
   method: "POST",
-  auth: true,
-  headers: { "Content-Type": "application/json" },
-  onSuccess: (note) => console.log("created", note.id),  // fully typed
-});
-await mutate(JSON.stringify({ title, description }), {
-  onSuccess: (note) => console.log("per-call", note.id),
+  body: JSON.stringify({ title: "New" }),
 });
 ```
 
-Hook-level `fetchOptions` (`method`, `auth`, `headers`, etc.) are used as config.
-Per-call `mutate(body?, callbacks?)` only varies the request body — method/auth/headers
-cannot be overridden, keeping state (data, isLoading, error) bound 1:1 to this endpoint.
+#### Options
 
-#### Signature 2 — URL per call
+| Option | Type | Description |
+|--------|------|-------------|
+| `onSuccess` | `(data: T, variables: unknown) => void` | Hook-level success callback. Runs for every successful mutation. |
+| `onError` | `(err: unknown, variables: unknown) => void` | Hook-level error callback. Runs for every failed mutation. |
+| `onMutate` | `(variables: unknown) => void` | Called before the mutation request fires. Use for optimistic updates — mutate your local state here, roll back in `onError`. |
+
+#### Per-call callbacks
+
+Pass `onSuccess`/`onError` in the mutation options object to get per-call callbacks that fire
+_in addition to_ the hook-level callbacks (dual-level):
 
 ```ts
-const { mutate, isLoading } = useMutation({
-  onMutate: () => setOptimisticState(),
-});
-await mutate(`/api/notes/${id}`, { method: "DELETE", auth: true }, {
-  onSuccess: () => invalidateTags(["notes"]),
+mutate("/api/todos", {
+  method: "POST",
+  body: JSON.stringify({ title: "New" }),
+  onSuccess: (data) => console.log("this call succeeded", data),
+  onError: (err) => console.log("this call failed", err),
 });
 ```
 
-Per-call `fetchOptions` are merged over hook-level options (per-call wins on conflict).
+#### Mutation key dedup
 
-#### Hook-level options (`UseMutationOptions<TData>`)
-
-All fields from `FetchWithCacheOptions` plus:
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `onSuccess` | `(data: TData) => void` | — | Hook-level success callback. Runs for every successful mutation. |
-| `onError` | `(error: Error) => void` | — | Hook-level error callback. Runs for every failed mutation. |
-| `onSettled` | `() => void` | — | Hook-level settled callback. Runs after success or error. |
-| `onMutate` | `() => void` | — | Called before the mutation fires. Use for optimistic updates. |
-| `mutationKey` | `string` | — | Deduplication key. Skips if a mutation with the same key is in-flight. |
-| `retry` | `number \| boolean` | `0` | Retry count on failure. `true` = Infinity. 1s backoff between retries. |
-
-Full `FetchWithCacheOptions` accepted: `method`, `auth`, `headers`, `body`, `tags`,
-`invalidate`, `queueOffline`, `strategy`, `signal`, `staleTime`, `validateSuccess`, etc.
-
-#### Per-call arguments
-
-**Signature 1** — `mutate(body?, callbacks?)`:
-
-| Arg | Type | Description |
-|-----|------|-------------|
-| `body` | `BodyInit \| null` | Request body. Overrides hook-level `body`. |
-| `callbacks.onSuccess` | `(data: TData) => void` | Per-call success. Fires **after** hook-level. |
-| `callbacks.onError` | `(error: Error) => void` | Per-call error. Fires **after** hook-level. |
-| `callbacks.onSettled` | `() => void` | Per-call settled. Fires **after** hook-level. |
-| `callbacks.mutationKey` | `string` | Overrides hook-level `mutationKey`. |
-| `callbacks.retry` | `number \| boolean` | Overrides hook-level `retry`. |
-
-**Signature 2** — `mutate(url, fetchOptions?, callbacks?)`:
-
-| Arg | Type | Description |
-|-----|------|-------------|
-| `url` | `string` | Endpoint URL. |
-| `fetchOptions` | `MutateOptions` | Per-call fetch options. Merged over hook-level. |
-| `callbacks.onSuccess` | `(data: TData) => void` | Per-call success. Fires **after** hook-level. |
-| `callbacks.onError` | `(error: Error) => void` | Per-call error. Fires **after** hook-level. |
-| `callbacks.onSettled` | `() => void` | Per-call settled. Fires **after** hook-level. |
-| `callbacks.mutationKey` | `string` | Overrides `fetchOptions.mutationKey`. |
-| `callbacks.retry` | `number \| boolean` | Overrides `fetchOptions.retry`. |
-
-#### Callback order
-
-`onMutate` (hook) → fetch → `onSuccess`/`onError` (hook) → `onSuccess`/`onError` (per-call)
-→ `onSettled` (hook) → `onSettled` (per-call)
-
-#### Precedence
-
-| Field | Resolution order |
-|-------|-----------------|
-| `mutationKey` | callbacks > fetchOptions (Sig 2) > hook-level |
-| `retry` | callbacks > fetchOptions (Sig 2) > hook-level |
-| `method`, `auth`, `headers`, `body`, etc. | fetchOptions (Sig 2) > hook-level; fixed in Sig 1 |
+`useMutation` tracks in-flight mutations via `inFlightKeys` (a `Set<string>`). When a mutation
+is already in-flight to the same URL+method combination, the new call is skipped to prevent
+duplicates. The in-flight status is cleared on completion (success or error).
 
 ### `usePrefetch()`
 
@@ -618,6 +567,21 @@ const isFetching = useIsFetching();
 
 Returns `boolean` — `true` when any request tracked by `fetch-state.ts` is in-flight.
 Listens to `fetch-count-changed` custom events.
+
+### `useSuspenseQuery(url)`
+
+```ts
+const data = useSuspenseQuery<Todo[]>("/api/todos");
+// throws a promise on cache miss (Suspense boundary catches it)
+// returns data on re-render
+// re-suspends on URL change
+// errors thrown for ErrorBoundary
+```
+
+Uses React Suspense. On first call (or URL change), throws the fetch promise which
+propagates to the nearest `<Suspense>` boundary. On re-render, returns the cached data
+directly. Stores data in a module-level `Map<url, data>` so it persists across re-renders.
+Switching to a new URL triggers a re-suspense (old data discarded).
 
 ### `useSwoffReset()`
 

@@ -1,4 +1,4 @@
-import { useSwoffReset } from "../../swoff/hooks/useSwoffReset";
+import { useSwoffReset } from "../../swoff/adapters/useSwoffReset";
 
 export default function ResetButton() {
   const { reset, isResetting, error } = useSwoffReset();

@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
-import { Jimp } from "jimp";
+import type { Jimp } from "jimp";
 import { rasterizeSource } from "./rasterize.js";
 import { createMaskable } from "./maskable.js";
 import { encodeIco } from "./ico-encoder.js";
@@ -32,6 +32,8 @@ function writePng(filePath: string, buffer: Buffer): void {
 }
 
 export async function generateAssets(options: GenerateOptions): Promise<GenerateResult> {
+  const { Jimp } = await import("jimp");
+
   const { source, outputDir, appName, themeColor, bgColor, appleSplash } = options;
   const warnings: string[] = [];
   const files: string[] = [];
@@ -120,6 +122,7 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
 }
 
 async function resizePng(sourceBuf: Buffer, w: number, h: number): Promise<Buffer> {
+  const { Jimp } = await import("jimp");
   const img = await Jimp.read(sourceBuf);
   const scale = Math.min(w / img.bitmap.width, h / img.bitmap.height);
   const newW = Math.round(img.bitmap.width * scale);

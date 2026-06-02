@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useMutation } from "../../swoff/hooks/useMutation";
+import { useMutation } from "../../swoff/adapters/useMutation";
 import NoteForm from "../components/NoteForm";
 
 export default function NotesCreatePage() {

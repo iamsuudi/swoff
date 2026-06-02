@@ -7,9 +7,10 @@ import { loadConfigAsync } from "../config/loader.js";
 import { validateConfig } from "../config/validator.js";
 
 export async function validateCommand(projectRoot: string) {
-  log.header("Validating Swoff Configuration");
+  // log.header("Validating Swoff Configuration");
 
-  const { config, configPath, configSource } = await loadConfigAsync(projectRoot);
+  const { config, configPath, configSource } =
+    await loadConfigAsync(projectRoot);
 
   if (!configPath) {
     log.warn('No swoff.config.json found. Run "swoff init" first.');
@@ -29,14 +30,19 @@ export async function validateCommand(projectRoot: string) {
   log.success("Configuration is valid!");
   log.info("\nConfig summary:");
   log.help(`Version: ${config.features.serviceWorker.version}`);
-  log.help(`Min supported version: ${config.features.serviceWorker.minSupportedVersion}`);
-  log.help(`Default strategy: ${config.features.serviceWorker.strategy.default}`);
+  log.help(
+    `Min supported version: ${config.features.serviceWorker.minSupportedVersion}`,
+  );
+  log.help(
+    `Default strategy: ${config.features.serviceWorker.strategy.default}`,
+  );
   log.help(`Auto update: ${config.features.serviceWorker.autoUpdate}`);
   log.help(
     `Features enabled: ${Object.entries(config.features)
       .filter(([k, v]) => {
         if (k === "serviceWorker") return false;
-        if (typeof v === "object" && v !== null) return (v as Record<string, unknown>).enabled === true;
+        if (typeof v === "object" && v !== null)
+          return (v as Record<string, unknown>).enabled === true;
         return v === true;
       })
       .map(([k]) => k)

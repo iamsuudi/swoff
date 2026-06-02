@@ -6,7 +6,11 @@ import { writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { createInterface } from "readline";
 import { log } from "../cli/logger.js";
-import { defaultInitConfig, defaultPwaAssets, type SwoffConfig } from "../shared/config-types.js";
+import {
+  defaultInitConfig,
+  defaultPwaAssets,
+  type SwoffConfig,
+} from "../shared/config-types.js";
 import { detectFramework } from "../utils/detect-framework.js";
 
 function ask(question: string): Promise<string> {
@@ -20,7 +24,7 @@ function ask(question: string): Promise<string> {
 }
 
 export async function initCommand(projectRoot: string, framework?: string) {
-  log.header("Initializing Swoff");
+  // log.header("Initializing Swoff");
 
   const configFiles = ["swoff.config.json", "swoff.config.js"];
   const existingConfig = configFiles.find((f) =>
@@ -36,6 +40,7 @@ export async function initCommand(projectRoot: string, framework?: string) {
   const detected = framework || detectFramework(projectRoot);
   const config = {
     $schema: defaultInitConfig.$schema,
+    configVersion: defaultInitConfig.configVersion,
     enabled: defaultInitConfig.enabled,
     framework: detected as SwoffConfig["framework"],
     build: defaultInitConfig.build,

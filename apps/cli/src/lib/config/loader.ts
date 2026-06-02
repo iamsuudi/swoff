@@ -5,12 +5,26 @@
 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
-import { defaultConfig, mergeConfigs, type SwoffConfig } from "../shared/config-types.js";
+import { defaultConfig, mergeConfigs, CONFIG_VERSION, type SwoffConfig } from "../shared/config-types.js";
 
 export interface LoadConfigResult {
   config: SwoffConfig;
   configPath: string | null;
   configSource: string;
+}
+
+function checkConfigVersion(config: SwoffConfig): void {
+  if (config.configVersion === undefined) {
+    console.warn(
+      "[swoff] Config is missing configVersion — the format may have changed since it was created.\n" +
+      "  Add \"configVersion\": 1 to your swoff.config.json to suppress this warning.",
+    );
+  } else if (config.configVersion > CONFIG_VERSION) {
+    console.warn(
+      `[swoff] Config has configVersion ${config.configVersion}, but this CLI version supports up to ${CONFIG_VERSION}.\n` +
+      "  Some settings may not be recognized. Upgrade @swoff/cli for full compatibility.",
+    );
+  }
 }
 
 /**
@@ -25,12 +39,11 @@ export function loadConfig(projectRoot: string, explicitPath?: string): LoadConf
     if (explicitPath.endsWith(".json")) {
       try {
         const raw = JSON.parse(readFileSync(explicitPath, "utf8"));
-        return {
-          config: mergeConfigs(defaultConfig, raw),
-          configPath: explicitPath,
-          configSource: "JSON",
-        };
+        const config = mergeConfigs(defaultConfig, raw);
+        checkConfigVersion(config);
+        return { config, configPath: explicitPath, configSource: "JSON" };
       } catch {
+        console.warn(`[swoff] Warning: Failed to parse explicit config "${explicitPath}" — falling back to defaults`);
         return { config: defaultConfig, configPath: null, configSource: "defaults" };
       }
     }
@@ -44,13 +57,11 @@ export function loadConfig(projectRoot: string, explicitPath?: string): LoadConf
     if (file.endsWith(".json")) {
       try {
         const raw = JSON.parse(readFileSync(path, "utf8"));
-        return {
-          config: mergeConfigs(defaultConfig, raw),
-          configPath: path,
-          configSource: "JSON",
-        };
+        const config = mergeConfigs(defaultConfig, raw);
+        checkConfigVersion(config);
+        return { config, configPath: path, configSource: "JSON" };
       } catch {
-        // Continue to try JS config below
+        console.warn(`[swoff] Warning: Failed to parse "${path}" — falling back to defaults`);
       }
     }
 
@@ -74,12 +85,11 @@ export async function loadConfigAsync(projectRoot: string, explicitPath?: string
     try {
       const mod = await import(syncResult.configPath);
       const raw = (mod.default || mod) as Partial<SwoffConfig>;
-      return {
-        config: mergeConfigs(defaultConfig, raw),
-        configPath: syncResult.configPath,
-        configSource: "JavaScript",
-      };
+      const config = mergeConfigs(defaultConfig, raw);
+      checkConfigVersion(config);
+      return { config, configPath: syncResult.configPath, configSource: "JavaScript" };
     } catch {
+      console.warn(`[swoff] Warning: Failed to load JS config "${syncResult.configPath}" — falling back to defaults`);
       return { config: defaultConfig, configPath: null, configSource: "defaults" };
     }
   }

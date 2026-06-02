@@ -1,18 +1,7 @@
-/**
- * Swoff CLI - Main Entry Point
- *
- * Usage:
- *   swoff init          Initialize Swoff in current directory
- *   swoff generate      Generate service worker and files
- *   swoff validate      Validate swoff.config.json
- *   swoff add <feature> Add specific feature files
- *   swoff clean         Remove old versioned SW files
- *   swoff --help        Show help
- */
-
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { parseArgs } from "util";
 import { log } from "./lib/cli/logger.js";
 import { showHelp } from "./lib/cli/help.js";
 import { initCommand } from "./lib/commands/init.js";
@@ -20,13 +9,7 @@ import { generateCommand } from "./lib/commands/generate.js";
 import { validateCommand } from "./lib/commands/validate.js";
 import { addCommand } from "./lib/commands/add.js";
 import { cleanCommand } from "./lib/commands/clean.js";
-import { generateAssetsCommand } from "./lib/commands/generate-assets.js";
-
-function getArgValue(name: string): string | undefined {
-  const idx = options.indexOf(name);
-  if (idx === -1 || idx + 1 >= options.length) return undefined;
-  return options[idx + 1];
-}
+import { generateAssetsCommand } from "./lib/commands/assets.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageDir = join(__dirname, "..");
@@ -41,58 +24,75 @@ const cliVersion = (() => {
   }
 })();
 
-const args = process.argv.slice(2);
-const command = args[0];
-const options = args.slice(1);
+const { values, positionals } = parseArgs({
+  args: process.argv.slice(2),
+  options: {
+    version: { type: "boolean", short: "v" },
+    help: { type: "boolean", short: "h" },
+    framework: { type: "string" },
+    "sw-only": { type: "boolean" },
+    "files-only": { type: "boolean" },
+    language: { type: "string" },
+    "continue-on-sw-error": { type: "boolean" },
+    source: { type: "string" },
+    "no-splash": { type: "boolean" },
+    yes: { type: "boolean", short: "y" },
+  },
+  allowPositionals: true,
+});
+
+const command = positionals[0];
 
 async function main() {
-  if (command === "--version" || command === "-v") {
+  if (values.version) {
     console.log(`@swoff/cli ${cliVersion}`);
     process.exit(0);
   }
 
-  if (!command) {
-    showHelp();
+  if (!command || values.help) {
+    showHelp(command);
     process.exit(0);
   }
 
   switch (command) {
     case "init": {
-      const framework = getArgValue("--framework");
-      await initCommand(projectRoot, framework);
+      await initCommand(projectRoot, values.framework);
       break;
     }
     case "generate": {
-      const swOnly = options.includes("--sw-only");
-      const filesOnly = options.includes("--files-only");
-      const language = getArgValue("--language");
-      await generateCommand(projectRoot, { swOnly, filesOnly, language });
+      await generateCommand(projectRoot, {
+        swOnly: !!values["sw-only"],
+        filesOnly: !!values["files-only"],
+        language: values.language,
+        continueOnSwError: !!values["continue-on-sw-error"],
+      });
       break;
     }
     case "validate":
       await validateCommand(projectRoot);
       break;
     case "add": {
-      const feature = options.join(",");
+      const feature = positionals.slice(1).join(",");
       if (!feature) {
         log.error("Please specify a feature to add");
         log.info("Usage: swoff add <feature1>[,<feature2>,...]");
-        log.info("Features: mutation-queue, pwa, cross-tab, auth, tag-invalidation, background-sync, graphql, push-notification");
+        log.info("Features: mutation-queue, pwa, cross-tab, auth, tag-invalidation, background-sync, graphql, push-notification, htmx, php");
         process.exit(1);
       }
       await addCommand(projectRoot, feature);
       break;
     }
-    case "generate-assets":
-      await generateAssetsCommand(projectRoot, options);
+    case "assets":
+      await generateAssetsCommand(projectRoot, {
+        source: values.source,
+        noSplash: !!values["no-splash"],
+      });
       break;
     case "clean":
-      await cleanCommand(projectRoot);
+      await cleanCommand(projectRoot, { yes: !!values.yes });
       break;
     case "help":
-    case "--help":
-    case "-h":
-      showHelp(options[0]);
+      showHelp(positionals[1]);
       break;
     default:
       log.error(`Unknown command: ${command}`);

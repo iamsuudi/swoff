@@ -1,8 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
 import { API_BASE } from "../../swoff/config.ts";
-import { useAuth } from "../../swoff/hooks/useAuth";
-import { useNetworkStatus } from "../../swoff/hooks/useNetworkStatus";
-import { usePrefetch } from "../../swoff/hooks/usePrefetch";
+import { useAuth } from "../../swoff/adapters/useAuth";
+import { useNetworkStatus } from "../../swoff/adapters/useNetworkStatus";
+import { usePrefetch } from "../../swoff/adapters/usePrefetch";
 import { clearAuth } from "../../swoff/auth/store";
 import { clearCachedUser } from "../../swoff/auth/user";
 import InstallButton from "./InstallButton";

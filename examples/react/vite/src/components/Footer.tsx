@@ -1,4 +1,4 @@
-import { useNetworkStatus } from "../../swoff/hooks/useNetworkStatus";
+import { useNetworkStatus } from "../../swoff/adapters/useNetworkStatus";
 
 export default function Footer() {
   const { online, effectiveType, downlink } = useNetworkStatus();

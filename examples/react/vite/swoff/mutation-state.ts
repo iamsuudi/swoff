@@ -34,7 +34,7 @@ let listenerId = 0;
 const listeners = new Map<number, (state: MutationState) => void>();
 
 /** Track a mutation with the given ID and initial status. */
-export function trackMutation(id: string, status: MutationStatus = "idle"): MutationState{
+export function trackMutation(id: string, status: MutationStatus = "idle"): MutationState {
   let state = mutations.get(id);
   if (!state) {
     state = { id, status, error: null, data: null, timestamp: Date.now() };
@@ -49,7 +49,7 @@ export function trackMutation(id: string, status: MutationStatus = "idle"): Muta
 }
 
 /** Update an existing mutation's state. */
-export function updateMutationState(id: string, partial: Partial<MutationState>): MutationState | null{
+export function updateMutationState(id: string, partial: Partial<MutationState>): MutationState | null {
   const state = mutations.get(id);
   if (!state) return null;
   Object.assign(state, partial);
@@ -60,32 +60,32 @@ export function updateMutationState(id: string, partial: Partial<MutationState>)
 }
 
 /** Mark a mutation as successful with optional data. */
-export function resolveMutation(id: string, data: unknown = null): void{
+export function resolveMutation(id: string, data: unknown = null): void {
   updateMutationState(id, { status: "success", data, error: null });
 }
 
 /** Mark a mutation as failed with an error. */
-export function rejectMutation(id: string, error: Error): void{
+export function rejectMutation(id: string, error: Error): void {
   updateMutationState(id, { status: "error", error });
 }
 
 /** Get the current state of a mutation by ID. */
-export function getMutationState(id: string): MutationState | undefined{
+export function getMutationState(id: string): MutationState | undefined {
   return mutations.get(id);
 }
 
 /** Remove a mutation's state from the tracker. */
-export function clearMutationState(id: string): void{
+export function clearMutationState(id: string): void {
   mutations.delete(id);
 }
 
 /** Get all tracked mutations. */
-export function getAllMutationStates(): MutationState[]{
+export function getAllMutationStates(): MutationState[] {
   return Array.from(mutations.values());
 }
 
 /** Get the count of mutations in a given status. */
-export function getMutationCount(status: MutationStatus): number{
+export function getMutationCount(status: MutationStatus): number {
   let count = 0;
   for (const state of mutations.values()) {
     if (state.status === status) count++;
@@ -94,13 +94,13 @@ export function getMutationCount(status: MutationStatus): number{
 }
 
 /** Subscribe to mutation state changes. Returns an unsubscribe function. */
-export function onMutationStateChange(callback: (state: MutationState) => void): () => void{
+export function onMutationStateChange(callback: (state: MutationState) => void): () => void {
   const id = ++listenerId;
   listeners.set(id, callback);
   return () => { listeners.delete(id); };
 }
 
-function notifyListeners(state: MutationState): void{
+function notifyListeners(state: MutationState): void {
   for (const cb of listeners.values()) {
     try {
       cb(state);

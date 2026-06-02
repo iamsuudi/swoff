@@ -56,8 +56,11 @@ export interface TagInvalidationConfig {
   cascading?: Record<string, string[]>;
 }
 
+export const CONFIG_VERSION = 1;
+
 export interface SwoffConfig {
   $schema?: string;
+  configVersion?: number;
   enabled: boolean;
   framework?: "react" | "vue" | "svelte" | "vanilla";
   apiBaseUrl?: string;
@@ -281,6 +284,7 @@ export function mergeConfigs(
 }
 
 export const defaultConfig: SwoffConfig = {
+  configVersion: CONFIG_VERSION,
   enabled: true,
   apiBaseUrl: "",
   features: {
@@ -338,6 +342,7 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
   $schema: string;
 } = {
   $schema: "https://swoff.netlify.app/schema/v1.json",
+  configVersion: CONFIG_VERSION,
   enabled: true,
   framework: "vanilla",
   apiBaseUrl: "",

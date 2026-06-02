@@ -90,8 +90,6 @@ export interface FetchWithCacheOptions extends RequestInit {
   validateSuccess?: (response: Response) => boolean | Promise<boolean>;
   /** Override the URL used for auto-invalidation. Defaults to the request URL. Useful when the mutation URL differs from the cache tag URL. */
   invalidateUrl?: string;
-  /** Skip incrementing global fetch count (avoids showing loading bar for background/prefetch requests) */
-  skipFetchCount?: boolean;
 }
 
 const inFlightRequests = new Map<string, Promise<Response>>();
@@ -100,7 +98,7 @@ const BATCH_WINDOW_MS = 50;
 
 /** Fetch with caching, auth, offline queue, auto-invalidation, and per-request strategy override. Returns { response, fromCache }. Use { auth: true } for authenticated requests — works with bearer, cookie, and custom auth types. */
 export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit & FetchWithCacheOptions = {}): Promise<FetchWithCacheResult<T>> {
-  if (!options.skipFetchCount) incrementFetchCount();
+  incrementFetchCount();
   try {
   const method = (options.method || "GET").toUpperCase();
   const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD" || method === "OPTIONS"));
@@ -301,13 +299,13 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
   const queued = response.headers.get("X-SW-Mutation-Queued") === "true";
   return { response, fromCache, queued };
   } finally {
-    if (!options.skipFetchCount) decrementFetchCount();
+    decrementFetchCount();
   }
 }
 
 /** Fire-and-forget prefetch: warms the cache for a URL without blocking. Useful for route prefetching or link hover prefetching. */
 export function prefetchCache(input: RequestInfo, options: RequestInit & FetchWithCacheOptions = {}): void {
-  fetchWithCache(input, { ...options, skipFetchCount: true }).catch(() => {
+  fetchWithCache(input, { ...options }).catch(() => {
     // Prefetch failures are intentionally silent
   });
 }

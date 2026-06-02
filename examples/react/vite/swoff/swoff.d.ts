@@ -15,6 +15,21 @@ interface ServiceWorkerGlobalScope {
 }
 
 declare global {
+  // Network Information API
+  interface NetworkInformation extends EventTarget {
+    readonly effectiveType: "slow-2g" | "2g" | "3g" | "4g";
+    readonly type: "bluetooth" | "cellular" | "ethernet" | "none" | "wifi" | "wimax" | "other" | "unknown";
+    readonly downlink: number;
+    readonly downlinkMax: number;
+    readonly rtt: number;
+    readonly saveData: boolean;
+    onchange: ((this: NetworkInformation, ev: Event) => unknown) | null;
+  }
+
+  interface Navigator {
+    readonly connection?: NetworkInformation;
+  }
+
   interface BeforeInstallPromptEvent extends Event {
     prompt(): Promise<void>;
     userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -60,21 +75,6 @@ declare global {
   interface ServiceWorkerRegistration {
     readonly sync: SyncManager;
   }
-
-  // Network Information API
-  interface NetworkInformation extends EventTarget {
-    readonly effectiveType: "slow-2g" | "2g" | "3g" | "4g";
-    readonly downlink: number;
-    readonly downlinkMax: number;
-    readonly rtt: number;
-    readonly saveData: boolean;
-    readonly type: "bluetooth" | "cellular" | "ethernet" | "none" | "wifi" | "wimax" | "other" | "unknown";
-    onchange: ((this: NetworkInformation, ev: Event) => unknown) | null;
-  }
-
-  interface Navigator {
-    readonly connection?: NetworkInformation;
-  }
 }
 
 export interface FetchWithCacheOptions extends RequestInit {
@@ -97,7 +97,6 @@ export interface ResetSwoffOptions {
   clearIdb?: boolean;
   clearStorage?: boolean;
   unregisterSW?: boolean;
-  reRegister?: boolean;
 }
 
 export interface GqlOptions {

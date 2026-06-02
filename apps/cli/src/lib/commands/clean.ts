@@ -1,34 +1,61 @@
-/**
- * clean command - removes Swoff from the project (swoff/ dir + config).
- */
-
 import { rmSync, existsSync } from "fs";
 import { join } from "path";
+import { createInterface } from "readline";
 import { log } from "../cli/logger.js";
 
-export async function cleanCommand(projectRoot: string) {
-  log.header("Removing Swoff");
+function ask(question: string): Promise<string> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    rl.question(`  ${question} `, (answer) => {
+      rl.close();
+      resolve(answer.trim());
+    });
+  });
+}
 
-  const configFiles = ["swoff.config.json", "swoff.config.js"];
-  let count = 0;
+export interface CleanOptions {
+  yes?: boolean;
+}
 
+export async function cleanCommand(
+  projectRoot: string,
+  options: CleanOptions = {},
+) {
   const swoffDir = join(projectRoot, "swoff");
-  if (existsSync(swoffDir)) {
-    rmSync(swoffDir, { recursive: true, force: true });
-    log.info("Removed swoff/");
-    count++;
+  const configFiles = ["swoff.config.json", "swoff.config.js"];
+  const existingConfig = configFiles.find((f) =>
+    existsSync(join(projectRoot, f)),
+  );
+
+  const hasSwoffDir = existsSync(swoffDir);
+  if (!hasSwoffDir && !existingConfig) {
+    log.info("No Swoff files found to remove.");
+    return;
   }
 
-  const existingConfig = configFiles.find((f) => existsSync(join(projectRoot, f)));
+  log.header("Removing Swoff");
+
+  const targets: string[] = [];
+  if (hasSwoffDir) targets.push("swoff/");
+  if (existingConfig) targets.push(existingConfig);
+
+  if (!options.yes) {
+    const answer = await ask(`Remove ${targets.join(" and ")}? [y/N]`);
+    if (answer.toLowerCase() !== "y" && answer.toLowerCase() !== "yes") {
+      log.info("Aborted.");
+      return;
+    }
+  }
+
+  if (hasSwoffDir) {
+    rmSync(swoffDir, { recursive: true, force: true });
+    log.info("Removed swoff/");
+  }
+
   if (existingConfig) {
     rmSync(join(projectRoot, existingConfig));
     log.info(`Removed ${existingConfig}`);
-    count++;
   }
 
-  if (count === 0) {
-    log.info("No Swoff files found to remove.");
-  } else {
-    log.success("Swoff has been removed from the project.");
-  }
+  log.success("Swoff has been removed from the project.");
 }

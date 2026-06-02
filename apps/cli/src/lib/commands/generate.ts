@@ -3,7 +3,6 @@
  * Uses direct imports (no subprocess spawning) for a single status line.
  */
 
-import { existsSync } from "fs";
 import { log } from "../cli/logger.js";
 import { loadConfigAsync } from "../config/loader.js";
 import { detectProjectLanguage } from "../utils/detect-language.js";
@@ -17,15 +16,21 @@ export interface GenerateOptions {
   swOnly?: boolean;
   filesOnly?: boolean;
   language?: string;
+  continueOnSwError?: boolean;
 }
 
 export async function generateCommand(
   projectRoot: string,
   options: GenerateOptions = {},
 ) {
-  const { swOnly = false, filesOnly = false, language } = options;
+  const {
+    swOnly = false,
+    filesOnly = false,
+    language,
+    continueOnSwError = false,
+  } = options;
 
-  log.header("Generating Swoff Files");
+  // log.header("Generating Swoff Files");
 
   const { config, configPath } = await loadConfigAsync(projectRoot);
 
@@ -39,7 +44,9 @@ export async function generateCommand(
   const frameworkName = config.framework ?? "vanilla";
   log.info(`Framework: ${frameworkName}`);
 
-  const detectedLang = (language ?? detectProjectLanguage(projectRoot)) as "ts" | "js";
+  const detectedLang = (language ?? detectProjectLanguage(projectRoot)) as
+    | "ts"
+    | "js";
   log.info(`Language: ${detectedLang}`);
 
   if (!filesOnly) {
@@ -55,6 +62,12 @@ export async function generateCommand(
       log.error(
         `Service worker failed: ${err instanceof Error ? err.message : String(err)}`,
       );
+      if (!continueOnSwError) {
+        log.error(
+          "Generation aborted. Fix the issue and re-run. Use --continue-on-sw-error to skip SW and continue with files.",
+        );
+        process.exit(1);
+      }
     }
   }
 
@@ -85,55 +98,19 @@ export async function generateCommand(
     }
   }
 
-  // PWA asset generation
-  if (config.features.pwa.enabled) {
-    if (!config.features.pwa.assets.source) {
-      clearStatusLine();
-      log.help("PWA: no asset source configured. Provide a logo via swoff.config.json → pwa.assets.source");
-      log.help("     or run: swoff generate-assets --source ./path/to/logo.svg");
-    } else {
-      const assets = config.features.pwa.assets;
-      const sourcePath = join(projectRoot, assets.source);
-      if (existsSync(sourcePath)) {
-        statusLine("→ PWA assets...");
-        try {
-          const { generateAssets } = await import("../generators/asset-generator/generate.js");
-          const { printAssetGuide } = await import("../generators/asset-generator/guide.js");
-          const result = await generateAssets({
-            source: sourcePath,
-            outputDir: join(projectRoot, assets.outputDir),
-            appName: config.framework || "App",
-            themeColor: assets.themeColor,
-            bgColor: assets.bgColor,
-            appleSplash: true,
-          });
-          clearStatusLine();
-          log.success(`PWA assets generated (${result.files.length} files)`);
-          printAssetGuide({
-            appName: config.framework || "App",
-            themeColor: assets.themeColor,
-            bgColor: assets.bgColor,
-            outputDir: assets.outputDir,
-            hasSplash: true,
-          });
-        } catch (err: unknown) {
-          clearStatusLine();
-          log.warn(
-            `PWA assets generation skipped: ${err instanceof Error ? err.message : String(err)}`,
-          );
-          log.help("Run manually: swoff generate-assets --source <path>");
-        }
-      }
-    }
-  }
-
   log.success("Generation complete!");
 
+  if (config.features.pwa.enabled) {
+    log.normal("");
+    log.help(
+      "PWA assets: run 'npx @swoff/cli assets --source <path>' to generate icons and splash screens",
+    );
+  }
+
   log.normal("");
-  log.help("📖  Read swoff/GUIDE.md for documentation links");
-  log.help("📖  See docs/ files in swoff for targeted feature help");
+  log.help("1. Read swoff/GUIDE.md for documentation links");
   log.normal("");
-  log.help("⚙️  After each build, run the SW generator:");
-  log.help("   node swoff/sw/generator.js");
-  log.help("   (Add this to your build script if you want it automated)");
+  log.help("2. After each build, run the SW generator:");
+  log.help("  node swoff/sw/generator.js");
+  log.help("  (Add this to your build script if you want it automated)");
 }

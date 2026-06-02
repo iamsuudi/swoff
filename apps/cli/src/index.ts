@@ -20,6 +20,7 @@ import { generateCommand } from "./lib/commands/generate.js";
 import { validateCommand } from "./lib/commands/validate.js";
 import { addCommand } from "./lib/commands/add.js";
 import { cleanCommand } from "./lib/commands/clean.js";
+import { generateAssetsCommand } from "./lib/commands/generate-assets.js";
 
 function getArgValue(name: string): string | undefined {
   const idx = options.indexOf(name);
@@ -82,6 +83,9 @@ async function main() {
       await addCommand(projectRoot, feature);
       break;
     }
+    case "generate-assets":
+      await generateAssetsCommand(projectRoot, options);
+      break;
     case "clean":
       await cleanCommand(projectRoot);
       break;

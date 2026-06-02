@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useCachedFetch } from "../../swoff/hooks/useCachedFetch";
-import { useMutation } from "../../swoff/hooks/useMutation";
-import { useMutationQueue } from "../../swoff/hooks/useMutationQueue";
-import { usePrefetch } from "../../swoff/hooks/usePrefetch";
+import { useCachedFetch } from "../../swoff/adapters/useCachedFetch";
+import { useMutation } from "../../swoff/adapters/useMutation";
+import { useMutationQueue } from "../../swoff/adapters/useMutationQueue";
+import { usePrefetch } from "../../swoff/adapters/usePrefetch";
 import NoteCard from "../components/NoteCard";
 
 interface Note {

@@ -29,8 +29,6 @@ export interface ResetSwoffOptions {
   clearStorage: boolean;
   /** Unregister SW then re-register (default: true) */
   unregisterSW: boolean;
-  /** Re-register SW after unregistering (default: true) */
-  reRegister: boolean;
 }
 
 const DEFAULT_OPTIONS: ResetSwoffOptions = {
@@ -38,7 +36,6 @@ const DEFAULT_OPTIONS: ResetSwoffOptions = {
   clearIdb: true,
   clearStorage: true,
   unregisterSW: true,
-  reRegister: true,
 };
 
 const KNOWN_DB_NAMES = [

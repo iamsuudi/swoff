@@ -24,7 +24,7 @@ let active: boolean = false;
 let swConnected: boolean = false;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-function handleInvalidation(tags: string[]): void{
+function handleInvalidation(tags: string[]): void {
   // Forward to SW for cache invalidation
   if (navigator.serviceWorker.controller) {
     for (const tag of tags) {
@@ -34,7 +34,7 @@ function handleInvalidation(tags: string[]): void{
   window.dispatchEvent(new CustomEvent("cache-invalidated", { detail: { tags } }));
 }
 
-function notifyStatus(connected: boolean): void{
+function notifyStatus(connected: boolean): void {
   window.dispatchEvent(new CustomEvent("push-events-status", { detail: { connected } }));
 }
 
@@ -48,7 +48,7 @@ if (typeof navigator !== "undefined" && navigator.serviceWorker) {
   });
 }
 
-async function connect(options: PushEventOptions = {} as PushEventOptions): Promise<void>{
+async function connect(options: PushEventOptions = {} as PushEventOptions): Promise<void> {
   
   return new Promise((resolve) => {
     fetch(API_BASE + "/api/events", {

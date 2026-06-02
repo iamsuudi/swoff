@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useAuth } from "../../swoff/hooks/useAuth";
+import { useAuth } from "../../swoff/adapters/useAuth";
 
 export default function LandingPage() {
   const { authenticated } = useAuth();

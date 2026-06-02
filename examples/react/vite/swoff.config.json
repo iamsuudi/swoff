@@ -2,7 +2,6 @@
   "$schema": "https://swoff.netlify.app/schema/v1.json",
   "enabled": true,
   "framework": "react",
-  "apiBaseUrl": "",
   "build": {
     "outputDir": "dist",
     "swFilename": "sw"
@@ -12,10 +11,11 @@
       "enabled": true,
       "preventDefaultInstall": false,
       "assets": {
-        "source": "./public/favicon.svg",
+        "source": "",
         "outputDir": "public",
-        "themeColor": "#0d9488",
-        "bgColor": "#ffffff"
+        "themeColor": "#000000",
+        "bgColor": "#ffffff",
+        "generated": false
       }
     },
     "serviceWorker": {
@@ -82,15 +82,15 @@
       "enabled": true,
       "endpoint": "/graphql"
     },
+    "pushNotifications": {
+      "enabled": true,
+      "vapidPublicKey": "BJUUaF0CZdvMgRCIFV3Mw6n8HvekMpB9uqdUcQqj4GqOkJr377pKLlZQ2j_rhIUe3jB87GOueZavBnvqmV9KDrM"
+    },
     "serverPush": {
       "enabled": true,
       "type": "sse",
       "endpoint": "/api/events",
       "reconnectDelayMs": 5000
-    },
-    "pushNotifications": {
-      "enabled": true,
-      "vapidPublicKey": "BJUUaF0CZdvMgRCIFV3Mw6n8HvekMpB9uqdUcQqj4GqOkJr377pKLlZQ2j_rhIUe3jB87GOueZavBnvqmV9KDrM"
     }
   }
 }

@@ -39,7 +39,7 @@ import { generateAuthState } from "./file-generators/auth-state.js";
 import { generateSwGeneratorBuild } from "./file-generators/sw-generator-build.js";
 import { generateGqlWrapper } from "./file-generators/gql-wrapper.js";
 import { generateTypeDefinitions } from "./file-generators/type-definitions.js";
-import { generateHooks } from "./file-generators/generate-hooks.js";
+import { generateFrameworkAdapters } from "./file-generators/generate-framework-adapters.js";
 import { generateGuide } from "./file-generators/guide-generator.js";
 import { generateReset } from "./file-generators/reset.js";
 import { generateFetchState } from "./file-generators/fetch-state.js";
@@ -73,7 +73,7 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
     { name: "gql-wrapper", gen: () => generateGqlWrapper(ctx), enabled: ctx.config.features.graphql.enabled },
     { name: "push", gen: () => generatePush(ctx), enabled: ctx.config.features.pushNotifications?.enabled ?? false },
     { name: "server-push", gen: () => generateServerPush(ctx), enabled: ctx.config.features.serverPush.enabled },
-    { name: "hooks", gen: () => generateHooks(ctx), enabled: ctx.config.framework === "react" },
+    { name: "framework-adapters", gen: () => generateFrameworkAdapters(ctx), enabled: true },
     { name: "GUIDE.md", gen: () => generateGuide(ctx), enabled: true },
   ];
 

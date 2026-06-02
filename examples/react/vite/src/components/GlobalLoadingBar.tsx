@@ -1,4 +1,4 @@
-import { useIsFetching } from "../../swoff/hooks/useIsFetching";
+import { useIsFetching } from "../../swoff/adapters/useIsFetching";
 
 export default function GlobalLoadingBar() {
   const isFetching = useIsFetching();

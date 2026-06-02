@@ -19,8 +19,8 @@ export const commands: Record<string, CommandDef> = {
   },
   generate: {
     description: "Generate service worker and supporting files",
-    usage: "swoff generate [--sw-only|--files-only]",
-    examples: ["swoff generate", "swoff generate --sw-only", "swoff generate --files-only"],
+    usage: "swoff generate [--sw-only|--files-only|--continue-on-sw-error]",
+    examples: ["swoff generate", "swoff generate --sw-only", "swoff generate --continue-on-sw-error"],
   },
   validate: {
     description: "Validate swoff.config.json",
@@ -28,19 +28,19 @@ export const commands: Record<string, CommandDef> = {
     examples: ["swoff validate"],
   },
   add: {
-    description: "Add specific feature files",
-    usage: "swoff add <feature>",
-    examples: ["swoff add pwa", "swoff add mutation-queue"],
+    description: "Add specific feature files (mutation-queue, pwa, cross-tab, auth, background-sync, graphql, push-notification, htmx, php)",
+    usage: "swoff add <feature1>[,<feature2>,...]",
+    examples: ["swoff add pwa", "swoff add auth,graphql", "swoff add htmx"],
   },
-  "generate-assets": {
+  assets: {
     description: "Generate PWA assets (icons, favicon, OG image, splash screens) from source image",
-    usage: "swoff generate-assets [--source path]",
-    examples: ["swoff generate-assets", "swoff generate-assets --source ./src/assets/logo.svg"],
+    usage: "swoff assets --source <path> [--no-splash]",
+    examples: ["swoff assets --source ./logo.svg", "swoff assets --source ./logo.svg --no-splash"],
   },
   clean: {
-    description: "Remove Swoff from the project (swoff/, config, version.json)",
-    usage: "swoff clean",
-    examples: ["swoff clean"],
+    description: "Remove Swoff from the project (swoff/, config, version.json). Use --yes to skip confirmation",
+    usage: "swoff clean [--yes|-y]",
+    examples: ["swoff clean", "swoff clean --yes"],
   },
   help: {
     description: "Show help information",

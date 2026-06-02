@@ -1,4 +1,4 @@
-import { useSWProgress } from "../../swoff/hooks/useSWUpdate";
+import { useSWProgress } from "../../swoff/adapters/useSWUpdate";
 
 export default function SWProgressBar() {
   const { status, progress } = useSWProgress();

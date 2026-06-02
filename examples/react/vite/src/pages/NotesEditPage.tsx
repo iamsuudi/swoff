@@ -1,6 +1,6 @@
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { useCachedFetch } from "../../swoff/hooks/useCachedFetch";
-import { useMutation } from "../../swoff/hooks/useMutation";
+import { useCachedFetch } from "../../swoff/adapters/useCachedFetch";
+import { useMutation } from "../../swoff/adapters/useMutation";
 import NoteForm from "../components/NoteForm";
 
 interface Note {

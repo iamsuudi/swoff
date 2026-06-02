@@ -1,7 +1,11 @@
-import { KNOWN_FEATURES, OBJECT_FEATURES, VALID_STRATEGIES, REACTIVE_FIELDS } from "../shared/config-types.js";
+import { KNOWN_FEATURES, OBJECT_FEATURES, VALID_STRATEGIES, REACTIVE_FIELDS, CONFIG_VERSION } from "../shared/config-types.js";
 
 export function validateConfig(config: Record<string, unknown>): string[] {
   const errors: string[] = [];
+
+  if (config.configVersion !== undefined && config.configVersion !== CONFIG_VERSION) {
+    errors.push(`configVersion must be ${CONFIG_VERSION}, got ${config.configVersion}`);
+  }
 
   const requiredFields = ["enabled", "features", "build"];
   const missingFields = requiredFields.filter(

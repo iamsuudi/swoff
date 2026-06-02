@@ -1,5 +1,5 @@
 import { API_BASE } from "../../swoff/config.ts";
-import { usePushSubscription } from "../../swoff/hooks/usePushSubscription";
+import { usePushSubscription } from "../../swoff/adapters/usePushSubscription";
 
 export default function PushSubscribeButton() {
   const { subscribed, loading, permission, subscribe, unsubscribe, subscription } =

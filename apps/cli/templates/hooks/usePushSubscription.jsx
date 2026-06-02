@@ -56,7 +56,7 @@ export function usePushSubscription() {
 
   const subscribe = useCallback(async () => {
     const sub = await subscribeToPush();
-    return sub !== null;
+    return sub;
   }, []);
 
   const unsubscribe = useCallback(async () => {

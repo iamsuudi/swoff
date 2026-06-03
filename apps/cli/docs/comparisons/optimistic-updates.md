@@ -1,88 +1,117 @@
-# Optimistic Updates: Why Swoff Excludes Them
+# Optimistic Updates: The Distributed System Trap
 
-Optimistic updates — applying mutations to the UI instantly before the server confirms — are a deliberate exclusion from Swoff's architecture. This is not a missing feature; it is a boundary Swoff intentionally does not cross.
+Optimistic updates — applying mutations to the UI instantly before the server confirms — transform your frontend into a distributed system. Every edge case that follows is a distributed systems problem: conflict resolution, causal ordering, idempotency, cascading failure, and reconciliation. The complexity is not optional — it is the problem.
 
-## The phantom ID problem
+Swoff does not implement optimistic updates. This is not a missing feature; it is a deliberate architectural boundary. The Telegram pattern — pending state until server confirmation — avoids the entire class of problems documented below.
 
-When a note is created offline via the mutation queue, it has no server-assigned ID. The app shows it optimistically with a temporary client-side ID. The user edits this note — that edit is also queued as a mutation referencing the temporary ID. When the queue replays:
+## The phantom ID problem deep dive
 
-```
-Create note (offline) → temp ID: "temp-1"
-  → Queue: [{ type: "create", body: { title: "Hello" }, tempId: "temp-1" }]
+When a resource is created offline, it has no server-assigned ID. The client assigns a temporary ID. Every subsequent mutation referencing that resource must use this temp ID. When the queue replays, the temp ID must be mapped to the real server ID. This already fails in several ways:
 
-Edit note (offline) → references "temp-1"
-  → Queue: [{ type: "create", body: ... }, { type: "edit", id: "temp-1", body: ... }]
-
-Online → replay
-  → Create mutation succeeds → server returns real ID: 42
-  → Edit mutation fires with id: "temp-1" → server rejects (no record with that ID)
-  → Edit fails → optimistic data is stale
-```
-
-Resolving this requires either:
-- A client-side ID mapping layer that translates temp → real IDs across dependent mutations.
-- A schema-aware system that knows which fields are IDs and rewrites mutation bodies.
-
-Both approaches couple Swoff to the application's data model — a boundary Swoff deliberately does not cross.
-
-## How enterprise apps handle this
-
-The most successful offline-first consumer app — Telegram — does not use optimistic updates for edits. When you send a message offline:
-
-1. The message appears as "pending" (with a clock icon).
-2. You cannot edit, reply to, or delete that message until it is synced with the server.
-3. After sync, the pending state is replaced by confirmed server state.
-
-This pattern avoids phantom IDs entirely. A pending message has no server-assigned ID, so no dependent action can reference it incorrectly.
-
-Swoff's mutation queue follows this same pattern:
+**Server rejects the create.** The server returns 400 or 403 — validation error, permission denied, duplicate detected. The temp ID never becomes real. All dependent mutations (edits, comments, shares, tags) now reference a phantom. There is no automatic cascading rollback. The local database now contains orphaned records that no sync engine can resolve.
 
 ```
-Mutation → queued in IDB (pending state)
-  → UI shows pending state (clock icon, disabled actions)
-  → SW replays when online
-  → Mutation succeeds → SW invalidates cache
-  → useCachedFetch refetches fresh data
-  → Pending state replaced by confirmed server state
+1. Create Note → temp-id: "t1" → stored locally
+2. Add Comment → references "t1" → stored locally
+3. Share Note → references "t1" → stored locally
+4. Online → replay
+5. Create Note → server rejects (title too long)
+6. "t1" never becomes real
+7. Comment and Share mutations reference a phantom ID
+8. They will also fail → three orphaned records in local DB
 ```
 
-## The normalized cache dependency
+Client DBs do not solve this. They map temp IDs on success, but on rejection there is no reverse mapping to find and clean up dependent mutations. Doing so requires full knowledge of your foreign key graph — application-level logic that no sync engine provides generically.
 
-TanStack Query enables optimistic updates because it has a normalized cache. When an optimistic update mutates one cache entry, every query referencing that entity reflects the change. A rollback updates all derived queries atomically.
+**Server creates with a different ID than expected.** Some servers assign IDs that don't match the client's ID format (e.g., UUIDs vs auto-increment integers, or a server that uses a different ID generation scheme). The mapping layer must handle format conversion.
 
-Libraries like TanStack Query couple query keys to a normalized in-memory store — every query key maps to the same underlying entity, so a rollback updates all derived queries consistently. This requires a schema-aware normalized store that Swoff's SW-level cache does not (and should not) provide.
+**Server creates but returns a stale representation.** The server accepts the create but the returned entity has server-computed fields the client didn't send — `createdAt`, `updatedAt`, `slug`, `normalizedTitle`, `ownerId`. The optimistic local copy lacks these fields. Any dependent mutation that assumed the local shape will be wrong.
 
-Swoff caches HTTP responses by URL. Optimistic updates would require:
-1. Finding all cached URLs that might contain the mutated data.
-2. Modifying each cached response in place.
-3. Rolling back all modifications on failure.
-4. Coordinating this across all tabs via the SW.
+## Cascade failure in mutation chains
 
-This is technically possible but couples Swoff to the shape of every API response — the same schema coupling Swoff's architecture intentionally avoids.
+Real apps don't perform isolated mutations. They chain them:
 
-## What Swoff provides instead
+- Create order → Add line items → Apply discount → Update inventory
+- Create post → Upload image → Tag collaborators → Notify followers
+- Register user → Create profile → Send verification → Set preferences
 
-Swoff provides the primitives for the developer to build optimistic UI at the application layer:
+Each mutation in the chain depends on the previous one succeeding. When any link in the chain fails, all subsequent mutations are invalid. The failure can happen for reasons the client cannot predict:
 
-- **`onMutate` callback** in `useMutation` — called before the mutation fires. The developer can set local state here.
-- **`onError` callback** — called on failure. The developer can roll back local state here.
-- **Pending mutation visibility** — `useMutationQueue()` exposes pending items. The UI can show pending state and disable edit/delete on those items.
+- **Business rule violation:** "This user already has 5 active orders." The sixth is rejected server-side.
+- **Rate limit exceeded:** The API allows 10 creates per minute. The 11th fails.
+- **Server-side trigger error:** The `AFTER INSERT` trigger on the database threw an exception.
+- **Referential integrity:** A foreign key constraint on the server references a record that was deleted by another user.
+- **Concurrent modification:** Another user deleted the parent entity while you were offline editing its child.
 
-```tsx
-const { mutate } = useMutation("/api/notes", {
-  method: "POST",
-  onMutate: () => setOptimisticData(/* ... */),
-  onError: () => rollbackOptimisticData(/* ... */),
-});
-```
+The cascade depth is unbounded. Every level multiplies the potential failure surface. Client DBs leave this entirely to the developer to handle — with no framework support for cascading rollback.
 
-This is the same pattern TanStack Query exposes, minus the automatic rollback across all derived queries. The difference is that TanStack Query can deroll because it knows the schema; Swoff does not.
+## Server-side state the client cannot know
 
-## Why this is the right tradeoff
+The server has information the client does not:
 
-| Approach | Pros | Cons |
-|---|---|---|
-| **Optimistic (TanStack Query)** | Instant UI, automatic rollback | Phantom IDs, schema coupling, response-shape dependency |
-| **Pending (Swoff/Telegram)** | No phantom IDs, no schema coupling, simpler code, works with any API response shape | Pending state visible to user, no instant data appearance |
+- **Computed fields:** `totalPrice = SUM(line_items.price)`. The client optimistically sets a total, but the server recalculates. If the recalculation differs, the client shows the wrong total until the next sync.
+- **Slug generation:** `slug = slugify(title)`. If the slug is already taken, the server appends a suffix. The client's optimistic slug is wrong.
+- **Auto-incrementing counters:** `position = MAX(position) + 1`. Two offline clients both use position 5. Only one survives.
+- **Timestamps:** `updatedAt = NOW()`. The client's optimistic timestamp diverges from the server's clock.
+- **Derived state:** `isComplete = ALL(items.checked)`. A check on item 7 may complete the parent. The optimistic local state doesn't know because it can't evaluate cross-entity derived state without schema awareness.
+- **Server middleware:** Authentication checks, audit logs, webhook dispatches, cache invalidation for CDNs — all happen server-side after the mutation is accepted. The optimistic client has no visibility into these effects.
 
-For apps that need instant optimistic UI, Swoff is not the right tool — use TanStack Query at the application layer, optionally backed by Swoff's SW cache at the infrastructure layer. The two can coexist: Swoff handles SW-level caching and offline, TanStack Query handles application-level optimistic updates.
+Every one of these can cause the server's response to differ from the optimistic local state. The client must reconcile the difference — which means either overwriting the optimistic state (destroying the illusion of instant UX) or showing stale diverged data until the next sync.
+
+## Permission and auth edge cases
+
+- **Token expires mid-queue.** A batch of 10 mutations replays. After mutation 5, the auth token expires. The remaining 5 fail with 401. The first 5 succeeded. The queue is now in an inconsistent state — partial success with no automatic cleanup.
+- **Permission revoked while offline.** User A was an admin when they went offline. They created, edited, and deleted resources. When they come back online, their admin role has been removed. All their mutations from the offline session fail with 403.
+- **Resource deleted by another user.** User B deletes a document on the server while User A is offline editing it. User A's edit replays against a deleted resource — 404 or 410. The client has no mechanism to know the resource no longer exists.
+- **Ownership changes.** Resource was reassigned to a different team while the original owner was offline. Their mutations are rejected by server authorization rules.
+
+These are not edge cases — they are routine scenarios in any multi-user application. Client DBs provide no framework-level handling for any of them.
+
+## The CRDT illusion
+
+CRDTs (Conflict-free Replicated Data Types) are often marketed as the solution to offline conflicts. They solve exactly one problem: concurrent edits to the *same field* of the *same document* by *different users*. They do not solve:
+
+- Server validation rejection (CRDTs cannot make a 400 become a 200)
+- Cascading failure across dependent mutations
+- Foreign key constraint violations
+- Business rule enforcement
+- Permission changes
+- Server-computed field divergence
+- Schema migration conflicts
+- Partial batch failure
+- Any scenario where the server says "no"
+
+CRDTs also require application-level schema awareness. The developer must define which data types use CRDT semantics, how they merge, and what happens during conflicting edits. This is not automatic — it is additional configuration and maintenance burden.
+
+## The differential dataflow mirage
+
+TanStack DB's differential dataflow promises efficient cache updates by tracking fine-grained data dependencies. This does not solve the fundamental problem: the server can reject a mutation for reasons no dataflow graph can predict. Differential dataflow optimizes *when* updates propagate, not *whether* they succeed. A rejected mutation still leaves the system in an inconsistent state regardless of how efficiently the dataflow runs.
+
+## Why client DBs cannot escape this
+
+The root problem is structural: client DBs embed a *copy* of server data in the browser and allow the user to modify it independently. This is a distributed database by definition. Every CAP theorem tradeoff applies:
+
+- **Consistency:** The client and server can diverge arbitrarily during offline periods. The sync engine eventually converges, but "eventually" may be minutes, hours, or never (if the queue fails).
+- **Availability:** The client DB is always available — that's the point. But availability without consistency means the user acts on stale or diverged data.
+- **Partition tolerance:** Network partitions (offline periods) are the entire use case. The system must tolerate them, which means sacrificing consistency.
+
+Client DBs choose AP (Availability + Partition tolerance) over consistency. They accept that the client and server will diverge, and they provide tools (CRDTs, merge functions, conflict handlers) to reconcile divergence. These tools are partial — they handle some scenarios but leave many to the developer. The complexity of the remaining scenarios is not a bug; it is a consequence of the CAP theorem, and no library can engineer around it.
+
+## Enterprise reality
+
+No major enterprise application uses a client-side embedded database for its primary data layer. Google Docs uses operational transformation + WebSocket. Figma uses WebSocket + CRDT for canvas state. Notion uses optimistic local state with server confirmation and manual conflict resolution. These apps invest heavily in distributed systems engineering because they have to — their core product IS collaborative editing.
+
+For a typical web application — dashboards, e-commerce, content management, social feeds — the complexity of client-side distributed database management is disproportionate to the benefit. The correct architecture is:
+
+- **SW-level cache** ensures the app loads and displays data offline.
+- **Mutation queue** captures writes and replays them when online.
+- **Pending state** shows the user their writes are not yet confirmed.
+- **Network-first strategy** serves fresh data when online, cached data when offline.
+
+This is Swoff's architecture. It does not give you instant optimistic UI. It gives something more valuable: a system where the server remains the source of truth, the client never acts on phantom data, and the developer is not responsible for a distributed database they did not ask for.
+
+## What Swoff says
+
+Swoff does not generate optimistic update code. There is no `useOptimisticMutation`, no `onMutate`, no automatic rollback. The `onMutate` and `onError` callbacks mentioned in the API are generic lifecycle hooks — they do not implement optimistic updates. Developers are free to build optimistic UI on top using whatever state management they choose, but Swoff does not provide it because doing so correctly requires coupling to the application's data model and distributed systems knowledge that Swoff deliberately abstracts away.
+
+The recommended pattern is the Telegram approach: show pending state, disable dependent actions, and replace with confirmed state on server response. This works with any API, any data model, and any backend — and it does not require the developer to become a distributed systems engineer.

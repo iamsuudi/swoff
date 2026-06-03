@@ -148,17 +148,4 @@ await db.notes.insert({ title: "Hello", description: "World" });
 
 **No runtime dependency risk:** Swoff has nothing in `node_modules` at runtime. No version conflicts, no dependency chain issues, no supply chain attacks on the client-side code. All generated code is browser-native JavaScript/TypeScript.
 
-## When to choose what
 
-**Choose Swoff when:**
-- You want generated, auditable, committable source code instead of a runtime library
-- You want to set up offline infrastructure with a config file and CLI, not code
-- You want zero runtime dependencies in your bundle
-- You want the generated code to be readable and editable by any team member
-- You want CI/CD to verify generated output via git diff
-
-**Choose a runtime library when:**
-- You prefer `npm install` over code generation
-- You want fine-grained programmatic control over every aspect of the library
-- You need the latest features as soon as they're released (no re-generation step)
-- You're comfortable with the library version in `package.json` as your configuration

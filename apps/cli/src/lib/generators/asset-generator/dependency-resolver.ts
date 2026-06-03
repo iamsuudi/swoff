@@ -6,8 +6,8 @@ const CACHE_DIR = join(homedir(), ".swoff", "cache", "assets");
 const JIMP_VERSION = "1.6.0";
 const RESVG_VERSION = "2.6.2";
 
-const JIMP_URL = `https://cdn.jsdelivr.net/npm/jimp@${JIMP_VERSION}/dist/index.js`;
-const RESVG_JS_URL = `https://cdn.jsdelivr.net/npm/@resvg/resvg-wasm@${RESVG_VERSION}/index.js`;
+const JIMP_URL = `https://cdn.jsdelivr.net/npm/jimp@${JIMP_VERSION}/dist/esm/index.js`;
+const RESVG_JS_URL = `https://cdn.jsdelivr.net/npm/@resvg/resvg-wasm@${RESVG_VERSION}/index.mjs`;
 const RESVG_WASM_URL = `https://cdn.jsdelivr.net/npm/@resvg/resvg-wasm@${RESVG_VERSION}/index_bg.wasm`;
 
 function cachePath(filename: string): string {

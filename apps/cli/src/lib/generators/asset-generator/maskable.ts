@@ -1,7 +1,9 @@
+import { resolveJimp } from "./dependency-resolver.js";
+
 const MASKABLE_SAFE_ZONE = 0.8;
 
 export async function createMaskable(sourceBuffer: Buffer, size: number, bgColor: number): Promise<Buffer> {
-  const { Jimp } = await import("jimp");
+  const { Jimp } = await resolveJimp();
   const image = await Jimp.read(sourceBuffer);
   const canvas = new Jimp({ width: size, height: size, color: bgColor });
   const logoSize = Math.round(size * MASKABLE_SAFE_ZONE);

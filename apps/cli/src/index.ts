@@ -35,6 +35,7 @@ const { values, positionals } = parseArgs({
     language: { type: "string" },
     "continue-on-sw-error": { type: "boolean" },
     source: { type: "string" },
+    "output-dir": { type: "string" },
     "no-splash": { type: "boolean" },
     yes: { type: "boolean", short: "y" },
   },
@@ -85,6 +86,7 @@ async function main() {
     case "assets":
       await generateAssetsCommand(projectRoot, {
         source: values.source,
+        outputDir: values["output-dir"],
         noSplash: !!values["no-splash"],
       });
       break;

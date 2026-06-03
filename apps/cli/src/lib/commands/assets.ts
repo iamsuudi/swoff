@@ -6,6 +6,7 @@ import { printAssetGuide } from "../generators/asset-generator/guide.js";
 
 export interface AssetsOptions {
   source?: string;
+  outputDir?: string;
   noSplash?: boolean;
 }
 
@@ -23,9 +24,11 @@ export async function generateAssetsCommand(projectRoot: string, opts: AssetsOpt
     process.exit(1);
   }
 
+  const outputDir = opts.outputDir || assets.outputDir;
+
   const result = await generateAssets({
     source: sourceArg,
-    outputDir: join(projectRoot, assets.outputDir),
+    outputDir: join(projectRoot, outputDir),
     appName: config.framework || "App",
     themeColor: assets.themeColor,
     bgColor: assets.bgColor,
@@ -41,7 +44,7 @@ export async function generateAssetsCommand(projectRoot: string, opts: AssetsOpt
     appName: config.framework || "App",
     themeColor: assets.themeColor,
     bgColor: assets.bgColor,
-    outputDir: assets.outputDir,
+    outputDir,
     hasSplash: !opts.noSplash,
   });
 }

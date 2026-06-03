@@ -125,7 +125,7 @@ Each feature has a dedicated comparison with code examples, tradeoff analysis, a
 
 - [Prefetch](./comparisons/prefetch.md) — Swoff vs Next.js / TanStack Router / Remix / SvelteKit
 - [Data Fetching](./comparisons/data-fetching.md) — `useCachedFetch` vs TanStack Query / SWR
-- [Caching Strategies](./comparisons/caching-strategies.md) — 6 SW-level strategies vs app-layer staleTime
+- [Caching & Data Layer](./comparisons/caching-and-data.md) — SW-level HTTP caching vs client databases
 - [Cache Invalidation](./comparisons/invalidation.md) — Tag-based vs query-key
 - [Request Batching](./comparisons/request-batching.md) — 50ms coalescing (unique to Swoff)
 - [Offline Queue](./comparisons/offline-queue.md) — Mutation queue vs TanStack Query / Workbox / client DBs
@@ -135,6 +135,6 @@ Each feature has a dedicated comparison with code examples, tradeoff analysis, a
 - [Real-time](./comparisons/realtime.md) — SSE push vs WebSocket subscriptions vs polling
 - [Cross-tab Sync](./comparisons/cross-tab.md) — SW broadcast vs BroadcastChannel vs storage events
 - [PWA](./comparisons/pwa.md) — Manifest gen + install prompt + push notifications vs vite-plugin-pwa
-- [Client DBs](./comparisons/client-db.md) — RxDB / TanStack DB / ElectricSQL / PowerSync
+- [Client DBs](./comparisons/caching-and-data.md#the-client-db-approach-and-its-costs) — RxDB / TanStack DB / ElectricSQL / PowerSync (covered in Caching & Data Layer)
 - [Optimistic Updates](./comparisons/optimistic-updates.md) — Why Swoff excludes them (design rationale)
 - [Developer Experience](./comparisons/devx.md) — Config-driven code gen vs runtime library setup

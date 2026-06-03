@@ -34,22 +34,23 @@ Swoff generates an auth system that spans the Service Worker and the client, cov
 
 **RxDB / TanStack DB:** No auth layer. The sync engine may support auth headers, but token management, refresh, and 401 detection are manual.
 
-**Next.js / Remix:** Server-side auth (cookies, session) handled by the framework. No client-side token injection for API calls, no offline auth state, no 401 detection in the SW.
+**Client DBs (RxDB, PowerSync, ElectricSQL):** No auth layer. Sync engines may support auth headers for initial connection, but have no concept of token lifecycle — no 401 detection, no silent refresh, no cache eviction on logout. User data persists across sessions; on shared devices one user's cached data is visible to the next without manual clearing.
 
 ## Comparison table
 
-| Feature | Swoff | TanStack Query | Workbox | Next.js / Remix |
+| Feature | Swoff | TanStack Query | Workbox | Client DBs (RxDB, PowerSync, ElectricSQL) |
 |---|---|---|---|---|
-| **Token injection** | ✅ `{ auth: true }` on any `fetchWithCache` | ❌ Developer wraps `queryFn` | ❌ Not supported | ❌ Server-only (cookies) |
-| **Auth types** | ✅ Bearer, cookie, custom | ❌ Manual | ❌ Not supported | 🟡 Cookie/session only |
-| **Silent refresh** | ✅ `ensureValidAuth()` before expiry | ❌ Developer implements | ❌ Not supported | ❌ Server-managed |
-| **401 detection** | ✅ SW + client, automatic | ❌ Developer handles | ❌ Not supported | ❌ Server-managed |
+| **Token injection** | ✅ `{ auth: true }` on any `fetchWithCache` | ❌ Developer wraps `queryFn` | ❌ Not supported | ❌ Not supported |
+| **Auth types** | ✅ Bearer, cookie, custom | ❌ Manual | ❌ Not supported | ❌ Not supported |
+| **Silent refresh** | ✅ `ensureValidAuth()` before expiry | ❌ Developer implements | ❌ Not supported | ❌ Not supported |
+| **401 detection** | ✅ SW + client, automatic | ❌ Developer handles | ❌ Not supported | ❌ Not supported |
 | **Offline user cache** | ✅ IndexedDB (user profile available offline) | ❌ Not supported | ❌ Not supported | ❌ Not supported |
 | **Offline auth state** | ✅ `getAuthState()` works offline | ❌ Not supported | ❌ Not supported | ❌ Not supported |
-| **Logout cleanup** | ✅ Wipes tokens + user cache + mutation queue | ❌ Developer clears cache manually | ❌ Not supported | 🟡 Clears session cookie |
+| **Logout cleanup** | ✅ Wipes tokens + user cache + mutation queue | ❌ Developer clears cache manually | ❌ Not supported | ❌ No auth-gated eviction |
 | **Auth-aware offline queue** | ✅ Queue respects auth: refresh before replay, stop on failure | ❌ Not supported | ❌ Not supported | ❌ Not supported |
 | **Reactive hook** | ✅ `useAuth()` with connectivity state | ❌ Not supported | ❌ Not supported | ❌ Not supported |
 | **Cross-tab auth sync** | ✅ `sw-auth-state-change` broadcast to all tabs | ❌ Not supported | ❌ Not supported | ❌ Not supported |
+| **Auth-gated cache eviction** | ✅ `clearAuth()` wipes tokens + user cache + mutation queue on 401/logout | ❌ Memory cache persists across sessions | ❌ Not supported | ❌ Persistent data survives across sessions |
 | **Bundle cost** | 0 kB (generated code) | N/A (developer writes auth wrapper) | N/A | N/A |
 | **Setup lines** | 0 (enabled in config) | ~20-50 lines (interceptor/ wrapper) | N/A | N/A |
 
@@ -64,17 +65,3 @@ This means auth state is managed at the infrastructure layer, not in individual 
 
 **No token persistence:** Bearer tokens live only in JavaScript memory. `clearAuth()` simply deletes the reference — no storage writes, no IDB cleanup race, no token leak. The tradeoff is that a page refresh loses the token and requires a new login (or silent refresh if the refresh token is cookie-based).
 
-## When to choose what
-
-**Choose Swoff when:**
-- You want `{ auth: true }` as a per-request flag instead of wrapping every API call
-- You need offline auth state (show user profile when offline)
-- You need cross-tab auth sync (logout one tab, all tabs reflect it)
-- You want automatic 401 detection + silent refresh at the SW level
-- You want privacy-safe logout that wipes user data from all caches
-
-**Choose a manual approach when:**
-- You need fine-grained control over token injection (e.g., per-request token rotation)
-- You already have a mature auth interceptor pattern (axios interceptors, custom fetch)
-- You don't need offline auth state or cross-tab sync
-- Your auth is entirely server-managed (session cookies with no client tokens)

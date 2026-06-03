@@ -79,21 +79,4 @@ function InstallButton() {
 | **Cross-framework** | ✅ Any framework or none | ❌ Vite only | ✅ Any build tool | ✅ Any setup |
 | **Bundle cost** | 0 kB (generated code) | ~35 kB (Workbox + plugin) | ~30 kB (Workbox) | N/A |
 
-## When to choose what
 
-**Choose Swoff when:**
-- You want PWA features to come from the same config as caching and auth
-- You need icon generation built into the toolchain
-- You want reactive install prompts without writing `beforeinstallprompt` listeners
-- You use any build tool (not just Vite)
-- You want push notification handlers generated in the SW
-
-**Choose vite-plugin-pwa when:**
-- You're already on Vite and want a quick `npm install` solution
-- You only need basic PWA manifest + precaching (no install prompts, no push)
-- You're comfortable with Workbox's SW runtime modules
-
-**Choose manual when:**
-- You need full control over the manifest and SW event handlers
-- You're not using a build tool that integrates with Workbox
-- PWA features are not a priority (simple manifest.json suffices)

@@ -153,7 +153,7 @@ describe("generateClientInjector", () => {
     generateClientInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "client-injector.js"), "utf8");
     expect(content).toContain("setupPwaInstall");
-    expect(content).toContain("./pwa/install");
+    expect(content).toContain("./pwa/injector");
   });
 
   it("always imports sw/injector", () => {
@@ -173,7 +173,7 @@ describe("generateFetchWrapper", () => {
   it("exports fetchWithCache", () => {
     const ctx = makeContext();
     generateFetchWrapper(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "fetch-wrapper.js"), "utf8");
+    const content = readFileSync(join(ctx.swoffDir, "fetch", "core.js"), "utf8");
     expect(content).toContain("fetchWithCache");
   });
 });
@@ -182,7 +182,7 @@ describe("generateCache", () => {
   it("exports cache invalidation functions", () => {
     const ctx = makeContext();
     generateCache(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "cache.js"), "utf8");
+    const content = readFileSync(join(ctx.swoffDir, "cache", "index.js"), "utf8");
     expect(content).toContain("invalidateByTag");
     expect(content).toContain("invalidateByTags");
     expect(content).toContain("INVALIDATE_TAG");
@@ -195,7 +195,7 @@ describe("generateMutationQueue", () => {
   it("contains mutation queue functions", () => {
     const ctx = makeContext();
     generateMutationQueue(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "mutation-queue.js"), "utf8");
+    const content = readFileSync(join(ctx.swoffDir, "offline", "queue.js"), "utf8");
     expect(content).toContain("queueMutation");
     expect(content).toContain("processMutationQueue");
     expect(content).toContain("getPendingCount");
@@ -208,7 +208,7 @@ describe("generateBackgroundSync", () => {
   it("contains background sync utilities", () => {
     const ctx = makeContext();
     generateBackgroundSync(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "background-sync.js"), "utf8");
+    const content = readFileSync(join(ctx.swoffDir, "offline", "sync.js"), "utf8");
     expect(content).toContain("syncWhenPossible");
     expect(content).toContain("retrySync");
     expect(content).toContain("SYNC_TAG");

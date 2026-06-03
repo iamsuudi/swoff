@@ -19,5 +19,5 @@ export function generateServerPush(ctx: GeneratorContext): void {
     sp.reconnectDelayMs,
   );
 
-  writeFile(ctx, `server-push.${ext}`, code);
+  writeFile(ctx, `realtime/server-push.${ext}`, code);
 }

@@ -4,7 +4,7 @@ import {
   unsubscribeFromPush,
   isSubscribed,
   getPushSubscription,
-} from "../push.ts";
+} from "../realtime/notifications.ts";
 
 export function usePushSubscription() {
   const [state, setState] = useState(() => ({

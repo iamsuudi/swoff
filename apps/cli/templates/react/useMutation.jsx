@@ -1,39 +1,35 @@
-import { useEffect, useState, useCallback, useRef } from "react";
-import { fetchWithCache } from "../fetch-wrapper.js";
+import { useState, useCallback, useRef } from "react";
+import { fetchWithCache } from "../fetch/core.js";
 import {
   trackMutation,
   resolveMutation,
   rejectMutation,
-} from "../mutation-state.js";
+} from "../offline/state.js";
 
 /**
- * Hook for mutations with auto-invalidation, offline queuing, optimistic updates,
- * dual-level callbacks, and deduplication.
+ * Hook for mutations (POST, PUT, PATCH, DELETE) with auto-invalidation, offline queuing,
+ * optimistic updates, and dual-level callbacks.
  *
  * Usage:
- *   const { mutate, isLoading, error, reset, mutationId } = useMutation({
- *     onSuccess: (data) => showToast("Saved!"),
- *     onError: (err) => reportError(err),
- *   });
- *
- *   // Per-call callbacks fire after hook-level callbacks:
- *   await mutate("/api/todos", { method: "POST", body }, {
+ *   const { mutate, isLoading, error, data } = useMutation("/api/todos", {
+ *     method: "POST",
  *     onSuccess: (data) => navigate(`/item/${data.id}`),
  *   });
  *
- *   // Optimistic update:
- *   const { mutate } = useMutation({
- *     onMutate: () => { /* set optimistic state *\/ },
- *     onError: () => { /* rollback *\/ },
+ *   // Called multiple times — all share one loading/error state:
+ *   await mutate({ title: "hello" });
+ *   await mutate({ title: "world" }, {
+ *     onSuccess: (data) => console.log(data),
  *   });
  *
- *   // Dedup with key:
- *   await mutate(url, { method: "POST", mutationKey: "save-profile" });
- *
- *   // Retry on failure:
- *   await mutate(url, { method: "POST", retry: 3 });
+ *   // Optimistic update with rollback:
+ *   const { mutate } = useMutation("/api/todos", {
+ *     method: "POST",
+ *     onMutate: () => { /* set optimistic state */ },
+ *     onError: () => { /* rollback */ },
+ *   });
  */
-export function useMutation(options = {}) {
+export function useMutation(url, options = {}) {
   const [state, setState] = useState({
     data: null,
     error: null,
@@ -44,20 +40,19 @@ export function useMutation(options = {}) {
 
   const [mutationId, setMutationId] = useState(null);
   const optionsRef = useRef(options);
+  const urlRef = useRef(url);
   const inFlightKeys = useRef(new Set());
 
-  useEffect(() => {
-    optionsRef.current = options;
-  }, [options]);
+  urlRef.current = url;
 
-  const mutate = useCallback(async (url, fetchOptions = {}, callbacks) => {
-    const key = callbacks?.mutationKey ?? fetchOptions.mutationKey ?? options.mutationKey;
+  const mutate = useCallback(async (body, callbacks) => {
+    const key = optionsRef.current.mutationKey;
     if (key && inFlightKeys.current.has(key)) return null;
     if (key) inFlightKeys.current.add(key);
 
-    let retriesLeft = (options.retry ?? fetchOptions.retry) === true
+    let retriesLeft = optionsRef.current.retry === true
       ? Infinity
-      : (options.retry ?? fetchOptions.retry) ?? 0;
+      : (optionsRef.current.retry ?? 0);
 
     const mid = "mut-" + crypto.randomUUID();
     setMutationId(mid);
@@ -74,7 +69,8 @@ export function useMutation(options = {}) {
 
     const attempt = async () => {
       try {
-        const { response, queued } = await fetchWithCache(url, fetchOptions);
+        const fetchOptions = { ...optionsRef.current, body };
+        const { response, queued } = await fetchWithCache(urlRef.current, fetchOptions);
         if (queued) {
           resolveMutation(mid, null);
           setState({

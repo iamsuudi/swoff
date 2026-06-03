@@ -15,7 +15,7 @@
  *   });
  */
 
-import { queueMutation, processMutationQueue, getPendingCount } from "./mutation-queue.ts";
+import { queueMutation, processMutationQueue, getPendingCount } from "./queue.ts";
 
 const SYNC_TAG = "sync-mutations";
 

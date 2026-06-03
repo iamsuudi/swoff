@@ -224,10 +224,10 @@ describe("CLI commands integration", () => {
         "swoff/sw/template.js",
         "swoff/sw/injector.js",
         "swoff/client-injector.js",
-        "swoff/fetch-wrapper.js",
-        "swoff/invalidation-tags.js",
-        "swoff/cache.js",
-        "swoff/pwa/install.js",
+        "swoff/fetch/core.js",
+        "swoff/cache/tags.js",
+        "swoff/cache/index.js",
+        "swoff/pwa/prompt.js",
         "swoff/sw/generator.js",
       ];
       for (const f of expectedFiles) {

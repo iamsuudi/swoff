@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { queryGql, mutateGql } from "../../swoff/gql-wrapper";
+import { queryGql, mutateGql } from "../../swoff/graphql";
 import NoteCard from "../components/NoteCard";
 
 interface Note {
@@ -32,7 +32,11 @@ export default function NotesGqlPage() {
   const fetchNotes = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await queryGql<{ notes: Note[] }>(LIST_QUERY, undefined, { auth: true });
+      const { data } = await queryGql<{ notes: Note[] }>(
+        LIST_QUERY,
+        undefined,
+        { auth: true },
+      );
       setNotes(data.notes ?? []);
     } catch {
       // Fetch error
@@ -43,13 +47,17 @@ export default function NotesGqlPage() {
 
   useEffect(() => {
     fetchNotes();
-  }, [fetchNotes]);
+  });
 
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this note?")) return;
     setDeletingId(id);
     try {
-      await mutateGql<{ deleteNote: boolean }>(DELETE_MUTATION, { id }, { auth: true });
+      await mutateGql<{ deleteNote: boolean }>(
+        DELETE_MUTATION,
+        { id },
+        { auth: true },
+      );
       setNotes((prev) => prev.filter((n) => n.id !== id));
     } catch {
       // Delete error
@@ -69,7 +77,8 @@ export default function NotesGqlPage() {
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8 text-center sm:text-left">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl dark:text-white">
-            Notes <span className="text-sm font-normal text-teal-500">(GraphQL)</span>
+            Notes{" "}
+            <span className="text-sm font-normal text-teal-500">(GraphQL)</span>
           </h1>
           <p className="mt-1 text-gray-500 dark:text-gray-400">
             Fetched via queryGql / mutateGql
@@ -121,8 +130,8 @@ export default function NotesGqlPage() {
         </div>
 
         <div className="mb-4 rounded-lg border border-purple-200 bg-purple-50 px-4 py-2 text-xs text-purple-600 dark:border-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
-          This page uses GraphQL via queryGql/mutateGql. Changes made on REST pages
-          auto-refresh here via SSE cache invalidation.
+          This page uses GraphQL via queryGql/mutateGql. Changes made on REST
+          pages auto-refresh here via SSE cache invalidation.
         </div>
 
         {loading ? (

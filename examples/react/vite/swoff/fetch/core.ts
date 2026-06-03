@@ -4,7 +4,7 @@
  * per-request strategy override.
  *
  * Usage:
- *   import { fetchWithCache, prefetchCache } from './swoff/fetch-wrapper.ts';
+ *   import { fetchWithCache, prefetchCache } from './swoff/fetch/core.ts';
  *
  *   // GET — cached with auto-generated tags
  *   const { response } = await fetchWithCache("/api/todos");
@@ -62,12 +62,12 @@
  *   // When back online, processMutationQueue() replays them
  */
 
-import { API_BASE } from "./config.ts";
-import { generateTags, invalidateUrl, expandCascading } from "./invalidation-tags.ts";
-import { invalidateByTags } from "./cache.ts";
-import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, ensureValidAuth, AUTH_WITH_CREDENTIALS } from "./auth/store.ts";
-import { queueMutation } from "./mutation-queue.ts";
-import { incrementFetchCount, decrementFetchCount } from "./fetch-state.ts";
+import { API_BASE } from "../config.ts";
+import { generateTags, invalidateUrl, expandCascading } from "../cache/tags.ts";
+import { invalidateByTags } from "../cache/index.ts";
+import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, ensureValidAuth, AUTH_WITH_CREDENTIALS } from "../auth/store.ts";
+import { queueMutation } from "../offline/queue.ts";
+import { incrementFetchCount, decrementFetchCount } from "../fetch/state.ts";
 
 export interface FetchWithCacheResult<T> {
   response: Response & { json(): Promise<T> };

@@ -8,5 +8,5 @@ export function generateGqlWrapper(ctx: GeneratorContext): void {
 
   const code = generateGqlWrapperCode({ ts, ext }, endpoint);
 
-  writeFile(ctx, `gql-wrapper.${ext}`, code);
+  writeFile(ctx, `graphql/index.${ext}`, code);
 }

@@ -25,10 +25,10 @@
  *   sw-update-available   - New version ready (detail: { version })
  *   sw-version-detected   - Version info available
  */
-import { setupPwaInstall } from "./pwa/install.ts";
-import { processMutationQueue } from "./mutation-queue.ts";
+import { setupPwaInstall } from "./pwa/injector.ts";
+import { processMutationQueue } from "./offline/queue.ts";
 import { initServiceWorker as swInit } from "./sw/injector.ts";
-import { startPushEvents } from "./server-push.ts";
+import { startPushEvents } from "./realtime/server-push.ts";
 
 setupPwaInstall();
 

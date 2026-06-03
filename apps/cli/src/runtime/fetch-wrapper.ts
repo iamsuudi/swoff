@@ -11,16 +11,19 @@ export function generateFetchWrapperCode(
   const { ext, ts } = ctx;
 
   const importLines = [
-    `import { API_BASE } from "./config.${ext}";`,
-    `import { generateTags, invalidateUrl${mutationQueue ? ", expandCascading" : ""} } from "./invalidation-tags.${ext}";`,
-    `import { invalidateByTags } from "./cache.${ext}";`,
+    `import { API_BASE } from "../config.${ext}";`,
+
+    `import { generateTags, invalidateUrl${mutationQueue ? ", expandCascading" : ""} } from "../cache/tags.${ext}";`,
+
+    `import { invalidateByTags } from "../cache/index.${ext}";`,
+
     authEnabled
-      ? `import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, ensureValidAuth, AUTH_WITH_CREDENTIALS } from "./auth/store.${ext}";`
+      ? `import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, ensureValidAuth, AUTH_WITH_CREDENTIALS } from "../auth/store.${ext}";`
       : "",
     mutationQueue
-      ? `import { queueMutation } from "./mutation-queue.${ext}";`
+      ? `import { queueMutation } from "../offline/queue.${ext}";`
       : "",
-    `import { incrementFetchCount, decrementFetchCount } from "./fetch-state.${ext}";`,
+    `import { incrementFetchCount, decrementFetchCount } from "../fetch/state.${ext}";`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -181,7 +184,7 @@ export interface FetchWithCacheOptions extends RequestInit {
  * per-request strategy override.
  *
  * Usage:
- *   import { fetchWithCache, prefetchCache } from './swoff/fetch-wrapper.${ext}';
+ *   import { fetchWithCache, prefetchCache } from './swoff/fetch/core.${ext}';
  *
  *   // GET — cached with auto-generated tags
  *   const { response } = await fetchWithCache("/api/todos");

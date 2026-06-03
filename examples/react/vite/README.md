@@ -161,7 +161,7 @@ No JWT involved. The server creates a session (UUID), stores it in memory, and s
 
 ## GraphQL
 
-All three API servers mount a shared GraphQL endpoint at `/graphql`. The Swoff-generated `swoff/gql-wrapper.ts` provides three functions that hook into the same caching, auth, and offline queue as the REST layer:
+All three API servers mount a shared GraphQL endpoint at `/graphql`. The Swoff-generated `swoff/graphql/index.ts` provides three functions that hook into the same caching, auth, and offline queue as the REST layer:
 
 - `queryGql<T>(query, variables?, options?)` — cached read, uses SHA-256 body hash as the SW cache key
 - `mutateGql<T>(mutation, variables?, options?)` — write with auto-tag invalidation, optionally queued offline
@@ -182,7 +182,7 @@ curl -s http://localhost:3001/graphql \
 **From the React app:**
 
 ```typescript
-import { queryGql, mutateGql } from "../swoff/gql-wrapper.ts";
+import { queryGql, mutateGql } from "../swoff/graphql/index.ts";
 
 // Query (cached, respects SW cache)
 const { data, fromCache } = await queryGql(
@@ -192,7 +192,7 @@ const { data, fromCache } = await queryGql(
 // Mutation (auto-invalidates note tags)
 const { data: created } = await mutateGql(
   "mutation CreateNote($title: String!, $desc: String!) { createNote(title: $title, description: $desc) { id title } }",
-  { title: "From GraphQL", desc: "Created via gql-wrapper" },
+  { title: "From GraphQL", desc: "Created via graphql" },
   { auth: true },
 );
 ```
@@ -207,7 +207,7 @@ Push notifications are fully integrated end-to-end: a **subscribe toggle in the 
 
 | Layer | File | Role |
 |---|---|---|
-| Client library | `swoff/push.ts` | Browser-side subscribe/unsubscribe via Push API, IndexedDB persistence |
+| Client library | `swoff/realtime/notifications.ts` | Browser-side subscribe/unsubscribe via Push API, IndexedDB persistence |
 | React hook | `swoff/hooks/usePushSubscription.tsx` | `usePushSubscription(vapidKey)` returning `{ subscribed, subscription, loading, subscribe, unsubscribe }` |
 | Subscribe button | `src/components/PushSubscribeButton.tsx` | Bell toggle in the header — calls `subscribeToPush()` + `POST /api/push/subscribe` on enable, `POST /api/push/unsubscribe` + `unsubscribeFromPush()` on disable |
 | Server endpoints | `server/push.js` (`setupPush`) | `POST /api/push/subscribe`, `/api/push/unsubscribe`, `/api/push/trigger` — subscriptions stored in `db.json` |

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { fetchWithCache } from "../fetch-wrapper.js";
-import { generateTags } from "../invalidation-tags.js";
+import { fetchWithCache } from "../fetch/core.js";
+import { generateTags } from "../cache/tags.js";
 
 /**
  * Fetch and cache data with automatic invalidation, revalidation, and offline support.

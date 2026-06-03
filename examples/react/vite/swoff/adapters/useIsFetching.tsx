@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getFetchCount } from "../fetch-state";
+import { getFetchCount } from "../fetch/state";
 
 /**
  * Hook that returns true when any swoff fetch or mutation is in-flight.

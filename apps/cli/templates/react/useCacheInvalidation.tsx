@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import { invalidateByTag, invalidateByTags } from "../cache.ts";
-import { invalidateUrl } from "../invalidation-tags.ts";
+import { invalidateByTag, invalidateByTags } from "../cache/index.ts";
+import { invalidateUrl } from "../cache/tags.ts";
 
 /**
  * Hook exposing cache invalidation functions for manual control.

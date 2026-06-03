@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { prefetchCache } from "../fetch-wrapper.js";
+import { prefetchCache } from "../fetch/core.js";
 
 /**
  * Hook that returns a stable prefetch callback, observable prefetch list, and clear function.

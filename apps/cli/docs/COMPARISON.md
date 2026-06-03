@@ -4,14 +4,16 @@
 
 | Library             | Category                  | Approach                           | Runtime size                             |
 | ------------------- | ------------------------- | ---------------------------------- | ---------------------------------------- |
-| **Swoff**           | All-in-one generator      | Config-driven code gen             | 0 kB                                     |
+| **Swoff**           | Offline infra generator   | Config-driven code gen             | 0 kB                                     |
 | **Workbox**         | SW toolkit                | Build-time + runtime modules       | ~30 kB                                   |
 | **vite-plugin-pwa** | SW (Vite)                 | Vite plugin wrapping Workbox       | ~30 kB                                   |
 | **TanStack Query**  | Server state              | Runtime JS                         | 3.8 kB gzip                              |
 | **SWR**             | Server state              | Runtime JS                         | 3.3 kB gzip                              |
 | **RTK Query**       | Server state              | Runtime JS + Redux                 | 2.9 kB + Redux                           |
 | **Apollo Client**   | GraphQL client            | Runtime JS                         | ~32 kB gzip                              |
-| **RxDB**            | Offline-first DB          | Runtime JS                         | ~40 kB gzip                              |
+| **RxDB**            | Client DB                 | Runtime JS                         | ~40 kB gzip                              |
+| **ElectricSQL**     | Client DB (sync engine)   | Runtime + PGlite WASM             | ~3 MB gzip                               |
+| **PowerSync**       | Client DB (sync engine)   | Runtime + SQLite                   | ~2 MB gzip                               |
 | **TanStack DB**     | Client DB + offline-first | Runtime JS (differential dataflow) | ~6 kB gzip core (+ SQLite WASM optional) |
 
 ## Feature Matrix
@@ -109,7 +111,7 @@
 | Zero runtime dependencies         | ✅ generated code   | ❌ Workbox         | ❌ 3.8 kB      | ❌ 32 kB         | ❌ 40 kB       | ❌ + Query + DB + SQLite WASM |
 | Config-driven setup               | ✅ single file      | ✅ workbox-config  | ❌ code-only   | ❌ code-only     | ❌ code-only   | ❌ code-only + schema defs |
 | Build-tool agnostic               | ✅ any              | ✅ any             | ✅ any         | ✅ any           | ✅ any         | ✅ any                  |
-| React hooks                       | ✅ 11               | 🟡 minimal         | ✅ extensive   | ✅               | ✅             | ✅ useLiveQuery         |
+| React hooks                       | ✅ 10               | 🟡 minimal         | ✅ extensive   | ✅               | ✅             | ✅ useLiveQuery         |
 | TypeScript declarations generated | ✅                  | ❌                 | ✅ built-in    | ✅ built-in      | ✅ built-in    | ✅ built-in             |
 | Auditable generated code          | ✅ every file       | 🟡 only SW        | ❌             | ❌               | ❌             | ❌                      |
 | Lines of setup code               | ✅ 0 (1 config)     | 🟡 config + imports| ❌ query client + hooks setup | ❌ ApolloClient + link chain | ❌ schema + RxDB creation | ❌ schema + DB + sync engine + server adapter |
@@ -171,26 +173,39 @@
 - **SW-broadcast cross-tab invalidation** — `TAG_INVALIDATED` is posted to every connected client via `self.clients.matchAll()`. No BroadcastChannel needed.
 - **SSR-safe generated code** — all generated modules guard browser globals; `fetchWithCache` and hooks work in Node.js server rendering without crashing or stubbing.
 
-**Where TanStack DB leads (and Swoff still needs to catch up):**
+**Client databases (RxDB, TanStack DB, ElectricSQL, PowerSync) — a different paradigm:**
 
-- **Normalized collections** — query across related data with joins, filters, and aggregates.
-- **Differential dataflow** — sub-millisecond incremental query re-computation even with 100k+ items.
-- **SSR support** — works with server rendering (TanStack DB is actively developing this).
+These libraries embed a client-side database (IndexedDB, SQLite via WASM, PGlite) and synchronize it with the server. They excel at:
+- **Normalized collections** — SQL joins, filters, aggregation, full-text search on the client.
+- **Optimistic updates with phantom ID reconciliation** — schema-aware ID mapping.
+- **Incremental sync** — only changed rows replicate, not entire HTTP responses.
+- **Conflict resolution** — last-write-wins, CRDTs, or custom merge strategies.
 
-**Where Swoff still leads vs TanStack DB:**
+Ideal for collaborative editors, inventory systems, or any app whose primary model *is* the database. But this comes with architectural costs:
+- **Dual database management** — every schema change must be migrated in both server DB and client DB, with persistent schema-drift risk.
+- **WASM download** — SQLite via WASM adds ~800 kB decompressed, multi-second parse time, and a separate memory heap (CSP concerns).
+- **Sync engine complexity** — replication protocol, change tracking, conflict resolution.
+- **No SW-layer caching** — native `fetch` cache is bypassed; third-party requests, plain `fetch()` calls, and CDN assets have no cache layer.
+- **Auth integration is manual** — no built-in token injection, 401 handling, or offline auth state.
+- **Runtime coupling** — sync engine + client DB become permanent runtime dependencies that must be loaded on every page visit.
 
-- **Native browser API layer** — Swoff intercepts at the `fetch` event, caching even third-party and plain `fetch()` calls. TanStack DB operates at the application layer with a client-side SQLite database requiring schema definitions and a sync engine.
-- **No dual database management** — TanStack DB forces developers to manage a client-side database (SQLite via WASM) alongside their server database, with the complexity of schema drift, sync conflict resolution, and data migration. Swoff uses the browser's native Cache Storage API — no schemas, no sync, no WASM downloads.
-- **Auth across the stack** — token injection, 401 handling, refresh in SW + client. TanStack DB has no auth integration — developer must layer it manually.
-- **Privacy-safe logout** — `clearAuth()` wipes auth tokens + user cache from memory and IDB. TanStack DB's SQLite persists all data indefinitely — developers must manually purge on logout or risk exposing stale user data.
-- **Zero runtime deps** — generated code vs TanStack DB's ~6 kB core + Query + optional SQLite WASM (~800 kB decompressed).
-- **Config-driven setup** — one config file vs schema definitions + Query setup + sync engine configuration.
+Swoff takes the opposite approach: operate at the SW layer using the native Cache Storage API. No schemas, no sync engine, no WASM, no dual databases, no phantom ID reconciliation. Data is cached by URL, served stale-while-revalidate, invalidated by tag, and refreshed by the SW. This is strictly less expressive than a client DB (no joins, no aggregation) but covers the 90% use case — reliable offline READ of server data — with zero runtime deps, zero WASM, and zero schema coupling.
+
+**Where Swoff still leads vs client databases:**
+- **Native `fetch` interception** — works with any request, any library, any third-party resource. Client databases only see data routed through their sync engine.
+- **No dual database management** — no schemas, no sync engine, no WASM downloads. Cache Storage API is built into every browser.
+- **Auth across the stack** — token injection, 401 handling, refresh in SW + client. Client databases provide no auth layer.
+- **Privacy-safe logout** — `clearAuth()` wipes tokens + user cache from memory and IDB. Client databases persist all data indefinitely — developer must manually purge.
+- **Zero runtime deps** — generated code uses only browser APIs. Client databases ship sync engine + query layer + storage engine as mandatory runtime deps.
+- **Config-driven setup** — one config file vs schema definitions + sync configuration + DB initialization.
 - **PWA + push notifications** — built into the generated output.
+- **No WASM** — no multi-second parse time, no separate memory heap, no CSP concerns.
+- **Cross-tab sync** — SW-broadcast invalidation syncs cache across tabs without BroadcastChannel.
+- **State survives SW restart** — IDB + Cache API persist across SW lifecycle. Client DB WASM must re-initialize on every page load.
 
 **Where Swoff still needs to catch up:**
-
-- **Framework hooks** — React only. Vue, Svelte, Solid adapters planned.
-- **Normalized GraphQL cache** — body-hash caching is simple but cannot merge overlapping query results like Apollo/Relay.
+- **Framework hooks** — React only (10 hooks). Vue, Svelte, Solid adapters planned.
+- **Normalized GraphQL cache** — body-hash caching cannot merge overlapping query results like Apollo/Relay.
 - **Devtools** — no browser extension yet.
 
 ## Design Decisions

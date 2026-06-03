@@ -12,13 +12,13 @@ export function generateMutationQueueCode(
   const { ext, ts } = ctx;
 
   const importLines = authEnabled
-    ? `import { getAuth } from "./auth/store.${ext}";
+    ? `import { getAuth } from "../auth/store.${ext}";
 `
     : "";
 
-  const additionalImports = `import { invalidateByTags } from "./cache.${ext}";
+  const additionalImports = `import { invalidateByTags } from "../cache/index.${ext}";
 ${ts
-  ? `import type { MutationQueueItem } from "./swoff.d.ts";
+  ? `import type { MutationQueueItem } from "../swoff.d.ts";
 `
   : ""
 }`;
@@ -38,7 +38,7 @@ ${ts
  * Supports configurable batch size, rate limiting, and exponential backoff.
  *
  * Usage:
- *   import { queueMutation, processMutationQueue, flushMutations, getPendingCount } from './swoff/mutation-queue.${ext}';
+ *   import { queueMutation, processMutationQueue, flushMutations, getPendingCount } from './swoff/offline/queue.${ext}';
  *
  *   // Queue a mutation
  *   await queueMutation({

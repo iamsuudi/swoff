@@ -23,7 +23,7 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push("");
   }
   lines.push("  Fetch wrapper for API calls:");
-  lines.push(`    import { fetchWithCache } from "./swoff/fetch-wrapper.${ext}";`);
+    lines.push(`    import { fetchWithCache } from "./swoff/fetch/core.${ext}";`);
   lines.push(`    const data = await fetchWithCache("/api/data").then(r => r.json());`);
   if (isReact) {
     lines.push("");
@@ -39,7 +39,7 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push("");
     lines.push("  ── PWA ──");
     lines.push(`  Import in app entry:`);
-    lines.push(`    import { setupPwaInstall, isInstallable, promptInstall } from "./swoff/pwa/install.${ext}";`);
+    lines.push(`    import { setupPwaInstall, isInstallable, promptInstall } from "./swoff/pwa/index.${ext}";`);
     lines.push("    setupPwaInstall();");
     lines.push("");
     lines.push(`  Link manifest in index.html <head>:`);
@@ -63,7 +63,7 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push("");
     lines.push("  ── Mutation Queue ──");
     lines.push(`  Import in mutation handlers:`);
-    lines.push(`    import { queueMutation, processMutationQueue, getPendingCount } from "./swoff/mutation-queue.${ext}";`);
+    lines.push(`    import { queueMutation, processMutationQueue, getPendingCount } from "./swoff/offline/queue.${ext}";`);
     if (isReact) {
       lines.push("");
       lines.push("  React hook generated in swoff/hooks/useMutationQueue.tsx:");
@@ -87,7 +87,7 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push('    await setAuth({ token, expiresAt: Date.now() + 3600000 });');
     lines.push("");
     lines.push(`  For authenticated API calls:`);
-    lines.push(`    import { fetchWithCache } from "./swoff/fetch-wrapper.${ext}";`);
+    lines.push(`    import { fetchWithCache } from "./swoff/fetch/core.${ext}";`);
     lines.push(`    const data = await fetchWithCache("/api/me", { auth: true }).then(r => r.json());`);
     if (config.features.auth.type === "bearer") {
       lines.push("");
@@ -107,7 +107,7 @@ export function generateGuide(ctx: GuideContext): string[] {
       if (config.features.mutationQueue.enabled) {
         lines.push("");
         lines.push("  ⚠️ After auth re-login, drain queued mutations:");
-        lines.push(`    import { flushMutations } from "../swoff/mutation-queue.${ext}";`);
+        lines.push(`    import { flushMutations } from "../swoff/offline/queue.${ext}";`);
         lines.push("    await setAuth({ token });");
         lines.push("    await flushMutations();");
       }
@@ -138,7 +138,7 @@ export function generateGuide(ctx: GuideContext): string[] {
   lines.push("");
   lines.push("  ── Tag Invalidation ──");
   lines.push(`  Generate tags and invalidate after mutations:`);
-  lines.push(`    import { generateTags, invalidateUrl } from "./swoff/invalidation-tags.${ext}";`);
+  lines.push(`    import { generateTags, invalidateUrl } from "./swoff/cache/tags.${ext}";`);
   lines.push("");
   lines.push(`    // Tag reads`);
   lines.push(`    const data = await fetchWithCache("/api/todos", { tags: generateTags("/api/todos") });`);

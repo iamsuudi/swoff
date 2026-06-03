@@ -121,7 +121,7 @@ export function generateInvalidationTagsCode(
  * prefix skipping, singularization, and cascading invalidation.
  *
  * Usage:
- *   import { generateTags, invalidateUrl } from './swoff/invalidation-tags.${ext}';
+ *   import { generateTags, invalidateUrl } from './swoff/cache/tags.${ext}';
  *
  *   // Generate tags from URL
  *   generateTags("/api/todos");          // ["todos"]
@@ -136,7 +136,7 @@ export function generateInvalidationTagsCode(
  *   await invalidateUrl("/api/todos/42");
  */
 
-import { invalidateByTags } from "./cache.${ext}";
+import { invalidateByTags } from "./index.${ext}";
 ${ts ? `
 interface TagPattern {
   re: RegExp;

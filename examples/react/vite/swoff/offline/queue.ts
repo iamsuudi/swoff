@@ -4,7 +4,7 @@
  * Supports configurable batch size, rate limiting, and exponential backoff.
  *
  * Usage:
- *   import { queueMutation, processMutationQueue, flushMutations, getPendingCount } from './swoff/mutation-queue.ts';
+ *   import { queueMutation, processMutationQueue, flushMutations, getPendingCount } from './swoff/offline/queue.ts';
  *
  *   // Queue a mutation
  *   await queueMutation({
@@ -26,9 +26,9 @@
  *   retryBackoffMs: 1000 — exponential backoff base
  */
 
-import { getAuth } from "./auth/store.ts";
-import { invalidateByTags } from "./cache.ts";
-import type { MutationQueueItem } from "./swoff.d.ts";
+import { getAuth } from "../auth/store.ts";
+import { invalidateByTags } from "../cache/index.ts";
+import type { MutationQueueItem } from "../swoff.d.ts";
 const DB_NAME = "swoff-queue";
 const STORE_NAME = "mutations";
 // Bump this when adding new indexes/stores for schema migration

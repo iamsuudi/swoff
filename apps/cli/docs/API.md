@@ -6,13 +6,13 @@ generation commands and [CONFIG.md](./CONFIG.md) for the full config schema.
 
 ---
 
-## `fetch-wrapper.ts`
+## `fetch/core.ts`
 
 Unified fetch with caching, auth, offline queue, auto-invalidation, staleTime, prefetching, and
 per-request strategy override. This is the core networking primitive — use it for all API calls.
 
 ```ts
-import { fetchWithCache, prefetchCache } from "swoff/fetch-wrapper";
+import { fetchWithCache, prefetchCache } from "swoff/fetch/core";
 ```
 
 ### `fetchWithCache<T>(input, options?)`
@@ -70,7 +70,7 @@ prefetchCache("/api/todos");
 
 ---
 
-## `mutation-queue.ts`
+## `offline/queue.ts`
 
 Offline write queue backed by IndexedDB. Writes performed while offline are stored and replayed
 automatically when the connection returns.
@@ -83,7 +83,7 @@ import {
   getPendingCount,
   getQueuePosition,
   getQueueItems,
-} from "swoff/mutation-queue";
+} from "swoff/offline/queue";
 ```
 
 ### Functions
@@ -117,7 +117,7 @@ Generated when `features.mutationQueue.enabled` is `true`.
 
 ---
 
-## `mutation-state.ts`
+## `offline/state.ts`
 
 Per-mutation state tracking. Each mutation operation gets an ID that can be used to track its
 status (loading, success, error) across the app.
@@ -129,7 +129,7 @@ import {
   getMutationState,
   clearMutationState,
   onMutationStateChange,
-} from "swoff/mutation-state";
+} from "swoff/offline/state";
 ```
 
 ### Functions
@@ -149,7 +149,7 @@ The `useMutation` React hook wraps `startMutation` + `trackMutation` and exposes
 
 ---
 
-## `server-push.ts`
+## `realtime/server-push.ts`
 
 Client-side connection manager for real-time cache invalidation via SSE or WebSocket.
 The service worker maintains the primary connection; this module provides a fallback and
@@ -160,7 +160,7 @@ import {
   startPushEvents,
   stopPushEvents,
   isPushConnected,
-} from "swoff/server-push";
+} from "swoff/realtime/server-push";
 ```
 
 ### Functions
@@ -198,14 +198,14 @@ Generated when `features.serverPush.enabled` is `true`.
 
 ---
 
-## `cache.ts`
+## `cache/index.ts`
 
 Low-level cache invalidation. Sends invalidation messages to the SW; the SW
 removes matching entries from the runtime cache and confirms back to the
 client-injector, which dispatches `cache-invalidated` on the window.
 
 ```ts
-import { invalidateByTag, invalidateByTags } from "swoff/cache";
+import { invalidateByTag, invalidateByTags } from "swoff/cache/index";
 ```
 
 ### Functions
@@ -219,7 +219,7 @@ Generated when `features.tagInvalidation` is `true`.
 
 ---
 
-## `invalidation-tags.ts`
+## `cache/tags.ts`
 
 Tag generation helpers. Tags are derived from URL paths and used to mark cache entries
 for targeted invalidation after mutations.
@@ -234,7 +234,7 @@ import {
   getUrlsForTag,
   getTagsForUrl,
   invalidateMatching,
-} from "swoff/invalidation-tags";
+} from "swoff/cache/tags";
 ```
 
 ### Functions
@@ -254,13 +254,13 @@ Generated when `features.tagInvalidation` is `true`.
 
 ---
 
-## `gql-wrapper.ts`
+## `graphql/index.ts`
 
 GraphQL wrapper with body-hash caching. Brings Swoff's caching, auth, offline queue, and
 tag-based invalidation to GraphQL APIs.
 
 ```ts
-import { fetchWithGql, queryGql, mutateGql } from "swoff/gql-wrapper";
+import { fetchWithGql, queryGql, mutateGql } from "swoff/graphql";
 ```
 
 ### Functions
@@ -358,16 +358,16 @@ import { getAuthState } from "swoff/auth/state";
 
 ---
 
-## `pwa/install.ts`
+## `pwa/index.ts`
 
-Install prompt handling and manifest generation.
+PWA install prompt handling and event wiring. Re-exports from `pwa/injector` and `pwa/prompt`.
 
 ```ts
 import {
   setupPwaInstall,
   isInstallable,
   promptInstall,
-} from "swoff/pwa/install";
+} from "swoff/pwa/index";
 ```
 
 | Function            | Description                                                                                             |
@@ -380,7 +380,7 @@ Generated when `features.pwa.enabled` is `true`.
 
 ---
 
-## `push.ts`
+## `realtime/notifications.ts`
 
 Push notification subscription management with IndexedDB persistence.
 
@@ -391,7 +391,7 @@ import {
   isSubscribed,
   getPushSubscription,
   requestNotificationPermission,
-} from "swoff/push";
+} from "swoff/realtime/notifications";
 ```
 
 | Function                          | Description                                                                            |
@@ -406,12 +406,12 @@ Generated when `features.pushNotifications.enabled` is `true`.
 
 ---
 
-## `background-sync.ts`
+## `offline/sync.ts`
 
 Background Sync API registration for processing mutations even after tab close.
 
 ```ts
-import { syncWhenPossible, retrySync } from "swoff/background-sync";
+import { syncWhenPossible, retrySync } from "swoff/offline/sync";
 ```
 
 | Function                     | Description                                                            |
@@ -436,19 +436,18 @@ import { resetSwoff } from "swoff/reset";
 ### `resetSwoff(options?)`
 
 ```ts
-await resetSwoff({ clearStorage: true, reRegister: true });
-```
+await resetSwoff({ clearStorage: true, unregisterSW: true });
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `clearStorage` | `boolean` | `true` | When true, clears all caches, IndexedDB (`swoff-*` databases), and localStorage |
-| `reRegister` | `boolean` | `true` | When true, re-registers the service worker after cleanup |
+| `unregisterSW` | `boolean` | `true` | When true, unregisters and re-registers the service worker after cleanup |
 
 Always generated.
 
 ---
 
-## `fetch-state.ts`
+## `fetch/state.ts`
 
 Global fetch activity state tracking. Reports the total number of in-flight fetch requests
 via a counter and custom events.
@@ -458,7 +457,7 @@ import {
   incrementFetchCount,
   decrementFetchCount,
   getFetchCount,
-} from "swoff/fetch-state";
+} from "swoff/fetch/state";
 ```
 
 | Function | Returns | Description |
@@ -467,7 +466,7 @@ import {
 | `decrementFetchCount()` | `void` | Decrements global counter and dispatches `fetch-count-changed` |
 | `getFetchCount()` | `number` | Returns current in-flight fetch count |
 
-The `fetch-wrapper.ts` calls `incrementFetchCount()` before each request and
+The `fetch/core.ts` calls `incrementFetchCount()` before each request and
 `decrementFetchCount()` after each response, so the counter automatically tracks
 all active requests.
 
@@ -477,7 +476,7 @@ Always generated.
 
 ## React hooks
 
-Generated when `features.framework` is `"react"`. All hooks live in `swoff/hooks/`.
+Generated when `features.framework` is `"react"`. All hooks live in `swoff/adapters/`.
 
 ### `useCachedFetch<T>(url, options?)`
 
@@ -505,38 +504,46 @@ Returns `{ data: T \| null, error: unknown, loading: boolean, refetch: () => voi
 | `onError` | `(err: unknown) => void` | — | Callback fired when a fetch fails. Runs at the hook level (every failed fetch). |
 | `enabled` | `boolean` | `true` | When `false`, the fetch is skipped entirely. Useful for dependent queries. |
 
-### `useMutation(options?)`
+### `useMutation<TData>(url, options?)`
 
 ```ts
 const { mutate, isLoading, isError, isSuccess, data, error, reset, mutationId } =
-  useMutation({
-    onSuccess: (data) => console.log(data),
+  useMutation<{ id: number }>("/api/todos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    auth: true,
+    onSuccess: (data) => navigate(`/item/${data.id}`),
     onError: (err) => console.error(err),
-    onMutate: (variables) => { /* optimistic update */ },
+    onMutate: () => { /* optimistic update */ },
   });
-mutate("/api/todos", {
-  method: "POST",
-  body: JSON.stringify({ title: "New" }),
-});
+mutate(JSON.stringify({ title: "New" }));
 ```
+
+The endpoint and request config (method, headers, auth) are fixed at the hook level.
+All calls to `mutate` share the same `isLoading`, `error`, `data`, and `isSuccess` state.
 
 #### Options
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `onSuccess` | `(data: T, variables: unknown) => void` | Hook-level success callback. Runs for every successful mutation. |
-| `onError` | `(err: unknown, variables: unknown) => void` | Hook-level error callback. Runs for every failed mutation. |
-| `onMutate` | `(variables: unknown) => void` | Called before the mutation request fires. Use for optimistic updates — mutate your local state here, roll back in `onError`. |
+| `url` | `string` | Endpoint URL. Required — fixed at the hook level. |
+| `method` | `string` | HTTP method (POST, PUT, PATCH, DELETE, etc.). |
+| `headers` | `Record<string, string>` | Request headers. |
+| `auth` | `boolean` | Attach auth headers from the auth store. |
+| `onSuccess` | `(data: T) => void` | Hook-level success callback. Runs for every successful mutation. |
+| `onError` | `(error: Error) => void` | Hook-level error callback. Runs for every failed mutation. |
+| `onMutate` | `() => void` | Called before the mutation request fires. Use for optimistic updates — mutate your local state here, roll back in `onError`. |
+| `onSettled` | `() => void` | Runs after success or error, regardless of outcome. |
+| `mutationKey` | `string` | Deduplication key — if a mutation with the same key is already in-flight, the new call is skipped. |
+| `retry` | `number \| boolean` | Retry count on failure (default 0). `true` = Infinity. |
 
 #### Per-call callbacks
 
-Pass `onSuccess`/`onError` in the mutation options object to get per-call callbacks that fire
+Pass `onSuccess`/`onError`/`onSettled` to `mutate` to get per-call callbacks that fire
 _in addition to_ the hook-level callbacks (dual-level):
 
 ```ts
-mutate("/api/todos", {
-  method: "POST",
-  body: JSON.stringify({ title: "New" }),
+mutate(JSON.stringify({ title: "New" }), {
   onSuccess: (data) => console.log("this call succeeded", data),
   onError: (err) => console.log("this call failed", err),
 });
@@ -545,7 +552,7 @@ mutate("/api/todos", {
 #### Mutation key dedup
 
 `useMutation` tracks in-flight mutations via `inFlightKeys` (a `Set<string>`). When a mutation
-is already in-flight to the same URL+method combination, the new call is skipped to prevent
+with the same `mutationKey` is already in-flight, the new call is skipped to prevent
 duplicates. The in-flight status is cleared on completion (success or error).
 
 ### `usePrefetch()`
@@ -568,21 +575,6 @@ const isFetching = useIsFetching();
 Returns `boolean` — `true` when any request tracked by `fetch-state.ts` is in-flight.
 Listens to `fetch-count-changed` custom events.
 
-### `useSuspenseQuery(url)`
-
-```ts
-const data = useSuspenseQuery<Todo[]>("/api/todos");
-// throws a promise on cache miss (Suspense boundary catches it)
-// returns data on re-render
-// re-suspends on URL change
-// errors thrown for ErrorBoundary
-```
-
-Uses React Suspense. On first call (or URL change), throws the fetch promise which
-propagates to the nearest `<Suspense>` boundary. On re-render, returns the cached data
-directly. Stores data in a module-level `Map<url, data>` so it persists across re-renders.
-Switching to a new URL triggers a re-suspense (old data discarded).
-
 ### `useSwoffReset()`
 
 ```ts
@@ -591,7 +583,7 @@ const { reset, isResetting, error } = useSwoffReset();
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `reset` | `(options?) => Promise<void>` | Calls `resetSwoff()` with optional `{ clearStorage, reRegister }` |
+| `reset` | `(options?) => Promise<void>` | Calls `resetSwoff()` with optional `{ clearStorage, unregisterSW }` |
 | `isResetting` | `boolean` | `true` while the reset is in progress |
 | `error` | `unknown` | Last error from a failed reset attempt, or `null` |
 

@@ -3,7 +3,7 @@
  * Push subscription management with IndexedDB persistence.
  *
  * Usage:
- *   import { subscribeToPush, unsubscribeFromPush, isSubscribed } from './swoff/push.ts';
+ *   import { subscribeToPush, unsubscribeFromPush, isSubscribed } from './swoff/realtime/notifications.ts';
  *
  *   // Enable (triggers permission prompt)
  *   const subscription = await subscribeToPush();

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { getPendingCount, getQueueItems, processMutationQueue } from "../mutation-queue.ts";
+import { getPendingCount, getQueueItems, processMutationQueue } from "../offline/queue.ts";
 import type { MutationQueueItem } from "../swoff.d.ts";
 
 export interface MutationQueueState {

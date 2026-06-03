@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useCachedFetch } from "../../swoff/adapters/useCachedFetch";
-import { useMutation } from "../../swoff/adapters/useMutation";
 import { useMutationQueue } from "../../swoff/adapters/useMutationQueue";
 import { usePrefetch } from "../../swoff/adapters/usePrefetch";
+import { fetchWithCache } from "../../swoff/fetch/core";
 import NoteCard from "../components/NoteCard";
 
 interface Note {
@@ -23,18 +23,22 @@ export default function NotesListPage() {
   });
   const { pending, isProcessing, retryAll } = useMutationQueue();
   const { prefetch } = usePrefetch();
-  const deleteMutation = useMutation({
-    onMutate: () => setSearchQuery(""),
-  });
+  const [deletingIds, setDeletingIds] = useState(new Set<number>());
 
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this note?")) return;
-    await deleteMutation.mutate(`/api/notes/${id}`, {
-      method: "DELETE",
-      auth: true,
-    }, {
-      onSuccess: () => window.dispatchEvent(new CustomEvent("cache-invalidated", { detail: { tags: ["notes"] } })),
-    });
+    setDeletingIds((prev) => new Set(prev).add(id));
+    try {
+      const { response } = await fetchWithCache(`/api/notes/${id}`, {
+        method: "DELETE",
+        auth: true,
+      });
+      if (response.ok) {
+        window.dispatchEvent(new CustomEvent("cache-invalidated", { detail: { tags: ["notes"] } }));
+      }
+    } finally {
+      setDeletingIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+    }
   };
 
   const items = notes ?? [];
@@ -133,7 +137,7 @@ export default function NotesListPage() {
                   detailUrl={`/notes/${note.id}`}
                   editUrl={`/notes/${note.id}/edit`}
                   onDelete={handleDelete}
-                  deleting={deleteMutation.isLoading}
+                  deleting={deletingIds.has(note.id)}
                 />
               </div>
             ))}

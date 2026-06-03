@@ -54,8 +54,8 @@ export interface GqlOptions {
  *   );
  */
 
-import { fetchWithCache } from "./fetch-wrapper.${ext}";
-import type { GqlResult } from "./swoff";
+import { fetchWithCache } from "../fetch/core.${ext}";
+import type { GqlResult } from "../swoff";
 ${optionsInterface}
 /** Extract operation name from a GraphQL document. Returns null for anonymous queries (e.g. "{ todos { id } }"). */
 function getOperationName(query${T(ts, "string")})${T(ts, "string | null")}{

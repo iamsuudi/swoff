@@ -9,21 +9,21 @@ export function generateClientInjectorCode(
   const { ext, ts } = ctx;
 
   const pwaImport = pwaEnabled
-    ? `import { setupPwaInstall } from "./pwa/install.${ext}";
+    ? `import { setupPwaInstall } from "./pwa/injector.${ext}";
 `
     : "";
 
   const pwaCall = pwaEnabled ? `setupPwaInstall();\n` : "";
 
   const pushImport = serverPushEnabled
-    ? `import { startPushEvents } from "./server-push.${ext}";
+    ? `import { startPushEvents } from "./realtime/server-push.${ext}";
 `
     : "";
 
   const pushCall = serverPushEnabled ? `startPushEvents();\n` : "";
 
   const mutationImport = mutationQueueEnabled
-    ? `import { processMutationQueue } from "./mutation-queue.${ext}";
+    ? `import { processMutationQueue } from "./offline/queue.${ext}";
 `
     : "";
 

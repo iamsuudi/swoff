@@ -18,5 +18,5 @@ export function generateFetchWrapper(ctx: GeneratorContext): void {
     ctx.config.features.serviceWorker.requestBatchWindowMs,
   );
 
-  writeFile(ctx, `fetch-wrapper.${ext}`, code);
+  writeFile(ctx, `fetch/core.${ext}`, code);
 }

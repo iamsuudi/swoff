@@ -33,5 +33,5 @@ export function generateInvalidationTags(ctx: GeneratorContext): void {
     cascading,
   );
 
-  writeFile(ctx, `invalidation-tags.${ext}`, code);
+  writeFile(ctx, `cache/tags.${ext}`, code);
 }

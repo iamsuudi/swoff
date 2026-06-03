@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { fetchWithCache } from "../fetch-wrapper.ts";
-import { generateTags } from "../invalidation-tags.ts";
-import type { FetchWithCacheOptions } from "../fetch-wrapper.ts";
+import { fetchWithCache } from "../fetch/core.ts";
+import { generateTags } from "../cache/tags.ts";
+import type { FetchWithCacheOptions } from "../fetch/core.ts";
 
 /**
  * Fetch and cache data with automatic invalidation, revalidation, and offline support.

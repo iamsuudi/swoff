@@ -10,7 +10,7 @@ export function generatePwaInstallCode(ctx: RuntimeContext & { preventDefaultIns
  * Manual install trigger, installability check, and event listener setup.
  *
  * Usage:
- *   import { setupPwaInstall, isInstallable, promptInstall } from './swoff/pwa/install.${ext}';
+ *   import { setupPwaInstall, isInstallable, promptInstall } from './swoff/pwa/prompt.${ext}';
  *
  *   setupPwaInstall();  // sets up beforeinstallprompt and appinstalled listeners
  *

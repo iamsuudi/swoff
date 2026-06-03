@@ -4,7 +4,7 @@ import { generatePushCode } from "../../../runtime/push.js";
 export function generatePush(ctx: GeneratorContext): void {
   writeFile(
     ctx,
-    `push.${ctx.ext}`,
+    `realtime/notifications.${ctx.ext}`,
     generatePushCode({
       ts: ctx.ext === "ts",
       ext: ctx.ext,

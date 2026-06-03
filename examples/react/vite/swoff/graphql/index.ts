@@ -33,8 +33,8 @@
  *   );
  */
 
-import { fetchWithCache } from "./fetch-wrapper.ts";
-import type { GqlResult } from "./swoff";
+import { fetchWithCache } from "../fetch/core.ts";
+import type { GqlResult } from "../swoff";
 
 export interface GqlOptions {
   variables?: Record<string, unknown>;

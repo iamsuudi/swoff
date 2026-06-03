@@ -10,6 +10,12 @@
       "description": "Reference to the schema version",
       "example": "https://swoff.netlify.app/schema/v1.json"
     },
+    "configVersion": {
+      "type": "integer",
+      "description": "Config schema version. The CLI warns when loading a config with a missing or outdated version. Set automatically by `swoff init`.",
+      "default": 1,
+      "minimum": 1
+    },
     "enabled": {
       "type": "boolean",
       "description": "Enable or disable config-driven generation",
@@ -51,7 +57,7 @@
               "properties": {
                 "source": {
                   "type": "string",
-                  "description": "Path to source logo file (SVG/PNG/JPG). Set via `swoff init --logo-source`. When configured, all PWA assets are auto-generated during `swoff generate`.",
+                  "description": "Path to source logo file (SVG/PNG/JPG). Set interactively via `swoff init` or manually. When configured, run `swoff assets` to generate PWA icons, splash screens, favicon, and OG image.",
                   "default": ""
                 },
                 "outputDir": {
@@ -77,7 +83,7 @@
                   "default": false
                 }
               },
-              "required": ["source", "outputDir", "themeColor", "bgColor", "generated"]
+              "required": ["outputDir"]
             }
           },
           "required": ["enabled", "preventDefaultInstall"]
@@ -477,8 +483,7 @@
         "outputDir": {
           "type": "string",
           "description": "Output directory for generated files",
-          "default": "dist",
-          "pattern": "^[^/\\\\]+$"
+          "default": "dist"
         },
         "swFilename": {
           "type": "string",

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { isInstallable, promptInstall } from "../../swoff/pwa/install";
+import { isInstallable, promptInstall } from "../../swoff/pwa/index";
 
 export default function InstallButton() {
   const [installable, setInstallable] = useState(() => isInstallable());

@@ -7,6 +7,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 ```json
 {
   "$schema": "https://swoff.netlify.app/schema/v1.json",
+  "configVersion": 1,
   "enabled": true,
   "framework": "react",
   "apiBaseUrl": "",
@@ -104,6 +105,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `$schema` | `string` | — | JSON Schema URL (for IDE autocomplete) |
+| `configVersion` | `number` | `1` | Config schema version. The CLI warns when loading a config with a missing or outdated version. Incremented when breaking changes are introduced. |
 | `enabled` | `boolean` | `true` | Master switch — disables all Swoff features |
 | `framework` | `"react"` \| `"vue"` \| `"svelte"` \| `"vanilla"` | auto-detected | Your UI framework. Controls whether React hooks are generated. |
 | `apiBaseUrl` | `string` | `""` | Base URL prepended to all relative API URLs. Set to your API server origin (e.g. `https://api.example.com`) when frontend and API are on different domains. Leave empty string when same origin. |
@@ -116,19 +118,19 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enabled` | `boolean` | `true` | Enable PWA installability (generates `pwa/install.ts` + `manifest.json`) |
+| `enabled` | `boolean` | `true` | Enable PWA installability (generates `pwa/index.ts` + `pwa/prompt.ts` + `pwa/injector.ts` + `manifest.json`) |
 | `preventDefaultInstall` | `boolean` | `false` | Suppress browser's native install prompt. When true, dev must call `promptInstall()` manually. |
 
 ### `features.pwa.assets`
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `source` | `string` | `""` | Path to source logo file (SVG/PNG/JPG). Set via `swoff init --logo-source`. When configured, PWA icons, favicon, Apple touch icon, OG image, and Apple splash screens are auto-generated during `swoff generate`. |
+| `source` | `string` | `""` | Path to source logo file (SVG/PNG/JPG). Set via `swoff init` interactive prompt or manually. When configured, run `swoff assets` to generate PWA icons, favicon, Apple touch icon, OG image, and Apple splash screens. |
 | `outputDir` | `string` | `"public"` | Directory where generated assets are written |
 | `themeColor` | `string` | `"#000000"` | Theme color for manifest, browser theme, and favicon placeholder |
 | `bgColor` | `string` | `"#ffffff"` | Background color for splash screens and OG image canvas |
 
-Generated assets are written to `outputDir`. Reference them manually in your manifest and HTML — run `swoff generate-assets` for a copy-paste guide.
+Generated assets are written to `outputDir`. Reference them manually in your manifest and HTML — run `swoff assets --help` for a copy-paste guide.
 
 ---
 
@@ -280,7 +282,7 @@ Object-only feature (boolean shorthand not supported).
 | `prefixes` | `string[]` | `["api","v1","v2","v3","rest","graphql","gql"]` | URL path prefixes to skip during tag generation |
 | `patterns` | `object` | `{}` | Custom glob patterns for tag generation. Keys are URL patterns (`/api/:id`), values are tag template arrays (`["{id}"]`) |
 | `singularization` | `object` | `{}` | Custom plural→singular mapping (e.g. `{"categories": "category"}`). Default: strips trailing `s`. |
-| `cascading` | `object` | `{}` | Cascading tag dependencies. `{"todos": ["categories"]}` — invalidating `todos` also invalidates `categories` |
+| `cascading` | `Record<string, string[]>` | `{}` | Cascading tag dependencies. `{"todos": ["categories"]}` — invalidating `todos` also invalidates `categories` |
 
 ---
 

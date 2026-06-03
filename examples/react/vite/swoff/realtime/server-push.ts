@@ -6,7 +6,7 @@
  * This client-side helper provides status tracking and a manual start/stop API.
  *
  * Usage:
- *   import { startPushEvents, stopPushEvents, isPushConnected } from "./server-push.ts";
+ *   import { startPushEvents, stopPushEvents, isPushConnected } from "./realtime/server-push.ts";
  *   startPushEvents();
  *
  * Server sends:
@@ -14,7 +14,7 @@
  *   data: {"tags": ["todos", "todo:42"]}
  */
 
-import { API_BASE } from "./config.ts";
+import { API_BASE } from "../config.ts";
 
 type PushEventOptions= {
   signal: AbortSignal;

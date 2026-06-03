@@ -11,16 +11,19 @@ export function generateFetchWrapperCode(
   const { ext, ts } = ctx;
 
   const importLines = [
-    `import { API_BASE } from "./config.${ext}";`,
-    `import { generateTags, invalidateUrl${mutationQueue ? ", expandCascading" : ""} } from "./invalidation-tags.${ext}";`,
-    `import { invalidateByTags } from "./cache.${ext}";`,
+    `import { API_BASE } from "../config.${ext}";`,
+
+    `import { generateTags, invalidateUrl${mutationQueue ? ", expandCascading" : ""} } from "../cache/tags.${ext}";`,
+
+    `import { invalidateByTags } from "../cache/index.${ext}";`,
+
     authEnabled
-      ? `import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, ensureValidAuth, AUTH_WITH_CREDENTIALS } from "./auth/store.${ext}";`
+      ? `import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, ensureValidAuth, AUTH_WITH_CREDENTIALS } from "../auth/store.${ext}";`
       : "",
     mutationQueue
-      ? `import { queueMutation } from "./mutation-queue.${ext}";`
+      ? `import { queueMutation } from "../offline/queue.${ext}";`
       : "",
-    `import { incrementFetchCount, decrementFetchCount } from "./fetch-state.${ext}";`,
+    `import { incrementFetchCount, decrementFetchCount } from "../fetch/state.${ext}";`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -52,6 +55,8 @@ export interface FetchWithCacheOptions extends RequestInit {
   validateSuccess?: (response: Response) => boolean | Promise<boolean>;
   /** Override the URL used for auto-invalidation. Defaults to the request URL. Useful when the mutation URL differs from the cache tag URL. */
   invalidateUrl?: string;
+  /** Skip global fetch counter tracking. Used by prefetchCache to avoid triggering loading bars. */
+  skipFetchCount?: boolean;
 }
 `
     : "";
@@ -181,7 +186,7 @@ export interface FetchWithCacheOptions extends RequestInit {
  * per-request strategy override.
  *
  * Usage:
- *   import { fetchWithCache, prefetchCache } from './swoff/fetch-wrapper.${ext}';
+ *   import { fetchWithCache, prefetchCache } from './swoff/fetch/core.${ext}';
  *
  *   // GET — cached with auto-generated tags
  *   const { response } = await fetchWithCache("/api/todos");
@@ -247,7 +252,7 @@ const BATCH_WINDOW_MS = ${requestBatchWindowMs};
 
 /** Fetch with caching, auth, offline queue, auto-invalidation, and per-request strategy override. Returns { response, fromCache }. Use { auth: true } for authenticated requests — works with bearer, cookie, and custom auth types. */
 export async function fetchWithCache${G(ts, "T")}(input${T(ts, "RequestInfo")}, options${T(ts, "RequestInit & FetchWithCacheOptions")} = {})${R(ts, "Promise<FetchWithCacheResult<T>>")}{
-  incrementFetchCount();
+  if (!options.skipFetchCount) incrementFetchCount();
   try {
   const method = (options.method || "GET").toUpperCase();
   const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD" || method === "OPTIONS"));
@@ -359,13 +364,13 @@ ${autoInvalidateBlock}${auth401Block}
   const queued = response.headers.get("X-SW-Mutation-Queued") === "true";
   return { response, fromCache, queued };
   } finally {
-    decrementFetchCount();
+    if (!options.skipFetchCount) decrementFetchCount();
   }
 }
 
 /** Fire-and-forget prefetch: warms the cache for a URL without blocking. Useful for route prefetching or link hover prefetching. */
 export function prefetchCache(input${T(ts, "RequestInfo")}, options${T(ts, "RequestInit & FetchWithCacheOptions")} = {})${R(ts, "void")}{
-  fetchWithCache(input, { ...options }).catch(() => {
+  fetchWithCache(input, { ...options, skipFetchCount: true }).catch(() => {
     // Prefetch failures are intentionally silent
   });
 }

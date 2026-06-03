@@ -81,7 +81,7 @@ export function generateServerPushCode(
  * This client-side helper provides status tracking and a manual start/stop API.
  *
  * Usage:
- *   import { startPushEvents, stopPushEvents, isPushConnected } from "./server-push.${ext}";
+ *   import { startPushEvents, stopPushEvents, isPushConnected } from "./realtime/server-push.${ext}";
  *   startPushEvents();
  *
  * Server sends:
@@ -89,7 +89,7 @@ export function generateServerPushCode(
  *   data: {"tags": ["todos", "todo:42"]}
  */
 
-import { API_BASE } from "./config.${ext}";
+import { API_BASE } from "../config.${ext}";
 
 type PushEventOptions= {
   signal${T(ts, "AbortSignal")};

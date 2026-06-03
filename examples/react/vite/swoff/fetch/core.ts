@@ -4,7 +4,7 @@
  * per-request strategy override.
  *
  * Usage:
- *   import { fetchWithCache, prefetchCache } from './swoff/fetch-wrapper.ts';
+ *   import { fetchWithCache, prefetchCache } from './swoff/fetch/core.ts';
  *
  *   // GET — cached with auto-generated tags
  *   const { response } = await fetchWithCache("/api/todos");
@@ -62,12 +62,12 @@
  *   // When back online, processMutationQueue() replays them
  */
 
-import { API_BASE } from "./config.ts";
-import { generateTags, invalidateUrl, expandCascading } from "./invalidation-tags.ts";
-import { invalidateByTags } from "./cache.ts";
-import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, ensureValidAuth, AUTH_WITH_CREDENTIALS } from "./auth/store.ts";
-import { queueMutation } from "./mutation-queue.ts";
-import { incrementFetchCount, decrementFetchCount } from "./fetch-state.ts";
+import { API_BASE } from "../config.ts";
+import { generateTags, invalidateUrl, expandCascading } from "../cache/tags.ts";
+import { invalidateByTags } from "../cache/index.ts";
+import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, ensureValidAuth, AUTH_WITH_CREDENTIALS } from "../auth/store.ts";
+import { queueMutation } from "../offline/queue.ts";
+import { incrementFetchCount, decrementFetchCount } from "../fetch/state.ts";
 
 export interface FetchWithCacheResult<T> {
   response: Response & { json(): Promise<T> };
@@ -90,6 +90,8 @@ export interface FetchWithCacheOptions extends RequestInit {
   validateSuccess?: (response: Response) => boolean | Promise<boolean>;
   /** Override the URL used for auto-invalidation. Defaults to the request URL. Useful when the mutation URL differs from the cache tag URL. */
   invalidateUrl?: string;
+  /** Skip global fetch counter tracking. Used by prefetchCache to avoid triggering loading bars. */
+  skipFetchCount?: boolean;
 }
 
 const inFlightRequests = new Map<string, Promise<Response>>();
@@ -98,7 +100,7 @@ const BATCH_WINDOW_MS = 50;
 
 /** Fetch with caching, auth, offline queue, auto-invalidation, and per-request strategy override. Returns { response, fromCache }. Use { auth: true } for authenticated requests — works with bearer, cookie, and custom auth types. */
 export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit & FetchWithCacheOptions = {}): Promise<FetchWithCacheResult<T>> {
-  incrementFetchCount();
+  if (!options.skipFetchCount) incrementFetchCount();
   try {
   const method = (options.method || "GET").toUpperCase();
   const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD" || method === "OPTIONS"));
@@ -299,13 +301,13 @@ export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit
   const queued = response.headers.get("X-SW-Mutation-Queued") === "true";
   return { response, fromCache, queued };
   } finally {
-    decrementFetchCount();
+    if (!options.skipFetchCount) decrementFetchCount();
   }
 }
 
 /** Fire-and-forget prefetch: warms the cache for a URL without blocking. Useful for route prefetching or link hover prefetching. */
 export function prefetchCache(input: RequestInfo, options: RequestInit & FetchWithCacheOptions = {}): void {
-  fetchWithCache(input, { ...options }).catch(() => {
+  fetchWithCache(input, { ...options, skipFetchCount: true }).catch(() => {
     // Prefetch failures are intentionally silent
   });
 }

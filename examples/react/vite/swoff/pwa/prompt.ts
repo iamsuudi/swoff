@@ -1,11 +1,9 @@
 /**
- * Swoff PWA Install Support
- * Manual install trigger, installability check, and event listener setup.
+ * Swoff PWA Install Prompt
+ * Installability check and manual prompt trigger.
  *
  * Usage:
- *   import { setupPwaInstall, isInstallable, promptInstall } from './swoff/pwa/install.ts';
- *
- *   setupPwaInstall();  // sets up beforeinstallprompt and appinstalled listeners
+ *   import { isInstallable, promptInstall } from './swoff/pwa/prompt.ts';
  *
  *   if (isInstallable()) {
  *     const result = await promptInstall();
@@ -14,32 +12,6 @@
  * Window properties:
  *   window.deferredInstallPrompt - The captured BeforeInstallPromptEvent
  */
-
-/** Set up beforeinstallprompt and appinstalled event listeners. Call once at app startup. */
-export function setupPwaInstall(): void {
-  window.addEventListener("beforeinstallprompt", (e) => {
-    window.deferredInstallPrompt = e as BeforeInstallPromptEvent;
-    window.pwaInstallable = true;
-
-
-    window.dispatchEvent(
-      new CustomEvent("pwa-installable", {
-        detail: { isInstallable: true },
-      })
-    );
-  });
-
-  window.addEventListener("appinstalled", () => {
-    window.deferredInstallPrompt = null;
-    window.pwaInstallable = false;
-
-    window.dispatchEvent(
-      new CustomEvent("pwa-installed", {
-        detail: { outcome: "accepted" },
-      })
-    );
-  });
-}
 
 /** Check if the PWA install prompt is available (user has met install criteria). */
 export function isInstallable(): boolean {

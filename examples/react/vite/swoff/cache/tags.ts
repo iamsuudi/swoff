@@ -4,7 +4,7 @@
  * prefix skipping, singularization, and cascading invalidation.
  *
  * Usage:
- *   import { generateTags, invalidateUrl } from './swoff/invalidation-tags.ts';
+ *   import { generateTags, invalidateUrl } from './swoff/cache/tags.ts';
  *
  *   // Generate tags from URL
  *   generateTags("/api/todos");          // ["todos"]
@@ -19,7 +19,7 @@
  *   await invalidateUrl("/api/todos/42");
  */
 
-import { invalidateByTags } from "./cache.ts";
+import { invalidateByTags } from "./index.ts";
 
 interface TagPattern {
   re: RegExp;

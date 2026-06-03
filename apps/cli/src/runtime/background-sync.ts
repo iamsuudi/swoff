@@ -20,7 +20,7 @@ export function generateBackgroundSyncCode(ctx: RuntimeContext): string {
  *   });
  */
 
-import { queueMutation, processMutationQueue, getPendingCount } from "./mutation-queue.${ext}";
+import { queueMutation, processMutationQueue, getPendingCount } from "./queue.${ext}";
 
 const SYNC_TAG = "sync-mutations";
 

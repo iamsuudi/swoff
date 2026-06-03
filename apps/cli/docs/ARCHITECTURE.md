@@ -221,7 +221,7 @@ The mutation queue stores writes in IndexedDB and replays them when online. Each
 - `getQueuePosition(id)` — returns the 0-based index of a mutation in the queue. Useful for showing "Your mutation is #3 in line"
 - `getQueueItems()` — returns all pending items with their status and retry count
 - `useMutationQueue()` — now exposes `{ pending, items, lastSync }` so the UI can render per-mutation progress
-- `useMutationState(id)` — subscribes to a specific mutation's state changes via the mutation-state module
+- `useMutationState(id)` — subscribes to a specific mutation's state changes via the offline/state module
 
 **Batch processing:**
 - `batchSize` controls how many mutations fire per progress event
@@ -277,7 +277,7 @@ Both transports are supported via `features.serverPush.type`.
 
 **Default: SSE**. It's simpler, the browser handles reconnection, and Swoff only needs server-to-client invalidation events — no bidirectional communication is required.
 
-The SW manages the connection directly for reliability across page navigations. The client-side `server-push.ts` is a fallback that starts the connection when the SW is not yet active.
+The SW manages the connection directly for reliability across page navigations. The client-side `realtime/server-push.ts` is a fallback that starts the connection when the SW is not yet active.
 
 **Server event format (SSE):**
 ```

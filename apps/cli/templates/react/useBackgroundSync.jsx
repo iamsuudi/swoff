@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { retrySync } from "../background-sync.js";
+import { retrySync } from "../offline/sync.js";
 
 export function useBackgroundSync() {
   const [state, setState] = useState(() => ({

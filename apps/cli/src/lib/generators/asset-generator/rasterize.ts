@@ -1,5 +1,5 @@
 import { readFileSync } from "fs";
-import { createRequire } from "module";
+import { resolveJimp, resolveResvg } from "./dependency-resolver.js";
 
 export async function rasterizeSource(
   sourcePath: string,
@@ -11,10 +11,8 @@ export async function rasterizeSource(
 }
 
 async function rasterizeSvg(sourcePath: string, targetSize: number): Promise<Buffer> {
-  const { initWasm, Resvg } = await import("@resvg/resvg-wasm");
-  const require = createRequire(import.meta.url);
-  const wasmPath = require.resolve("@resvg/resvg-wasm/index_bg.wasm");
-  await initWasm(readFileSync(wasmPath));
+  const { initWasm, Resvg, wasmBuffer } = await resolveResvg();
+  await initWasm(wasmBuffer);
 
   const svg = readFileSync(sourcePath, "utf-8");
   const resvg = new Resvg(svg, {
@@ -25,7 +23,7 @@ async function rasterizeSvg(sourcePath: string, targetSize: number): Promise<Buf
 }
 
 async function rasterizeRaster(sourcePath: string, targetSize: number): Promise<Buffer> {
-  const { Jimp } = await import("jimp");
+  const { Jimp } = await resolveJimp();
   const image = await Jimp.read(sourcePath);
   const w = image.bitmap.width;
   const h = image.bitmap.height;

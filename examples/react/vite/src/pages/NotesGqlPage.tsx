@@ -47,7 +47,7 @@ export default function NotesGqlPage() {
 
   useEffect(() => {
     fetchNotes();
-  });
+  }, []);
 
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this note?")) return;

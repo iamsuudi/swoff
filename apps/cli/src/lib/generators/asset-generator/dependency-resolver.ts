@@ -6,7 +6,8 @@ const CACHE_DIR = join(homedir(), ".swoff", "cache", "assets");
 const JIMP_VERSION = "1.6.0";
 const RESVG_VERSION = "2.6.2";
 
-const JIMP_URL = `https://cdn.jsdelivr.net/npm/jimp@${JIMP_VERSION}/dist/esm/index.js`;
+const JIMP_URL = `https://esm.sh/jimp@${JIMP_VERSION}`;
+const JIMP_FALLBACK_URL = `https://cdn.jsdelivr.net/npm/jimp@${JIMP_VERSION}/+esm`;
 const RESVG_JS_URL = `https://cdn.jsdelivr.net/npm/@resvg/resvg-wasm@${RESVG_VERSION}/index.mjs`;
 const RESVG_WASM_URL = `https://cdn.jsdelivr.net/npm/@resvg/resvg-wasm@${RESVG_VERSION}/index_bg.wasm`;
 
@@ -23,6 +24,14 @@ async function download(url: string): Promise<Buffer> {
     );
   }
   return Buffer.from(await res.arrayBuffer());
+}
+
+async function downloadWithFallback(primary: string, fallback: string): Promise<Buffer> {
+  try {
+    return await download(primary);
+  } catch {
+    return await download(fallback);
+  }
 }
 
 function writeToCache(filename: string, data: Buffer): void {
@@ -50,7 +59,7 @@ export async function resolveJimp(): Promise<JimpResult> {
     }
   }
 
-  const buf = await download(JIMP_URL);
+  const buf = await downloadWithFallback(JIMP_URL, JIMP_FALLBACK_URL);
   writeToCache(filename, buf);
   return await import(`file://${filePath}`);
 }

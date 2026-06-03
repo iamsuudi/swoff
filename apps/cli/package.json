@@ -1,6 +1,6 @@
 {
   "name": "@swoff/cli",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "type": "module",
   "description": "CLI for Swoff - Offline-first web apps made easy",
   "bin": {
@@ -29,12 +29,11 @@
   ],
   "author": "Swoff",
   "license": "MIT",
-  "dependencies": {
-    "@resvg/resvg-wasm": "^2.6.2",
-    "jimp": "^1.6.0"
-  },
+  "dependencies": {},
   "devDependencies": {
+    "@resvg/resvg-wasm": "^2.6.2",
     "@types/node": "^25.9.1",
+    "jimp": "^1.6.0",
     "typescript": "^5.0.0",
     "vitest": "^4.1.7"
   }

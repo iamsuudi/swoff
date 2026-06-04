@@ -37,6 +37,7 @@ export interface GenerateOptions {
   msTileColor?: string;
   darkMode?: DarkModeConfig;
   shortcuts?: ShortcutEntry[];
+  onProgress?: (message: string) => void;
 }
 
 export interface GenerateResult {
@@ -59,11 +60,14 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
     msTileColor,
     darkMode,
     shortcuts,
+    onProgress,
   } = options;
   const warnings: string[] = [];
   const files: string[] = [];
 
   mkdirSync(outputDir, { recursive: true });
+
+  onProgress?.("Rasterizing source...");
 
   const themeColorInt = hexToRgbaInt(options.themeColor);
   const bgColorInt = hexToRgbaInt(options.bgColor);
@@ -88,6 +92,7 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
     });
   }
 
+  onProgress?.("PWA icons...");
   for (const icon of PWA_ICONS) {
     if (icon.purpose === "maskable") {
       const buf = await createMaskable(basePng, icon.width, bgColorInt);
@@ -104,6 +109,7 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
     }
   }
 
+  onProgress?.("Apple icon...");
   for (const icon of APPLE_ICONS) {
     const buf = await resizeToSquare(icon.width);
     const path = join(outputDir, `${icon.name}.png`);
@@ -113,6 +119,7 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
   }
 
   if (monochrome) {
+    onProgress?.("Monochrome icons...");
     const monoColor = hexToRgbaInt(options.themeColor);
     for (const icon of MONOCHROME_ICONS) {
       const buf = await createMonochrome(basePng, icon.width, monoColor);
@@ -124,6 +131,7 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
   }
 
   if (msTileColor) {
+    onProgress?.("MS tile icons...");
     for (const icon of MS_TILE_ICONS) {
       if (icon.width === icon.height) {
         const buf = await resizeToSquare(icon.width);
@@ -140,6 +148,7 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
   }
 
   if (darkMode) {
+    onProgress?.("Dark mode icons...");
     const darkBgInt = hexToRgbaInt(darkMode.backgroundColor);
     for (const icon of PWA_ICONS) {
       if (icon.purpose === "maskable") {
@@ -173,6 +182,7 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
   writePng(icoPath, encodeIco(icoPngs));
   files.push(icoPath);
 
+  onProgress?.("OG image...");
   {
     const og = OG_IMAGE;
     const img = await Jimp.read(basePng);
@@ -190,6 +200,7 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
   }
 
   if (appleSplash !== false) {
+    onProgress?.("Splash screens...");
     for (const splash of APPLE_SPLASH_SCREENS) {
       const img = await Jimp.read(basePng);
       const canvas = new Jimp({ width: splash.width, height: splash.height, color: bgColorInt });
@@ -217,9 +228,11 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
     files.push(join(outputDir, "favicon.svg"));
   }
 
+  onProgress?.("Writing manifest.json...");
   writeManifest(outputDir, options, allIconEntries);
   files.push(join(outputDir, "manifest.json"));
 
+  onProgress?.("Writing head tags...");
   writeHeadHtml(outputDir, options);
   files.push(join(outputDir, "swoff-head-tags.html"));
 

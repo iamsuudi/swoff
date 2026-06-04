@@ -19,7 +19,10 @@ function getVersion(): string {
   }
 }
 
-function mergeConfig(config: ConfigFile, values: Record<string, unknown>): ConfigFile {
+function mergeConfig(
+  config: ConfigFile,
+  values: Record<string, unknown>,
+): ConfigFile {
   const result: ConfigFile = { ...config };
   if (values.source) result.source = String(values.source);
   if (values["output-dir"]) result.outputDir = String(values["output-dir"]);
@@ -29,13 +32,20 @@ function mergeConfig(config: ConfigFile, values: Record<string, unknown>): Confi
   if (values["no-splash"] === true) result.noSplash = true;
   if (values["no-splash"] === false && config) result.noSplash = false;
   if (values.monochrome === true) result.monochrome = true;
-  if (values["ms-tile-color"]) result.msTileColor = String(values["ms-tile-color"]);
+  if (values["ms-tile-color"])
+    result.msTileColor = String(values["ms-tile-color"]);
   if (values["dark-mode-theme"]) {
-    result.darkMode = result.darkMode || { themeColor: "", backgroundColor: "#121212" };
+    result.darkMode = result.darkMode || {
+      themeColor: "",
+      backgroundColor: "#121212",
+    };
     result.darkMode.themeColor = String(values["dark-mode-theme"]);
   }
   if (values["dark-mode-bg"]) {
-    result.darkMode = result.darkMode || { themeColor: "#ffffff", backgroundColor: "" };
+    result.darkMode = result.darkMode || {
+      themeColor: "#ffffff",
+      backgroundColor: "",
+    };
     result.darkMode.backgroundColor = String(values["dark-mode-bg"]);
   }
   return result;
@@ -92,11 +102,13 @@ export async function main(): Promise<void> {
     msTileColor: merged.msTileColor,
     darkMode: merged.darkMode,
     shortcuts: merged.shortcuts,
+    onProgress: (msg) => process.stdout.write(`\r\x1b[K  \x1b[2m→\x1b[0m ${msg}`),
   });
 
-  console.log(`\nGenerated ${result.files.length} PWA assets`);
+  process.stdout.write("\r\x1b[K");
+  console.log(`\x1b[32m✓\x1b[0m Generated ${result.files.length} PWA assets`);
   if (result.warnings.length > 0) {
-    for (const w of result.warnings) console.warn(`Warning: ${w}`);
+    for (const w of result.warnings) console.warn(`  Warning: ${w}`);
   }
 
   printAssetGuide({
@@ -105,9 +117,6 @@ export async function main(): Promise<void> {
     bgColor: merged.backgroundColor || "#ffffff",
     outputDir: merged.outputDir || "public",
     hasSplash: !merged.noSplash,
-    hasMonochrome: merged.monochrome,
-    hasMsTile: !!merged.msTileColor,
-    hasDarkMode: !!merged.darkMode,
   });
 }
 
@@ -121,24 +130,44 @@ function printHelp(): void {
   console.log("");
   console.log("Options:");
   console.log("  --output-dir <path>       Output directory [default: public]");
-  console.log("  --app-name <name>         App name for manifest.json [default: My App]");
+  console.log(
+    "  --app-name <name>         App name for manifest.json [default: My App]",
+  );
   console.log("  --theme-color <hex>       Theme color [default: #000000]");
-  console.log("  --bg-color <hex>          Background color [default: #ffffff]");
+  console.log(
+    "  --bg-color <hex>          Background color [default: #ffffff]",
+  );
   console.log("  --no-splash               Skip Apple splash screens");
-  console.log("  --monochrome              Generate monochrome silhouette icons");
-  console.log("  --ms-tile-color <hex>     Generate Microsoft tile icons + browserconfig.xml");
-  console.log("  --dark-mode-theme <hex>   Dark mode theme color (generates dark icons)");
-  console.log("  --dark-mode-bg <hex>      Dark mode background color [default: #121212]");
-  console.log("  --config <path>           Path to swoff-assets.json config file");
+  console.log(
+    "  --monochrome              Generate monochrome silhouette icons",
+  );
+  console.log(
+    "  --ms-tile-color <hex>     Generate Microsoft tile icons + browserconfig.xml",
+  );
+  console.log(
+    "  --dark-mode-theme <hex>   Dark mode theme color (generates dark icons)",
+  );
+  console.log(
+    "  --dark-mode-bg <hex>      Dark mode background color [default: #121212]",
+  );
+  console.log(
+    "  --config <path>           Path to swoff-assets.json config file",
+  );
   console.log("  -v, --version             Show version");
   console.log("  -h, --help                Show this help");
   console.log("");
   console.log("Config file (swoff-assets.json):");
-  console.log('  { "source": "./logo.svg", "monochrome": true, "msTileColor": "#000" }');
+  console.log(
+    '  { "source": "./logo.svg", "monochrome": true, "msTileColor": "#000" }',
+  );
   console.log("  CLI flags override config file values.");
   console.log("");
   console.log("Examples:");
   console.log("  npx @swoff/assets --source ./logo.svg");
-  console.log("  npx @swoff/assets --source ./logo.svg --monochrome --ms-tile-color #000");
-  console.log("  npx @swoff/assets --source ./logo.svg --dark-mode-theme #fff --dark-mode-bg #121212");
+  console.log(
+    "  npx @swoff/assets --source ./logo.svg --monochrome --ms-tile-color #000",
+  );
+  console.log(
+    "  npx @swoff/assets --source ./logo.svg --dark-mode-theme #fff --dark-mode-bg #121212",
+  );
 }

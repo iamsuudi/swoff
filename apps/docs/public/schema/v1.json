@@ -50,40 +50,6 @@
               "type": "boolean",
               "description": "Prevent browser's native install prompt. When false, browser prompt shows naturally while event is captured. When true, prompt is suppressed and dev must call promptInstall() manually.",
               "default": false
-            },
-            "assets": {
-              "type": "object",
-              "description": "PWA asset generation configuration (icons, splash screens, favicon, OG image)",
-              "properties": {
-                "source": {
-                  "type": "string",
-                  "description": "Path to source logo file (SVG/PNG/JPG). Set interactively via `swoff init` or manually. When configured, run `swoff assets` to generate PWA icons, splash screens, favicon, and OG image.",
-                  "default": ""
-                },
-                "outputDir": {
-                  "type": "string",
-                  "description": "Directory where generated assets are written",
-                  "default": "public"
-                },
-                "themeColor": {
-                  "type": "string",
-                  "description": "Theme color hex string used for manifest, browser theme, and favicon placeholder",
-                  "default": "#000000",
-                  "pattern": "^#[0-9a-fA-F]{6}$"
-                },
-                "bgColor": {
-                  "type": "string",
-                  "description": "Background color hex string used for splash screens and OG image canvas",
-                  "default": "#ffffff",
-                  "pattern": "^#[0-9a-fA-F]{6}$"
-                },
-                "generated": {
-                  "type": "boolean",
-                  "description": "Internal flag set to true after first asset generation",
-                  "default": false
-                }
-              },
-              "required": ["outputDir"]
             }
           },
           "required": ["enabled", "preventDefaultInstall"]
@@ -94,8 +60,16 @@
           "properties": {
             "version": {
               "oneOf": [
-                { "type": "string", "enum": ["package", "hash"], "description": "\"package\": reads version from package.json. \"hash\": uses SHA-256 hash of generated SW content (deterministic, fixed SW URL)." },
-                { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "description": "Explicit semver version string (e.g. \"1.2.3\")" }
+                {
+                  "type": "string",
+                  "enum": ["package", "hash"],
+                  "description": "\"package\": reads version from package.json. \"hash\": uses SHA-256 hash of generated SW content (deterministic, fixed SW URL)."
+                },
+                {
+                  "type": "string",
+                  "pattern": "^\\d+\\.\\d+\\.\\d+$",
+                  "description": "Explicit semver version string (e.g. \"1.2.3\")"
+                }
               ],
               "default": "package"
             },
@@ -249,6 +223,12 @@
                   "description": "Query parameter names to ignore when matching cache keys. Useful for Analytics/UTM params that should not create separate cache entries.",
                   "items": { "type": "string" },
                   "uniqueItems": true
+                },
+                "timeout": {
+                  "type": "integer",
+                  "description": "Network fetch timeout in seconds. The SW wraps fetch() with an AbortController that aborts after this duration. On timeout or network error, a SW_NOTIFICATION is broadcast and the strategy falls through to its cache fallback.",
+                  "default": 10,
+                  "minimum": 1
                 }
               }
             },
@@ -281,11 +261,7 @@
               }
             }
           },
-          "required": [
-            "version",
-            "autoUpdate",
-            "autoActivate"
-          ]
+          "required": ["version", "autoUpdate", "autoActivate"]
         },
         "refetchQueue": {
           "type": "object",
@@ -321,11 +297,35 @@
           "type": "object",
           "description": "Offline mutation queue configuration. Object-only (boolean shorthand not supported).",
           "properties": {
-            "enabled": { "type": "boolean", "description": "Enable offline mutation queue", "default": false },
-            "batchSize": { "type": "integer", "description": "Mutations per progress event", "default": 1, "minimum": 1 },
-            "batchDelayMs": { "type": "integer", "description": "Delay between mutations (rate limiting)", "default": 0, "minimum": 0 },
-            "maxRetries": { "type": "integer", "description": "Max retries before dropping", "default": 5, "minimum": 1 },
-            "retryBackoffMs": { "type": "integer", "description": "Exponential backoff base in ms", "default": 1000, "minimum": 0 }
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable offline mutation queue",
+              "default": false
+            },
+            "batchSize": {
+              "type": "integer",
+              "description": "Mutations per progress event",
+              "default": 1,
+              "minimum": 1
+            },
+            "batchDelayMs": {
+              "type": "integer",
+              "description": "Delay between mutations (rate limiting)",
+              "default": 0,
+              "minimum": 0
+            },
+            "maxRetries": {
+              "type": "integer",
+              "description": "Max retries before dropping",
+              "default": 5,
+              "minimum": 1
+            },
+            "retryBackoffMs": {
+              "type": "integer",
+              "description": "Exponential backoff base in ms",
+              "default": 1000,
+              "minimum": 0
+            }
           }
         },
         "backgroundSync": {
@@ -412,8 +412,16 @@
           "type": "object",
           "description": "GraphQL client wrapper configuration. Object-only (boolean shorthand not supported).",
           "properties": {
-            "enabled": { "type": "boolean", "description": "Enable GraphQL wrapper with body-hash caching", "default": false },
-            "endpoint": { "type": "string", "description": "GraphQL API endpoint", "example": "/graphql" }
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable GraphQL wrapper with body-hash caching",
+              "default": false
+            },
+            "endpoint": {
+              "type": "string",
+              "description": "GraphQL API endpoint",
+              "example": "/graphql"
+            }
           }
         },
         "serverPush": {

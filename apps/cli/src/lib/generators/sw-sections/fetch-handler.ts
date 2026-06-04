@@ -48,6 +48,7 @@ export function generateFetchHandler(
       mode?: "all" | "explicit-only";
       normalizeKey?: boolean;
       ignoreQueryParams?: string[];
+      timeout?: number;
     };
     navigation: {
       mode?: "spa" | "default";
@@ -71,6 +72,7 @@ export function generateFetchHandler(
       mode: cacheStrategy = "all",
       normalizeKey: normalizeCacheKey,
       ignoreQueryParams,
+      timeout: fetchTimeout = 10,
     },
     navigation: {
       mode: navMode = "spa",
@@ -666,6 +668,28 @@ async function handleMutation(event) {
 
 // --- Strategies ---
 
+const FETCH_TIMEOUT_MS = ${fetchTimeout * 1000};
+
+async function _fetchWithTimeout(request) {
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const response = await fetch(request, { signal: controller.signal });
+    clearTimeout(id);
+    return response;
+  } catch {
+    const clients = await self.clients.matchAll();
+    for (const client of clients) {
+      client.postMessage({
+        type: "SW_NOTIFICATION",
+        level: "error",
+        code: "FETCH_FAILED",
+        message: "Network request failed: " + request.url,
+      });
+    }
+  }
+}
+
 ${
   navigationPreload
     ? `
@@ -674,11 +698,11 @@ async function fetchWithPreload(event, request) {
     const preload = await event.preloadResponse;
     if (preload) return preload;
   } catch {}
-  return fetch(request);
+  return _fetchWithTimeout(request);
 }
 `
     : ""
-}const _fetch = ${navigationPreload ? "fetchWithPreload" : `(event, request) => fetch(request)`};
+}const _fetch = ${navigationPreload ? "fetchWithPreload" : "_fetchWithTimeout"};
 
 async function cacheFirst(event, request) {
   const cached = await fromRuntime(request);

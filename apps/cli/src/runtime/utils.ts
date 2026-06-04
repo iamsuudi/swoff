@@ -7,6 +7,10 @@ export function T(ts: boolean, type: string): string {
   return ts ? `: ${type}` : "";
 }
 
+export function O(ts: boolean, type: string): string {
+  return ts ? `?: ${type}` : "";
+}
+
 export function R(ts: boolean, type: string): string {
   return ts ? `: ${type} ` : " ";
 }
@@ -28,6 +32,7 @@ export function AS(ts: boolean, type: string): string {
 export function genHelpers(ctx: RuntimeContext) {
   return {
     T: (type: string) => T(ctx.ts, type),
+    O: (type: string) => O(ctx.ts, type),
     R: (type: string) => R(ctx.ts, type),
     G: (type: string) => G(ctx.ts, type),
     PT: (type: string) => PT(ctx.ts, type),

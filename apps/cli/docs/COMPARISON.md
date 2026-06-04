@@ -106,11 +106,17 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 | Cache persistence model | Cache API + IDB | Cache API | In-memory | In-memory + IDB | IDB | IDB + SQLite |
 | State survives page refresh | ✅ Cache API + IDB | ✅ Cache API | ❌ | 🟡 persisted | ✅ | ✅ |
 
-### Developer Experience
+### Resource Monitoring
 
 | Feature | Swoff | Workbox | TanStack Query | Apollo | RxDB | TanStack DB |
 |---|---|---|---|---|---|---|
-| Zero runtime dependencies | ✅ generated code | ❌ Workbox | ❌ 3.8 kB | ❌ 32 kB | ❌ 40 kB | ❌ + Query + DB + SQLite WASM |
+| SW-level fetch timeout | ✅ global | 🟡 per-strategy | ❌ | ❌ | ❌ | ❌ |
+| Timeout broadcasts to window | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Storage quota monitoring | ✅ checkStorage/getStorageEstimate | ❌ | ❌ | ❌ | 🟡 DB engine reports | ❌ |
+| Unified notification channel | ✅ swoff:notification event | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Precache failure notifications | ✅ per-asset | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+### Developer Experience
 | Config-driven setup | ✅ single file | ✅ workbox-config | ❌ code-only | ❌ code-only | ❌ code-only | ❌ code-only + schema defs |
 | Build-tool agnostic | ✅ any | ✅ any | ✅ any | ✅ any | ✅ any | ✅ any |
 | React hooks | ✅ 10 | 🟡 minimal | ✅ extensive | ✅ | ✅ | ✅ useLiveQuery |
@@ -138,3 +144,4 @@ Each feature has a dedicated comparison with code examples, tradeoff analysis, a
 - [Client DBs](./comparisons/caching-and-data.md#the-client-db-approach-and-its-costs) — RxDB / TanStack DB / ElectricSQL / PowerSync (covered in Caching & Data Layer)
 - [Optimistic Updates](./comparisons/optimistic-updates.md) — Why Swoff excludes them (design rationale)
 - [Developer Experience](./comparisons/devx.md) — Config-driven code gen vs runtime library setup
+- [Resource Monitoring](./comparisons/resource-monitoring.md) — Fetch timeout, storage quota, and unified error notifications

@@ -18,32 +18,45 @@ let ASSETS_TO_CACHE = [];
 const CACHE_NAME_RUNTIME = "swoff-runtime";
 
 
+async function precacheAssets() {
+  const cache = await caches.open(CACHE_NAME);
+  let downloaded = 0;
+  let attempted = 0;
+  for (const asset of ASSETS_TO_CACHE) {
+    attempted++;
+    try {
+      const request = new Request(asset.url, asset.options);
+      await cache.add(request);
+      downloaded++;
+    } catch (err) {
+      console.error(`Failed to cache ${asset.url}:`, err);
+      const clients = await self.clients.matchAll({ includeUncontrolled: true });
+      clients.forEach((client) => {
+        client.postMessage({
+          type: "SW_NOTIFICATION",
+          level: "warn",
+          code: "PRECACHE_FAILED",
+          message: `Failed to precache ${asset.url}`,
+        });
+      });
+    }
+    const percent = Math.round((attempted / ASSETS_TO_CACHE.length) * 100);
+    const clients = await self.clients.matchAll({ includeUncontrolled: true });
+    clients.forEach((client) => {
+      client.postMessage({
+        type: "SW_PROGRESS",
+        percent,
+        downloaded,
+        total: ASSETS_TO_CACHE.length,
+      });
+    });
+  }
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      let downloaded = 0;
-      let attempted = 0;
-      for (const asset of ASSETS_TO_CACHE) {
-        attempted++;
-        try {
-          const request = new Request(asset.url, asset.options);
-          await cache.add(request);
-          downloaded++;
-        } catch (err) {
-          console.error(`Failed to cache ${asset.url}:`, err);
-        }
-        const percent = Math.round((attempted / ASSETS_TO_CACHE.length) * 100);
-        const clients = await self.clients.matchAll({ includeUncontrolled: true });
-        clients.forEach((client) => {
-          client.postMessage({
-            type: "SW_PROGRESS",
-            percent,
-            downloaded,
-            total: ASSETS_TO_CACHE.length,
-          });
-        });
-      }
+      await precacheAssets();
       if (AUTO_SKIP_WAITING) self.skipWaiting();
     })(),
   );
@@ -87,6 +100,17 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("message", (event) => {
   if (event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
+  }
+  if (event.data.type === "RESET_CACHE") {
+    event.waitUntil(
+      (async () => {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+        await precacheAssets();
+        const port = event.ports?.[0];
+        port?.postMessage({ type: "RESET_CACHE_COMPLETE" });
+      })(),
+    );
   }
   if (event.data.type === "INVALIDATE_TAG" && event.data.tag) {
     event.waitUntil(invalidateByTag(event.data.tag));
@@ -565,13 +589,35 @@ self.addEventListener("fetch", (event) => {
 
 // --- Strategies ---
 
+const FETCH_TIMEOUT_MS = 10000;
+
+async function _fetchWithTimeout(request) {
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const response = await fetch(request, { signal: controller.signal });
+    clearTimeout(id);
+    return response;
+  } catch {
+    const clients = await self.clients.matchAll();
+    for (const client of clients) {
+      client.postMessage({
+        type: "SW_NOTIFICATION",
+        level: "error",
+        code: "FETCH_FAILED",
+        message: "Network request failed: " + request.url,
+      });
+    }
+  }
+}
+
 
 async function fetchWithPreload(event, request) {
   try {
     const preload = await event.preloadResponse;
     if (preload) return preload;
   } catch {}
-  return fetch(request);
+  return _fetchWithTimeout(request);
 }
 const _fetch = fetchWithPreload;
 
@@ -1102,6 +1148,15 @@ async function processMutationQueueInSW() {
     }
   } catch (err) {
     console.error("Background sync failed:", err);
+    const syncClients = await self.clients.matchAll();
+    for (const c of syncClients) {
+      c.postMessage({
+        type: "SW_NOTIFICATION",
+        level: "error",
+        code: "BACKGROUND_SYNC_FAILED",
+        message: "Background sync processing failed",
+      });
+    }
   } finally {
     if (db) db.close();
   }

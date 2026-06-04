@@ -54,6 +54,7 @@ declare global {
     "swoff:reset-complete": CustomEvent<{ unregistered: boolean; reregistered: boolean; warnings: string[] }>;
     "push-subscription-changed": CustomEvent<{ subscribed: boolean }>;
     "push-permission-changed": CustomEvent<{ permission: NotificationPermission }>;
+    "swoff:notification": CustomEvent<{ level: "error" | "warn" | "info"; code: string; message: string }>;
   }
 
   interface Window {

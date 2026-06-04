@@ -148,6 +148,9 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         if (strategy.ignoreQueryParams !== undefined && (!Array.isArray(strategy.ignoreQueryParams) || !(strategy.ignoreQueryParams as unknown[]).every((p: unknown) => typeof p === "string"))) {
           errors.push("features.serviceWorker.strategy.ignoreQueryParams must be an array of strings");
         }
+        if (strategy.timeout !== undefined && (typeof strategy.timeout !== "number" || strategy.timeout <= 0)) {
+          errors.push("features.serviceWorker.strategy.timeout must be a positive number");
+        }
         const reactive = strategy.reactive as Record<string, unknown> | undefined;
         if (reactive && typeof reactive === "object") {
           const defaults = reactive.defaults as Record<string, unknown> | undefined;

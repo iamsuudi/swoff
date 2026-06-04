@@ -9,7 +9,14 @@ export const PWA_ICONS: AssetSize[] = [
   { name: "icon-64", width: 64, height: 64, purpose: "any" },
   { name: "icon-192", width: 192, height: 192, purpose: "any" },
   { name: "icon-512", width: 512, height: 512, purpose: "any" },
+  { name: "maskable-icon-96", width: 96, height: 96, purpose: "maskable" },
+  { name: "maskable-icon-192", width: 192, height: 192, purpose: "maskable" },
   { name: "maskable-icon-512", width: 512, height: 512, purpose: "maskable" },
+];
+
+export const MONOCHROME_ICONS: AssetSize[] = [
+  { name: "monochrome-icon-192", width: 192, height: 192, purpose: "monochrome" },
+  { name: "monochrome-icon-512", width: 512, height: 512, purpose: "monochrome" },
 ];
 
 export const APPLE_ICONS: AssetSize[] = [
@@ -33,3 +40,9 @@ export const FAVICON_SIZES: AssetSize[] = [
 ];
 
 export const OG_IMAGE: AssetSize = { name: "og-image", width: 1200, height: 630 };
+
+export const MS_TILE_ICONS: AssetSize[] = [
+  { name: "ms-tile-144", width: 144, height: 144 },
+  { name: "ms-tile-310x150", width: 310, height: 150 },
+  { name: "ms-tile-310x310", width: 310, height: 310 },
+];

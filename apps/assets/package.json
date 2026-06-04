@@ -1,6 +1,6 @@
 {
   "name": "@swoff/assets",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "type": "module",
   "description": "Universal PWA asset generator — icons, splash screens, favicons, OG images, manifest.json",
   "main": "./dist/index.js",

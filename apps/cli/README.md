@@ -48,6 +48,12 @@ initServiceWorker();
 | `clean`          | Remove all generated files and config          |
 | `help [command]` | Show help for a specific command               |
 
+For PWA asset generation (icons, splash screens, favicons, manifest.json), use the standalone [`@swoff/assets`](https://github.com/iamsuudi/swoff) package:
+
+```bash
+npx @swoff/assets --source ./logo.svg
+```
+
 ## Configuration
 
 Create `swoff.config.json` with `swoff init`, then tweak as needed.

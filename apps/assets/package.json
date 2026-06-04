@@ -1,0 +1,58 @@
+{
+  "name": "@swoff/assets",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Universal PWA asset generator — icons, splash screens, favicons, OG images, manifest.json",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "bin": {
+    "swoff-assets": "bin/swoff-assets"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin/",
+    "dist/"
+  ],
+  "keywords": [
+    "pwa",
+    "pwa-assets",
+    "pwa-icons",
+    "progressive-web-app",
+    "manifest",
+    "manifest-json",
+    "icons",
+    "maskable-icons",
+    "monochrome-icons",
+    "apple-touch-icon",
+    "splash-screens",
+    "favicon",
+    "favicon-generator",
+    "og-image",
+    "open-graph",
+    "microsoft-tiles",
+    "browserconfig",
+    "pwa-asset-generator",
+    "pwabuilder",
+    "web-app-manifest",
+    "android-adaptive-icons"
+  ],
+  "author": "Swoff",
+  "license": "MIT",
+  "dependencies": {
+    "jimp": "^1.6.0",
+    "@resvg/resvg-wasm": "^2.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "typescript": "^5.0.0"
+  }
+}

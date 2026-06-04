@@ -83,6 +83,7 @@ export interface SwoffConfig {
         maxRuntimeCacheAge?: number;
         normalizeKey?: boolean;
         ignoreQueryParams?: string[];
+        timeout?: number;
       };
       navigation: {
         mode: "spa" | "default";
@@ -288,6 +289,7 @@ export const defaultConfig: SwoffConfig = {
         maxRuntimeCacheAge: 2592000,
         normalizeKey: false,
         ignoreQueryParams: [],
+        timeout: 10,
         patterns: {},
         reactive: {
           defaults: {
@@ -348,6 +350,7 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
         maxRuntimeCacheAge: 2592000,
         normalizeKey: false,
         ignoreQueryParams: [],
+        timeout: 10,
         patterns: {
           "/api/*": "network-first",
           "/static/*": "cache-first",

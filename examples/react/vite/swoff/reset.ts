@@ -1,41 +1,44 @@
 /**
  * Swoff Reset
  * Nuclear option: wipe all swoff data (caches, IndexedDB, localStorage),
- * unregister the service worker, then re-register from scratch.
+ * then instruct the service worker to clear and re-precache all assets.
+ *
+ * Unlike the old approach of unregister + re-register (which often failed to
+ * trigger the install event for byte-identical scripts), this sends a
+ * RESET_CACHE message to the active SW, which handles cache clearing and
+ * re-precaching internally.
  *
  * Usage:
  *   import { resetSwoff } from './swoff/reset.ts';
  *
  *   // Full reset (default)
  *   const result = await resetSwoff();
- *   console.log(result.unregistered, result.reregistered, result.warnings);
+ *   console.log(result.warnings);
  *
  *   // Selective reset — keep caches but reset IDB + SW
  *   await resetSwoff({ clearCache: false });
  *
  * Events dispatched:
  *   swoff:reset-start    — before any cleanup begins
- *   swoff:reset-complete — after everything finishes (detail: { unregistered, reregistered, warnings })
+ *   swoff:reset-complete — after everything finishes (detail: { warnings })
  */
-
-import { initServiceWorker } from "./sw/injector.ts";
 
 export interface ResetSwoffOptions {
   /** Clear all Cache Storage caches (default: true) */
-  clearCache: boolean;
+  clearCache?: boolean;
   /** Delete all swoff-* IndexedDB databases (default: true) */
-  clearIdb: boolean;
+  clearIdb?: boolean;
   /** Clear localStorage keys like swRegisteredVersion (default: true) */
-  clearStorage: boolean;
-  /** Unregister SW then re-register (default: true) */
-  unregisterSW: boolean;
+  clearStorage?: boolean;
+  /** Reset SW caches (clear + re-precache) (default: true) */
+  resetSwCache?: boolean;
 }
 
 const DEFAULT_OPTIONS: ResetSwoffOptions = {
   clearCache: true,
   clearIdb: true,
   clearStorage: true,
-  unregisterSW: true,
+  resetSwCache: true,
 };
 
 const KNOWN_DB_NAMES = [
@@ -71,14 +74,14 @@ async function deleteSwoffDatabases(warnings: string[]): Promise<void> {
   }
 }
 
-/** Nuclear reset: wipes all swoff-persisted data, unregisters the SW, then re-registers from scratch. Returns detailed results. */
-export async function resetSwoff(opts: Partial<ResetSwoffOptions> = {}): Promise<{ unregistered: boolean; reregistered: boolean; warnings: string[] }> {
+/** Nuclear reset: wipes all swoff-persisted data and resets the SW cache. Returns detailed results. */
+export async function resetSwoff(opts: ResetSwoffOptions = {}): Promise<{ warnings: string[] }> {
   const options: ResetSwoffOptions = { ...DEFAULT_OPTIONS, ...opts };
   const warnings: string[] = [];
 
   window.dispatchEvent(new CustomEvent("swoff:reset-start"));
 
-  // 1. Clear Cache Storage
+  // 1. Clear Cache Storage (belt-and-suspenders — SW also clears them)
   if (options.clearCache) {
     try {
       if (typeof caches !== "undefined") {
@@ -104,39 +107,29 @@ export async function resetSwoff(opts: Partial<ResetSwoffOptions> = {}): Promise
     }
   }
 
-  // 4. Unregister SW
-  let unregistered = false;
-  if (options.unregisterSW) {
+  // 4. Tell the SW to clear its caches and re-precache all assets
+  if (options.resetSwCache) {
     try {
-      if ("serviceWorker" in navigator) {
-        const reg = await navigator.serviceWorker.getRegistration();
-        if (reg) {
-          unregistered = await reg.unregister();
+      if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+        const registration = await navigator.serviceWorker.ready;
+        if (registration.active) {
+          await new Promise<void>((resolve) => {
+            const channel = new MessageChannel();
+            channel.port1.onmessage = (event) => {
+              if (event.data.type === "RESET_CACHE_COMPLETE") {
+                resolve();
+              }
+            };
+            registration.active?.postMessage({ type: "RESET_CACHE" }, [channel.port2]);
+          });
         }
       }
     } catch (e) {
-      warnings.push(`Failed to unregister SW: ${e}`);
-    }
-
-    // Always clear the version marker before re-registering so initServiceWorker
-    // detects a fresh install rather than trying to reuse a stale registration
-    try {
-      localStorage.removeItem("swRegisteredVersion");
-    } catch { /* ignore */ }
-  }
-
-  // 5. Re-register SW
-  let reregistered = false;
-  if (options.unregisterSW) {
-    try {
-      await initServiceWorker();
-      reregistered = true;
-    } catch (e) {
-      warnings.push(`Failed to re-register SW: ${e}`);
+      warnings.push(`Failed to reset SW cache: ${e}`);
     }
   }
 
-  const result = { unregistered, reregistered, warnings };
+  const result = { warnings };
   window.dispatchEvent(new CustomEvent("swoff:reset-complete", { detail: result }));
   return result;
 }

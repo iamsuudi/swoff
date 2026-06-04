@@ -25,6 +25,7 @@ interface AdapterDef {
 
 const ADAPTERS: AdapterDef[] = [
   { name: "useNetworkStatus" },
+  { name: "useStorageEstimate" },
   { name: "useCachedFetch" },
   { name: "useMutation" },
   { name: "usePrefetch" },

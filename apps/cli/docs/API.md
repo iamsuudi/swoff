@@ -447,30 +447,54 @@ Always generated.
 
 ---
 
-## `fetch/state.ts`
+## `notification.ts`
 
-Global fetch activity state tracking. Reports the total number of in-flight fetch requests
-via a counter and custom events.
+Storage estimation and notification dispatch. Helps you monitor browser resource usage
+(storage quota) and react to SW events (fetch failures, precache failures, background sync errors).
 
 ```ts
 import {
-  incrementFetchCount,
-  decrementFetchCount,
-  getFetchCount,
-} from "swoff/fetch/state";
+  checkStorage,
+  getStorageEstimate,
+  formatBytes,
+} from "swoff/notification";
 ```
+
+### Functions
 
 | Function | Returns | Description |
 |----------|---------|-------------|
-| `incrementFetchCount()` | `void` | Increments global counter and dispatches `fetch-count-changed` |
-| `decrementFetchCount()` | `void` | Decrements global counter and dispatches `fetch-count-changed` |
-| `getFetchCount()` | `number` | Returns current in-flight fetch count |
+| `checkStorage()` | `Promise<{ usage: number, quota: number, percentUsed: number }>` | Calls `navigator.storage.estimate()`. Dispatches `swoff:notification` with level `"warn"` and code `"STORAGE_QUOTA_HIGH"` when >80% used. |
+| `getStorageEstimate()` | `Promise<{ usage: number, quota: number, percentUsed: number }>` | Raw storage estimate — no dispatch. Use when you want to render quota in your own UI without triggering a notification. |
+| `formatBytes(bytes)` | `string` | Format a byte count for display (e.g. `formatBytes(1572864)` → `"1.5 MB"`). |
 
-The `fetch/core.ts` calls `incrementFetchCount()` before each request and
-`decrementFetchCount()` after each response, so the counter automatically tracks
-all active requests.
+### Window events
+
+The SW broadcasts these automatically on failure:
+
+| Code | Level | When |
+|------|-------|------|
+| `FETCH_FAILED` | `error` | Network request timed out or failed |
+| `PRECACHE_FAILED` | `warn` | Per-asset precache failure during install |
+| `BACKGROUND_SYNC_FAILED` | `error` | Background sync processing error |
+| `STORAGE_QUOTA_HIGH` | `warn` | Storage >80% capacity (from `checkStorage()`) |
+
+Listen with:
+
+```ts
+window.addEventListener("swoff:notification", (event) => {
+  const { level, code, message } = event.detail;
+  // show toast, alert, or log
+});
+```
+
+The type declaration is included in `swoff.d.ts` — no manual casting needed.
 
 Always generated.
+
+---
+
+## `fetch/state.ts`
 
 ---
 
@@ -690,6 +714,26 @@ const { supported, registered, lastSync, triggerSync } = useBackgroundSync();
 ```
 
 Generated when `backgroundSync` is `true`.
+
+### `useStorageEstimate()`
+
+```ts
+const { usage, quota, percentUsed, formattedUsage, formattedQuota, loading } = useStorageEstimate();
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `usage` | `number` | Bytes used (from `navigator.storage.estimate()`) |
+| `quota` | `number` | Total quota in bytes |
+| `percentUsed` | `number` | Percentage of quota used (0–100) |
+| `formattedUsage` | `string` | Human-readable usage (e.g. `"1.5 MB"`) |
+| `formattedQuota` | `string` | Human-readable quota (e.g. `"100 MB"`) |
+| `loading` | `boolean` | `true` while the estimate is being fetched |
+| `error` | `string \| null` | Error message if the estimate failed |
+
+By default, re-checks on every `visibilitychange` to `"visible"` (pass `false` to disable auto-refresh).
+
+Always generated.
 
 ### `useCacheInvalidation()`
 

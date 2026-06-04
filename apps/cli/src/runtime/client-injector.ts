@@ -87,6 +87,7 @@ if (typeof document !== "undefined") {
  *   sw-error                 - SW registration failed
  *   cache-invalidated        - Cache entries cleared on SW confirmation (detail: { tags })
  *   swoff:cache-updated      - Background refresh completed (detail: { url })
+ *   swoff:notification       - SW or storage notification (detail: { level, code, message })
  *   mutation-sync-complete   - Queued mutations synced (detail: { succeeded, failed })
  *   mutation-sync-progress   - Batch progress during sync (detail: { succeeded, failed, total, current })
  *   mutation-queue-changed   - Queue modified
@@ -119,6 +120,17 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
         })
       );
     }
+    if (event.data.type === "SW_NOTIFICATION") {
+      window.dispatchEvent(
+        new CustomEvent("swoff:notification", {
+          detail: {
+            level: event.data.level,
+            code: event.data.code,
+            message: event.data.message,
+          },
+        })
+      );
+    }
     if (event.data.type === "BACKGROUND_SYNC_PROGRESS") {
       window.dispatchEvent(
         new CustomEvent("mutation-sync-progress", {
@@ -140,8 +152,8 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       }
       window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
     }
-    if (event.data.type === "MUTATION_STORED") {
-      typeof processMutationQueue !== "undefined" && processMutationQueue();
+    if (event.data.type === "MUTATION_STORED" && typeof processMutationQueue !== "undefined") {
+      processMutationQueue();
     }${invalidationHandler}  });
 }
 

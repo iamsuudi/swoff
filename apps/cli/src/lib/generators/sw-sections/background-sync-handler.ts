@@ -140,6 +140,15 @@ ${credentialsLine}        });
     }
   } catch (err) {
     console.error("Background sync failed:", err);
+    const syncClients = await self.clients.matchAll();
+    for (const c of syncClients) {
+      c.postMessage({
+        type: "SW_NOTIFICATION",
+        level: "error",
+        code: "BACKGROUND_SYNC_FAILED",
+        message: "Background sync processing failed",
+      });
+    }
   } finally {
     if (db) db.close();
   }

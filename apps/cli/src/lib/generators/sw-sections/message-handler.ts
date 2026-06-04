@@ -32,6 +32,17 @@ function debouncedInvalidate(tag) {
 self.addEventListener("message", (event) => {
   if (event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
+  }
+  if (event.data.type === "RESET_CACHE") {
+    event.waitUntil(
+      (async () => {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+        await precacheAssets();
+        const port = event.ports?.[0];
+        port?.postMessage({ type: "RESET_CACHE_COMPLETE" });
+      })(),
+    );
   }`;
 
   if (tagInvalidation) {

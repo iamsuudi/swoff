@@ -158,6 +158,7 @@ Generated assets are written to `outputDir`. Reference them manually in your man
 | `clearRuntimeOnUpdate` | `boolean` | `false` | Clear runtime cache when a new SW version activates |
 | `normalizeKey` | `boolean` | `false` | When `true`, query params are sorted alphabetically in cache keys so `?b=1&a=2` and `?a=2&b=1` resolve to the same entry. |
 | `ignoreQueryParams` | `string[]` | `[]` | Query params to strip from cache keys (e.g. `["_t", "utm_source"]`). Prevents cache-busting params from creating duplicate cache entries. |
+| `timeout` | `number` | `10` | Network fetch timeout in seconds. The SW's `_fetch` wraps `fetch()` with an `AbortController` that aborts after this duration. On timeout or network error, a `SW_NOTIFICATION` is broadcast (level: `"error"`, code: `"FETCH_FAILED"`), and the strategy falls through to its cache fallback. |
 
 ### `features.serviceWorker.navigation`
 

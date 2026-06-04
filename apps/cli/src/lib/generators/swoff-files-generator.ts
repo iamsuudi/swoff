@@ -41,6 +41,7 @@ import { generateFrameworkAdapters } from "./file-generators/generate-framework-
 import { generateGuide } from "./file-generators/guide-generator.js";
 import { generateReset } from "./file-generators/reset.js";
 import { generateFetchState } from "./file-generators/fetch-state.js";
+import { generateNotification } from "./file-generators/notification-generator.js";
 interface Step {
   name: string;
   gen: () => void;
@@ -71,6 +72,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     { name: "realtime/notifications", gen: () => generatePush(ctx), enabled: ctx.config.features.pushNotifications?.enabled ?? false },
     { name: "realtime/server-push", gen: () => generateServerPush(ctx), enabled: ctx.config.features.serverPush.enabled },
     { name: "framework-adapters", gen: () => generateFrameworkAdapters(ctx), enabled: true },
+    { name: "notification", gen: () => generateNotification(ctx), enabled: true },
     { name: "GUIDE.md", gen: () => generateGuide(ctx), enabled: true },
   ];
 

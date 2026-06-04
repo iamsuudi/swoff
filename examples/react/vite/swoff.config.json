@@ -9,14 +9,7 @@
   "features": {
     "pwa": {
       "enabled": true,
-      "preventDefaultInstall": false,
-      "assets": {
-        "source": "",
-        "outputDir": "public",
-        "themeColor": "#000000",
-        "bgColor": "#ffffff",
-        "generated": false
-      }
+      "preventDefaultInstall": false
     },
     "serviceWorker": {
       "version": "package",
@@ -36,6 +29,7 @@
         "maxRuntimeCacheAge": 2592000,
         "normalizeKey": false,
         "ignoreQueryParams": [],
+        "timeout": 10,
         "patterns": {
           "/api/*": "network-first",
           "/static/*": "cache-first"

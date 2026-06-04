@@ -382,4 +382,51 @@ Swoff exposes three introspection functions for debugging and dynamic invalidati
 The client functions use `MessageChannel` to communicate with the SW, receiving responses via `channel.port1.onmessage`. The SW handler queries the IndexedDB tag registry (opened via `openTagDB()`) and returns results synchronously through the channel port.
 
 `invalidateMatching` scans all entries in the tag registry, filters by `matchGlob(url, globPattern)`, collects unique tags, and calls `invalidateByTag(tag)` for each matching tag. Invalidated entries are then queue-refreshed through the standard batch queue.
+
+---
+
+## Notifications & Resource Monitoring
+
+Swoff broadcasts resource-level events from the Service Worker to the client window via a unified notification channel. This lets the app react to network failures, storage pressure, and background processing errors without polling.
+
+### Architecture
+
+```
+SW scope:
+  _fetch() catch     → postMessage(SW_NOTIFICATION, level: "error", code: "FETCH_FAILED")
+  precacheAssets()   → postMessage(SW_NOTIFICATION, level: "warn", code: "PRECACHE_FAILED")
+  bg sync catch      → postMessage(SW_NOTIFICATION, level: "error", code: "BACKGROUND_SYNC_FAILED")
+
+client-injector.ts:
+  message listener   → CustomEvent("swoff:notification", { detail: { level, code, message } })
+
+notification.ts:
+  checkStorage()     → navigator.storage.estimate() >= 80% → CustomEvent("swoff:notification")
+  getStorageEstimate() → raw estimate without dispatch
+```
+
+### Fetch timeout
+
+Every network request made by the SW passes through `_fetchWithTimeout()`, which wraps `fetch()` with an `AbortController` set to `features.serviceWorker.strategy.timeout` seconds (default 10). On timeout or network error:
+
+1. The catch block broadcasts `SW_NOTIFICATION` (`FETCH_FAILED`) to all clients
+2. The calling strategy (cache-first, network-first, stale-while-revalidate, reactive) naturally falls through to its cache fallback — no request is lost
+
+This timeout applies uniformly across all strategies, ensuring no single slow request blocks the SW's fetch handler indefinitely.
+
+### Storage quota awareness
+
+`notification.ts` exposes `checkStorage()` and `getStorageEstimate()` — thin wrappers around `navigator.storage.estimate()`. The former dispatches a warning at 80% usage; the latter is a pure utility for rendering quota in the UI (e.g. `useStorageEstimate()` React hook). Formatting is handled by the exported `formatBytes()` helper.
+
+### Why a unified channel?
+
+Rather than one CustomEvent per failure type (`swoff:fetch-failed`, `swoff:precache-failed`, etc.), a single `swoff:notification` event with a `code` discriminator keeps the API surface small and makes it trivial to wire up a toast/notification library:
+
+```ts
+window.addEventListener("swoff:notification", (event) => {
+  const { level, code, message } = event.detail;
+  if (level === "error") myToast.error(message);
+  if (level === "warn") myToast.warn(message);
+});
+```
 ```

@@ -67,6 +67,7 @@ All files land in `swoff/`. See [API.md](./API.md) for the full reference.
 | `manifest.json` | `pwa.enabled` | Web app manifest |
 | `reset.ts` | always | `resetSwoff()` — wipes caches, IndexedDB databases, localStorage, unregisters SW, re-registers via `initServiceWorker` |
 | `fetch/state.ts` | always | Global fetch counter (`incrementFetchCount`/`decrementFetchCount`/`getFetchCount`) with `fetch-count-changed` custom events |
+| `notification.ts` | always | Storage estimation (`checkStorage`/`getStorageEstimate`) and `swoff:notification` event relay for SW errors and warnings |
 
 ### PWA assets
 

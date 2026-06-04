@@ -1,36 +1,19 @@
-/**
- * generate command - orchestrates SW and file generation.
- * Uses direct imports (no subprocess spawning) for a single status line.
- */
-
-import { log } from "../cli/logger.js";
 import { loadConfigAsync } from "../config/loader.js";
 import { detectProjectLanguage } from "../utils/detect-language.js";
-import { statusLine, clearStatusLine } from "../utils/tty-status.js";
-import { generateSW } from "../generators/sw-generator.js";
 import { generateFiles } from "../generators/swoff-files-generator.js";
 import type { GeneratorContext } from "../generators/file-generators/context.js";
 import { join } from "path";
+import { log } from "../cli/logger.js";
 
 export interface GenerateOptions {
-  swOnly?: boolean;
-  filesOnly?: boolean;
   language?: string;
-  continueOnSwError?: boolean;
 }
 
 export async function generateCommand(
   projectRoot: string,
   options: GenerateOptions = {},
 ) {
-  const {
-    swOnly = false,
-    filesOnly = false,
-    language,
-    continueOnSwError = false,
-  } = options;
-
-  // log.header("Generating Swoff Files");
+  const { language } = options;
 
   const { config, configPath } = await loadConfigAsync(projectRoot);
 
@@ -39,63 +22,40 @@ export async function generateCommand(
     return;
   }
 
-  log.info(`Config: ${configPath}`);
+  if (!config.enabled) {
+    log.warn("Swoff is disabled in config. Nothing to generate.");
+    return;
+  }
 
-  const frameworkName = config.framework ?? "vanilla";
-  log.info(`Framework: ${frameworkName}`);
+  log.dim(`Config: ${configPath}`);
+  log.dim(`Framework: ${config.framework ?? "vanilla"}`);
 
   const detectedLang = (language ?? detectProjectLanguage(projectRoot)) as
     | "ts"
     | "js";
-  log.info(`Language: ${detectedLang}`);
+  log.dim(`Language: ${detectedLang}`);
 
-  if (!filesOnly) {
-    statusLine("→ Service worker...");
-    try {
-      await generateSW({
-        projectRoot,
-        configPath,
-        onStatus: (msg) => statusLine(msg),
-      });
-    } catch (err: unknown) {
-      clearStatusLine();
-      log.error(
-        `Service worker failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      if (!continueOnSwError) {
-        log.error(
-          "Generation aborted. Fix the issue and re-run. Use --continue-on-sw-error to skip SW and continue with files.",
-        );
-        process.exit(1);
-      }
-    }
-  }
+  const ext = detectedLang === "ts" ? "ts" : "js";
+  const swoffDir = join(projectRoot, "swoff");
+  const generatedFiles: string[] = [];
 
-  if (!swOnly) {
-    const ext = detectedLang === "ts" ? "ts" : "js";
-    const swoffDir = join(projectRoot, "swoff");
-    const generatedFiles: string[] = [];
+  const ctx: GeneratorContext = {
+    config,
+    projectRoot,
+    swoffDir,
+    ext,
+    generatedFiles,
+    frameworkName: config.framework ?? "vanilla",
+  };
 
-    const ctx: GeneratorContext = {
-      config,
-      projectRoot,
-      swoffDir,
-      ext,
-      generatedFiles,
-      frameworkName,
-    };
-
-    statusLine("→ Files...");
-    try {
-      const files = generateFiles(ctx, (name) => statusLine(`→ ${name}...`));
-      clearStatusLine();
-      log.success(`Generated ${files.length} supporting files`);
-    } catch (err: unknown) {
-      clearStatusLine();
-      log.error(
-        `File generation failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
+  try {
+    const files = generateFiles(ctx);
+    log.success(`Generated ${files.length} supporting files`);
+  } catch (err: unknown) {
+    log.error(
+      `File generation failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return;
   }
 
   log.success("Generation complete!");
@@ -103,14 +63,14 @@ export async function generateCommand(
   if (config.features.pwa.enabled) {
     log.normal("");
     log.help(
-      "PWA assets: run 'npx @swoff/assets --source <path>' to generate icons, splash screens, and manifest.json",
+      `For PWA assets: run 'npx @swoff/assets --source <path>' to generate icons, splash screens, and manifest.json`,
     );
   }
 
   log.normal("");
-  log.help("1. Read swoff/GUIDE.md for documentation links");
-  log.normal("");
-  log.help("2. After each build, run the SW generator:");
-  log.help("  node swoff/sw/generator.js");
-  log.help("  (Add this to your build script if you want it automated)");
+  log.normal("1. Read swoff/GUIDE.md for documentation links");
+  log.normal("2. After each build, run the SW generator:");
+  log.normal(
+    "   node swoff/sw/generator.js (Add this to your build script if you want it automated)",
+  );
 }

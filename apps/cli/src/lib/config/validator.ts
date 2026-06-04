@@ -3,8 +3,20 @@ import { KNOWN_FEATURES, OBJECT_FEATURES, VALID_STRATEGIES, REACTIVE_FIELDS, CON
 export function validateConfig(config: Record<string, unknown>): string[] {
   const errors: string[] = [];
 
-  if (config.configVersion !== undefined && config.configVersion !== CONFIG_VERSION) {
-    errors.push(`configVersion must be ${CONFIG_VERSION}, got ${config.configVersion}`);
+  if (config.enabled !== undefined && typeof config.enabled !== "boolean") {
+    errors.push("enabled must be a boolean");
+  }
+
+  if (config.configVersion !== undefined) {
+    if (typeof config.configVersion !== "number") {
+      errors.push("configVersion must be a number");
+    } else if (config.configVersion !== CONFIG_VERSION) {
+      errors.push(`configVersion must be ${CONFIG_VERSION}, got ${config.configVersion}`);
+    }
+  }
+
+  if (config.apiBaseUrl !== undefined && typeof config.apiBaseUrl !== "string") {
+    errors.push("apiBaseUrl must be a string");
   }
 
   const requiredFields = ["enabled", "features", "build"];
@@ -296,11 +308,15 @@ export function validateConfig(config: Record<string, unknown>): string[] {
 
   if (config.build) {
     const build = config.build as Record<string, unknown>;
-    if (build.outputDir && typeof build.outputDir !== "string") {
-      errors.push("build.outputDir must be a string");
+    if (build.outputDir !== undefined) {
+      if (typeof build.outputDir !== "string" || !build.outputDir) {
+        errors.push("build.outputDir must be a non-empty string");
+      }
     }
-    if (build.swFilename && typeof build.swFilename !== "string") {
-      errors.push("build.swFilename must be a string");
+    if (build.swFilename !== undefined) {
+      if (typeof build.swFilename !== "string" || !build.swFilename) {
+        errors.push("build.swFilename must be a non-empty string");
+      }
     }
   }
 

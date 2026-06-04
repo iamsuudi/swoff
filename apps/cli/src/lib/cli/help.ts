@@ -18,9 +18,9 @@ export const commands: Record<string, CommandDef> = {
     examples: ["swoff init", "swoff init --framework react"],
   },
   generate: {
-    description: "Generate service worker and supporting files",
-    usage: "swoff generate [--sw-only|--files-only|--continue-on-sw-error]",
-    examples: ["swoff generate", "swoff generate --sw-only", "swoff generate --continue-on-sw-error"],
+    description: "Generate supporting files (swoff/)",
+    usage: "swoff generate [--language ts|js]",
+    examples: ["swoff generate"],
   },
   validate: {
     description: "Validate swoff.config.json",

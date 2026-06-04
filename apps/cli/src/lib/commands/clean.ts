@@ -33,14 +33,8 @@ export async function cleanCommand(
     return;
   }
 
-  log.header("Removing Swoff");
-
-  const targets: string[] = [];
-  if (hasSwoffDir) targets.push("swoff/");
-  if (existingConfig) targets.push(existingConfig);
-
   if (!options.yes) {
-    const answer = await ask(`Remove ${targets.join(" and ")}? [y/N]`);
+    const answer = await ask("Remove Swoff files? [y/N]");
     if (answer.toLowerCase() !== "y" && answer.toLowerCase() !== "yes") {
       log.info("Aborted.");
       return;
@@ -49,13 +43,11 @@ export async function cleanCommand(
 
   if (hasSwoffDir) {
     rmSync(swoffDir, { recursive: true, force: true });
-    log.info("Removed swoff/");
   }
 
   if (existingConfig) {
     rmSync(join(projectRoot, existingConfig));
-    log.info(`Removed ${existingConfig}`);
   }
 
-  log.success("Swoff has been removed from the project.");
+  log.success("Cleaned");
 }

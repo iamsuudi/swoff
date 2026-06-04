@@ -29,10 +29,7 @@ const { values, positionals } = parseArgs({
     version: { type: "boolean", short: "v" },
     help: { type: "boolean", short: "h" },
     framework: { type: "string" },
-    "sw-only": { type: "boolean" },
-    "files-only": { type: "boolean" },
     language: { type: "string" },
-    "continue-on-sw-error": { type: "boolean" },
     yes: { type: "boolean", short: "y" },
   },
   allowPositionals: true,
@@ -57,12 +54,7 @@ async function main() {
       break;
     }
     case "generate": {
-      await generateCommand(projectRoot, {
-        swOnly: !!values["sw-only"],
-        filesOnly: !!values["files-only"],
-        language: values.language,
-        continueOnSwError: !!values["continue-on-sw-error"],
-      });
+      await generateCommand(projectRoot, { language: values.language });
       break;
     }
     case "validate":

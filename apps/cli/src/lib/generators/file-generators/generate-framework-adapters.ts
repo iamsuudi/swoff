@@ -41,9 +41,6 @@ const ADAPTERS: AdapterDef[] = [
 
 const OUTPUT_SUBDIRS: Record<string, string> = {
   react: "adapters",
-  vue: "adapters",
-  svelte: "adapters",
-  solid: "adapters",
 };
 
 export function generateFrameworkAdapters(ctx: GeneratorContext): void {

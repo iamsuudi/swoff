@@ -105,7 +105,6 @@ export function assembleSW(config: SwoffConfig, version: string, projectRoot?: s
   }
 
   if (features.backgroundSync) {
-    // Skip background sync for non-cookie auth (tokens must not persist in IndexedDB)
     if (!features.auth.enabled || features.auth.type === "cookie") {
       const authType = features.auth.enabled ? features.auth.type : undefined;
       const mq = features.mutationQueue;

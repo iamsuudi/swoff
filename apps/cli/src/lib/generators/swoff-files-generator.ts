@@ -9,13 +9,12 @@
  *
  * Module Usage:
  *   import { generateFiles } from './swoff-files-generator.js';
- *   const files = generateFiles(ctx, (name) => { ... });
+ *   const files = generateFiles(ctx);
  */
 
 import { join } from "path";
 import { fileURLToPath } from "url";
 import { loadConfigAsync } from "../config/loader.js";
-import { statusLine, clearStatusLine } from "../utils/tty-status.js";
 import type { GeneratorContext } from "./file-generators/context.js";
 import { generateApiConfig } from "./file-generators/api-config.js";
 import { generateSwTemplate } from "./file-generators/sw-template.js";
@@ -48,7 +47,7 @@ interface Step {
   enabled: boolean;
 }
 
-export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => void): string[] {
+export function generateFiles(ctx: GeneratorContext): string[] {
   const steps: Step[] = [
     { name: "api-config", gen: () => generateApiConfig(ctx), enabled: true },
     { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
@@ -77,7 +76,6 @@ export function generateFiles(ctx: GeneratorContext, onFile?: (name: string) => 
 
   for (const step of steps) {
     if (!step.enabled) continue;
-    onFile?.(step.name);
     step.gen();
   }
 
@@ -117,9 +115,7 @@ if (fileURLToPath(import.meta.url) === fileURLToPath(new URL(process.argv[1], "f
 
     console.log(`Generating Swoff files (${language})...`);
 
-    generateFiles(ctx, (name) => statusLine(`→ ${name}...`));
-
-    clearStatusLine();
+    generateFiles(ctx);
 
     console.log("Generated files:");
     generatedFiles.forEach((file) => console.log(`  ${file}`));

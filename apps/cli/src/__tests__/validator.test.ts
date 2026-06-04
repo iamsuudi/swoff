@@ -362,7 +362,7 @@ describe("validateConfig", () => {
         build: { ...validConfig.build, outputDir: 123 },
       };
       const errors = validateConfig(config);
-      expect(errors).toContain("build.outputDir must be a string");
+      expect(errors).toContain("build.outputDir must be a non-empty string");
     });
 
     it("rejects non-string swFilename", () => {
@@ -371,7 +371,7 @@ describe("validateConfig", () => {
         build: { ...validConfig.build, swFilename: true },
       };
       const errors = validateConfig(config);
-      expect(errors).toContain("build.swFilename must be a string");
+      expect(errors).toContain("build.swFilename must be a non-empty string");
     });
   });
 });

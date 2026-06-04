@@ -2,9 +2,9 @@ import type { RuntimeContext } from "./utils.js";
 import { T, R } from "./utils.js";
 
 export function generateSwInjectorCode(
-  ctx: RuntimeContext & { autoUpdate: boolean; autoActivate: boolean; versionEnabled: boolean },
+  ctx: RuntimeContext & { autoUpdate: boolean; autoActivate: boolean; versionEnabled: boolean; swFilename: string },
 ): string {
-  const { ext, ts, autoUpdate, autoActivate, versionEnabled } = ctx;
+  const { ext, ts, autoUpdate, autoActivate, versionEnabled, swFilename } = ctx;
 
   if (!versionEnabled) {
     return `/**
@@ -45,7 +45,7 @@ export async function initServiceWorker()${R(ts, "Promise<void>")}{
     return;
   }
   try {
-    const registration = await navigator.serviceWorker.register("/sw.js");
+    const registration = await navigator.serviceWorker.register("/${swFilename}.js");
     window.currentSWVersion = "simple";
     window.dispatchEvent(new CustomEvent("sw-version-detected"));
     await waitForController();

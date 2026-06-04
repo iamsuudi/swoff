@@ -14,4 +14,5 @@ export const log = {
   help: (msg: string) => console.log(`${colors.cyan}${msg}${colors.reset}`),
   header: (msg: string) => console.log(`${colors.bright}${msg}${colors.reset}`),
   normal: (msg: string) => console.log(`${colors.reset}${msg}${colors.reset}`),
+  dim: (msg: string) => console.log(`${colors.dim}${msg}${colors.reset}`),
 };

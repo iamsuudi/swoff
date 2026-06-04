@@ -7,7 +7,6 @@ import { assembleSW } from "./sw-sections/assemble-sw.js";
 interface GeneratorOptions {
   projectRoot?: string;
   configPath?: string;
-  onStatus?: (msg: string) => void;
 }
 
 function resolveVersion(config: { features: { serviceWorker: { version: string; minSupportedVersion: string } } }, pkgVersion: string): string {
@@ -20,7 +19,6 @@ function resolveVersion(config: { features: { serviceWorker: { version: string; 
 export async function generateSW(options: GeneratorOptions = {}): Promise<{ version: string; outputFile: string }> {
   const optProjectRoot = options.projectRoot || process.cwd();
   const optConfigPath = options.configPath;
-  const status = options.onStatus || console.log;
 
   const pkgPath = join(optProjectRoot, "package.json");
   let pkg = { version: "1.0.0" };
@@ -29,14 +27,14 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ vers
     try {
       pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
     } catch {
-      status("Could not read package.json, using default version");
+      console.log("Could not read package.json, using default version");
     }
   }
 
   const { config, configSource } = await loadConfigAsync(optProjectRoot, optConfigPath);
 
   if (!config.enabled) {
-    status("Swoff config generation disabled. Using custom code mode.");
+    console.log("Swoff config generation disabled. Using custom code mode.");
     return { version: "", outputFile: "" };
   }
 
@@ -73,9 +71,9 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ vers
       );
     }
 
-    status(`✓ ${outputDir}/${outputFile}`);
+    console.log(`${outputDir}/${outputFile}`);
   } catch (err) {
-    status(`Error writing files: ${err instanceof Error ? err.message : String(err)}`);
+    console.log(`Error writing files: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return { version, outputFile };
@@ -89,16 +87,8 @@ if (fileURLToPath(import.meta.url) === fileURLToPath(new URL(process.argv[1], "f
   const configPath = configPathIdx !== -1 ? args[configPathIdx + 1] : undefined;
 
   (async () => {
-    const ttyStatus = process.stdout.isTTY
-      ? (msg: string) => {
-          const cols = process.stdout.columns || 80;
-          process.stdout.write(`\r${" ".repeat(cols - 1)}\r  ${msg}`);
-        }
-      : (msg: string) => console.log(`  ${msg}`);
-
     console.log("Generating service worker...");
-    await generateSW({ projectRoot, configPath, onStatus: ttyStatus });
-    process.stdout.write("\n");
+    await generateSW({ projectRoot, configPath });
   })().catch((err) => {
     console.error(err);
     process.exit(1);

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { assembleSW } from "../lib/generators/sw-sections/assemble-sw.js";
-import { defaultConfig, defaultPwaAssets, type SwoffConfig } from "../lib/shared/config-types.js";
+import { defaultConfig, type SwoffConfig } from "../lib/shared/config-types.js";
 
 describe("assembleSW", () => {
   const config: SwoffConfig = {
@@ -121,7 +121,7 @@ describe("assembleSW", () => {
   it("includes PWA assets when pwa feature is enabled", () => {
     const configWithPwa: SwoffConfig = {
       ...config,
-      features: { ...config.features, pwa: { enabled: true, preventDefaultInstall: false, assets: { ...defaultPwaAssets } } },
+      features: { ...config.features, pwa: { enabled: true, preventDefaultInstall: false } },
     };
     const sw = assembleSW(configWithPwa, "1.0.0");
     expect(sw).toContain("/manifest.json");
@@ -130,7 +130,7 @@ describe("assembleSW", () => {
   it("excludes PWA assets when pwa feature is disabled", () => {
     const configNoPwa: SwoffConfig = {
       ...config,
-      features: { ...config.features, pwa: { enabled: false, preventDefaultInstall: false, assets: { ...defaultPwaAssets } } },
+      features: { ...config.features, pwa: { enabled: false, preventDefaultInstall: false } },
     };
     const sw = assembleSW(configNoPwa, "1.0.0");
     expect(sw).not.toContain("/manifest.json");

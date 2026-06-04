@@ -15,32 +15,23 @@ export function generateGuide(ctx: GeneratorContext): void {
   );
   w("");
 
-  if (ctx.config.features.pwa.enabled && ctx.config.features.pwa.assets.source) {
+  if (ctx.config.features.pwa.enabled) {
     w("## PWA Assets");
     w("");
-    w("PWA assets (icons, favicon, OG image, splash screens) will be generated from your");
-    w(` source logo during \`swoff generate\`.`);
+    w("Generate PWA icons, splash screens, favicons, OG image, and manifest.json with:");
     w("");
-    w("To regenerate manually:");
-    w("");
-    w("  swoff assets --source <path>");
+    w("  npx @swoff/assets --source ./logo.svg");
     w("");
     w("### What gets generated");
     w("");
     w("- PWA icons: 64×64, 192×192, 512×512, maskable 512×512");
     w("- Apple touch icon: 180×180");
     w("- Apple splash screens: all device resolutions");
-    w("- Favicon: SVG + ICO (16×16, 32×32, 48×48)");
+    w("- Favicon: ICO (16×16, 32×32, 48×48)");
     w("- OG image: 1200×630 (also used for Twitter card)");
+    w("- manifest.json (with icons array, theme/background color, screenshot)");
     w("");
-    w("After generation, reference these assets in your app manually. Run \`swoff assets\` for a copy-paste guide with the exact <link> and <meta> tags.");
-    w("");
-    w("### Source logo requirements");
-    w("");
-    w("- **SVG** recommended — produces the best quality at all sizes");
-    w("- PNG or JPG accepted — will be upscaled if needed");
-    w("- Minimum 512×512 for crisp icons");
-    w("- Transparent backgrounds work well with theme colors");
+    w("After generation, reference these assets in your HTML <head>. The tool prints the exact <link> and <meta> tags to copy-paste.");
     w("");
   }
 

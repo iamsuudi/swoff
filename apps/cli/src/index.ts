@@ -9,7 +9,6 @@ import { generateCommand } from "./lib/commands/generate.js";
 import { validateCommand } from "./lib/commands/validate.js";
 import { addCommand } from "./lib/commands/add.js";
 import { cleanCommand } from "./lib/commands/clean.js";
-import { generateAssetsCommand } from "./lib/commands/assets.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageDir = join(__dirname, "..");
@@ -34,9 +33,6 @@ const { values, positionals } = parseArgs({
     "files-only": { type: "boolean" },
     language: { type: "string" },
     "continue-on-sw-error": { type: "boolean" },
-    source: { type: "string" },
-    "output-dir": { type: "string" },
-    "no-splash": { type: "boolean" },
     yes: { type: "boolean", short: "y" },
   },
   allowPositionals: true,
@@ -83,13 +79,6 @@ async function main() {
       await addCommand(projectRoot, feature);
       break;
     }
-    case "assets":
-      await generateAssetsCommand(projectRoot, {
-        source: values.source,
-        outputDir: values["output-dir"],
-        noSplash: !!values["no-splash"],
-      });
-      break;
     case "clean":
       await cleanCommand(projectRoot, { yes: !!values.yes });
       break;

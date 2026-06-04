@@ -10,14 +10,6 @@ export interface AuthConfig {
   userEndpoint: string;
 }
 
-export interface PwaAssetsConfig {
-  source: string;
-  outputDir: string;
-  themeColor: string;
-  bgColor: string;
-  generated: boolean;
-}
-
 export interface MutationQueueConfig {
   enabled: boolean;
   batchSize: number;
@@ -68,7 +60,6 @@ export interface SwoffConfig {
     pwa: {
       enabled: boolean;
       preventDefaultInstall: boolean;
-      assets: PwaAssetsConfig;
     };
     serviceWorker: {
       version: string;
@@ -178,14 +169,6 @@ export const defaultMutationQueue: MutationQueueConfig = {
   retryBackoffMs: 1000,
 };
 
-export const defaultPwaAssets: PwaAssetsConfig = {
-  source: "",
-  outputDir: "public",
-  themeColor: "#000000",
-  bgColor: "#ffffff",
-  generated: false,
-};
-
 export const defaultRefetchQueue: RefetchQueueConfig = {
   batchSize: 5,
   batchDelayMs: 1000,
@@ -219,7 +202,7 @@ export function mergeConfigs(
     features: {
       ...base.features,
       ...override.features,
-      pwa: { ...base.features.pwa, ...override.features?.pwa, assets: { ...defaultPwaAssets, ...base.features.pwa.assets, ...override.features?.pwa?.assets } },
+      pwa: { ...base.features.pwa, ...override.features?.pwa },
       serviceWorker: {
         ...base.features.serviceWorker,
         ...override.features?.serviceWorker,
@@ -291,7 +274,6 @@ export const defaultConfig: SwoffConfig = {
     pwa: {
       enabled: true,
       preventDefaultInstall: false,
-      assets: { ...defaultPwaAssets },
     },
     serviceWorker: {
       version: "package",
@@ -347,7 +329,7 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
   framework: "vanilla",
   apiBaseUrl: "",
   features: {
-    pwa: { enabled: true, preventDefaultInstall: false, assets: { ...defaultPwaAssets } },
+    pwa: { enabled: true, preventDefaultInstall: false },
     serviceWorker: {
       version: "package",
       minSupportedVersion: "0.0.0",

@@ -9,18 +9,9 @@ vi.mock("readline", () => ({
   }),
 }));
 
-vi.mock("../lib/generators/asset-generator/generate.js", () => ({
-  generateAssets: vi.fn().mockResolvedValue({
-    files: ["icon-192.png", "icon-512.png"],
-    warnings: [],
-  }),
-}));
-
 import { initCommand } from "../lib/commands/init.js";
 import { addCommand } from "../lib/commands/add.js";
 import { cleanCommand } from "../lib/commands/clean.js";
-import { generateAssetsCommand } from "../lib/commands/assets.js";
-import { generateAssets } from "../lib/generators/asset-generator/generate.js";
 
 const testDir = "/tmp/swoff-test-commands";
 
@@ -80,7 +71,6 @@ describe("initCommand", () => {
     expect(config.features).toHaveProperty("mutationQueue");
     expect(config.features).toHaveProperty("auth");
     expect(config.features).toHaveProperty("crossTabSync");
-    expect(config.features.pwa).toHaveProperty("assets");
   });
 
   it("includes configVersion in created config", async () => {
@@ -154,62 +144,5 @@ describe("cleanCommand", () => {
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify({ enabled: true }));
     await cleanCommand(testDir, { yes: true });
     expect(existsSync(join(testDir, "swoff.config.json"))).toBe(false);
-  });
-});
-
-describe("generateAssetsCommand", () => {
-  it("rejects when no source specified and no config source", async () => {
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => { throw new Error("process.exit"); });
-    await expect(generateAssetsCommand(testDir)).rejects.toThrow("process.exit");
-    exitSpy.mockRestore();
-  });
-
-  it("uses config source as fallback when --source not provided", async () => {
-    const config = {
-      enabled: true,
-      features: {
-        pwa: { enabled: true, preventDefaultInstall: false, assets: { source: "logo.svg", outputDir: "public", themeColor: "#000", bgColor: "#fff", generated: false } },
-        serviceWorker: { version: "package", minSupportedVersion: "0.0.0", autoUpdate: true, autoActivate: false, strategy: { default: "cache-first", mode: "all", clearRuntimeOnUpdate: false, patterns: {}, reactive: { defaults: {} } }, navigation: { mode: "spa", fallback: "/index.html" }, requestBatchWindowMs: 50 },
-        refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
-        mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
-        backgroundSync: false, crossTabSync: true, tagInvalidation: {},
-        auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
-        graphql: { enabled: false, endpoint: "/graphql" },
-        pushNotifications: { enabled: false },
-        serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
-      },
-      build: { outputDir: "dist", swFilename: "sw" },
-    };
-    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
-    writeFileSync(join(testDir, "logo.svg"), '<svg xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100"/></svg>');
-    await generateAssetsCommand(testDir);
-    expect(generateAssets).toHaveBeenCalled();
-    const callArgs = (generateAssets as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(callArgs.source).toContain("logo.svg");
-    expect(callArgs.appleSplash).toBe(true);
-  });
-
-  it("passes --no-splash to generateAssets", async () => {
-    const config = {
-      enabled: true,
-      features: {
-        pwa: { enabled: true, preventDefaultInstall: false, assets: { source: "", outputDir: "public", themeColor: "#000", bgColor: "#fff", generated: false } },
-        serviceWorker: { version: "package", minSupportedVersion: "0.0.0", autoUpdate: true, autoActivate: false, strategy: { default: "cache-first", mode: "all", clearRuntimeOnUpdate: false, patterns: {}, reactive: { defaults: {} } }, navigation: { mode: "spa", fallback: "/index.html" }, requestBatchWindowMs: 50 },
-        refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
-        mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
-        backgroundSync: false, crossTabSync: true, tagInvalidation: {},
-        auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
-        graphql: { enabled: false, endpoint: "/graphql" },
-        pushNotifications: { enabled: false },
-        serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
-      },
-      build: { outputDir: "dist", swFilename: "sw" },
-    };
-    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
-    writeFileSync(join(testDir, "logo.svg"), '<svg xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100"/></svg>');
-    await generateAssetsCommand(testDir, { source: join(testDir, "logo.svg"), noSplash: true });
-    expect(generateAssets).toHaveBeenCalled();
-    const callArgs = (generateAssets as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(callArgs.appleSplash).toBe(false);
   });
 });

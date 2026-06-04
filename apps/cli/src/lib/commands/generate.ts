@@ -103,7 +103,7 @@ export async function generateCommand(
   if (config.features.pwa.enabled) {
     log.normal("");
     log.help(
-      "PWA assets: run 'npx @swoff/cli assets --source <path>' to generate icons and splash screens",
+      "PWA assets: run 'npx @swoff/assets --source <path>' to generate icons, splash screens, and manifest.json",
     );
   }
 

@@ -25,6 +25,7 @@ export default function HomePage() {
     if (!confirm("Are you sure you want to delete this note?")) return;
     try {
       await deleteNote(id);
+      window.dispatchEvent(new CustomEvent("cache-invalidated", { detail: { tags: ["notes"] } }));
       await loadNotes();
     } catch { alert("Failed to delete note"); }
   };

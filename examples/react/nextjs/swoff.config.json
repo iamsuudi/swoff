@@ -1,0 +1,97 @@
+{
+  "$schema": "https://swoff.netlify.app/schema/v1.json",
+  "configVersion": 1,
+  "enabled": true,
+  "framework": "nextjs",
+  "apiBaseUrl": "",
+  "features": {
+    "pwa": {
+      "enabled": true,
+      "preventDefaultInstall": false
+    },
+    "serviceWorker": {
+      "version": "package",
+      "minSupportedVersion": "0.0.0",
+      "autoUpdate": true,
+      "autoActivate": false,
+      "requestBatchWindowMs": 50,
+      "navigation": {
+        "mode": "network-first",
+        "preload": true,
+        "fallback": "/index.html",
+        "precacheRoutes": ["/", "/about", "/notes/new"],
+        "offlineFallback": "/offline.html"
+      },
+      "strategy": {
+        "default": "network-first",
+        "mode": "all",
+        "clearRuntimeOnUpdate": false,
+        "maxRuntimeCacheAge": 2592000,
+        "normalizeKey": false,
+        "ignoreQueryParams": [],
+        "timeout": 10,
+        "patterns": {
+          "/api/*": "network-first",
+          "/static/*": "cache-first",
+          "/_next/*": "cache-first"
+        },
+        "reactive": {
+          "defaults": {
+            "staleTime": 0,
+            "refetchInterval": 0,
+            "refetchOnReconnect": false,
+            "refetchOnFocus": false
+          }
+        }
+      }
+    },
+    "refetchQueue": {
+      "batchSize": 5,
+      "batchDelayMs": 1000,
+      "maxRetries": 3,
+      "retryDelayMs": 1000
+    },
+    "mutationQueue": {
+      "enabled": true,
+      "batchSize": 1,
+      "batchDelayMs": 0,
+      "maxRetries": 5,
+      "retryBackoffMs": 1000
+    },
+    "backgroundSync": true,
+    "auth": {
+      "enabled": false,
+      "type": "bearer",
+      "refreshPath": "/api/refresh",
+      "userEndpoint": "/api/me"
+    },
+    "crossTabSync": true,
+    "tagInvalidation": {
+      "debounceMs": 0,
+      "prefixes": ["api", "v1", "v2", "v3", "rest", "graphql", "gql"],
+      "patterns": {},
+      "singularization": {},
+      "cascading": {}
+    },
+    "graphql": {
+      "enabled": false,
+      "endpoint": "/graphql"
+    },
+    "pushNotifications": {
+      "enabled": true
+    },
+    "serverPush": {
+      "enabled": true,
+      "type": "sse",
+      "endpoint": "/api/events",
+      "reconnectDelayMs": 5000
+    }
+  },
+  "build": {
+    "outputDir": "public",
+    "swFilename": "sw",
+    "precacheDirs": {
+      ".next/static": "/_next/static"
+    }
+  }
+}

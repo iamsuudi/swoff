@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "id": 1780586251311,
+    "title": "note 1",
+    "description": "a1",
+    "priority": "high",
+    "createdAt": "2026-06-04T15:17:31.311Z",
+    "updatedAt": "2026-06-04T15:17:31.311Z"
+  },
+  {
+    "id": 1780681302270,
+    "title": "hey",
+    "description": "dual",
+    "priority": "low",
+    "createdAt": "2026-06-05T17:41:42.271Z",
+    "updatedAt": "2026-06-05T17:41:42.271Z"
+  }
+]

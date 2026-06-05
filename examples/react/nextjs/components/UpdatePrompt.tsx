@@ -1,6 +1,6 @@
 "use client";
 
-import { useSWUpdate } from "@/hooks/useSWUpdate";
+import { useSWUpdate } from "@/swoff/adapters/useSWUpdate";
 
 export default function UpdatePrompt() {
   const { updateStatus, currentVersion, availableVersion, progress, forceUpdate, acceptUpdate, dismissUpdate } = useSWUpdate();

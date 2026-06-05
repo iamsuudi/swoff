@@ -1,14 +1,14 @@
 {
   "name": "swoff-note-app-nextjs",
   "version": "0.0.1",
-  "minSupportedVersion": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build && node swoff/sw/generator.js",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "pwa:local": "bun run build && bun run start"
   },
   "dependencies": {
     "next": "16.2.6",

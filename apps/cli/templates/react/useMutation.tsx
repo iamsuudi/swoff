@@ -82,9 +82,11 @@ export function useMutation<TData = unknown>(
       if (key && inFlightKeys.current.has(key)) return null;
       if (key) inFlightKeys.current.add(key);
 
-      let retriesLeft = optionsRef.current.retry === true
+      let retriesLeft: number = optionsRef.current.retry === true
         ? Infinity
-        : (optionsRef.current.retry ?? 0);
+        : typeof optionsRef.current.retry === "number"
+          ? optionsRef.current.retry
+          : 0;
 
       const mid = "mut-" + crypto.randomUUID();
       setMutationId(mid);
@@ -101,8 +103,9 @@ export function useMutation<TData = unknown>(
 
       const attempt = async (): Promise<TData | null> => {
         try {
-          const fetchOptions = { ...optionsRef.current, body };
-          const { response, queued } = await fetchWithCache<TData>(urlRef.current, fetchOptions);
+          const { mutationKey, onMutate, onSuccess, onError, onSettled, retry, ...fetchOnlyOptions } = optionsRef.current;
+          const fetchOptions = { ...fetchOnlyOptions, body };
+          const { response, queued } = await fetchWithCache<TData>(urlRef.current, fetchOptions as FetchWithCacheOptions);
           if (queued) {
             resolveMutation(mid, null);
             setState({

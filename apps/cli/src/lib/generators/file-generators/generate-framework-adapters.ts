@@ -40,15 +40,22 @@ const ADAPTERS: AdapterDef[] = [
   { name: "useBackgroundSync", condition: (c) => !!c.config.features.backgroundSync },
 ];
 
+const BASE_FRAMEWORK: Record<string, string> = {
+  nextjs: "react",
+  remix: "react",
+  astro: "react",
+};
+
 const OUTPUT_SUBDIRS: Record<string, string> = {
   react: "adapters",
 };
 
 export function generateFrameworkAdapters(ctx: GeneratorContext): void {
-  const subdir = OUTPUT_SUBDIRS[ctx.frameworkName];
+  const baseFramework = BASE_FRAMEWORK[ctx.frameworkName] ?? ctx.frameworkName;
+  const subdir = OUTPUT_SUBDIRS[baseFramework];
   if (!subdir) return;
 
-  const frameworkDir = join(templatesDir, ctx.frameworkName);
+  const frameworkDir = join(templatesDir, baseFramework);
   if (!existsSync(frameworkDir)) return;
 
   const outDir = join(ctx.swoffDir, subdir);

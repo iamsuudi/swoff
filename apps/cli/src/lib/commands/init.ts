@@ -6,11 +6,95 @@ import { writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { log } from "../cli/logger.js";
 import { defaultInitConfig, type SwoffConfig } from "../shared/config-types.js";
-import { detectFramework } from "../utils/detect-framework.js";
+import { detectFramework, type FrameworkName } from "../utils/detect-framework.js";
+
+const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
+  nextjs: {
+    features: {
+      serviceWorker: {
+        strategy: {
+          default: "network-first",
+          patterns: {
+            "/_next/*": "cache-first",
+            "/api/*": "network-first",
+          },
+        },
+        navigation: {
+          mode: "network-first",
+        },
+      },
+    },
+  },
+  remix: {
+    features: {
+      serviceWorker: {
+        strategy: {
+          default: "network-first",
+          ignoreQueryParams: ["_data"],
+        },
+        navigation: {
+          mode: "network-first",
+        },
+      },
+    },
+  },
+  astro: {
+    features: {
+      serviceWorker: {
+        navigation: {
+          mode: "default",
+        },
+      },
+    },
+  },
+  nuxt: {
+    features: {
+      serviceWorker: {
+        strategy: {
+          default: "network-first",
+        },
+        navigation: {
+          mode: "network-first",
+        },
+      },
+    },
+  },
+  sveltekit: {
+    features: {
+      serviceWorker: {
+        strategy: {
+          default: "network-first",
+        },
+        navigation: {
+          mode: "network-first",
+        },
+      },
+    },
+  },
+};
+
+function deepMerge<T>(base: T, override: Partial<T>): T {
+  const result = { ...base } as Record<string, unknown>;
+  for (const key of Object.keys(override as Record<string, unknown>)) {
+    const baseVal = (base as Record<string, unknown>)[key];
+    const overrideVal = (override as Record<string, unknown>)[key];
+    if (
+      baseVal &&
+      overrideVal &&
+      typeof baseVal === "object" &&
+      typeof overrideVal === "object" &&
+      !Array.isArray(baseVal) &&
+      !Array.isArray(overrideVal)
+    ) {
+      result[key] = deepMerge(baseVal, overrideVal);
+    } else {
+      result[key] = overrideVal ?? baseVal;
+    }
+  }
+  return result as T;
+}
 
 export async function initCommand(projectRoot: string, framework?: string) {
-  // log.header("Initializing Swoff");
-
   const configFiles = ["swoff.config.json", "swoff.config.js"];
   const existingConfig = configFiles.find((f) =>
     existsSync(join(projectRoot, f)),
@@ -22,15 +106,17 @@ export async function initCommand(projectRoot: string, framework?: string) {
     return;
   }
 
-  const detected = framework || detectFramework(projectRoot);
-  const config = {
-    $schema: defaultInitConfig.$schema,
-    configVersion: defaultInitConfig.configVersion,
-    enabled: defaultInitConfig.enabled,
-    framework: detected as SwoffConfig["framework"],
-    build: defaultInitConfig.build,
-    features: defaultInitConfig.features,
-  };
+  const detected = (framework || detectFramework(projectRoot)) as FrameworkName;
+  const preset = FRAMEWORK_PRESETS[detected] || {};
+
+  // Start with default config, deep-merge the preset
+  const config = deepMerge(
+    { ...defaultInitConfig, framework: detected as SwoffConfig["framework"] } as unknown as Record<string, unknown>,
+    preset as unknown as Record<string, unknown>,
+  ) as unknown as SwoffConfig;
+
+  // Validate and adjust build output — ensure all build fields are present
+  if (!config.build) config.build = defaultInitConfig.build;
 
   const configPath = join(projectRoot, "swoff.config.json");
   writeFileSync(configPath, JSON.stringify(config, null, 2));

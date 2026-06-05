@@ -13,14 +13,18 @@ export function generateClientInjectorCode(
 `
     : "";
 
-  const pwaCall = pwaEnabled ? `setupPwaInstall();\n` : "";
+  const pwaCall = pwaEnabled
+    ? `if (typeof window !== "undefined" && typeof document !== "undefined") { setupPwaInstall(); }\n`
+    : "";
 
   const pushImport = serverPushEnabled
     ? `import { startPushEvents } from "./realtime/server-push.${ext}";
 `
     : "";
 
-  const pushCall = serverPushEnabled ? `startPushEvents();\n` : "";
+  const pushCall = serverPushEnabled
+    ? `if (typeof navigator !== "undefined" && "serviceWorker" in navigator) { startPushEvents(); }\n`
+    : "";
 
   const mutationImport = mutationQueueEnabled
     ? `import { processMutationQueue } from "./offline/queue.${ext}";
@@ -30,7 +34,9 @@ export function generateClientInjectorCode(
   const mutationOnlineListener = mutationQueueEnabled
     ? `
 // --- Mutation Queue Online Listener ---
-window.addEventListener("online", processMutationQueue);
+if (typeof window !== "undefined") {
+  window.addEventListener("online", processMutationQueue);
+}
 `
     : "";
 

@@ -75,18 +75,36 @@ export function assembleSW(config: SwoffConfig, version: string, projectRoot?: s
 
   const fallback: string[] = ["/index.html"];
   if (features.pwa.enabled) fallback.push("/manifest.json");
+  const offlineFallbackPath = config.features.serviceWorker.navigation.offlineFallback;
+  if (offlineFallbackPath && !fallback.includes(offlineFallbackPath)) {
+    fallback.push(offlineFallbackPath);
+  }
 
   const scanned: string[] = [];
   if (projectRoot) {
-    const distPath = join(projectRoot, outputDir);
-    const allAssets = collectAssets(distPath, distPath);
+    const dirsRaw = config.build?.precacheDirs || {};
+    const dirs = Object.keys(dirsRaw).length > 0 ? dirsRaw : { [outputDir]: "/" };
     const swFile = versionEnabled ? `${swFilename}-v${version}.js` : `${swFilename}.js`;
-    for (const a of allAssets) {
-      if (a !== `/${swFile}` && a !== "/version.json") scanned.push(a);
+    for (const [dir, prefix] of Object.entries(dirs)) {
+      const dirPath = join(projectRoot, dir);
+      const normPrefix = prefix.replace(/\/+$/, "");
+      for (const a of collectAssets(dirPath, dirPath)) {
+        const urlPath = normPrefix + "/" + a.slice(1);
+        if (urlPath !== `/${swFile}` && urlPath !== "/version.json") scanned.push(urlPath);
+      }
     }
   }
 
-  const assetsToCache = scanned.length > 0 ? [...new Set([...fallback, ...scanned])] : fallback;
+  const assetsToCache = scanned.length > 0 ? [...new Set([...fallback, ...scanned])] : [...fallback];
+
+  // Add precache routes from config (fetched at install time)
+  const precacheRoutes = config.features.serviceWorker.navigation.precacheRoutes || [];
+  for (const route of precacheRoutes) {
+    if (!assetsToCache.includes(route)) {
+      assetsToCache.push(route);
+    }
+  }
+
   const formattedAssets = assetsToCache.map((url) => ({ url, options: {} }));
 
   let sw = getDefaultTemplate();

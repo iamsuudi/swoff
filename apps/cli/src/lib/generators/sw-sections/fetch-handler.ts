@@ -51,9 +51,10 @@ export function generateFetchHandler(
       timeout?: number;
     };
     navigation: {
-      mode?: "spa" | "default";
+      mode?: "spa" | "default" | "network-first";
       preload?: boolean;
       fallback?: string;
+      offlineFallback?: string;
     };
     refetchQueue: {
       batchSize?: number;
@@ -78,6 +79,7 @@ export function generateFetchHandler(
       mode: navMode = "spa",
       preload: navigationPreload,
       fallback: spaPath = "/index.html",
+      offlineFallback: offlineFallbackPath = "",
     },
     refetchQueue: {
       batchSize: refetchBatchSize = 5,
@@ -198,7 +200,13 @@ const REFRESH_RETRY_DELAY_MS = ${refetchRetryDelayMs};`;
 "}\n" +
 "\n";
 
-  return `${trimDecl}
+  const navModeCode = navMode === "network-first" ? "\"network-first\"" : navMode === "default" ? "\"default\"" : "\"spa\"";
+  const offlineFallbackCode = offlineFallbackPath ? `"${offlineFallbackPath}"` : '""';
+
+  return `const NAV_MODE = ${navModeCode};
+const OFFLINE_FALLBACK_PATH = ${offlineFallbackCode};
+
+${trimDecl}
 // --- Batch Refresh Queue ---
 
 const _refreshQueue = new Map();
@@ -440,12 +448,22 @@ function cacheKey(request) {
 
 async function fromPrecache(request) {
   const cache = await caches.open(CACHE_NAME);
-  return cache.match(new URL(request.url).pathname);
+  const url = new URL(request.url);
+  url.search = "";
+  return cache.match(url.href);
 }
 
 async function fromRuntime(request) {
   const cache = await caches.open(CACHE_NAME_RUNTIME);
-  return cache.match(cacheKey(request));
+  const response = await cache.match(cacheKey(request));
+  if (!response) return null;
+  // Only serve HTML responses for navigation requests to prevent
+  // content-type mismatches (e.g. RSC payload served as a page)
+  if (request.mode === "navigate") {
+    const ct = response.headers.get("Content-Type") || "";
+    if (!ct.startsWith("text/html")) return null;
+  }
+  return response;
 }
 
 async function storeRuntime(request, response) {
@@ -481,10 +499,57 @@ async function cacheResponse(request, response) {
 }
 
 async function fromSpaFallback(request) {
-  if (request.mode === "navigate") {
+  if (NAV_MODE === "spa" && request.mode === "navigate") {
     const cache = await caches.open(CACHE_NAME);
     return cache.match("${spaPath}");
   }
+}
+
+async function fromOfflineFallback() {
+  if (!OFFLINE_FALLBACK_PATH) return null;
+  const cache = await caches.open(CACHE_NAME);
+  return cache.match(OFFLINE_FALLBACK_PATH);
+}
+
+async function fromUltimateFallback(request) {
+  // Try the offline fallback page first (user-provided)
+  const offline = await fromOfflineFallback();
+  if (offline) return offline;
+  // Last resort: try the SPA shell index.html
+  const cache = await caches.open(CACHE_NAME);
+  const shell = await cache.match("${spaPath}");
+  if (shell) return shell;
+  // Absolute last resort: return an inline HTML page so the browser
+  // doesn't show its own "This site can't be reached" error
+  return new Response(
+    \`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Offline</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f5f5f5}div{text-align:center}h1{font-size:2rem;color:#333}p{color:#666}</style></head><body><div><h1>You're offline</h1><p>Please check your connection and try again.</p></div></body></html>\`,
+    { status: 503, headers: { "Content-Type": "text/html" } }
+  );
+}
+
+${
+  navMode === "network-first"
+    ? `// --- Navigate-First handler (for SSR/MPA navigation mode) ---
+
+async function navigateFirst(event, request) {
+  try {
+    const response = await _fetch(event, request);
+    if (response && response.ok) {
+      event.waitUntil(storeRuntime(request.clone(), response.clone()));
+    }
+    if (response) return response;
+  } catch {}
+
+  const cached = await fromRuntime(request);
+  if (cached) return markFromCache(cached);
+
+  const precached = await fromPrecache(request);
+  if (precached) return markFromCache(precached);
+
+  const fallback = await fromUltimateFallback(request);
+  return fallback;
+}`
+    : ""
 }
 
 // --- Response Helpers ---
@@ -546,22 +611,31 @@ function determineCacheStrategyForUrl(url, customStrategies, globalDefaults) {
 }
 
 function applyStrategy(event, request, config) {
-  const { strategy } = config;
-  if (strategy === "reactive") {
-    const reactiveCfg = findReactiveConfig(new URL(request.url).href);
-    const staleTime = config.staleTime !== undefined ? config.staleTime : reactiveCfg?.staleTime;
-    event.respondWith(reactiveStrategy(event, request, staleTime));
-  } else if (strategy === "stale-while-revalidate") {
-    event.respondWith(staleWhileRevalidate(event, request));
-  } else if (strategy === "network-first") {
-    event.respondWith(networkFirst(event, request));
-  } else if (strategy === "cache-only") {
-    event.respondWith(cacheOnly(event, request));
-  } else if (strategy === "network-only") {
-    event.respondWith(networkOnly(event, request));
-  } else {
-    event.respondWith(cacheFirst(event, request));
-  }
+  event.respondWith(
+    (async () => {
+      try {
+        const { strategy } = config;
+        if (strategy === "reactive") {
+          const reactiveCfg = findReactiveConfig(new URL(request.url).href);
+          const staleTime = config.staleTime !== undefined ? config.staleTime : reactiveCfg?.staleTime;
+          return await reactiveStrategy(event, request, staleTime);
+        } else if (strategy === "stale-while-revalidate") {
+          return await staleWhileRevalidate(event, request);
+        } else if (strategy === "network-first") {
+          return await networkFirst(event, request);
+        } else if (strategy === "cache-only") {
+          return await cacheOnly(event, request);
+        } else if (strategy === "network-only") {
+          return await networkOnly(event, request);
+        } else {
+          return await cacheFirst(event, request);
+        }
+      } catch {
+        const fallback = await fromUltimateFallback(request);
+        return fallback;
+      }
+    })()
+  );
 }
 
 ${
@@ -663,6 +737,12 @@ async function handleMutation(event) {
   }`
   }
   ${cacheStrategy === "explicit-only" ? `if (!request.headers.get("X-SW-Cache-Strategy")) return;` : ""}
+  ${navMode === "network-first" ? `
+  if (request.mode === "navigate") {
+    event.respondWith(navigateFirst(event, request));
+    return;
+  }
+` : ""}
   applyStrategy(event, request, determineCacheStrategy(event.request, ${JSON.stringify(strategies)}, { defaultStrategy: "${defaultStrategy}" }));
 });
 
@@ -687,6 +767,7 @@ async function _fetchWithTimeout(request) {
         message: "Network request failed: " + request.url,
       });
     }
+    throw new Error("Network request failed: " + request.url);
   }
 }
 
@@ -716,11 +797,10 @@ async function cacheFirst(event, request) {
   const fallback = await fromSpaFallback(request);
   if (fallback) return fallback;
 
-  const reqForCache = request.clone();
   const response = await _fetch(event, request);
-  if (response.ok) {
+  if (response && response.ok) {
     const responseToCache = response.clone();
-    event.waitUntil(cacheResponse(reqForCache, responseToCache));
+    event.waitUntil(cacheResponse(request.clone(), responseToCache));
   }
   return response;
 }

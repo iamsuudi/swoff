@@ -130,6 +130,7 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 Each feature has a dedicated comparison with code examples, tradeoff analysis, and guidance on when to choose what:
 
 - [Prefetch](./comparisons/prefetch.md) — Swoff vs Next.js / TanStack Router / Remix / SvelteKit
+- [Offline Navigation](./comparisons/offline-navigation.md) — Fallback chain, Content-Type safety, and navigation modes vs next-pwa / Serwist / Workbox
 - [Data Fetching](./comparisons/data-fetching.md) — `useCachedFetch` vs TanStack Query / SWR
 - [Caching & Data Layer](./comparisons/caching-and-data.md) — SW-level HTTP caching vs client databases
 - [Cache Invalidation](./comparisons/invalidation.md) — Tag-based vs query-key

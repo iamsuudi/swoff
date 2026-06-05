@@ -11,7 +11,7 @@ export function generateServerPushCode(
 
   const invalidate = `
   // Forward to SW for cache invalidation
-  if (navigator.serviceWorker.controller) {
+  if (navigator.serviceWorker?.controller) {
     for (const tag of tags) {
       navigator.serviceWorker.controller.postMessage({ type: "INVALIDATE_TAG", tag });
     }
@@ -108,7 +108,7 @@ function notifyStatus(connected${T(ts, "boolean")})${R(ts, "void")}{
 }
 
 // Listen for SSE status from the SW
-if (typeof navigator !== "undefined" && navigator.serviceWorker) {
+if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (event) => {
     if (event.data?.type === "SSE_STATUS") {
       swConnected = event.data.connected;
@@ -126,11 +126,11 @@ export async function startPushEvents(){
   if (active) return;
 
   // If SW is already controlling the page, skip client-side connection — the SW handles push events.
-  if (navigator.serviceWorker.controller) return;
+  if (navigator.serviceWorker?.controller) return;
 
   // Listen for SW activation — if SW takes over, disconnect the client fallback.
   const onControllerChange = () => { stopPushEvents(); };
-  navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+  navigator.serviceWorker?.addEventListener("controllerchange", onControllerChange);
 
   active = true;
   let delay = ${reconnectDelayMs};
@@ -141,7 +141,7 @@ export async function startPushEvents(){
     delay = Math.min(delay * 1.5, 30000); // cap at 30s
   }
 
-  navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+  navigator.serviceWorker?.removeEventListener("controllerchange", onControllerChange);
 }
 
 /** Stop listening for push events. */

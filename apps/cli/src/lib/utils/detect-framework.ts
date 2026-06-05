@@ -9,7 +9,30 @@ const REACT_DEPS = [
   "@remix-run/react",
 ];
 
-export type FrameworkName = "react" | "vue" | "svelte" | "vanilla";
+export type FrameworkName =
+  | "nextjs"
+  | "remix"
+  | "astro"
+  | "nuxt"
+  | "sveltekit"
+  | "react"
+  | "vue"
+  | "svelte"
+  | "vanilla";
+
+const META_FRAMEWORKS: [string, FrameworkName][] = [
+  ["next", "nextjs"],
+  ["@remix-run/react", "remix"],
+  ["remix", "remix"],
+  ["astro", "astro"],
+  ["nuxt", "nuxt"],
+  ["@sveltejs/kit", "sveltekit"],
+];
+
+const BASE_FRAMEWORKS: [string, FrameworkName][] = [
+  ["vue", "vue"],
+  ["svelte", "svelte"],
+];
 
 export function detectFramework(projectRoot: string): FrameworkName {
   const pkgPath = join(projectRoot, "package.json");
@@ -27,9 +50,17 @@ export function detectFramework(projectRoot: string): FrameworkName {
 
   const allDeps = { ...deps, ...devDeps };
 
+  // Check meta-frameworks first (they may also have base framework deps)
+  for (const [dep, name] of META_FRAMEWORKS) {
+    if (allDeps[dep]) return name;
+  }
+
+  // Check base frameworks
+  for (const [dep, name] of BASE_FRAMEWORKS) {
+    if (allDeps[dep]) return name;
+  }
+
   if (REACT_DEPS.some((d) => allDeps[d])) return "react";
-  if (allDeps.vue) return "vue";
-  if (allDeps.svelte) return "svelte";
 
   return "vanilla";
 }

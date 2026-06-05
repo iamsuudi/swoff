@@ -54,7 +54,7 @@ export interface SwoffConfig {
   $schema?: string;
   configVersion?: number;
   enabled: boolean;
-  framework?: "react" | "vue" | "svelte" | "vanilla";
+  framework?: "nextjs" | "remix" | "astro" | "nuxt" | "sveltekit" | "react" | "vue" | "svelte" | "vanilla";
   apiBaseUrl?: string;
   features: {
     pwa: {
@@ -86,9 +86,11 @@ export interface SwoffConfig {
         timeout?: number;
       };
       navigation: {
-        mode: "spa" | "default";
+        mode: "spa" | "default" | "network-first";
         preload?: boolean;
         fallback: string;
+        precacheRoutes?: string[];
+        offlineFallback?: string;
       };
     };
     refetchQueue: RefetchQueueConfig;
@@ -112,6 +114,7 @@ export interface SwoffConfig {
   build: {
     outputDir: string;
     swFilename: string;
+    precacheDirs?: Record<string, string>;
   };
 }
 
@@ -304,6 +307,8 @@ export const defaultConfig: SwoffConfig = {
         mode: "spa",
         preload: true,
         fallback: "/index.html",
+        precacheRoutes: [],
+        offlineFallback: "",
       },
     },
     refetchQueue: { ...defaultRefetchQueue },
@@ -319,6 +324,7 @@ export const defaultConfig: SwoffConfig = {
   build: {
     outputDir: "dist",
     swFilename: "sw",
+    precacheDirs: {},
   },
 };
 
@@ -342,6 +348,8 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
         mode: "spa",
         preload: true,
         fallback: "/index.html",
+        precacheRoutes: [],
+        offlineFallback: "",
       },
       strategy: {
         default: "cache-first",
@@ -375,5 +383,5 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
     pushNotifications: { enabled: false },
     serverPush: { ...defaultServerPush },
   },
-  build: { outputDir: "dist", swFilename: "sw" },
+  build: { outputDir: "dist", swFilename: "sw", precacheDirs: {} },
 };

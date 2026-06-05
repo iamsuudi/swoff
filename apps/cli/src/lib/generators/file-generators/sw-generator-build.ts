@@ -53,29 +53,43 @@ if (!existsSync(outDir)) {
   mkdirSync(outDir, { recursive: true });
 }
 
-function collectAssets(dir) {
+function collectAssets(dir, baseDir) {
   const entries = readdirSync(dir, { withFileTypes: true });
   const assets = [];
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
     if (entry.isDirectory()) {
-      assets.push(...collectAssets(fullPath));
+      assets.push(...collectAssets(fullPath, baseDir));
     } else {
-      assets.push('/' + relative(outDir, fullPath));
+      assets.push('/' + relative(baseDir, fullPath));
     }
   }
   return assets;
 }
 
-function generateCacheNameHash(swContent) {
-  return 'sw-cache-' + createHash('sha256').update(swContent).digest('hex').slice(0, 12);
+const dirsRaw = config.build?.precacheDirs || {};
+const dirs = Object.keys(dirsRaw).length > 0 ? dirsRaw : { [outputDir]: "/" };
+const allAssets = [];
+for (const [dir, prefix] of Object.entries(dirs)) {
+  const dirPath = join(projectRoot, dir);
+  if (existsSync(dirPath)) {
+    const normPrefix = prefix.replace(/\\/+$/, '');
+    for (const a of collectAssets(dirPath, dirPath)) {
+      allAssets.push(normPrefix + '/' + a.slice(1));
+    }
+  }
 }
-
-const allAssets = collectAssets(outDir);
 const swFile = versionEnabled ? \`\${swFilename}-v\${version}.js\` : \`\${swFilename}.js\`;
 const filtered = allAssets.filter(a => !a.endsWith(swFile) && a !== '/version.json');
 const fallback = ['/index.html'];
 if (config.features?.pwa?.enabled) fallback.push('/manifest.json');
+const nav = config.features?.serviceWorker?.navigation || {};
+if (nav.offlineFallback) fallback.push(nav.offlineFallback);
+if (nav.precacheRoutes) {
+  for (const route of nav.precacheRoutes) {
+    if (!fallback.includes(route)) fallback.push(route);
+  }
+}
 const combined = [...new Set([...fallback, ...filtered])];
 const assetsToCache = combined.map(url => ({ url, options: {} }));
 

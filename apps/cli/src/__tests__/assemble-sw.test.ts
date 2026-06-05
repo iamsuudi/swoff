@@ -49,7 +49,7 @@ describe("assembleSW", () => {
     const sw = assembleSW(config, "1.0.0");
     expect(sw).toContain("fromPrecache");
     expect(sw).toContain("async function fromPrecache");
-    expect(sw).toContain("return cache.match(new URL");
+    expect(sw).toContain("return cache.match(url.href);");
     expect(sw).toContain("precached = await fromPrecache(request)");
   });
 

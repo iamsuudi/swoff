@@ -52,7 +52,9 @@ export function useMutation(url, options = {}) {
 
     let retriesLeft = optionsRef.current.retry === true
       ? Infinity
-      : (optionsRef.current.retry ?? 0);
+      : typeof optionsRef.current.retry === "number"
+        ? optionsRef.current.retry
+        : 0;
 
     const mid = "mut-" + crypto.randomUUID();
     setMutationId(mid);
@@ -69,7 +71,8 @@ export function useMutation(url, options = {}) {
 
     const attempt = async () => {
       try {
-        const fetchOptions = { ...optionsRef.current, body };
+        const { mutationKey, onMutate, onSuccess, onError, onSettled, retry, ...fetchOnlyOptions } = optionsRef.current;
+        const fetchOptions = { ...fetchOnlyOptions, body };
         const { response, queued } = await fetchWithCache(urlRef.current, fetchOptions);
         if (queued) {
           resolveMutation(mid, null);

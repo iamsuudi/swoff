@@ -317,7 +317,7 @@ ${mutationTagsBlock}
       options.signal.addEventListener("abort", abortHandler, { once: true });
     }
     if (isRead && BATCH_WINDOW_MS > 0) {
-      const batch${T(ts, "{ resolvers: Array<(r: Response) => void>; rejectors: Array<(e: unknown) => void>; timer: ReturnType<typeof setTimeout> }")} = { resolvers: [], rejectors: [], timer: 0 };
+      const batch${T(ts, "{ resolvers: Array<(r: Response) => void>; rejectors: Array<(e: unknown) => void>; timer: ReturnType<typeof setTimeout> }")} = { resolvers: [], rejectors: [], timer: 0${AS(ts, "unknown as ReturnType<typeof setTimeout>")} };
       pendingBatches.set(url, batch);
       batch.timer = setTimeout(() => {
         pendingBatches.delete(url);

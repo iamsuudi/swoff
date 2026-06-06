@@ -671,7 +671,7 @@ async function navigateFirst(event, request) {
 }`
     : ""
 }${
-  navMode === "stale-while-revalidate" && !hasRules
+  navMode === "stale-while-revalidate"
     ? `
 // --- Navigate-First-SWR handler (for stale-while-revalidate navigation mode) ---
 

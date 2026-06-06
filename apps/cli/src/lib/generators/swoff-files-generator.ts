@@ -51,7 +51,7 @@ interface Step {
 
 export function generateFiles(ctx: GeneratorContext): string[] {
   const steps: Step[] = [
-    { name: "api-config", gen: () => generateApiConfig(ctx), enabled: !!ctx.config.apiBaseUrl },
+    { name: "api-config", gen: () => generateApiConfig(ctx), enabled: true },
     { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
     { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: true },
     { name: "client-injector", gen: () => generateClientInjector(ctx), enabled: true },

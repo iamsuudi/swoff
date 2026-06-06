@@ -671,7 +671,7 @@ async function navigateFirst(event, request) {
 }`
     : ""
 }${
-  navMode === "stale-while-revalidate"
+  navMode === "stale-while-revalidate" || hasRules
     ? `
 // --- Navigate-First-SWR handler (for stale-while-revalidate navigation mode) ---
 
@@ -813,17 +813,6 @@ function determineCacheStrategy(request, customStrategies, globalDefaults) {
     return cfg;
   }
   const path = new URL(request.url).pathname;
-  for (const [pattern, entry] of Object.entries(customStrategies)) {
-    if (matchGlob(path, pattern)) {
-      const resolved = resolveStrategyEntry(entry);
-      return { strategy: resolved.strategy };
-    }
-  }
-  return { strategy: globalDefaults.defaultStrategy };
-}
-
-function determineCacheStrategyForUrl(url, customStrategies, globalDefaults) {
-  const path = new URL(url).pathname;
   for (const [pattern, entry] of Object.entries(customStrategies)) {
     if (matchGlob(path, pattern)) {
       const resolved = resolveStrategyEntry(entry);
@@ -982,27 +971,6 @@ async function handleMutation(event) {
 // --- Strategies ---
 
 const FETCH_TIMEOUT_MS = ${fetchTimeout * 1000};
-
-async function _fetchWithTimeout(request) {
-  try {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    const response = await fetch(request, { signal: controller.signal });
-    clearTimeout(id);
-    return response;
-  } catch {
-    const clients = await self.clients.matchAll();
-    for (const client of clients) {
-      client.postMessage({
-        type: "SW_NOTIFICATION",
-        level: "error",
-        code: "FETCH_FAILED",
-        message: "Network request failed: " + request.url,
-      });
-    }
-    throw new Error("Network request failed: " + request.url);
-  }
-}
 
 // --- ETag Conditional Fetch ---
 // Transparently handles If-None-Match/304 so strategies always see a 200 response.

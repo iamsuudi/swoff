@@ -164,9 +164,50 @@ Generated assets are written to `outputDir`. Reference them manually in your man
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `mode` | `"spa"` \| `"default"` | `"spa"` | SPA mode sends unmatched navigation requests to `fallback` |
+| `mode` | `"spa"` \| `"default"` \| `"network-first"` \| `"stale-while-revalidate"` | `"spa"` | Navigation mode. `"spa"`: serve SPA fallback for unmatched navigations. `"default"`: passthrough. `"network-first"`: try network, fall back to cache/offline. `"stale-while-revalidate"`: serve cached HTML instantly, refresh in background. |
 | `preload` | `boolean` | `true` | Enable Navigation Preload API — reduces SW startup latency |
 | `fallback` | `string` | `"/index.html"` | Fallback HTML for SPA navigation requests |
+| `precacheRoutes` | `string[]` | `[]` | Additional routes to fetch + cache during SW install (e.g. `["/", "/about"]`). Useful for SSG or critical pages. |
+| `offlineFallback` | `string` | `""` | Path to a custom offline HTML page. Served when the network is unavailable and no cached version exists. |
+| `rules` | `NavigationRule[]` | `[]` | Per-route navigation policies and offline fallback pages (see below). |
+| `retry` | `NavigationRetryConfig` | `{ "enabled": false, "intervalMs": 5000, "maxRetries": 12 }` | Smart retry when a navigation falls through to the ultimate offline fallback. The SW periodically retries the failed URL; on success, caches the response and broadcasts `swoff:navigation-online`. |
+
+#### `NavigationRule`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `match` | `string` | (required) | Glob pattern matching request paths (supports `*`, `**`, `?`, `{a,b}`). |
+| `policy` | `"cache-first"` \| `"network-first"` \| `"network-only"` \| `"stale-while-revalidate"` | `"network-first"` | Navigation policy for matching routes. `"cache-first"`: serve from precache immediately; `"network-first"`: try network, fall back to cache; `"network-only"`: always fetch (never cache); `"stale-while-revalidate"`: serve cached HTML instantly, refresh in background. |
+| `offlineFallback` | `string` | — | Per-route offline fallback HTML path. Overrides the global `offlineFallback` for matching routes. |
+
+#### `NavigationRetryConfig`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `boolean` | `false` | Enable smart retry. When `true`, the SW starts a background retry loop when serving the ultimate offline fallback. |
+| `intervalMs` | `number` | `5000` | Milliseconds between retry attempts. |
+| `maxRetries` | `number` | `12` | Maximum number of retry attempts before giving up. |
+
+#### Example — per-route policies and fallbacks
+
+```json
+"navigation": {
+  "mode": "network-first",
+  "offlineFallback": "/offline.html",
+  "rules": [
+    { "match": "/", "policy": "cache-first" },
+    { "match": "/about", "policy": "cache-first" },
+    { "match": "/blog/*", "policy": "network-first", "offlineFallback": "/blog-offline.html" },
+    { "match": "/dashboard/**", "policy": "network-only" },
+    { "match": "/notes/**", "policy": "stale-while-revalidate" }
+  ],
+  "retry": {
+    "enabled": true,
+    "intervalMs": 3000,
+    "maxRetries": 20
+  }
+}
+```
 
 ### `StrategyEntry` object
 

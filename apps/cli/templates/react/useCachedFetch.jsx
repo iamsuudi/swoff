@@ -79,6 +79,14 @@ export function useCachedFetch(url, options = {}) {
         if (cancelled) return;
         let selected = null;
         if (response) {
+          if (!response.ok) {
+            let errorMessage = `HTTP ${response.status}`;
+            try {
+              const errBody = await response.json();
+              errorMessage = errBody?.message || errBody?.error || errorMessage;
+            } catch {}
+            throw new Error(errorMessage);
+          }
           const raw = await response.json();
           selected = select ? select(raw) : raw;
           setData(selected);

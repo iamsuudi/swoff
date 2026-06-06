@@ -90,6 +90,12 @@ if (nav.precacheRoutes) {
     if (!fallback.includes(route)) fallback.push(route);
   }
 }
+if (nav.rules) {
+  for (const rule of nav.rules) {
+    if (rule.offlineFallback && !fallback.includes(rule.offlineFallback)) fallback.push(rule.offlineFallback);
+    if (rule.policy === "cache-first" && rule.match && !fallback.includes(rule.match)) fallback.push(rule.match);
+  }
+}
 const combined = [...new Set([...fallback, ...filtered])];
 const assetsToCache = combined.map(url => ({ url, options: {} }));
 

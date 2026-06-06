@@ -26,13 +26,70 @@ The only framework-specific surface is **view adapters** (React hooks, future Vu
 
 ## Navigation modes
 
-Swoff supports three navigation modes for different rendering strategies:
+Swoff supports four navigation modes for different rendering strategies:
 
 | Mode | Behavior | Use case |
 |---|---|---|
 | `"spa"` | Serves `/index.html` from precache for all unmatched `navigate` requests (checked *before* network). | Traditional SPAs (React, Vue, Svelte SPA). |
 | `"default"` | No special navigation handling. The SPA fallback is **not** served for navigations — the configured caching strategy handles all requests equally. | SSG sites (Astro, Hugo, 11ty) where pages are static files. |
 | `"network-first"` | Navigation requests try network first, cache the response on success, and fall back to runtime cache → precache → SPA fallback on failure. Non-navigation requests (API, RSC fetches, assets) use the configured strategy normally. | Any SSR/MPA framework (Next.js, Remix, Nuxt, SvelteKit, Laravel, Django, PHP, HTMX). |
+| `"stale-while-revalidate"` | Serves cached HTML instantly if available, then fetches a fresh version in the background. On cache miss, tries network, then falls through the offline chain. | Previously-visited SSR pages where instant loading matters more than absolute freshness. |
+
+## Per-route navigation policies
+
+Beyond the global mode, Swoff supports **per-route navigation policies** via `navigation.rules`. Each rule has a `match` glob pattern and a `policy`:
+
+```jsonc
+{
+  "features": {
+    "serviceWorker": {
+      "navigation": {
+        "mode": "network-first",
+        "rules": [
+          { "match": "/", "policy": "cache-first" },
+          { "match": "/about", "policy": "cache-first" },
+          { "match": "/blog/*", "policy": "network-first", "offlineFallback": "/blog-offline.html" },
+          { "match": "/dashboard/**", "policy": "network-only" },
+          { "match": "/notes/**", "policy": "stale-while-revalidate" }
+        ]
+      }
+    }
+  }
+}
+```
+
+| Policy | Behavior |
+|---|---|
+| `cache-first` | Serve from precache immediately. Never fetches. Ideal for SSG pages. |
+| `network-first` | Try network → cache on success → fallback chain. Standard SSR mode. |
+| `network-only` | Always fetch from network. Never caches. For dynamic pages. |
+| `stale-while-revalidate` | Serve cached HTML instantly, fetch fresh in background, update cache. |
+
+Rules are evaluated in order; the first match wins. Per-route `offlineFallback` paths are automatically precached at install time.
+
+## Smart navigation retry
+
+When a navigation falls through to the ultimate offline fallback, Swoff can start a **background retry loop**:
+
+```jsonc
+{
+  "features": {
+    "serviceWorker": {
+      "navigation": {
+        "retry": {
+          "enabled": true,
+          "intervalMs": 3000,
+          "maxRetries": 20
+        }
+      }
+    }
+  }
+}
+```
+
+On each retry, the SW fetches the failed URL. When a retry succeeds, the response is cached and a `swoff:navigation-online` custom event is dispatched so the app can auto-reload or show a "back online" toast. This eliminates the "found connectivity but need to manually refresh" problem.
+
+Retries run in the background via `event.waitUntil` — they don't block the current response.
 
 When `swoff init` detects a meta-framework in `package.json`, it automatically sets the correct `navigation.mode` and framework-specific `ignoreQueryParams`.
 
@@ -146,9 +203,10 @@ If the RSC payload were cached at `/about`, a full page refresh offline would fi
 
 When the SW can't satisfy a navigation request (no cache, no network), it **never** lets the browser show its own "This site can't be reached" error. Instead, it falls back through this chain:
 
-1. **User-provided offline page** — serve `/offline.html` from precache if configured
-2. **SPA shell** — serve `/index.html` from precache (client-side router can take over)
-3. **Inline 503 HTML** — a minimal built-in page saying "You're offline"
+1. **Per-route offline page** — serve the route-specific offline page from precache if a `NavigationRule` with `offlineFallback` matched
+2. **Global offline page** — serve the user's `navigation.offlineFallback` from precache
+3. **SPA shell** — serve `/index.html` from precache (client-side router can take over)
+4. **Inline 503 HTML** — a minimal built-in page saying "You're offline"
 
 The browser always receives a valid HTML response with `Content-Type: text/html`, preventing the native browser error page from kicking in.
 

@@ -156,6 +156,166 @@ describe("validateConfig", () => {
     });
   });
 
+  describe("navigation validation", () => {
+    it('accepts "network-first" navigation mode', () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "network-first", fallback: "/index.html" } } },
+      };
+      expect(validateConfig(config)).toEqual([]);
+    });
+
+    it('accepts "spa" and "default" navigation modes', () => {
+      const configSpa = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html" } } },
+      };
+      const configDefault = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "default", fallback: "/index.html" } } },
+      };
+      expect(validateConfig(configSpa)).toEqual([]);
+      expect(validateConfig(configDefault)).toEqual([]);
+    });
+
+    it("rejects invalid navigation mode", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "invalid", fallback: "/index.html" } } },
+      };
+      const errors = validateConfig(config);
+      expect(errors[0]).toContain("navigation.mode");
+    });
+
+    it("rejects non-string offlineFallback", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", offlineFallback: 123 } } },
+      };
+      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      expect(errors[0]).toContain("offlineFallback must be a string");
+    });
+
+    it("rejects non-array precacheRoutes", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", precacheRoutes: "/about" } } },
+      };
+      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      expect(errors[0]).toContain("precacheRoutes must be an array");
+    });
+
+    it("rejects precacheRoutes with non-string elements", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", precacheRoutes: [123] } } },
+      };
+      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      expect(errors[0]).toContain("precacheRoutes must be an array");
+    });
+
+    it("rejects non-array rules", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", rules: "not-an-array" } } },
+      };
+      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      expect(errors[0]).toContain("navigation.rules must be an array");
+    });
+
+    it("validates rules[].match is a non-empty string", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", rules: [{ match: "" }] } } },
+      };
+      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      expect(errors[0]).toContain("match must be a non-empty string");
+    });
+
+    it("validates rules[].policy is valid", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", rules: [{ match: "/blog/*", policy: "invalid" }] } } },
+      };
+      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      expect(errors[0]).toContain("policy must be one of");
+    });
+
+    it("validates rules[].offlineFallback is a string", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", rules: [{ match: "/blog/*", offlineFallback: 123 }] } } },
+      };
+      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      expect(errors[0]).toContain("offlineFallback must be a string");
+    });
+
+    it("accepts valid rules", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", rules: [
+          { match: "/blog/*", policy: "cache-first", offlineFallback: "/blog-offline.html" },
+          { match: "/dashboard/**", policy: "network-first", offlineFallback: "/dashboard-offline.html" },
+          { match: "/api/status", policy: "network-only" },
+          { match: "/notes/**", policy: "stale-while-revalidate" },
+        ] } } },
+      };
+      expect(validateConfig(config)).toEqual([]);
+    });
+
+    it('accepts "stale-while-revalidate" navigation mode', () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "stale-while-revalidate", fallback: "/index.html" } } },
+      };
+      expect(validateConfig(config)).toEqual([]);
+    });
+
+    it("rejects retry non-object", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", retry: "yes" } } },
+      };
+      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      expect(errors[0]).toContain("retry must be an object");
+    });
+
+    it("validates retry.enabled is boolean", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", retry: { enabled: "yes" } } } },
+      };
+      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      expect(errors[0]).toContain("retry.enabled must be a boolean");
+    });
+
+    it("validates retry.intervalMs is a non-negative integer", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", retry: { enabled: true, intervalMs: -100 } } } },
+      };
+      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      expect(errors[0]).toContain("retry.intervalMs must be a non-negative integer");
+    });
+
+    it("validates retry.maxRetries is a non-negative integer", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", retry: { enabled: true, maxRetries: -1 } } } },
+      };
+      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      expect(errors[0]).toContain("retry.maxRetries must be a non-negative integer");
+    });
+
+    it("accepts valid retry config", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", retry: { enabled: true, intervalMs: 3000, maxRetries: 5 } } } },
+      };
+      expect(validateConfig(config)).toEqual([]);
+    });
+  });
+
   describe("version validation", () => {
     it('accepts "package" version', () => {
       const config = {

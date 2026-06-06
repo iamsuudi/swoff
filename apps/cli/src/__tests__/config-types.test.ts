@@ -30,6 +30,12 @@ describe("config-types", () => {
       expect(defaultConfig.features.serviceWorker.navigation.fallback).toBe(
         "/index.html",
       );
+      expect(defaultConfig.features.serviceWorker.navigation.rules).toEqual([]);
+      expect(defaultConfig.features.serviceWorker.navigation.retry).toEqual({
+        enabled: false,
+        intervalMs: 5000,
+        maxRetries: 12,
+      });
       expect(defaultConfig.features.serviceWorker.version).toBe("package");
       expect(defaultConfig.features.serviceWorker.minSupportedVersion).toBe(
         "0.0.0",

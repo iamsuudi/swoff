@@ -40,6 +40,18 @@ export interface StrategyEntry {
   refetchOnFocus?: boolean;
 }
 
+export interface NavigationRule {
+  match: string;
+  policy?: "cache-first" | "network-first" | "network-only" | "stale-while-revalidate";
+  offlineFallback?: string;
+}
+
+export interface NavigationRetryConfig {
+  enabled: boolean;
+  intervalMs?: number;
+  maxRetries?: number;
+}
+
 export interface TagInvalidationConfig {
   debounceMs?: number;
   prefixes?: string[];
@@ -86,11 +98,13 @@ export interface SwoffConfig {
         timeout?: number;
       };
       navigation: {
-        mode: "spa" | "default" | "network-first";
+        mode: "spa" | "default" | "network-first" | "stale-while-revalidate";
         preload?: boolean;
         fallback: string;
         precacheRoutes?: string[];
         offlineFallback?: string;
+        rules?: NavigationRule[];
+        retry?: NavigationRetryConfig;
       };
     };
     refetchQueue: RefetchQueueConfig;
@@ -309,6 +323,8 @@ export const defaultConfig: SwoffConfig = {
         fallback: "/index.html",
         precacheRoutes: [],
         offlineFallback: "",
+        rules: [],
+        retry: { enabled: false, intervalMs: 5000, maxRetries: 12 },
       },
     },
     refetchQueue: { ...defaultRefetchQueue },
@@ -350,6 +366,8 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
         fallback: "/index.html",
         precacheRoutes: [],
         offlineFallback: "",
+        rules: [],
+        retry: { enabled: false, intervalMs: 5000, maxRetries: 12 },
       },
       strategy: {
         default: "cache-first",

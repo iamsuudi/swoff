@@ -25,19 +25,19 @@ import {
  *   // Optimistic update with rollback:
  *   const { mutate } = useMutation("/api/todos", {
  *     method: "POST",
- *     onMutate: () => { /* set optimistic state */ },
- *     onError: () => { /* rollback */ },
+ *     onMutate: () => { /* set optimistic state *\\/ },
+ *     onError: () => { /* rollback *\\/ },
  *   });
+ *
+ *   // Check result status after mutate:
+ *   const result = await mutate(body);
+ *   if (result.status === "success") navigate(`/item/${result.data.id}`);
+ *   if (result.status === "queued") navigate("/items");
+ *   if (result.status === "error") setError(result.error.message);
  */
 export function useMutation(url, options = {}) {
-  const [state, setState] = useState({
-    data: null,
-    error: null,
-    isLoading: false,
-    isError: false,
-    isSuccess: false,
-  });
-
+  const [lastResult, setLastResult] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [mutationId, setMutationId] = useState(null);
   const optionsRef = useRef(options);
   const urlRef = useRef(url);
@@ -47,7 +47,8 @@ export function useMutation(url, options = {}) {
 
   const mutate = useCallback(async (body, callbacks) => {
     const key = optionsRef.current.mutationKey;
-    if (key && inFlightKeys.current.has(key)) return null;
+    if (key && inFlightKeys.current.has(key))
+      return { status: "skipped" };
     if (key) inFlightKeys.current.add(key);
 
     let retriesLeft = optionsRef.current.retry === true
@@ -59,13 +60,7 @@ export function useMutation(url, options = {}) {
     const mid = "mut-" + crypto.randomUUID();
     setMutationId(mid);
     trackMutation(mid, "pending");
-    setState({
-      data: null,
-      error: null,
-      isLoading: true,
-      isError: false,
-      isSuccess: false,
-    });
+    setIsLoading(true);
 
     optionsRef.current.onMutate?.();
 
@@ -76,33 +71,25 @@ export function useMutation(url, options = {}) {
         const { response, queued } = await fetchWithCache(urlRef.current, fetchOptions);
         if (queued) {
           resolveMutation(mid, null);
-          setState({
-            data: null,
-            error: null,
-            isLoading: false,
-            isError: false,
-            isSuccess: false,
-          });
+          setIsLoading(false);
+          const r = { status: "queued" };
+          setLastResult(r);
           optionsRef.current.onSettled?.();
           callbacks?.onSettled?.();
           if (key) inFlightKeys.current.delete(key);
-          return null;
+          return r;
         }
         const data = await response.json();
         resolveMutation(mid, data);
-        setState({
-          data,
-          error: null,
-          isLoading: false,
-          isError: false,
-          isSuccess: true,
-        });
+        setIsLoading(false);
+        const r = { status: "success", data };
+        setLastResult(r);
         optionsRef.current.onSuccess?.(data);
         callbacks?.onSuccess?.(data);
         optionsRef.current.onSettled?.();
         callbacks?.onSettled?.();
         if (key) inFlightKeys.current.delete(key);
-        return data;
+        return r;
       } catch (err) {
         if (retriesLeft > 0) {
           retriesLeft--;
@@ -111,19 +98,15 @@ export function useMutation(url, options = {}) {
         }
         const error = err instanceof Error ? err : new Error(String(err));
         rejectMutation(mid, error);
-        setState({
-          data: null,
-          error,
-          isLoading: false,
-          isError: true,
-          isSuccess: false,
-        });
+        setIsLoading(false);
+        const r = { status: "error", error };
+        setLastResult(r);
         optionsRef.current.onError?.(error);
         callbacks?.onError?.(error);
         optionsRef.current.onSettled?.();
         callbacks?.onSettled?.();
         if (key) inFlightKeys.current.delete(key);
-        return null;
+        return r;
       }
     };
 
@@ -131,14 +114,21 @@ export function useMutation(url, options = {}) {
   }, []);
 
   const reset = useCallback(() => {
-    setState({
-      data: null,
-      error: null,
-      isLoading: false,
-      isError: false,
-      isSuccess: false,
-    });
+    setLastResult(null);
+    setIsLoading(false);
   }, []);
 
-  return { ...state, mutate, reset, mutationId };
+  return {
+    mutate,
+    isLoading,
+    isIdle: lastResult === null,
+    isQueued: lastResult?.status === "queued",
+    isSuccess: lastResult?.status === "success",
+    isError: lastResult?.status === "error",
+    data: lastResult?.status === "success" ? lastResult.data ?? null : null,
+    error: lastResult?.status === "error" ? lastResult.error ?? null : null,
+    lastResult,
+    reset,
+    mutationId,
+  };
 }

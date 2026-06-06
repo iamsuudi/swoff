@@ -546,6 +546,27 @@ mutate(JSON.stringify({ title: "New" }));
 The endpoint and request config (method, headers, auth) are fixed at the hook level.
 All calls to `mutate` share the same `isLoading`, `error`, `data`, and `isSuccess` state.
 
+#### `mutate()` return value
+
+`mutate()` returns a `MutateResult<T>` discriminated union:
+
+| Status | Meaning | `data` | `error` |
+|--------|---------|--------|---------|
+| `"success"` | Server responded with 2xx | `T` | — |
+| `"queued"` | Offline — stored in mutation queue | — | — |
+| `"error"` | Server/network error | — | `Error` |
+| `"skipped"` | Deduped — same `mutationKey` already in-flight | — | — |
+
+```ts
+const result = await mutate(body);
+if (result.status === "success") navigate(`/item/${result.data.id}`);
+if (result.status === "queued") navigate("/items");
+if (result.status === "error") setError(result.error.message);
+```
+
+The hook's reactive state (`isSuccess`, `isError`, `isQueued`, `data`, `error`) is derived
+from the same source as the return value — they stay in sync with the last mutation call.
+
 #### Options
 
 | Option | Type | Description |

@@ -23,9 +23,9 @@
     },
     "framework": {
       "type": "string",
-      "description": "Detected frontend framework. Used to generate framework-specific hooks and adapters. Set automatically by `swoff init`.",
+      "description": "Detected frontend framework. Used to generate framework-specific hooks and adapters. Set automatically by `swoff init`. When a meta-framework is detected (nextjs, remix, etc.), navigation.mode and strategy defaults are auto-configured.",
       "default": "vanilla",
-      "enum": ["react", "vue", "svelte", "vanilla"]
+      "enum": ["react", "vue", "svelte", "vanilla", "nextjs", "remix", "astro", "nuxt", "sveltekit"]
     },
     "apiBaseUrl": {
       "type": "string",
@@ -43,7 +43,7 @@
           "properties": {
             "enabled": {
               "type": "boolean",
-              "description": "Enable PWA installability (generate pwa-install.js + manifest.json)",
+              "description": "Enable PWA installability (generate pwa-injector.ts + manifest.json)",
               "default": true
             },
             "preventDefaultInstall": {
@@ -88,6 +88,12 @@
               "type": "boolean",
               "description": "Automatically activate newly registered service workers (skipWaiting). Only applies when a new version is registered — use with autoUpdate for fully silent updates, or wait for user consent then call handleUpdateApproved().",
               "default": false
+            },
+            "requestBatchWindowMs": {
+              "type": "integer",
+              "description": "Time window in ms to coalesce concurrent GET requests to the same URL before dispatching to the SW. 0 disables batching.",
+              "default": 50,
+              "minimum": 0
             },
             "strategy": {
               "type": "object",
@@ -232,21 +238,15 @@
                 }
               }
             },
-            "requestBatchWindowMs": {
-              "type": "integer",
-              "description": "Time window in ms to coalesce concurrent GET requests to the same URL before dispatching to the SW. 0 disables batching.",
-              "default": 50,
-              "minimum": 0
-            },
             "navigation": {
               "type": "object",
               "description": "Navigation request handling configuration",
               "properties": {
                 "mode": {
                   "type": "string",
-                  "description": "How navigation requests are handled. 'spa' falls back to fallback on cache miss. 'default' uses the strategy as-is without special navigation handling.",
+                  "description": "Navigation mode. 'spa': serve SPA fallback for unmatched navigations. 'default': passthrough (no special handling). 'network-first': try network, fall back to cache/offline. 'stale-while-revalidate': serve cached HTML instantly, refresh in background.",
                   "default": "spa",
-                  "enum": ["spa", "default"]
+                  "enum": ["spa", "default", "network-first", "stale-while-revalidate"]
                 },
                 "preload": {
                   "type": "boolean",
@@ -255,8 +255,67 @@
                 },
                 "fallback": {
                   "type": "string",
-                  "description": "Fallback URL for navigation requests when navigation mode is 'spa'",
+                  "description": "Fallback HTML for navigation requests. Used as the SPA shell when navigation mode is 'spa', and as the final fallback in the offline chain for all modes.",
                   "default": "/index.html"
+                },
+                "precacheRoutes": {
+                  "type": "array",
+                  "description": "Additional routes to fetch and cache during SW install (e.g. ['/', '/about']). Useful for SSG routes or critical pages that should work offline on first visit. Glob patterns not supported — use exact paths.",
+                  "items": { "type": "string" },
+                  "default": []
+                },
+                "offlineFallback": {
+                  "type": "string",
+                  "description": "Path to a custom offline HTML page (e.g. '/offline.html'). Served when the network is unavailable and no cached version of the requested page exists. The path is precached at install time.",
+                  "default": ""
+                },
+                "rules": {
+                  "type": "array",
+                  "description": "Per-route navigation policies. Each rule defines a glob pattern with a policy and optional offline fallback page.",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "match": {
+                        "type": "string",
+                        "description": "Glob pattern matching request paths (supports *, **, ?, {a,b}). Example: '/notes/**'"
+                      },
+                      "policy": {
+                        "type": "string",
+                        "description": "Navigation policy for matching routes. 'cache-first': serve from precache immediately (never fetches). 'network-first': try network, fall back to cache/offline. 'network-only': always fetch (never cache). 'stale-while-revalidate': serve cached HTML instantly, refresh in background.",
+                        "default": "network-first",
+                        "enum": ["cache-first", "network-first", "network-only", "stale-while-revalidate"]
+                      },
+                      "offlineFallback": {
+                        "type": "string",
+                        "description": "Per-route offline fallback HTML path. Overrides the global offlineFallback for matching routes. Automatically precached at install time."
+                      }
+                    },
+                    "required": ["match"]
+                  },
+                  "default": []
+                },
+                "retry": {
+                  "type": "object",
+                  "description": "Smart navigation retry configuration. When enabled, the SW starts a background retry loop when serving the ultimate offline fallback. On success, caches the response and broadcasts 'swoff:navigation-online' (client) or 'NAV_RETRY_SUCCESS' (SW postMessage).",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean",
+                      "description": "Enable smart retry. When true, the SW periodically retries failed navigations in the background.",
+                      "default": false
+                    },
+                    "intervalMs": {
+                      "type": "integer",
+                      "description": "Milliseconds between retry attempts.",
+                      "default": 5000,
+                      "minimum": 1000
+                    },
+                    "maxRetries": {
+                      "type": "integer",
+                      "description": "Maximum number of retry attempts before giving up.",
+                      "default": 12,
+                      "minimum": 1
+                    }
+                  }
                 }
               }
             }
@@ -459,7 +518,7 @@
           "properties": {
             "enabled": {
               "type": "boolean",
-              "description": "Enable push notification support (generates push.ts client + SW push handlers)",
+              "description": "Enable push notification support (generates push notification client + SW push handlers)",
               "default": false
             },
             "vapidPublicKey": {
@@ -490,14 +549,22 @@
       "properties": {
         "outputDir": {
           "type": "string",
-          "description": "Output directory for generated files",
+          "description": "Output directory for generated files (e.g. 'dist', 'public', '.next')",
           "default": "dist"
         },
         "swFilename": {
           "type": "string",
-          "description": "Service worker output filename (without version)",
+          "description": "Service worker output filename without version suffix (e.g. 'sw' produces sw-v1.2.3.js)",
           "default": "sw",
           "pattern": "^[a-zA-Z0-9-_]+$"
+        },
+        "precacheDirs": {
+          "type": "object",
+          "description": "Additional directories to scan for precache assets. Keys are source glob paths from project root, values are URL prefixes to serve them at. Example: { \".next/static\": \"/_next/static\" }",
+          "default": {},
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       },
       "required": ["outputDir", "swFilename"]

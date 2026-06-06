@@ -92,7 +92,8 @@ if (typeof document !== "undefined") {
  *   sw-ready                 - SW active and controlling page
  *   sw-error                 - SW registration failed
  *   cache-invalidated        - Cache entries cleared on SW confirmation (detail: { tags })
- *   swoff:cache-updated      - Background refresh completed (detail: { url })
+ *   swoff:cache-updated         - Background refresh completed (detail: { url })
+ *   swoff:offline-fallback      - Offline fallback page served (detail: { route, fallbackLevel, timestamp })
  *   swoff:notification       - SW or storage notification (detail: { level, code, message })
  *   mutation-sync-complete   - Queued mutations synced (detail: { succeeded, failed })
  *   mutation-sync-progress   - Batch progress during sync (detail: { succeeded, failed, total, current })
@@ -115,6 +116,20 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       window.dispatchEvent(
         new CustomEvent("swoff:cache-updated", {
           detail: { url: event.data.url },
+        })
+      );
+    }
+    if (event.data.type === "NAV_RETRY_SUCCESS") {
+      window.dispatchEvent(
+        new CustomEvent("swoff:navigation-online", {
+          detail: { url: event.data.url },
+        })
+      );
+    }
+    if (event.data.type === "OFFLINE_FALLBACK_ACTIVATED") {
+      window.dispatchEvent(
+        new CustomEvent("swoff:offline-fallback", {
+          detail: event.data.detail,
         })
       );
     }

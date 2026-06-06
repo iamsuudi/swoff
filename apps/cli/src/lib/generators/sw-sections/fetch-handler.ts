@@ -51,10 +51,12 @@ export function generateFetchHandler(
       timeout?: number;
     };
     navigation: {
-      mode?: "spa" | "default" | "network-first";
+      mode?: "spa" | "default" | "network-first" | "stale-while-revalidate";
       preload?: boolean;
       fallback?: string;
       offlineFallback?: string;
+      rules?: Array<{ match: string; policy?: string; offlineFallback?: string }>;
+      retry?: { enabled: boolean; intervalMs?: number; maxRetries?: number };
     };
     refetchQueue: {
       batchSize?: number;
@@ -80,6 +82,8 @@ export function generateFetchHandler(
       preload: navigationPreload,
       fallback: spaPath = "/index.html",
       offlineFallback: offlineFallbackPath = "",
+      rules: navRules = [],
+      retry: navRetry = { enabled: false },
     },
     refetchQueue: {
       batchSize: refetchBatchSize = 5,
@@ -200,13 +204,74 @@ const REFRESH_RETRY_DELAY_MS = ${refetchRetryDelayMs};`;
 "}\n" +
 "\n";
 
-  const navModeCode = navMode === "network-first" ? "\"network-first\"" : navMode === "default" ? "\"default\"" : "\"spa\"";
+  const navModeCode = navMode === "network-first" ? "\"network-first\"" : navMode === "default" ? "\"default\"" : navMode === "stale-while-revalidate" ? "\"stale-while-revalidate\"" : "\"spa\"";
   const offlineFallbackCode = offlineFallbackPath ? `"${offlineFallbackPath}"` : '""';
+  const hasRules = navRules.length > 0;
+  const navRulesCode = hasRules ? `const NAV_RULES = ${JSON.stringify(navRules.map((r) => ({
+    match: r.match,
+    policy: r.policy || "network-first",
+    ...(r.offlineFallback ? { offlineFallback: r.offlineFallback } : {}),
+  })), null, 2)};
+
+function matchRoutePolicy(url) {
+  const path = new URL(url).pathname;
+  for (const rule of NAV_RULES) {
+    if (matchGlob(path, rule.match)) {
+      return rule;
+    }
+  }
+  return null;
+}
+
+function matchRouteFallback(url) {
+  const rule = matchRoutePolicy(url);
+  return rule && rule.offlineFallback ? rule.offlineFallback : null;
+}
+
+` : "";
+
+  const retryIntervalMs = navRetry.intervalMs ?? 5000;
+  const retryMaxRetries = navRetry.maxRetries ?? 12;
+  const retryEnabled = navRetry.enabled;
+
+  const retryCode = `
+const NAV_RETRY_ENABLED = ${retryEnabled};
+const NAV_RETRY_INTERVAL_MS = ${retryIntervalMs};
+const NAV_RETRY_MAX_RETRIES = ${retryMaxRetries};
+
+// --- Smart Navigation Retry ---
+
+function startRetryLoop(event, request) {
+  if (!NAV_RETRY_ENABLED) return;
+  let retries = 0;
+  const retry = async () => {
+    try {
+      const response = await fetch(request.clone());
+      if (response.ok) {
+        await storeRuntime(request.clone(), response.clone());
+        const clients = await self.clients.matchAll();
+        for (const client of clients) {
+          client.postMessage({
+            type: "NAV_RETRY_SUCCESS",
+            url: request.url,
+          });
+        }
+        return;
+      }
+    } catch {}
+    retries++;
+    if (retries < NAV_RETRY_MAX_RETRIES) {
+      setTimeout(retry, NAV_RETRY_INTERVAL_MS);
+    }
+  };
+  setTimeout(retry, NAV_RETRY_INTERVAL_MS);
+}
+`;
 
   return `const NAV_MODE = ${navModeCode};
 const OFFLINE_FALLBACK_PATH = ${offlineFallbackCode};
 
-${trimDecl}
+${navRulesCode}${retryCode}${trimDecl}
 // --- Batch Refresh Queue ---
 
 const _refreshQueue = new Map();
@@ -501,19 +566,66 @@ async function cacheResponse(request, response) {
 async function fromSpaFallback(request) {
   if (NAV_MODE === "spa" && request.mode === "navigate") {
     const cache = await caches.open(CACHE_NAME);
-    return cache.match("${spaPath}");
+    const response = await cache.match("${spaPath}");
+    if (response) {
+      const clients = await self.clients.matchAll();
+      for (const client of clients) {
+        client.postMessage({
+          type: "OFFLINE_FALLBACK_ACTIVATED",
+          detail: { route: new URL(request.url).pathname, fallbackLevel: "spa-shell", timestamp: Date.now() },
+        });
+      }
+    }
+    return response;
   }
 }
 
-async function fromOfflineFallback() {
+async function fromOfflineFallback(request) {
   if (!OFFLINE_FALLBACK_PATH) return null;
   const cache = await caches.open(CACHE_NAME);
-  return cache.match(OFFLINE_FALLBACK_PATH);
+  const response = await cache.match(OFFLINE_FALLBACK_PATH);
+  if (response) {
+    const clients = await self.clients.matchAll();
+    for (const client of clients) {
+      client.postMessage({
+        type: "OFFLINE_FALLBACK_ACTIVATED",
+        detail: { route: request ? new URL(request.url).pathname : "/", fallbackLevel: "offline-page", timestamp: Date.now() },
+      });
+    }
+  }
+  return response;
 }
 
 async function fromUltimateFallback(request) {
-  // Try the offline fallback page first (user-provided)
-  const offline = await fromOfflineFallback();
+  // For non-navigation requests that don't expect HTML, return a JSON error
+  // to prevent content-type mismatches (e.g. HTML returned for JSON-expected responses)
+  if (request.mode !== "navigate") {
+    const accept = (request.headers.get("Accept") || "").toLowerCase();
+    if (!accept.includes("text/html")) {
+      return new Response(
+        JSON.stringify({ error: "offline", message: "You are offline and this resource is not cached" }),
+        { status: 503, headers: { "Content-Type": "application/json" } }
+      );
+    }
+  }
+  // Try per-route offline fallback first (from navigation rules)${hasRules ? `
+  const routeFallbackPath = matchRouteFallback(request.url);
+  if (routeFallbackPath) {
+    const cache = await caches.open(CACHE_NAME);
+    const match = await cache.match(routeFallbackPath);
+    if (match) {
+      const clients = await self.clients.matchAll();
+      for (const client of clients) {
+        client.postMessage({
+          type: "OFFLINE_FALLBACK_ACTIVATED",
+          detail: { route: new URL(request.url).pathname, fallbackLevel: "route-fallback", timestamp: Date.now() },
+        });
+      }
+      return match;
+    }
+  }` : ""}
+  // Try the global offline fallback page first (user-provided)
+  const offline = await fromOfflineFallback(request);
   if (offline) return offline;
   // Last resort: try the SPA shell index.html
   const cache = await caches.open(CACHE_NAME);
@@ -521,6 +633,13 @@ async function fromUltimateFallback(request) {
   if (shell) return shell;
   // Absolute last resort: return an inline HTML page so the browser
   // doesn't show its own "This site can't be reached" error
+  const clients = await self.clients.matchAll();
+  for (const client of clients) {
+    client.postMessage({
+      type: "OFFLINE_FALLBACK_ACTIVATED",
+      detail: { route: new URL(request.url).pathname, fallbackLevel: "inline-503", timestamp: Date.now() },
+    });
+  }
   return new Response(
     \`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Offline</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f5f5f5}div{text-align:center}h1{font-size:2rem;color:#333}p{color:#666}</style></head><body><div><h1>You're offline</h1><p>Please check your connection and try again.</p></div></body></html>\`,
     { status: 503, headers: { "Content-Type": "text/html" } }
@@ -528,7 +647,7 @@ async function fromUltimateFallback(request) {
 }
 
 ${
-  navMode === "network-first"
+  navMode === "network-first" || hasRules
     ? `// --- Navigate-First handler (for SSR/MPA navigation mode) ---
 
 async function navigateFirst(event, request) {
@@ -547,7 +666,111 @@ async function navigateFirst(event, request) {
   if (precached) return markFromCache(precached);
 
   const fallback = await fromUltimateFallback(request);
+  event.waitUntil(startRetryLoop(event, request));
   return fallback;
+}`
+    : ""
+}${
+  navMode === "stale-while-revalidate" && !hasRules
+    ? `
+// --- Navigate-First-SWR handler (for stale-while-revalidate navigation mode) ---
+
+async function navigateFirst_SWR(event, request) {
+  const cached = await fromRuntime(request);
+  if (cached) {
+    event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
+    return markFromCache(cached);
+  }
+
+  const precached = await fromPrecache(request);
+  if (precached) {
+    event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
+    return markFromCache(precached);
+  }
+
+  try {
+    const response = await _fetch(event, request);
+    if (response && response.ok) {
+      event.waitUntil(storeRuntime(request.clone(), response.clone()));
+    }
+    if (response) return response;
+  } catch {}
+
+  const fallback = await fromUltimateFallback(request);
+  event.waitUntil(startRetryLoop(event, request));
+  return fallback;
+}`
+    : ""
+}${
+  hasRules
+    ? `
+// --- Navigate-With-Rules handler (for per-route navigation policies) ---
+
+async function navigateWithRules(event, request) {
+  const rule = matchRoutePolicy(request.url);
+  if (!rule) {
+    // No matching rule — use global navigation mode behavior
+    if (NAV_MODE === "network-first") {
+      return navigateFirst(event, request);
+    }
+    if (NAV_MODE === "stale-while-revalidate") {
+      return navigateFirst_SWR(event, request);
+    }
+    return applyStrategy(event, request, determineCacheStrategy(event.request, ${JSON.stringify(strategies)}, { defaultStrategy: "${defaultStrategy}" }));
+  }
+  const policy = rule.policy;
+  switch (policy) {
+    case "cache-first": {
+      const precached = await fromPrecache(request);
+      if (precached) return markFromCache(precached);
+      const cached = await fromRuntime(request);
+      if (cached) return markFromCache(cached);
+      const fb1 = await fromUltimateFallback(request);
+      event.waitUntil(startRetryLoop(event, request));
+      return fb1;
+    }
+    case "network-first": {
+      try {
+        const response = await _fetch(event, request);
+        if (response && response.ok) {
+          event.waitUntil(storeRuntime(request.clone(), response.clone()));
+        }
+        if (response) return response;
+      } catch {}
+      const cached = await fromRuntime(request);
+      if (cached) return markFromCache(cached);
+      const precached = await fromPrecache(request);
+      if (precached) return markFromCache(precached);
+      const fb2 = await fromUltimateFallback(request);
+      event.waitUntil(startRetryLoop(event, request));
+      return fb2;
+    }
+    case "network-only": {
+      return _fetch(event, request);
+    }
+    case "stale-while-revalidate": {
+      const cached = await fromRuntime(request);
+      if (cached) {
+        event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
+        return markFromCache(cached);
+      }
+      const precached = await fromPrecache(request);
+      if (precached) {
+        event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
+        return markFromCache(precached);
+      }
+      try {
+        const response = await _fetch(event, request);
+        if (response && response.ok) {
+          event.waitUntil(storeRuntime(request.clone(), response.clone()));
+        }
+        if (response) return response;
+      } catch {}
+      const fb3 = await fromUltimateFallback(request);
+      event.waitUntil(startRetryLoop(event, request));
+      return fb3;
+    }
+  }
 }`
     : ""
 }
@@ -737,7 +960,17 @@ async function handleMutation(event) {
   }`
   }
   ${cacheStrategy === "explicit-only" ? `if (!request.headers.get("X-SW-Cache-Strategy")) return;` : ""}
-  ${navMode === "network-first" ? `
+  ${hasRules ? `
+  if (request.mode === "navigate") {
+    event.respondWith(navigateWithRules(event, request));
+    return;
+  }
+` : navMode === "stale-while-revalidate" ? `
+  if (request.mode === "navigate") {
+    event.respondWith(navigateFirst_SWR(event, request));
+    return;
+  }
+` : navMode === "network-first" ? `
   if (request.mode === "navigate") {
     event.respondWith(navigateFirst(event, request));
     return;

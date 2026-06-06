@@ -105,6 +105,17 @@ export function assembleSW(config: SwoffConfig, version: string, projectRoot?: s
     }
   }
 
+  // Collect rule offlineFallback pages + cache-first routes into precache
+  const navRules = config.features.serviceWorker.navigation.rules || [];
+  for (const rule of navRules) {
+    if (rule.offlineFallback && !assetsToCache.includes(rule.offlineFallback)) {
+      assetsToCache.push(rule.offlineFallback);
+    }
+    if (rule.policy === "cache-first" && rule.match && !assetsToCache.includes(rule.match)) {
+      assetsToCache.push(rule.match);
+    }
+  }
+
   const formattedAssets = assetsToCache.map((url) => ({ url, options: {} }));
 
   let sw = getDefaultTemplate();

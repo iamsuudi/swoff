@@ -172,14 +172,62 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       }
       const navigation = sw.navigation as Record<string, unknown> | undefined;
       if (navigation && typeof navigation === "object") {
-        if (navigation.mode !== undefined && !["spa", "default"].includes(navigation.mode as string)) {
-          errors.push('features.serviceWorker.navigation.mode must be "spa" or "default"');
+        if (navigation.mode !== undefined && !["spa", "default", "network-first", "stale-while-revalidate"].includes(navigation.mode as string)) {
+          errors.push('features.serviceWorker.navigation.mode must be "spa", "default", "network-first", or "stale-while-revalidate"');
         }
         if (navigation.fallback !== undefined && typeof navigation.fallback !== "string") {
           errors.push("features.serviceWorker.navigation.fallback must be a string");
         }
         if (navigation.preload !== undefined && typeof navigation.preload !== "boolean") {
           errors.push("features.serviceWorker.navigation.preload must be a boolean");
+        }
+        if (navigation.offlineFallback !== undefined && typeof navigation.offlineFallback !== "string") {
+          errors.push("features.serviceWorker.navigation.offlineFallback must be a string");
+        }
+        if (navigation.precacheRoutes !== undefined) {
+          if (!Array.isArray(navigation.precacheRoutes) || !(navigation.precacheRoutes as unknown[]).every((r) => typeof r === "string")) {
+            errors.push("features.serviceWorker.navigation.precacheRoutes must be an array of strings");
+          }
+        }
+        const rules = navigation.rules as unknown[] | undefined;
+        if (rules !== undefined) {
+          if (!Array.isArray(rules)) {
+            errors.push("features.serviceWorker.navigation.rules must be an array");
+          } else {
+            for (let i = 0; i < rules.length; i++) {
+              const rule = rules[i] as Record<string, unknown>;
+              if (!rule || typeof rule !== "object") {
+                errors.push(`features.serviceWorker.navigation.rules[${i}] must be an object`);
+                continue;
+              }
+              if (typeof rule.match !== "string" || rule.match.trim() === "") {
+                errors.push(`features.serviceWorker.navigation.rules[${i}].match must be a non-empty string`);
+              }
+              const validPolicies = ["cache-first", "network-first", "network-only", "stale-while-revalidate"];
+              if (rule.policy !== undefined && !validPolicies.includes(rule.policy as string)) {
+                errors.push(`features.serviceWorker.navigation.rules[${i}].policy must be one of: ${validPolicies.join(", ")}`);
+              }
+              if (rule.offlineFallback !== undefined && typeof rule.offlineFallback !== "string") {
+                errors.push(`features.serviceWorker.navigation.rules[${i}].offlineFallback must be a string`);
+              }
+            }
+          }
+        }
+        const retry = navigation.retry as Record<string, unknown> | undefined;
+        if (retry !== undefined) {
+          if (typeof retry !== "object") {
+            errors.push("features.serviceWorker.navigation.retry must be an object");
+          } else {
+            if (retry.enabled !== undefined && typeof retry.enabled !== "boolean") {
+              errors.push("features.serviceWorker.navigation.retry.enabled must be a boolean");
+            }
+            if (retry.intervalMs !== undefined && (typeof retry.intervalMs !== "number" || retry.intervalMs < 0 || !Number.isInteger(retry.intervalMs))) {
+              errors.push("features.serviceWorker.navigation.retry.intervalMs must be a non-negative integer");
+            }
+            if (retry.maxRetries !== undefined && (typeof retry.maxRetries !== "number" || retry.maxRetries < 0 || !Number.isInteger(retry.maxRetries))) {
+              errors.push("features.serviceWorker.navigation.retry.maxRetries must be a non-negative integer");
+            }
+          }
         }
       }
       if (sw.requestBatchWindowMs !== undefined && (typeof sw.requestBatchWindowMs !== "number" || sw.requestBatchWindowMs < 0 || !Number.isInteger(sw.requestBatchWindowMs))) {

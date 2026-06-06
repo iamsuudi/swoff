@@ -341,15 +341,6 @@ describe("validateConfig", () => {
       expect(validateConfig(config)).toEqual([]);
     });
 
-    it("rejects false version", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: false as unknown as string } },
-      };
-      const errors = validateConfig(config);
-      expect(errors[0]).toContain("features.serviceWorker.version must be a string");
-    });
-
     it("rejects invalid version string", () => {
       const config = {
         ...validConfig,

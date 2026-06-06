@@ -11,7 +11,7 @@ export function generateGuide(ctx: GuideContext): string[] {
   const { config, frameworkName, lang } = ctx;
   const ext = lang === "ts" ? "ts" : "js";
 
-  const isReact = frameworkName === "react";
+  const isReact = ["react", "nextjs", "remix", "astro"].includes(frameworkName);
   const hasClientInjector = true;
 
   lines.push("");

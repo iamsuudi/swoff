@@ -10,12 +10,12 @@ import { generatePwaIndexCode } from "../../../runtime/pwa-index.js";
 export function generatePwaInstall(ctx: GeneratorContext): void {
   const opts = { ts: ctx.ext === "ts", ext: ctx.ext };
 
-  writeFile(ctx, `pwa/injector.${ctx.ext}`, generatePwaInjectorCode({
+  writeFile(ctx, `pwa/injector.${ctx.ext}`, generatePwaInjectorCode(opts));
+
+  writeFile(ctx, `pwa/prompt.${ctx.ext}`, generatePwaPromptCode({
     ...opts,
     preventDefaultInstall: ctx.config.features.pwa.preventDefaultInstall,
   }));
-
-  writeFile(ctx, `pwa/prompt.${ctx.ext}`, generatePwaPromptCode(opts));
 
   writeFile(ctx, `pwa/index.${ctx.ext}`, generatePwaIndexCode(opts));
 }

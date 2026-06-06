@@ -1,19 +1,13 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { join, dirname } from "path";
+import { join } from "path";
 import { fileURLToPath } from "url";
 import { loadConfigAsync } from "../config/loader.js";
+import { resolveVersion, isVersionEnabled } from "./sw-build-utils.js";
 import { assembleSW } from "./sw-sections/assemble-sw.js";
 
 interface GeneratorOptions {
   projectRoot?: string;
   configPath?: string;
-}
-
-function resolveVersion(config: { features: { serviceWorker: { version: string; minSupportedVersion: string } } }, pkgVersion: string): string {
-  const v = config.features.serviceWorker.version;
-  if (v === "hash") return "0.0.0";
-  if (v === "package") return pkgVersion || "1.0.0";
-  return v;
 }
 
 export async function generateSW(options: GeneratorOptions = {}): Promise<{ version: string; outputFile: string }> {
@@ -39,8 +33,8 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ vers
   }
 
   const v = config.features.serviceWorker.version;
-  const versionEnabled = v !== "hash";
-  const version = resolveVersion(config, pkg.version || "1.0.0");
+  const versionEnabled = isVersionEnabled(v);
+  const version = resolveVersion(v, pkg.version || "1.0.0");
   const sw = assembleSW(config, version, optProjectRoot);
 
   const outputDir = join(optProjectRoot, config.build.outputDir);

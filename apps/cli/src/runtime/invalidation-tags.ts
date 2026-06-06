@@ -158,7 +158,8 @@ const CASCADING${T(ts, "Record<string, string[]> | null")} = ${cascadingCode};
 
 /** Generate cache invalidation tags from a URL path. Tries configured patterns first, falls back to segment-based generation. */
 export function generateTags(url${T(ts, "string | URL")})${R(ts, "string[]")}{
-  const parsed = typeof url === "string" ? new URL(url, window.location.origin) : url;
+  const base = typeof window !== "undefined" ? window.location.origin : "";
+  const parsed = typeof url === "string" ? new URL(url, base) : url;
   const path = parsed.pathname;
 
   // Try configured patterns first

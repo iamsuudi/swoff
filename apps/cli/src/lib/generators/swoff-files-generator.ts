@@ -40,6 +40,7 @@ import { generateTypeDefinitions } from "./file-generators/type-definitions.js";
 import { generateFrameworkAdapters } from "./file-generators/generate-framework-adapters.js";
 import { generateGuide } from "./file-generators/guide-generator.js";
 import { generateReset } from "./file-generators/reset.js";
+import { generateOpenDB } from "./file-generators/open-db.js";
 import { generateFetchState } from "./file-generators/fetch-state.js";
 import { generateNotification } from "./file-generators/notification-generator.js";
 interface Step {
@@ -50,7 +51,7 @@ interface Step {
 
 export function generateFiles(ctx: GeneratorContext): string[] {
   const steps: Step[] = [
-    { name: "api-config", gen: () => generateApiConfig(ctx), enabled: true },
+    { name: "api-config", gen: () => generateApiConfig(ctx), enabled: !!ctx.config.apiBaseUrl },
     { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
     { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: true },
     { name: "client-injector", gen: () => generateClientInjector(ctx), enabled: true },
@@ -58,6 +59,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     { name: "cache/index", gen: () => generateCache(ctx), enabled: true },
     { name: "fetch/state", gen: () => generateFetchState(ctx), enabled: true },
     { name: "reset", gen: () => generateReset(ctx), enabled: true },
+    { name: "db", gen: () => generateOpenDB(ctx), enabled: true },
     { name: "offline/queue", gen: () => generateMutationQueue(ctx), enabled: ctx.config.features.mutationQueue.enabled },
     { name: "offline/state", gen: () => generateMutationState(ctx), enabled: ctx.config.features.mutationQueue.enabled },
     { name: "offline/sync", gen: () => generateBackgroundSync(ctx), enabled: ctx.config.features.backgroundSync && ctx.config.features.mutationQueue.enabled && !(ctx.config.features.auth.enabled && ctx.config.features.auth.type !== "cookie") },
@@ -67,12 +69,12 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     { name: "sw-generator", gen: () => generateSwGeneratorBuild(ctx), enabled: true },
     { name: "swoff.d.ts", gen: () => generateTypeDefinitions(ctx), enabled: ctx.ext === "ts" },
     { name: "pwa/injector", gen: () => generatePwaInstall(ctx), enabled: ctx.config.features.pwa.enabled },
-    { name: "cache/tags", gen: () => generateInvalidationTags(ctx), enabled: true },
+    { name: "cache/tags", gen: () => generateInvalidationTags(ctx), enabled: ctx.config.features.tagInvalidation.enabled !== false },
     { name: "graphql/index", gen: () => generateGqlWrapper(ctx), enabled: ctx.config.features.graphql.enabled },
     { name: "realtime/notifications", gen: () => generatePush(ctx), enabled: ctx.config.features.pushNotifications?.enabled ?? false },
     { name: "realtime/server-push", gen: () => generateServerPush(ctx), enabled: ctx.config.features.serverPush.enabled },
-    { name: "framework-adapters", gen: () => generateFrameworkAdapters(ctx), enabled: true },
-    { name: "notification", gen: () => generateNotification(ctx), enabled: true },
+    { name: "framework-adapters", gen: () => generateFrameworkAdapters(ctx), enabled: ["react", "nextjs", "remix", "astro"].includes(ctx.frameworkName) },
+    { name: "notification", gen: () => generateNotification(ctx), enabled: ctx.config.features.pushNotifications?.enabled ?? false },
     { name: "GUIDE.md", gen: () => generateGuide(ctx), enabled: true },
   ];
 
@@ -144,7 +146,7 @@ if (fileURLToPath(import.meta.url) === fileURLToPath(new URL(process.argv[1], "f
       console.log(`     - Use { invalidate: [...] } for custom cache invalidation`);
     }
   }).catch((err) => {
-    console.error("Failed to load config:", err.message);
+    console.error("Failed to load config:", err instanceof Error ? err.message : String(err));
     process.exit(1);
   });
 }

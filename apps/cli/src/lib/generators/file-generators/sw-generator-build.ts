@@ -39,12 +39,13 @@ const template = readFileSync(templatePath, 'utf8');
 
 const swConfig = config.features?.serviceWorker || {};
 const versionField = swConfig.version;
-const versionEnabled = versionField !== "hash";
+
+const versionEnabled = versionField !== false && versionField !== "hash";
 const version = versionField === "package"
   ? (pkg.version || '1.0.0')
   : versionField === "hash"
     ? "0.0.0"
-    : versionField || (pkg.version || '1.0.0');
+    : (typeof versionField === "string" ? versionField : pkg.version || '1.0.0');
 const outputDir = config.build?.outputDir || 'dist';
 const swFilename = config.build?.swFilename || 'sw';
 
@@ -65,6 +66,10 @@ function collectAssets(dir, baseDir) {
     }
   }
   return assets;
+}
+
+function generateCacheNameHash(content) {
+  return 'sw-cache-' + createHash('sha256').update(content).digest('hex').slice(0, 12);
 }
 
 const dirsRaw = config.build?.precacheDirs || {};

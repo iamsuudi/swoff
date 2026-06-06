@@ -6,6 +6,7 @@
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { defaultConfig, mergeConfigs, CONFIG_VERSION, type SwoffConfig } from "../shared/config-types.js";
+import { log } from "../cli/logger.js";
 
 export interface LoadConfigResult {
   config: SwoffConfig;
@@ -15,13 +16,13 @@ export interface LoadConfigResult {
 
 function checkConfigVersion(config: SwoffConfig): void {
   if (config.configVersion === undefined) {
-    console.warn(
-      "[swoff] Config is missing configVersion — the format may have changed since it was created.\n" +
+    log.warn(
+      "Config is missing configVersion — the format may have changed since it was created.\n" +
       "  Add \"configVersion\": 1 to your swoff.config.json to suppress this warning.",
     );
   } else if (config.configVersion > CONFIG_VERSION) {
-    console.warn(
-      `[swoff] Config has configVersion ${config.configVersion}, but this CLI version supports up to ${CONFIG_VERSION}.\n` +
+    log.warn(
+      `Config has configVersion ${config.configVersion}, but this CLI version supports up to ${CONFIG_VERSION}.\n` +
       "  Some settings may not be recognized. Upgrade @swoff/cli for full compatibility.",
     );
   }
@@ -43,7 +44,7 @@ export function loadConfig(projectRoot: string, explicitPath?: string): LoadConf
         checkConfigVersion(config);
         return { config, configPath: explicitPath, configSource: "JSON" };
       } catch {
-        console.warn(`[swoff] Warning: Failed to parse explicit config "${explicitPath}" — falling back to defaults`);
+        log.warn(`Failed to parse explicit config "${explicitPath}" — falling back to defaults`);
         return { config: defaultConfig, configPath: null, configSource: "defaults" };
       }
     }
@@ -61,16 +62,11 @@ export function loadConfig(projectRoot: string, explicitPath?: string): LoadConf
         checkConfigVersion(config);
         return { config, configPath: path, configSource: "JSON" };
       } catch {
-        console.warn(`[swoff] Warning: Failed to parse "${path}" — falling back to defaults`);
+        log.warn(`Failed to parse "${path}" — falling back to defaults`);
       }
     }
 
-    // JS configs require the async loader
-    if (file.endsWith(".js")) {
-      throw new Error(
-        `JavaScript config files require the async loader. Use loadConfigAsync() instead of loadConfig() for "${path}".`
-      );
-    }
+      // JS configs are handled by loadConfigAsync
   }
 
   return { config: defaultConfig, configPath: null, configSource: "defaults" };
@@ -80,17 +76,44 @@ export function loadConfig(projectRoot: string, explicitPath?: string): LoadConf
  * Async version that also tries to load .js configs via dynamic import.
  */
 export async function loadConfigAsync(projectRoot: string, explicitPath?: string): Promise<LoadConfigResult> {
-  const syncResult = loadConfig(projectRoot, explicitPath);
-  if (syncResult.configPath && syncResult.configPath.endsWith(".js")) {
+  // Handle explicit JS path directly
+  if (explicitPath && existsSync(explicitPath) && explicitPath.endsWith(".js")) {
     try {
-      const mod = await import(syncResult.configPath);
+      const fileUrl = `file://${explicitPath}`;
+      const mod = await import(fileUrl);
       const raw = (mod.default || mod) as Partial<SwoffConfig>;
       const config = mergeConfigs(defaultConfig, raw);
       checkConfigVersion(config);
-      return { config, configPath: syncResult.configPath, configSource: "JavaScript" };
+      return { config, configPath: explicitPath, configSource: "JavaScript" };
     } catch {
-      console.warn(`[swoff] Warning: Failed to load JS config "${syncResult.configPath}" — falling back to defaults`);
+      log.warn(`Failed to load JS config "${explicitPath}" — falling back to defaults`);
       return { config: defaultConfig, configPath: null, configSource: "defaults" };
+    }
+  }
+
+  // Try JSON via sync loader (handles explicit JSON and default JSON paths)
+  const syncResult = loadConfig(projectRoot, explicitPath);
+  if (syncResult.configPath) {
+    return syncResult;
+  }
+
+  // If an explicit path was given and sync loader didn't find it, stop here
+  if (explicitPath) {
+    return syncResult;
+  }
+
+  // No config found yet — try swoff.config.js
+  const jsPath = join(projectRoot, "swoff.config.js");
+  if (existsSync(jsPath)) {
+    try {
+      const fileUrl = `file://${jsPath}`;
+      const mod = await import(fileUrl);
+      const raw = (mod.default || mod) as Partial<SwoffConfig>;
+      const config = mergeConfigs(defaultConfig, raw);
+      checkConfigVersion(config);
+      return { config, configPath: jsPath, configSource: "JavaScript" };
+    } catch {
+      log.warn(`Failed to load JS config "${jsPath}" — falling back to defaults`);
     }
   }
 

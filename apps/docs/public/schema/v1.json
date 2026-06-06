@@ -429,6 +429,11 @@
           "type": "object",
           "description": "Tag-based cache invalidation configuration. Object-only (boolean shorthand not supported).",
           "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable tag-based cache invalidation. When false, the cache/tags file is not generated and tag logic is omitted from the SW.",
+              "default": true
+            },
             "debounceMs": {
               "type": "integer",
               "description": "Debounce window (ms) for coalescing rapid invalidations. When > 0, repeated INVALIDATE_TAG messages within the window are batched and processed once, reducing redundant cache scans.",

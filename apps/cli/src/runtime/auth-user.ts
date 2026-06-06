@@ -78,24 +78,10 @@ export function generateAuthUserCode(
 
 import { API_BASE } from "../config.${ext}";
 
+import { openDB } from "../db.${ext}";
+
 const DB_NAME = "swoff-auth-user";
 const STORE_NAME = "current-user";
-// Bump this when adding new indexes/stores for schema migration
-const DB_VERSION = 1;
-
-function openAuthDB()${R(ts, "Promise<IDBDatabase>")}{
-  return new Promise${PT(ts, "IDBDatabase")}((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = (e) => {
-      const db = (e.target${AS(ts, "IDBOpenDBRequest")}).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: "key" });
-      }
-    };
-    request.onsuccess = (e) => resolve((e.target${AS(ts, "IDBOpenDBRequest")}).result);
-    request.onerror = (e) => reject((e.target${AS(ts, "IDBRequest")}).error);
-  });
-}
 
 /**
  * Refresh the auth session.
@@ -140,7 +126,7 @@ export async function fetchCurrentUser()${R(ts, "Promise<Record<string, unknown>
 
 /** Persist user data to IndexedDB for offline access. */
 export async function cacheUser(user${T(ts, "Record<string, unknown>")})${R(ts, "Promise<void>")}{
-  const db = await openAuthDB();
+  const db = await openDB(DB_NAME, STORE_NAME, "key");
   return new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
@@ -152,7 +138,7 @@ export async function cacheUser(user${T(ts, "Record<string, unknown>")})${R(ts, 
 
 /** Load user data from IndexedDB cache (no token — only user object survives refresh). */
 export async function getCachedUser()${R(ts, "Promise<Record<string, unknown> | null>")}{
-  const db = await openAuthDB();
+  const db = await openDB(DB_NAME, STORE_NAME, "key");
   return new Promise${PT(ts, "Record<string, unknown> | null")}((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
@@ -164,7 +150,7 @@ export async function getCachedUser()${R(ts, "Promise<Record<string, unknown> | 
 
 /** Remove user data from IndexedDB cache. Call on logout. */
 export async function clearCachedUser()${R(ts, "Promise<void>")}{
-  const db = await openAuthDB();
+  const db = await openDB(DB_NAME, STORE_NAME, "key");
   return new Promise${PT(ts, "void")}((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);

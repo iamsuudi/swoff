@@ -62,8 +62,6 @@ ${ts
 
 ${importLines}${additionalImports}const DB_NAME = "swoff-queue";
 const STORE_NAME = "mutations";
-// Bump this when adding new indexes/stores for schema migration
-const DB_VERSION = 1;
 const BATCH_SIZE = ${batchSize};
 const BATCH_DELAY_MS = ${batchDelayMs};
 const MAX_RETRIES = ${maxRetries};
@@ -73,18 +71,14 @@ function sleep(ms${T(ts, "number")})${R(ts, "Promise<void>")}{
   return new Promise((r) => setTimeout(r, ms));
 }
 
+import { openDB } from "../db.${ext}";
+
 function openQueueDB()${R(ts, "Promise<IDBDatabase>")}{
-  return new Promise${PT(ts, "IDBDatabase")}((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = (e) => {
-      const db = (e.target${AS(ts, "IDBOpenDBRequest")}).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: "id" });
-        store.createIndex("by-timestamp", "timestamp");
-      }
-    };
-    request.onsuccess = (e) => resolve((e.target${AS(ts, "IDBOpenDBRequest")}).result);
-    request.onerror = (e) => reject((e.target${AS(ts, "IDBRequest")}).error);
+  return openDB(DB_NAME, STORE_NAME, "id", (db) => {
+    if (!db.objectStoreNames.contains(STORE_NAME)) {
+      const store = db.createObjectStore(STORE_NAME, { keyPath: "id" });
+      store.createIndex("by-timestamp", "timestamp");
+    }
   });
 }
 
@@ -232,8 +226,8 @@ export async function processMutationQueue()${R(ts, "Promise<void>")}{
       // Emit progress after every BATCH_SIZE mutations
       if ((succeeded + failed) % BATCH_SIZE === 0 || succeeded + failed === total) {
         window.dispatchEvent(
-          new CustomEvent("mutation-sync-complete", {
-            detail: { succeeded, failed, total, current: succeeded + failed },
+          new CustomEvent("mutation-sync-progress", {
+            detail: { succeeded, failed, total },
           })
         );
       }

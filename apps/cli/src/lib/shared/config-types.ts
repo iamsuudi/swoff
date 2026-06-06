@@ -53,6 +53,7 @@ export interface NavigationRetryConfig {
 }
 
 export interface TagInvalidationConfig {
+  enabled?: boolean;
   debounceMs?: number;
   prefixes?: string[];
   patterns?: Record<string, string[]>;
@@ -202,12 +203,34 @@ export const defaultServerPush = {
 };
 
 export const defaultTagInvalidation: TagInvalidationConfig = {
+  enabled: true,
   debounceMs: 0,
   prefixes: [...API_PREFIXES],
   patterns: {},
   singularization: {},
   cascading: {},
 };
+
+export function deepMerge<T>(base: T, override: Partial<T> | Record<string, unknown>): T {
+  const result = { ...base } as Record<string, unknown>;
+  for (const key of Object.keys(override as Record<string, unknown>)) {
+    const baseVal = (base as Record<string, unknown>)[key];
+    const overrideVal = (override as Record<string, unknown>)[key];
+    if (
+      baseVal &&
+      overrideVal &&
+      typeof baseVal === "object" &&
+      typeof overrideVal === "object" &&
+      !Array.isArray(baseVal) &&
+      !Array.isArray(overrideVal)
+    ) {
+      result[key] = deepMerge(baseVal, overrideVal);
+    } else {
+      result[key] = overrideVal ?? baseVal;
+    }
+  }
+  return result as T;
+}
 
 export function mergeConfigs(
   base: SwoffConfig,

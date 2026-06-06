@@ -68,8 +68,19 @@ function generateEnsureValidAuth(
   refreshPath: string,
   ext: string,
 ): string {
-  const tokenArg = cookieAuth ? "" : "auth?.token";
-  return `/** Try to restore the session after page refresh — delegates to refreshSession() in ./user.${ext}. */
+  const cookieGuard = cookieAuth
+    ? `  // Cookie auth: server manages the session. No token to restore.
+  if (!auth.token) return auth;
+`
+    : `  // Token missing after page refresh — try silent session restoration
+  if (!auth.token) {
+    return tryRestoreSession();
+  }
+`;
+
+  const restoreFunc = cookieAuth
+    ? ""
+    : `
 let restorePromise${T(ts, "Promise<AuthData | null> | null")} = null;
 
 async function tryRestoreSession()${R(ts, "Promise<AuthData | null>")}{
@@ -89,18 +100,17 @@ async function tryRestoreSession()${R(ts, "Promise<AuthData | null>")}{
   })();
   try { return await restorePromise; } finally { restorePromise = null; }
 }
+`;
 
+  const tokenArg = cookieAuth ? "" : "auth?.token";
+  return `/** Try to restore the session after page refresh — delegates to refreshSession() in ./user.${ext}. */${restoreFunc}
 let refreshPromise${T(ts, "Promise<AuthData | null> | null")} = null;
 
 export async function ensureValidAuth()${R(ts, "Promise<AuthData | null>")}{
   const auth = await getAuth();
   if (!auth) return null;
 
-  // Token missing after page refresh — try silent session restoration
-  if (!auth.token) {
-    return tryRestoreSession();
-  }
-
+${cookieGuard}
   if (!auth.expiresAt || Date.now() < auth.expiresAt) return auth;
 
   if (!refreshPromise) {
@@ -200,33 +210,19 @@ export function createAuthFromResponse(response) {
  */
 
 import { refreshSession } from "./user.${ext}";
+import { openDB } from "../db.${ext}";
 
 ${authDataInterface}const DB_NAME = "swoff-auth";
 const STORE_NAME = "auth";
-// Bump this when adding new indexes/stores for schema migration
-const DB_VERSION = 1;
 
 let memoryAuth${T(ts, "AuthData | null")} = null;
 
 ${createAuthFromResponseBlock}
-function openAuthDB()${R(ts, "Promise<IDBDatabase>")}{
-  return new Promise${PT(ts, "IDBDatabase")}((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = (e) => {
-      const db = (e.target${AS(ts, "IDBOpenDBRequest")}).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: "key" });
-      }
-    };
-    request.onsuccess = (e) => resolve((e.target${AS(ts, "IDBOpenDBRequest")}).result);
-    request.onerror = (e) => reject((e.target${AS(ts, "IDBRequest")}).error);
-  });
-}
 
 async function persistUserData(authData${T(ts, "AuthData | null")})${R(ts, "Promise<void>")}{
   // Only persist { user, expiresAt } — never the token
   const userData = { user: authData?.user, expiresAt: authData?.expiresAt };
-  const db = await openAuthDB();
+  const db = await openDB(DB_NAME, STORE_NAME, "key");
   return new Promise${PT(ts, "void")}((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
@@ -237,7 +233,7 @@ async function persistUserData(authData${T(ts, "AuthData | null")})${R(ts, "Prom
 }
 
 async function loadUserData()${R(ts, "Promise<{ user?: Record<string, unknown>; expiresAt?: number } | null>")}{
-  const db = await openAuthDB();
+  const db = await openDB(DB_NAME, STORE_NAME, "key");
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
@@ -248,7 +244,7 @@ async function loadUserData()${R(ts, "Promise<{ user?: Record<string, unknown>; 
 }
 
 async function clearPersistedData()${R(ts, "Promise<void>")}{
-  const db = await openAuthDB();
+  const db = await openDB(DB_NAME, STORE_NAME, "key");
   return new Promise${PT(ts, "void")}((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);

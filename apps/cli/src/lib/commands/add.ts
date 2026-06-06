@@ -8,7 +8,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { log } from "../cli/logger.js";
 import { loadConfigAsync } from "../config/loader.js";
-import { defaultConfig, type SwoffConfig } from "../shared/config-types.js";
+import { defaultInitConfig, deepMerge, type SwoffConfig } from "../shared/config-types.js";
 import { generateCommand } from "./generate.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -44,18 +44,6 @@ function normalizeFeature(name: string): string {
   return FEATURE_ALIASES[lower] ?? lower;
 }
 
-function mergeFeatureIntoRaw(raw: Record<string, unknown>, update: Record<string, unknown>): Record<string, unknown> {
-  const features = { ...((raw.features as Record<string, unknown>) || {}) };
-  for (const [key, value] of Object.entries(update)) {
-    if (typeof value === "object" && value !== null && typeof features[key] === "object" && features[key] !== null) {
-      features[key] = { ...(features[key] as Record<string, unknown>), ...(value as Record<string, unknown>) };
-    } else {
-      features[key] = value;
-    }
-  }
-  return { ...raw, features };
-}
-
 export async function addCommand(projectRoot: string, featureArg: string) {
   const features = featureArg.split(",").map(normalizeFeature).filter(Boolean);
   const invalid = features.filter((f) => !FEATURE_CONFIG_UPDATES[f]);
@@ -69,36 +57,25 @@ export async function addCommand(projectRoot: string, featureArg: string) {
   const label = features.length === 1 ? features[0] : `${features.length} features`;
   log.header(`Adding ${label}`);
 
-  const configUpdates = features.map((f) => FEATURE_CONFIG_UPDATES[f]);
-  const combinedUpdate = Object.assign({}, ...configUpdates);
+  const combinedUpdate = Object.assign({}, ...features.map((f) => FEATURE_CONFIG_UPDATES[f]));
 
-  const { configPath } = await loadConfigAsync(projectRoot);
-  const resolvedConfigPath = configPath || join(projectRoot, "swoff.config.json");
+  const loadResult = await loadConfigAsync(projectRoot);
+  const configPath = loadResult.configPath;
+  let mergedConfig = deepMerge(loadResult.config as Partial<SwoffConfig>, { features: combinedUpdate }) as SwoffConfig;
+
+  const isJsConfig = configPath ? configPath.endsWith(".js") : false;
+  const resolvedConfigPath = (!configPath || isJsConfig)
+    ? join(projectRoot, "swoff.config.json")
+    : configPath;
 
   if (!configPath) {
     log.warn("No config found. Creating new config with features...");
-    const newConfig: SwoffConfig = {
-      ...defaultConfig,
-      $schema: "https://swoff.netlify.app/schema/v1.json",
-      features: {
-        ...defaultConfig.features,
-        serviceWorker: {
-          ...defaultConfig.features.serviceWorker,
-          minSupportedVersion: "0.0.0",
-        },
-        crossTabSync: false,
-      },
-    };
-    const raw = JSON.parse(JSON.stringify(newConfig));
-    const merged = mergeFeatureIntoRaw(raw, combinedUpdate);
-    writeFileSync(resolvedConfigPath, JSON.stringify(merged, null, 2));
-    log.success(`Created swoff.config.json with ${label}`);
-  } else {
-    const raw = JSON.parse(readFileSync(resolvedConfigPath, "utf8"));
-    const merged = mergeFeatureIntoRaw(raw, combinedUpdate);
-    writeFileSync(resolvedConfigPath, JSON.stringify(merged, null, 2));
-    log.success(`Updated swoff.config.json with ${label}`);
+  } else if (isJsConfig) {
+    log.warn("JS config detected. Converting to swoff.config.json for simplicity.");
   }
+
+  writeFileSync(resolvedConfigPath, JSON.stringify(mergedConfig, null, 2));
+  log.success(`${!configPath ? "Created" : "Updated"} swoff.config.json with ${label}`);
 
   const ecosystemFeatures = features.filter((f) => f === "htmx" || f === "php");
   for (const eco of ecosystemFeatures) {

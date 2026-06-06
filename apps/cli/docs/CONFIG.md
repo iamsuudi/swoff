@@ -18,13 +18,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
   "features": {
     "pwa": {
       "enabled": true,
-      "preventDefaultInstall": false,
-      "assets": {
-        "source": "./path/to/logo.svg",
-        "outputDir": "public",
-        "themeColor": "#000000",
-        "bgColor": "#ffffff"
-      }
+      "preventDefaultInstall": false
     },
     "serviceWorker": {
       "version": "package",
@@ -111,6 +105,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | `apiBaseUrl` | `string` | `""` | Base URL prepended to all relative API URLs. Set to your API server origin (e.g. `https://api.example.com`) when frontend and API are on different domains. Leave empty string when same origin. |
 | `build.outputDir` | `string` | `"dist"` | Build tool output directory |
 | `build.swFilename` | `string` | `"sw"` | Service worker filename prefix (e.g. `sw-v1.2.3.js`) |
+| `build.precacheDirs` | `object` | `{}` | Additional directories to precache. Keys are filesystem paths (relative to project root), values are the URL prefix to serve them under. E.g. `{ "public/assets": "/assets" }` precaches all files from `public/assets/` served at `/assets/*`. When empty, only `outputDir` is scanned. |
 
 ---
 
@@ -127,7 +122,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `version` | `"package"` \| `"hash"` \| `string` \| `false` | `"package"` | SW version mode. `"package"`: reads from `package.json`. `"hash"`: SHA-256 hash of generated SW content (deterministic, fixed SW URL). Semver string (e.g. `"1.2.3"`): explicit version. `false`: no versioning (simple mode, hash-based cache name). |
+| `version` | `"package"` \| `"hash"` \| `string` | `"package"` | SW version mode. `"package"`: reads from `package.json`. `"hash"`: SHA-256 hash of generated SW content (deterministic, fixed SW URL). Semver string (e.g. `"1.2.3"`): explicit version. |
 | `minSupportedVersion` | `string` | `"0.0.0"` | Minimum supported SW version — clients below this are force-updated on page load |
 | `autoUpdate` | `boolean` | `true` | Automatically register new service worker versions when detected. When false, dispatches `sw-update-available` event for manual registration via `handleUpdateApproved()`. |
 | `autoActivate` | `boolean` | `false` | Automatically activate newly registered service workers (`skipWaiting`). Only applies when a new version is registered — use with `autoUpdate` for fully silent updates, or wait for user consent then call `handleUpdateApproved()`. |
@@ -287,7 +282,7 @@ Object-only feature (boolean shorthand not supported).
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `boolean` | `false` | Generate push notification subscription management |
-| `vapidPublicKey` | `string` | `""` | VAPID public key. Baked into the generated push handler at build time — not needed at runtime. |
+| `vapidPublicKey` | `string` | — | VAPID public key. Required for push notifications. Baked into the generated push handler at build time — not needed at runtime. |
 
 ---
 

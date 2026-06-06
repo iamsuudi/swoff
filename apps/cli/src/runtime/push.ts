@@ -26,27 +26,13 @@ export function generatePushCode(ctx: RuntimeContext & { vapidKey: string }): st
  *   push-subscription-changed - Subscribed/unsubscribed (detail: { subscribed })
  */
 
+import { openDB } from "../db.${ext}";
+
 const SUBSCRIPTION_DB = "swoff-push";
 const SUBSCRIPTION_STORE = "subscription";
-// Bump this when adding new indexes/stores for schema migration
-const DB_VERSION = 1;
 const VAPID_PUBLIC_KEY = ${JSON.stringify(vapidKey)};
 
 let permissionState${T(ts, "NotificationPermission | undefined")} = typeof Notification !== "undefined" ? Notification.permission : undefined;
-
-function openPushDB()${R(ts, "Promise<IDBDatabase>")}{
-  return new Promise${PT(ts, "IDBDatabase")}((resolve, reject) => {
-    const request = indexedDB.open(SUBSCRIPTION_DB, DB_VERSION);
-    request.onupgradeneeded = (e) => {
-      const db = (e.target${AS(ts, "IDBOpenDBRequest")}).result;
-      if (!db.objectStoreNames.contains(SUBSCRIPTION_STORE)) {
-        db.createObjectStore(SUBSCRIPTION_STORE, { keyPath: "id" });
-      }
-    };
-    request.onsuccess = (e) => resolve((e.target${AS(ts, "IDBOpenDBRequest")}).result);
-    request.onerror = (e) => reject((e.target${AS(ts, "IDBRequest")}).error);
-  });
-}
 
 /** Request notification permission from the user. Returns true if granted. */
 export async function requestNotificationPermission()${R(ts, "Promise<boolean>")}{
@@ -82,7 +68,7 @@ export async function subscribeToPush()${R(ts, "Promise<PushSubscription | null>
     applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)${AS(ts, "BufferSource")},
   });
 
-  const db = await openPushDB();
+  const db = await openDB(SUBSCRIPTION_DB, SUBSCRIPTION_STORE, "id");
   const tx = db.transaction(SUBSCRIPTION_STORE, "readwrite");
   tx.objectStore(SUBSCRIPTION_STORE).put({
     id: "current",
@@ -109,7 +95,7 @@ export async function unsubscribeFromPush()${R(ts, "Promise<void>")}{
 
   await subscription.unsubscribe();
 
-  const db = await openPushDB();
+  const db = await openDB(SUBSCRIPTION_DB, SUBSCRIPTION_STORE, "id");
   const tx = db.transaction(SUBSCRIPTION_STORE, "readwrite");
   tx.objectStore(SUBSCRIPTION_STORE).delete("current");
   await new Promise<void>((resolve, reject) => {

@@ -1,5 +1,5 @@
 import type { RuntimeContext } from "./utils.js";
-import { T, R } from "./utils.js";
+import { T, R, AS } from "./utils.js";
 
 export function generateServerPushCode(
   ctx: RuntimeContext,
@@ -24,6 +24,8 @@ export function generateServerPushCode(
       credentials: "include",
       signal: options.signal,
     }).then(async (response) => {
+      currentFetchController = null;
+      if (!active) { resolve(); return; }
       if (!response.ok || !response.body) { resolve(); return; }
       notifyStatus(true);
       const reader = response.body.getReader();
@@ -61,14 +63,15 @@ export function generateServerPushCode(
   return new Promise((resolve) => {
     try {
       const ws = new WebSocket(API_BASE + "${endpoint}");
+      currentWs = ws;
       ws.onopen = () => notifyStatus(true);
       ws.onmessage = (event) => {
         try { const d = JSON.parse(event.data); if (d.type === "invalidate" && d.tags) handleInvalidation(d.tags); } catch {}
       };
-      ws.onclose = () => { notifyStatus(false); resolve(); };
-      ws.onerror = () => { ws.close(); resolve(); };
+      ws.onclose = () => { currentWs = null; notifyStatus(false); resolve(); };
+      ws.onerror = () => { currentWs = null; ws.close(); resolve(); };
       if (options.signal) {
-        options.signal.addEventListener("abort", () => ws.close());
+        options.signal.addEventListener("abort", () => { ws.close(); currentWs = null; });
       }
     } catch { resolve(); }
   });`;
@@ -98,6 +101,8 @@ type PushEventOptions= {
 let active${T(ts, "boolean")} = false;
 let swConnected${T(ts, "boolean")} = false;
 let reconnectTimer${T(ts, "ReturnType<typeof setTimeout> | null")} = null;
+let currentWs${T(ts, "WebSocket | null")} = null;
+let currentFetchController${T(ts, "AbortController | null")} = null;
 
 function handleInvalidation(tags${T(ts, "string[]")})${R(ts, "void")}{${invalidate}
   window.dispatchEvent(new CustomEvent("cache-invalidated", { detail: { tags } }));
@@ -117,7 +122,10 @@ if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
   });
 }
 
-async function connect(options${T(ts, "PushEventOptions")} = {} as PushEventOptions)${R(ts, "Promise<void>")}{
+async function connect()${R(ts, "Promise<void>")}{
+  const controller = new AbortController();
+  currentFetchController = controller;
+  const options = { signal: controller.signal }${AS(ts, "PushEventOptions")};
   ${pushType === "sse" ? sseConnect : wsConnect}
 }
 
@@ -144,10 +152,12 @@ export async function startPushEvents(){
   navigator.serviceWorker?.removeEventListener("controllerchange", onControllerChange);
 }
 
-/** Stop listening for push events. */
+/** Stop listening for push events and close the active connection. */
 export function stopPushEvents(){
   active = false;
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  if (currentWs) { currentWs.close(); currentWs = null; }
+  if (currentFetchController) { currentFetchController.abort(); currentFetchController = null; }
 }
 
 /** Check if the push connection is currently established. */

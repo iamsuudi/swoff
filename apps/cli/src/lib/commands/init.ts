@@ -5,7 +5,7 @@
 import { writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { log } from "../cli/logger.js";
-import { defaultInitConfig, type SwoffConfig } from "../shared/config-types.js";
+import { defaultInitConfig, deepMerge, type SwoffConfig } from "../shared/config-types.js";
 import { detectFramework, type FrameworkName } from "../utils/detect-framework.js";
 
 const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
@@ -72,27 +72,6 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
     },
   },
 };
-
-function deepMerge<T>(base: T, override: Partial<T>): T {
-  const result = { ...base } as Record<string, unknown>;
-  for (const key of Object.keys(override as Record<string, unknown>)) {
-    const baseVal = (base as Record<string, unknown>)[key];
-    const overrideVal = (override as Record<string, unknown>)[key];
-    if (
-      baseVal &&
-      overrideVal &&
-      typeof baseVal === "object" &&
-      typeof overrideVal === "object" &&
-      !Array.isArray(baseVal) &&
-      !Array.isArray(overrideVal)
-    ) {
-      result[key] = deepMerge(baseVal, overrideVal);
-    } else {
-      result[key] = overrideVal ?? baseVal;
-    }
-  }
-  return result as T;
-}
 
 export async function initCommand(projectRoot: string, framework?: string) {
   const configFiles = ["swoff.config.json", "swoff.config.js"];

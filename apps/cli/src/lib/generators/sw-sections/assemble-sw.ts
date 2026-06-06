@@ -1,7 +1,5 @@
-import { readdirSync, existsSync } from "fs";
-import { join, relative } from "path";
-import { createHash } from "crypto";
 import type { SwoffConfig } from "../../shared/config-types.js";
+import { isVersionEnabled, buildFallbackList, scanPrecacheAssets, generateCacheNameFromHash } from "../sw-build-utils.js";
 import { getDefaultTemplate } from "./default-template.js";
 import { generateConfigHeader } from "./config-header.js";
 import { generateInstallHandler } from "./install-handler.js";
@@ -12,27 +10,6 @@ import { generateTagManagement } from "./tag-management.js";
 import { generateBackgroundSyncHandler } from "./background-sync-handler.js";
 import { generateSwPushHandlers } from "./sw-push.js";
 import { generateServerPushHandler } from "./server-push-handler.js";
-
-function collectAssets(dir: string, baseDir: string): string[] {
-  if (!existsSync(dir)) return [];
-
-  const entries = readdirSync(dir, { withFileTypes: true });
-  const assets: string[] = [];
-  for (const entry of entries) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      assets.push(...collectAssets(fullPath, baseDir));
-    } else {
-      assets.push("/" + relative(baseDir, fullPath));
-    }
-  }
-  return assets;
-}
-
-function generateCacheNameFromHash(swContent: string): string {
-  const hash = createHash("sha256").update(swContent).digest("hex").slice(0, 12);
-  return `sw-cache-${hash}`;
-}
 
 function applyReplacements(sw: string, config: SwoffConfig, assetsToCache: { url: string; options: Record<string, unknown> }[]): string {
   const { serviceWorker } = config.features;
@@ -69,53 +46,13 @@ function applyReplacements(sw: string, config: SwoffConfig, assetsToCache: { url
 export function assembleSW(config: SwoffConfig, version: string, projectRoot?: string): string {
   const { serviceWorker } = config.features;
   const { features } = config;
-  const outputDir = config.build?.outputDir || "dist";
-  const swFilename = config.build?.swFilename || "sw";
-  const versionEnabled = serviceWorker.version !== "hash";
+  const versionEnabled = isVersionEnabled(serviceWorker.version);
+  const swFilename = config.build.swFilename;
 
-  const fallback: string[] = ["/index.html"];
-  if (features.pwa.enabled) fallback.push("/manifest.json");
-  const offlineFallbackPath = config.features.serviceWorker.navigation.offlineFallback;
-  if (offlineFallbackPath && !fallback.includes(offlineFallbackPath)) {
-    fallback.push(offlineFallbackPath);
-  }
-
-  const scanned: string[] = [];
-  if (projectRoot) {
-    const dirsRaw = config.build?.precacheDirs || {};
-    const dirs = Object.keys(dirsRaw).length > 0 ? dirsRaw : { [outputDir]: "/" };
-    const swFile = versionEnabled ? `${swFilename}-v${version}.js` : `${swFilename}.js`;
-    for (const [dir, prefix] of Object.entries(dirs)) {
-      const dirPath = join(projectRoot, dir);
-      const normPrefix = prefix.replace(/\/+$/, "");
-      for (const a of collectAssets(dirPath, dirPath)) {
-        const urlPath = normPrefix + "/" + a.slice(1);
-        if (urlPath !== `/${swFile}` && urlPath !== "/version.json") scanned.push(urlPath);
-      }
-    }
-  }
-
-  const assetsToCache = scanned.length > 0 ? [...new Set([...fallback, ...scanned])] : [...fallback];
-
-  // Add precache routes from config (fetched at install time)
-  const precacheRoutes = config.features.serviceWorker.navigation.precacheRoutes || [];
-  for (const route of precacheRoutes) {
-    if (!assetsToCache.includes(route)) {
-      assetsToCache.push(route);
-    }
-  }
-
-  // Collect rule offlineFallback pages + cache-first routes into precache
-  const navRules = config.features.serviceWorker.navigation.rules || [];
-  for (const rule of navRules) {
-    if (rule.offlineFallback && !assetsToCache.includes(rule.offlineFallback)) {
-      assetsToCache.push(rule.offlineFallback);
-    }
-    if (rule.policy === "cache-first" && rule.match && !assetsToCache.includes(rule.match)) {
-      assetsToCache.push(rule.match);
-    }
-  }
-
+  const swFile = versionEnabled ? `${swFilename}-v${version}.js` : `${swFilename}.js`;
+  const fallback = buildFallbackList(config);
+  const scanned = projectRoot ? scanPrecacheAssets(config, projectRoot, swFile) : [];
+  const assetsToCache = [...new Set([...fallback, ...scanned])];
   const formattedAssets = assetsToCache.map((url) => ({ url, options: {} }));
 
   let sw = getDefaultTemplate();

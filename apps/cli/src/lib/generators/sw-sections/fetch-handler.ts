@@ -1004,6 +1004,47 @@ async function _fetchWithTimeout(request) {
   }
 }
 
+// --- ETag Conditional Fetch ---
+// Transparently handles If-None-Match/304 so strategies always see a 200 response.
+
+async function _fetchWithConditional(request) {
+  const cache = await caches.open(CACHE_NAME_RUNTIME);
+  const cached = await cache.match(cacheKey(request));
+  const etag = cached?.headers.get("ETag");
+  if (etag) {
+    request = new Request(request, {
+      headers: Object.assign(Object.fromEntries(request.headers.entries()), { "If-None-Match": etag }),
+    });
+  }
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const response = await fetch(request, { signal: controller.signal });
+    clearTimeout(id);
+    if (response.status === 304 && cached) {
+      const headers = new Headers(cached.headers);
+      headers.set("X-SW-Cached-At", String(Date.now()));
+      return new Response(cached.body, {
+        status: 200,
+        statusText: cached.statusText,
+        headers,
+      });
+    }
+    return response;
+  } catch {
+    const clients = await self.clients.matchAll();
+    for (const client of clients) {
+      client.postMessage({
+        type: "SW_NOTIFICATION",
+        level: "error",
+        code: "FETCH_FAILED",
+        message: "Network request failed: " + request.url,
+      });
+    }
+    throw new Error("Network request failed: " + request.url);
+  }
+}
+
 ${
   navigationPreload
     ? `
@@ -1012,11 +1053,11 @@ async function fetchWithPreload(event, request) {
     const preload = await event.preloadResponse;
     if (preload) return preload;
   } catch {}
-  return _fetchWithTimeout(request);
+  return _fetchWithConditional(request);
 }
 `
     : ""
-}const _fetch = ${navigationPreload ? "fetchWithPreload" : "_fetchWithTimeout"};
+}const _fetch = ${navigationPreload ? "fetchWithPreload" : "_fetchWithConditional"};
 
 async function cacheFirst(event, request) {
   const cached = await fromRuntime(request);

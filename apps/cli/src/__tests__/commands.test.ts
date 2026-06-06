@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { existsSync, rmSync, readFileSync, mkdirSync, writeFileSync } from "fs";
+import { existsSync, rmSync, readFileSync, mkdirSync, writeFileSync, readdirSync } from "fs";
 import { join } from "path";
+import { generateFiles } from "../lib/generators/swoff-files-generator.js";
 
 vi.mock("readline", () => ({
   createInterface: () => ({
@@ -12,6 +13,8 @@ vi.mock("readline", () => ({
 import { initCommand } from "../lib/commands/init.js";
 import { addCommand } from "../lib/commands/add.js";
 import { cleanCommand } from "../lib/commands/clean.js";
+import { generateCommand } from "../lib/commands/generate.js";
+import { validateCommand } from "../lib/commands/validate.js";
 
 const testDir = "/tmp/swoff-test-commands";
 
@@ -144,5 +147,197 @@ describe("cleanCommand", () => {
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify({ enabled: true }));
     await cleanCommand(testDir, { yes: true });
     expect(existsSync(join(testDir, "swoff.config.json"))).toBe(false);
+  });
+});
+
+describe("generateCommand", () => {
+  function writeDefaultConfig() {
+    const config = {
+      $schema: "https://swoff.netlify.app/schema/v1.json",
+      configVersion: 1,
+      enabled: true,
+      framework: "vanilla",
+      features: {
+        pwa: { enabled: true, preventDefaultInstall: false },
+        serviceWorker: {
+          version: "package",
+          minSupportedVersion: "1.0.0",
+          autoUpdate: true,
+          autoActivate: false,
+          strategy: {
+            default: "cache-first",
+            patterns: {},
+            mode: "all",
+            clearRuntimeOnUpdate: false,
+            reactive: { defaults: {} },
+          },
+          navigation: { mode: "spa", fallback: "/index.html" },
+        },
+        refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
+        mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
+        backgroundSync: false,
+        auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
+        crossTabSync: false,
+        tagInvalidation: { enabled: true },
+        graphql: { enabled: false, endpoint: "/graphql" },
+        pushNotifications: { enabled: false },
+        serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
+      },
+      build: { outputDir: "dist", swFilename: "sw" },
+      apiBaseUrl: "https://api.example.com",
+    };
+    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config, null, 2));
+  }
+
+  it("generates files when config exists", async () => {
+    writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
+    writeDefaultConfig();
+    await generateCommand(testDir);
+    expect(existsSync(join(testDir, "swoff"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/config.js"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/cache/index.js"))).toBe(true);
+  });
+
+  it("generates files in TypeScript when project uses TS", async () => {
+    writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
+    writeFileSync(join(testDir, "tsconfig.json"), JSON.stringify({ compilerOptions: {} }));
+    writeDefaultConfig();
+    await generateCommand(testDir, { language: "ts" });
+    expect(existsSync(join(testDir, "swoff/config.ts"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/swoff.d.ts"))).toBe(true);
+  });
+
+  it("warns when no config file exists", async () => {
+    const warnSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    await generateCommand(testDir);
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("warns when swoff is disabled in config", async () => {
+    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify({
+      configVersion: 1,
+      enabled: false,
+      features: {
+        pwa: { enabled: false, preventDefaultInstall: false },
+        serviceWorker: {
+          version: "package",
+          minSupportedVersion: "1.0.0",
+          autoUpdate: true,
+          autoActivate: false,
+          strategy: { default: "cache-first", patterns: {}, mode: "all", clearRuntimeOnUpdate: false, reactive: { defaults: {} } },
+          navigation: { mode: "spa", fallback: "/index.html" },
+        },
+        refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
+        mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
+        backgroundSync: false,
+        auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
+        crossTabSync: false,
+        tagInvalidation: { enabled: true },
+        graphql: { enabled: false, endpoint: "/graphql" },
+        pushNotifications: { enabled: false },
+        serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
+      },
+      build: { outputDir: "dist", swFilename: "sw" },
+    }));
+    const warnSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    await generateCommand(testDir);
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("feature-gates notification when push disabled", async () => {
+    writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
+    writeDefaultConfig();
+    await generateCommand(testDir);
+    expect(existsSync(join(testDir, "swoff/notification.js"))).toBe(false);
+  });
+
+  it("generates notification when push enabled", async () => {
+    writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
+    writeDefaultConfig();
+    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
+    config.features.pushNotifications = { enabled: true, vapidPublicKey: "test-key" };
+    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
+    await generateCommand(testDir);
+    expect(existsSync(join(testDir, "swoff/notification.js"))).toBe(true);
+  });
+});
+
+describe("validateCommand", () => {
+  function writeValidConfig() {
+    const config = {
+      configVersion: 1,
+      enabled: true,
+      framework: "vanilla",
+      features: {
+        pwa: { enabled: false, preventDefaultInstall: false },
+        serviceWorker: {
+          version: "1.0.0",
+          minSupportedVersion: "1.0.0",
+          autoUpdate: true,
+          autoActivate: false,
+          strategy: {
+            default: "cache-first",
+            patterns: {},
+            mode: "all",
+            clearRuntimeOnUpdate: false,
+            reactive: { defaults: {} },
+          },
+          navigation: { mode: "spa", fallback: "/index.html" },
+        },
+        refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
+        mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
+        backgroundSync: false,
+        auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
+        crossTabSync: false,
+        tagInvalidation: { enabled: true },
+        graphql: { enabled: false, endpoint: "/graphql" },
+        pushNotifications: { enabled: false },
+        serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
+      },
+      build: { outputDir: "dist", swFilename: "sw" },
+    };
+    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config, null, 2));
+  }
+
+  it("passes valid config", async () => {
+    writeValidConfig();
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    await validateCommand(testDir);
+    const calls = logSpy.mock.calls.map((c) => c[0]);
+    expect(calls.some((c: string) => c.includes("valid"))).toBe(true);
+    logSpy.mockRestore();
+  });
+
+  it("warns when no config file exists", async () => {
+    const warnSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    await validateCommand(testDir);
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("reports errors for invalid config", async () => {
+    writeValidConfig();
+    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
+    config.features.serviceWorker.version = 123;
+    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    await validateCommand(testDir);
+    const calls = logSpy.mock.calls.map((c) => c[0]);
+    expect(calls.some((c: string) => c.includes("error") || c.includes("fail"))).toBe(true);
+    logSpy.mockRestore();
+  });
+
+  it("reports errors for invalid framework", async () => {
+    writeValidConfig();
+    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
+    config.framework = "invalid-framework";
+    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    await validateCommand(testDir);
+    const calls = logSpy.mock.calls.map((c) => c[0]);
+    expect(calls.some((c: string) => c.includes("error") || c.includes("fail"))).toBe(true);
+    logSpy.mockRestore();
   });
 });

@@ -36,7 +36,11 @@ export function validateConfig(config: Record<string, unknown>): string[] {
           errors.push(`Feature "${key}" must be an object`);
           continue;
         }
-      } else if (key !== "backgroundSync" && key !== "crossTabSync") {
+      } else if (key === "backgroundSync" || key === "crossTabSync") {
+        if (typeof value !== "boolean") {
+          errors.push(`Feature "${key}" must be a boolean, got ${typeof value}`);
+        }
+      } else {
         if (!KNOWN_FEATURES.includes(key as (typeof KNOWN_FEATURES)[number])) {
           errors.push(`Unknown feature "${key}"`);
           continue;
@@ -59,10 +63,10 @@ export function validateConfig(config: Record<string, unknown>): string[] {
 
     const sw = features.serviceWorker as Record<string, unknown> | undefined;
     if (sw) {
-      const ver = sw.version;
-      if (typeof ver !== "string") {
+      if (sw.version !== undefined && typeof sw.version !== "string") {
         errors.push('features.serviceWorker.version must be a string');
-      } else {
+      } else if (typeof sw.version === "string") {
+        const ver = sw.version;
         const isSemver = /^\d+\.\d+\.\d+$/.test(ver);
         const isPackage = ver === "package";
         const isHash = ver === "hash";
@@ -254,6 +258,12 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     const tagInvalidationVal = features.tagInvalidation as Record<string, unknown> | undefined;
     if (tagInvalidationVal && typeof tagInvalidationVal === "object") {
       const ti = tagInvalidationVal as Record<string, unknown>;
+      if (ti.enabled !== undefined && typeof ti.enabled !== "boolean") {
+        errors.push("features.tagInvalidation.enabled must be a boolean");
+      }
+      if (ti.debounceMs !== undefined && (typeof ti.debounceMs !== "number" || ti.debounceMs < 0 || !Number.isInteger(ti.debounceMs))) {
+        errors.push("features.tagInvalidation.debounceMs must be a non-negative integer");
+      }
       if (ti.prefixes !== undefined && (!Array.isArray(ti.prefixes) || !(ti.prefixes as unknown[]).every((p) => typeof p === "string"))) {
         errors.push("features.tagInvalidation.prefixes must be an array of strings");
       }
@@ -336,8 +346,11 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       if (serverPush.endpoint !== undefined && typeof serverPush.endpoint !== "string") {
         errors.push("features.serverPush.endpoint must be a string");
       }
-      if (serverPush.reconnectDelayMs !== undefined && (typeof serverPush.reconnectDelayMs !== "number" || serverPush.reconnectDelayMs < 0)) {
-        errors.push("features.serverPush.reconnectDelayMs must be a non-negative number");
+      if (serverPush.reconnectDelayMs !== undefined && (typeof serverPush.reconnectDelayMs !== "number" || serverPush.reconnectDelayMs < 0 || !Number.isInteger(serverPush.reconnectDelayMs))) {
+        errors.push("features.serverPush.reconnectDelayMs must be a non-negative integer (capped at 30000ms)");
+      }
+      if (serverPush.reconnectDelayMs !== undefined && typeof serverPush.reconnectDelayMs === "number" && serverPush.reconnectDelayMs > 30000) {
+        errors.push("features.serverPush.reconnectDelayMs is capped at 30000ms (30s)");
       }
     }
 
@@ -353,8 +366,9 @@ export function validateConfig(config: Record<string, unknown>): string[] {
   }
 
   const fw = config.framework;
-  if (fw !== undefined && typeof fw === "string" && !["react", "vue", "svelte", "vanilla"].includes(fw)) {
-    errors.push('framework must be "react", "vue", "svelte", or "vanilla"');
+  const VALID_FRAMEWORKS = ["nextjs", "remix", "astro", "nuxt", "sveltekit", "react", "vue", "svelte", "vanilla"];
+  if (fw !== undefined && typeof fw === "string" && !VALID_FRAMEWORKS.includes(fw)) {
+    errors.push(`framework must be one of: ${VALID_FRAMEWORKS.join(", ")}`);
   }
 
   if (config.build) {
@@ -367,6 +381,20 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     if (build.swFilename !== undefined) {
       if (typeof build.swFilename !== "string" || !build.swFilename) {
         errors.push("build.swFilename must be a non-empty string");
+      }
+    }
+    if (build.precacheDirs !== undefined) {
+      if (typeof build.precacheDirs !== "object" || build.precacheDirs === null || Array.isArray(build.precacheDirs)) {
+        errors.push("build.precacheDirs must be an object (Record<string, string>)");
+      } else {
+        for (const [dir, url] of Object.entries(build.precacheDirs as Record<string, unknown>)) {
+          if (typeof dir !== "string" || !dir) {
+            errors.push("build.precacheDirs keys must be non-empty strings");
+          }
+          if (typeof url !== "string") {
+            errors.push(`build.precacheDirs["${dir}"] must be a string`);
+          }
+        }
       }
     }
   }

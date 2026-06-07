@@ -125,8 +125,6 @@ async function doRegisterServiceWorker(version${T(ts, "string")})${R(ts, "Promis
   window.currentSWVersion = version;
   window.swRegisteredVersion = version;
   window.dispatchEvent(new CustomEvent("sw-version-detected"));
-  await waitForController();
-  window.dispatchEvent(new CustomEvent("sw-ready"));
   return registration;
 }
 
@@ -174,7 +172,9 @@ export async function initServiceWorker()${R(ts, "Promise<void>")}{
           const newReg = await doRegisterServiceWorker(manifest.version);
           if (AUTO_ACTIVATE && newReg.waiting) {
             newReg.waiting.postMessage({ type: "SKIP_WAITING" });
-          } else {
+          }
+          // If the new SW is waiting (and not auto-activating), notify the user
+          if (newReg.waiting && !AUTO_ACTIVATE) {
             window.dispatchEvent(
               new CustomEvent("sw-update-available", {
                 detail: { version: manifest.version },
@@ -190,7 +190,9 @@ export async function initServiceWorker()${R(ts, "Promise<void>")}{
         );
       }
     } else {
-      await doRegisterServiceWorker(manifest.version);
+      const reg = await doRegisterServiceWorker(manifest.version);
+      await waitForController();
+      window.dispatchEvent(new CustomEvent("sw-ready"));
     }
   } catch (error) {
     try {

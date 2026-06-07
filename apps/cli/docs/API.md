@@ -713,25 +713,17 @@ const { authenticated, user, online, isLoading, error, setAuth, clearAuth, ensur
 
 ```ts
 const {
-  updateStatus,
-  currentVersion,
-  availableVersion,
-  forceUpdate,
+  status,
+  progress,
   error,
+  forceUpdate,
   acceptUpdate,
   dismissUpdate,
 } = useSWUpdate();
 ```
 
-`updateStatus` is one of: `"idle"`, `"available"`, `"downloading"`, `"ready"`.
-
-### `useSWProgress()`
-
-```ts
-const { status, progress } = useSWProgress();
-```
-
-`progress` = `{ percent: number, downloaded: number, total: number }` during SW download.
+`status` follows a state machine: `"idle"` → `"available"` → `"installing"` → `"ready"`.
+Returns `progress` (0–100) while installing. Merged from the removed `useSWProgress()` hook.
 
 ### `usePushSubscription()`
 

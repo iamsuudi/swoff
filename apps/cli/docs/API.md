@@ -318,7 +318,7 @@ import {
 | ---------------------------------- | --------------------------- | ------------------------------------------------------------ |
 | `setAuth(authData)`                | `Promise<void>`             | Store auth in memory, persist user to IndexedDB              |
 | `getAuth()`                        | `Promise<AuthData \| null>` | Get auth from memory (IndexedDB fallback after page refresh) |
-| `clearAuth()`                      | `Promise<void>`             | Clear memory + IndexedDB. Call on logout/401.                |
+| `clearAuth()`                      | `Promise<void>`             | Clear memory + IndexedDB (no cascade — app decides queue/cache cleanup). Call on logout/401. |
 | `isAuthValid(auth)`                | `boolean`                   | Check existence + `expiresAt` expiry                         |
 | `createAuthFromResponse(response)` | `AuthData`                  | **Edit this** to match your backend's login response shape   |
 | `ensureValidAuth()`                | `Promise<AuthData \| null>` | Check expiry, refresh via `refreshPath` if needed            |
@@ -495,6 +495,26 @@ Always generated.
 ---
 
 ## `fetch/state.ts`
+
+Global fetch counter for tracking in-flight requests across the application. Used by `useIsFetching()` to determine if any network requests are currently active.
+
+```ts
+import {
+  incrementFetchCount,
+  decrementFetchCount,
+  getFetchCount,
+} from "swoff/fetch/state";
+```
+
+| Function | Returns | Description |
+|---|---|---|
+| `incrementFetchCount` | `void` | Increments the global in-flight counter and dispatches a `fetch-count-changed` custom event |
+| `decrementFetchCount` | `void` | Decrements the global in-flight counter and dispatches a `fetch-count-changed` custom event |
+| `getFetchCount` | `number` | Returns the current number of in-flight requests |
+
+The `fetchCount` is a module-level variable (not persisted). A `Set<string>` of in-flight cache keys is also maintained to prevent duplicate requests to the same URL. Both are reset on page reload.
+
+Always generated.
 
 ---
 

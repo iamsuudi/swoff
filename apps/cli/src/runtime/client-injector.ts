@@ -5,6 +5,8 @@ export function generateClientInjectorCode(
   pwaEnabled: boolean,
   mutationQueueEnabled: boolean,
   serverPushEnabled: boolean,
+  navMode?: string,
+  authEnabled?: boolean,
 ): string {
   const { ext, ts } = ctx;
 
@@ -27,7 +29,12 @@ export function generateClientInjectorCode(
     : "";
 
   const mutationImport = mutationQueueEnabled
-    ? `import { processMutationQueue } from "./offline/queue.${ext}";
+    ? `import { processMutationQueue, clearQueue } from "./offline/queue.${ext}";
+`
+    : "";
+
+  const authImport = authEnabled
+    ? `import { ensureValidAuth } from "./auth/store.${ext}";
 `
     : "";
 
@@ -78,6 +85,35 @@ if (typeof document !== "undefined") {
   const swImport = `import { initServiceWorker as swInit } from "./sw/injector.${ext}";
 `;
 
+  const autoPrefetchImport = navMode === "ssr"
+    ? `import { prefetchCache } from "./fetch/core.${ext}";
+`
+    : "";
+
+  const autoPrefetchCode = navMode === "ssr"
+    ? `
+// --- Auto-prefetch HTML on client-side navigation (SSR mode) ---
+// Intercepts history.pushState/replaceState to warm the SW cache with HTML
+// for routes the user navigates to via client-side routing.
+if (typeof history !== "undefined") {
+  const origPushState = history.pushState.bind(history);
+  history.pushState = function (data, unused, url) {
+    origPushState(data, unused, url);
+    if (typeof url === "string" && url.startsWith("/")) {
+      prefetchCache(url);
+    }
+  };
+  const origReplaceState = history.replaceState.bind(history);
+  history.replaceState = function (data, unused, url) {
+    origReplaceState(data, unused, url);
+    if (typeof url === "string" && url.startsWith("/")) {
+      prefetchCache(url);
+    }
+  };
+}
+`
+    : "";
+
   return `/**
  * Swoff Client Injector
  * Orchestrates SW registration, PWA install, and cross-tab sync.
@@ -107,8 +143,8 @@ if (typeof document !== "undefined") {
  *   sw-update-available   - New version ready (detail: { version })
  *   sw-version-detected   - Version info available
  */
-${pwaImport}${mutationImport}${swImport}${pushImport}
-${pwaCall}${mutationOnlineListener}${pushCall}${onlineRefetchListener}${focusListener}
+${pwaImport}${mutationImport}${authImport}${swImport}${pushImport}${autoPrefetchImport}
+${pwaCall}${mutationOnlineListener}${pushCall}${onlineRefetchListener}${focusListener}${autoPrefetchCode}
 // --- SW Message Listener ---
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (event) => {
@@ -175,6 +211,30 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
     }
     if (event.data.type === "MUTATION_STORED" && typeof processMutationQueue !== "undefined") {
       processMutationQueue();
+    }
+    if (event.data.type === "AUTH_FAILURE") {
+      // SW detected 401 during background refetch — check if session is still valid
+      (async () => {
+        try {
+          const refreshed = await ensureValidAuth();
+          if (!refreshed) {
+            // Session expired — clear queue and runtime caches
+            if (typeof clearQueue !== "undefined") {
+              await clearQueue();
+            }
+            try {
+              for (const name of ["swoff-runtime", "swoff-runtime-html"]) {
+                const cache = await caches.open(name);
+                const keys = await cache.keys();
+                await Promise.all(keys.map((k) => cache.delete(k)));
+              }
+            } catch {}
+            window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
+          }
+        } catch {
+          // ensureValidAuth not imported (auth disabled) — no-op
+        }
+      })();
     }${invalidationHandler}  });
 }
 

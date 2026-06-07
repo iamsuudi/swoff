@@ -60,6 +60,7 @@ describe("generateSwTemplate", () => {
     expect(content).toContain("// [[ASSETS_LIST]]");
     expect(content).toContain("// [[AUTO_SKIP_WAITING]]");
     expect(content).toContain("CACHE_NAME_RUNTIME");
+    expect(content).toContain("CACHE_NAME_RUNTIME_HTML");
     expect(content).toContain("self.addEventListener");
     expect(content).toContain("fromPrecache");
   });

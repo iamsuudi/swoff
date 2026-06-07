@@ -17,17 +17,21 @@ export function useNetworkStatus() {
 
   const [state, setState] = useState(() => {
     const online = typeof navigator !== "undefined" ? navigator.onLine : true;
-    const connection = navigator?.connection;
     return {
       online,
-      wasOffline: false,
+      wasOffline: !online,
       lastChangedAt: null,
-      effectiveType: connection?.effectiveType ?? null,
-      downlink: connection?.downlink ?? null,
+      effectiveType: null,
+      downlink: null,
     };
   });
 
   useEffect(() => {
+    const wasOffline = !navigator.onLine;
+    if (wasOffline) wasOfflineRef.current = true;
+
+    const connection = navigator?.connection;
+
     const onOnline = () => {
       setState((s) => ({ ...s, online: true, lastChangedAt: Date.now() }));
     };
@@ -36,10 +40,15 @@ export function useNetworkStatus() {
       setState((s) => ({ ...s, online: false, lastChangedAt: Date.now(), wasOffline: true }));
     };
 
-    const connection = navigator?.connection;
     const onTypeChange = () => {
       if (!connection) return;
       setState((s) => ({ ...s, effectiveType: connection.effectiveType, downlink: connection.downlink }));
+    };
+
+    const onSWNotification = (event) => {
+      if (event.data?.type === "SW_NOTIFICATION" && event.data?.code === "FETCH_FAILED") {
+        onOffline();
+      }
     };
 
     window.addEventListener("online", onOnline);
@@ -47,12 +56,18 @@ export function useNetworkStatus() {
     if (connection) {
       connection.addEventListener("change", onTypeChange);
     }
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", onSWNotification);
+    }
 
     return () => {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
       if (connection) {
         connection.removeEventListener("change", onTypeChange);
+      }
+      if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", onSWNotification);
       }
     };
   }, []);

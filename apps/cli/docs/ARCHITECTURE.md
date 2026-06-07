@@ -94,6 +94,47 @@ When the browser fires `online`, the `client-injector` forwards the event to the
 
 Non-reactive strategies (cache-first, network-first, stale-while-revalidate) do **not** participate in the online recovery scan — their contracts are stateless with respect to staleness. This naturally recovers from: background refresh failure while offline, tab closed while offline, and first request after connectivity returns.
 
+## SSR navigation mode
+
+The `"ssr"` navigation mode is designed for server-rendered applications (Next.js, Remix, Nuxt, SvelteKit, Astro, HTMX). Unlike the old architecture which required separate `navigateFirst` handlers, SSR mode now falls through to the global caching strategy like all other modes. The key differentiator is **auto-prefetch**:
+
+**Auto-prefetch on client-side navigation:** When `"ssr"` mode is enabled, the generated `client-injector` code intercepts `history.pushState()` and `history.replaceState()` and calls `prefetchCache(url)` for each navigation. This ensures that when the user clicks a client-side link (e.g. via a framework router), the SW starts fetching the page in the background before the server responds. The next time the user refreshes or navigates to that page, the cached HTML is available instantly.
+
+The interception is framework-agnostic — every client-side router (Next.js App Router, Remix, React Router, TanStack Router, Vue Router, SvelteKit, Nuxt) ultimately calls `pushState`/`replaceState`. No framework-specific integration is needed.
+
+```js
+// Generated automatically when navMode === "ssr"
+const origPushState = history.pushState.bind(history);
+history.pushState = function (data, unused, url) {
+  origPushState(data, unused, url);
+  if (typeof url === "string" && url.startsWith("/")) {
+    prefetchCache(url);
+  }
+};
+```
+
+All navigation modes (`spa`, `ssr`, `default`) use the same standard strategy dispatch for the actual fetch — the mode only controls whether auto-prefetch is injected in the client.
+
+Non-navigation requests (API calls, assets, RSC payloads) are handled by the configured caching strategy via the normal strategy dispatch system.
+
+## HTML cache isolation
+
+A single URL can serve different content types depending on the request context — full page loads return `text/html` while client-side fetches may return `text/x-component` (RSC), `application/json`, or partial HTML. If these were stored at the same cache key, a hard refresh while offline could serve a non-HTML response to the browser.
+
+Swoff isolates HTML responses in their own cache container (`CACHE_NAME_RUNTIME_HTML = "swoff-runtime-html"`). The `storeRuntime` function routes by Content-Type:
+
+- `text/html` → `CACHE_NAME_RUNTIME_HTML` (HTML-only cache)
+- Everything else (RSC, JSON, JS, CSS, images) → `CACHE_NAME_RUNTIME` (main runtime cache)
+
+The `fromRuntime` function remains simple:
+
+- **Navigation requests**: check `CACHE_NAME_RUNTIME_HTML` only
+- **Non-navigation requests**: check `CACHE_NAME_RUNTIME` only
+
+This is framework-agnostic and terminology-agnostic — there is no mention of RSC, dual-payload, or any specific framework. The rule is simply: "HTML is special for navigation; everything else is normal." Any framework that serves different content types at the same URL (Next.js, TanStack Start, HTMX partials, JSON-LD, API formats) is handled automatically.
+
+There is no user-facing config — it is always enabled. Both caches participate in eviction, tag invalidation, activate handler cleanup, and online/focus reactive scans.
+
 ## 3-tier config resolution
 
 The `strategy` field resolves through three priority levels:
@@ -314,7 +355,7 @@ Auth tokens are stored **in memory only** — never persisted to IndexedDB or lo
 2. `createAuthFromResponse(response)` extracts the token (edit this to match your backend)
 3. Token held in memory; user data optionally cached in IndexedDB
 4. `fetchWithCache(url, { auth: true })` calls `getAuth()` → `withAuthHeaders(headers, auth)`
-5. On 401: `clearAuth()` + dispatch `sw-auth-unauthorized` event
+5. On 401 (client-side): `clearAuth()` + dispatch `sw-auth-unauthorized` event. On 401 during SW background refetch: SW sends `AUTH_FAILURE` to client → client calls `ensureValidAuth()` → clears queue/caches on failure
 
 **Auth types:**
 - `bearer`: `Authorization: Bearer <token>`

@@ -34,7 +34,11 @@ export function generateCacheNameFromHash(swContent: string): string {
 }
 
 export function buildFallbackList(config: SwoffConfig): string[] {
-  const fallback: string[] = ["/index.html"];
+  const navMode = config.features.serviceWorker.navigation.mode;
+  const fallback: string[] = [];
+  if (navMode === "spa") {
+    fallback.push("/index.html");
+  }
   if (config.features.pwa.enabled) fallback.push("/manifest.json");
 
   const nav = config.features.serviceWorker.navigation;

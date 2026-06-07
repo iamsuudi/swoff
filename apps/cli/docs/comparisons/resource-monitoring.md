@@ -81,3 +81,10 @@ This keeps the listener surface small while remaining extensible — new codes c
 | **Precache failure notifications**        | ✅ `PRECACHE_FAILED` per-asset               | ❌ Not applicable    | ❌                   | ❌ Not applicable                   |
 | **Background sync failure notifications** | ✅ `BACKGROUND_SYNC_FAILED`                  | ❌ Not applicable    | ❌                   | ❌ Not applicable                   |
 | **Auto-clear on logout**                  | ✅ Notification + `clearAuth()`              | ❌                   | ❌                   | ❌ Data persists                    |
+
+## When to choose what
+
+- **Choose Swoff when:** You need a global fetch timeout that applies uniformly across all strategies, storage quota monitoring with at-threshold warnings, and a unified `swoff:notification` channel that surfaces SW errors (fetch failures, precache failures, background sync errors) to the window. You want all of this generated automatically — zero manual wiring.
+- **Choose Workbox when:** Per-strategy `NetworkTimeoutSeconds` is sufficient for your timeout needs, you don't need storage monitoring, and you're willing to write custom error handling logic.
+- **Choose TanStack Query / SWR when:** You don't need SW-level timeout or any of the resource monitoring features — your error handling is managed at the component level via `onError` callbacks.
+- **Choose client DBs when:** You need database-level storage management and the application-level error handling of your DB engine is sufficient.

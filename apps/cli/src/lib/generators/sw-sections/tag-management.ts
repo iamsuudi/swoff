@@ -80,6 +80,10 @@ async function invalidateByTag(tag) {
   for (const entry of entries) {
     await runtimeCache.delete(entry.url);
   }
+  const rscCache = await caches.open(CACHE_NAME_RUNTIME_HTML);
+  for (const entry of entries) {
+    await rscCache.delete(entry.url);
+  }
 
   // Enqueue background refetch through batched refresh queue
   for (const entry of entries) {

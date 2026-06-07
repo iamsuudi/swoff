@@ -12,6 +12,7 @@ describe("assembleSW", () => {
     expect(sw).toContain("CACHE_NAME = 'sw-v1.0.0'");
     expect(sw).toContain("self.addEventListener");
     expect(sw).toContain("CACHE_NAME_RUNTIME");
+    expect(sw).toContain("CACHE_NAME_RUNTIME_HTML");
   });
 
   it("includes config header with resolved version", () => {
@@ -234,29 +235,6 @@ describe("assembleSW", () => {
       expect(sw).toContain('switch (policy)');
     });
 
-    it("includes navigateFirst alongside navigateWithRules for fallback", () => {
-      const configWithRules: SwoffConfig = {
-        ...config,
-        features: {
-          ...config.features,
-          serviceWorker: {
-            ...config.features.serviceWorker,
-            navigation: {
-              ...config.features.serviceWorker.navigation,
-              mode: "network-first",
-              rules: [
-                { match: "/blog/*", policy: "cache-first" },
-              ],
-            },
-          },
-        },
-      };
-      const sw = assembleSW(configWithRules, "1.0.0");
-      expect(sw).toContain("async function navigateFirst(event, request)");
-      expect(sw).toContain("async function navigateWithRules(event, request)");
-      expect(sw).toContain("NAV_MODE === \"network-first\"");
-    });
-
     it("includes rule offline fallback pages in ASSETS_TO_CACHE", () => {
       const configWithRules: SwoffConfig = {
         ...config,
@@ -308,47 +286,6 @@ describe("assembleSW", () => {
     });
   });
 
-  describe("SWR navigation mode", () => {
-    it("generates navigateFirst_SWR when mode is stale-while-revalidate", () => {
-      const configSwr: SwoffConfig = {
-        ...config,
-        features: {
-          ...config.features,
-          serviceWorker: {
-            ...config.features.serviceWorker,
-            navigation: {
-              ...config.features.serviceWorker.navigation,
-              mode: "stale-while-revalidate",
-            },
-          },
-        },
-      };
-      const sw = assembleSW(configSwr, "1.0.0");
-      expect(sw).toContain("NAV_MODE = \"stale-while-revalidate\"");
-      expect(sw).toContain("async function navigateFirst_SWR(event, request)");
-      expect(sw).toContain("queueRefresh");
-      expect(sw).toContain("fromUltimateFallback");
-    });
-
-    it("dispatches to navigateFirst_SWR in fetch event listener", () => {
-      const configSwr: SwoffConfig = {
-        ...config,
-        features: {
-          ...config.features,
-          serviceWorker: {
-            ...config.features.serviceWorker,
-            navigation: {
-              ...config.features.serviceWorker.navigation,
-              mode: "stale-while-revalidate",
-            },
-          },
-        },
-      };
-      const sw = assembleSW(configSwr, "1.0.0");
-      expect(sw).toContain("navigateFirst_SWR(event, request)");
-    });
-  });
-
   describe("smart navigation retry", () => {
     it("generates retry constants and startRetryLoop when retry is enabled", () => {
       const configRetry: SwoffConfig = {
@@ -381,7 +318,7 @@ describe("assembleSW", () => {
       expect(sw).toContain("function startRetryLoop(event, request)");
     });
 
-    it("calls startRetryLoop when falling through to fromUltimateFallback in navigateFirst", () => {
+    it("calls startRetryLoop when navigation reaches fromUltimateFallback", () => {
       const configRetry: SwoffConfig = {
         ...config,
         features: {
@@ -390,7 +327,7 @@ describe("assembleSW", () => {
             ...config.features.serviceWorker,
             navigation: {
               ...config.features.serviceWorker.navigation,
-              mode: "network-first",
+              mode: "ssr",
               retry: { enabled: true },
             },
           },
@@ -402,10 +339,9 @@ describe("assembleSW", () => {
   });
 
   describe("offline fallback analytics", () => {
-    it("generates OFFLINE_FALLBACK_ACTIVATED postMessage in fromSpaFallback", () => {
+    it("generates OFFLINE_FALLBACK_ACTIVATED postMessage in ultimate fallback", () => {
       const sw = assembleSW(config, "1.0.0");
       expect(sw).toContain("OFFLINE_FALLBACK_ACTIVATED");
-      expect(sw).toContain("spa-shell");
     });
 
     it("generates OFFLINE_FALLBACK_ACTIVATED postMessage in fromOfflineFallback", () => {

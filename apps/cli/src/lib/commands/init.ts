@@ -18,9 +18,10 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
             "/_next/*": "cache-first",
             "/api/*": "network-first",
           },
+          ignoreQueryParams: ["_rsc"],
         },
         navigation: {
-          mode: "network-first",
+          mode: "ssr",
         },
       },
     },
@@ -33,7 +34,7 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
           ignoreQueryParams: ["_data"],
         },
         navigation: {
-          mode: "network-first",
+          mode: "ssr",
         },
       },
     },
@@ -42,7 +43,7 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
     features: {
       serviceWorker: {
         navigation: {
-          mode: "default",
+          mode: "ssr",
         },
       },
     },
@@ -54,7 +55,7 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
           default: "network-first",
         },
         navigation: {
-          mode: "network-first",
+          mode: "ssr",
         },
       },
     },
@@ -66,7 +67,7 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
           default: "network-first",
         },
         navigation: {
-          mode: "network-first",
+          mode: "ssr",
         },
       },
     },

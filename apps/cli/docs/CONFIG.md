@@ -148,7 +148,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `mode` | `"spa"` \| `"default"` \| `"network-first"` \| `"stale-while-revalidate"` | `"spa"` | Navigation mode. `"spa"`: serve SPA fallback for unmatched navigations. `"default"`: passthrough. `"network-first"`: try network, fall back to cache/offline. `"stale-while-revalidate"`: serve cached HTML instantly, refresh in background. |
+| `mode` | `"spa"` \| `"default"` \| `"ssr"` | `"spa"` | Navigation mode. `"spa"`: navigation requests use the global caching strategy; SPA shell served only as last resort offline fallback. `"default"`: no special navigation handling. `"ssr"`: same as `"default"` with auto-prefetch that intercepts `history.pushState`/`replaceState` to warm the SW cache on client-side navigation. |
 | `preload` | `boolean` | `true` | Enable Navigation Preload API — reduces SW startup latency |
 | `fallback` | `string` | `"/index.html"` | Fallback HTML for SPA navigation requests |
 | `precacheRoutes` | `string[]` | `[]` | Additional routes to fetch + cache during SW install (e.g. `["/", "/about"]`). Useful for SSG or critical pages. |

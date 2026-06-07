@@ -27,11 +27,10 @@ export function openDB${G(ts, "T")}(
     const request = indexedDB.open(name, 1);
     request.onupgradeneeded = (e) => {
       const db = (e.target${AS(ts, "IDBOpenDBRequest")}).result;
-      if (!db.objectStoreNames.contains(storeName)) {
-        db.createObjectStore(storeName, { keyPath: keyPath as IDBObjectStoreParameters["keyPath"] });
-      }
       if (upgradeCallback) {
         upgradeCallback(db);
+      } else if (!db.objectStoreNames.contains(storeName)) {
+        db.createObjectStore(storeName, { keyPath: keyPath as IDBObjectStoreParameters["keyPath"] });
       }
     };
     request.onsuccess = (e) => resolve((e.target${AS(ts, "IDBOpenDBRequest")}).result);

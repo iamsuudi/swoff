@@ -157,15 +157,11 @@ describe("validateConfig", () => {
   });
 
   describe("navigation validation", () => {
-    it('accepts "network-first" navigation mode', () => {
-      const config = {
+    it('accepts "ssr", "spa", and "default" navigation modes', () => {
+      const configSsr = {
         ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "network-first", fallback: "/index.html" } } },
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "ssr", fallback: "/index.html" } } },
       };
-      expect(validateConfig(config)).toEqual([]);
-    });
-
-    it('accepts "spa" and "default" navigation modes', () => {
       const configSpa = {
         ...validConfig,
         features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html" } } },
@@ -174,6 +170,7 @@ describe("validateConfig", () => {
         ...validConfig,
         features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "default", fallback: "/index.html" } } },
       };
+      expect(validateConfig(configSsr)).toEqual([]);
       expect(validateConfig(configSpa)).toEqual([]);
       expect(validateConfig(configDefault)).toEqual([]);
     });
@@ -259,14 +256,6 @@ describe("validateConfig", () => {
           { match: "/api/status", policy: "network-only" },
           { match: "/notes/**", policy: "stale-while-revalidate" },
         ] } } },
-      };
-      expect(validateConfig(config)).toEqual([]);
-    });
-
-    it('accepts "stale-while-revalidate" navigation mode', () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "stale-while-revalidate", fallback: "/index.html" } } },
       };
       expect(validateConfig(config)).toEqual([]);
     });

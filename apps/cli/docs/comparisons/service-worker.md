@@ -94,3 +94,9 @@ With Swoff, the SW file in `swoff/sw/template.js` is the exact code running in t
 - Set breakpoints in the generated code via DevTools.
 - Modify the SW directly and rebuild with `node sw/generator.js`.
 - Diff SW changes in PRs.
+
+## When to choose what
+
+- **Choose Swoff when:** You want a fully auditable, committable SW with zero runtime dependencies, 6 caching strategies, tag-based invalidation, and a config-driven setup. You want to debug the SW by reading generated source code — not stepping through minified Workbox modules.
+- **Choose Workbox when:** You need a battle-tested SW toolkit with extensive community support, you're comfortable writing and maintaining the SW configuration as code, and you don't need tag invalidation, auth handling, generated client hooks, or cross-tab sync.
+- **Choose Serwist/next-pwa when:** You're building a Next.js app and need a quick SW setup with basic offline support. Accept the ~30-35 kB runtime cost and the loss of framework flexibility.

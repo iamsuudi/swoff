@@ -205,6 +205,7 @@ describe("CLI commands integration", () => {
       expect(swContent).toContain("self.addEventListener");
       expect(swContent).toContain("CACHE_NAME = 'sw-v1.0.0'");
       expect(swContent).toContain("CACHE_NAME_RUNTIME");
+      expect(swContent).toContain("CACHE_NAME_RUNTIME_HTML");
       expect(swContent).toContain("invalidateByTag");
 
       // Generate supporting files

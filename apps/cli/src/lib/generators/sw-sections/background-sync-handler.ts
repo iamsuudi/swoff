@@ -178,5 +178,6 @@ async function updateInSWQueue(db, item) {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
-}`;
+}
+`;
 }

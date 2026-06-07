@@ -57,3 +57,10 @@ Offline mutation → IndexedDB (queue)
 Swoff's mutation queue follows the same pattern as Telegram's offline behavior: mutations appear as "pending" (with a clock icon) until the server confirms them. Users cannot edit or interact with a pending mutation until it syncs. This constraint eliminates phantom ID reconciliation — a pending mutation has no server-assigned ID, so no dependent action can reference it incorrectly.
 
 Client DBs take the opposite approach: optimistic writes to the local DB assign temporary IDs, and the sync engine replaces them with server IDs. This enables instant UI but introduces phantom ID reconciliation complexity across dependent mutations.
+
+## When to choose what
+
+- **Choose Swoff when:** You need a mutation queue that survives tab close (IndexedDB + Background Sync), configurable retry with exponential backoff, per-mutation online checks, queue introspection for the UI, and dual-replay prevention. You want the Telegram "pending until confirmed" pattern — no phantom IDs or reconciliation complexity.
+- **Choose TanStack Query / SWR when:** You don't need offline write queuing — your use case is read-heavy with server-side mutations only. The in-memory cache is sufficient for your session-based data needs.
+- **Choose Workbox background sync when:** You need basic offline replay without queue introspection, retry configuration, or auth awareness. The simpler `workbox-background-sync` API is sufficient.
+- **Choose client DBs when:** You need full offline-first with synced collections, schema-aware queries, and are willing to manage phantom ID reconciliation, schema migrations, and the ~40 kB–3 MB runtime cost.

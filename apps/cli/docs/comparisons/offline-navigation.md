@@ -1,18 +1,16 @@
 # Offline Navigation: Swoff vs next-pwa / @serwist/next / Workbox / vite-plugin-pwa
 
-When a user navigates offline, the browser shows "This site can't be reached" unless the Service Worker intercepts the navigation and serves a fallback. Every SW library solves this, but Swoff is the only one with five distinct navigation modes, a configurable multi-step fallback chain, HTML cache isolation that prevents Content-Type corruption, auto-prefetch on client-side navigation, per-route policies, and smart background retry — all without coupling to any specific framework.
+When a user navigates offline, the browser shows "This site can't be reached" unless the Service Worker intercepts the navigation and serves a fallback. Every SW library solves this, but Swoff is the only one with three navigation modes, a configurable multi-step fallback chain, HTML cache isolation that prevents Content-Type corruption, auto-prefetch on client-side navigation, per-route policies, and smart background retry — all without coupling to any specific framework.
 
 ## How Swoff does it
 
-**Five navigation modes** (set via `navigation.mode`):
+**Three navigation modes** (set via `navigation.mode`):
 
 | Mode | Behavior | Use case |
 |---|---|---|
-| `"spa"` | Serves `/index.html` from precache for all unmatched `navigate` requests (before network) | Traditional SPAs |
+| `"spa"` | Navigation requests fall through to the global caching strategy; SPA shell served only as last resort offline fallback | Traditional SPAs |
 | `"default"` | No special nav handling — strategies handle all requests equally | SSG sites |
-| `"network-first"` | Try network → cache on success → cache chain → offline fallback | SSR/MPA frameworks |
-| `"stale-while-revalidate"` | Serve cached HTML instantly, refresh in background, update cache | Previously-visited SSR pages |
-| `"ssr"` | Same as network-first + auto-prefetch on `pushState`/`replaceState` | All meta-frameworks (Next.js, Remix, Nuxt, SvelteKit, TanStack Start, Astro, HTMX) |
+| `"ssr"` | Uses global caching strategy for navigation requests + auto-prefetch on `pushState`/`replaceState` | All meta-frameworks (Next.js, Remix, Nuxt, SvelteKit, TanStack Start, Astro, HTMX) |
 
 **Auto-prefetch (SSR mode only):** When `navigation.mode` is `"ssr"`, the generated `client-injector` intercepts `history.pushState()` and `history.replaceState()` — the underlying API every client-side router uses — and calls `prefetchCache(url)` for each navigation. This warms the SW cache with HTML pages as the user browses, so refreshes and return visits load instantly.
 
@@ -32,7 +30,9 @@ history.pushState = function (data, unused, url) {
 **Ultimate fallback chain** (generated as `fromUltimateFallback` in the SW):
 
 ```
-navigateFirst (or applyStrategy catch)
+applyStrategy catch (or navigateWithRules fallthrough)
+  → startRetryLoop (for navigation requests — background retry)
+  → routeFallback (per-route offline fallback from navigation rules)
   → fromRuntime (HTML cache only — request.mode === "navigate")
   → fromPrecache (url.search = "")
   → fromOfflineFallback (user-provided /offline.html)
@@ -149,11 +149,11 @@ VitePWA({
 
 | Feature | Swoff | next-pwa | @serwist/next | Workbox | vite-plugin-pwa |
 |---|---|---|---|---|---|
-| **Navigation modes** | ✅ 5 (spa, default, network-first, swr, ssr) | 🟡 1 (Pages Router) | 🟡 1 (network-first) | 🟡 1 (navigateFallback) | 🟡 1 (navigateFallback) |
+| **Navigation modes** | ✅ 3 (spa, default, ssr) | 🟡 1 (Pages Router) | 🟡 1 (network-first) | 🟡 1 (navigateFallback) | 🟡 1 (navigateFallback) |
 | **SSR mode** | ✅ `"ssr"` with auto-prefetch | ❌ | ❌ | ❌ | ❌ |
 | **Auto-prefetch on pushState** | ✅ Built-in | ❌ | ❌ | ❌ | ❌ |
 | **HTML cache isolation** | ✅ Content-Type routing | ❌ | ❌ | ❌ | ❌ |
-| **Ultimate fallback chain** | ✅ 6-step | ❌ Single | ❌ Single | ❌ Single | ❌ Single |
+| **Ultimate fallback chain** | ✅ 7-step (includes retry) | ❌ Single | ❌ Single | ❌ Single | ❌ Single |
 | **Inline 503 guarantee** | ✅ Last resort HTML | ❌ | ❌ | ❌ | ❌ |
 | **Per-route policies** | ✅ Config rules | ❌ | ❌ | ❌ | ❌ |
 | **Per-route offline fallback** | ✅ Rule-level config | ❌ | 🟡 Per matcher function | ❌ | ❌ |

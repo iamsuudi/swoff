@@ -204,7 +204,7 @@ const REFRESH_RETRY_DELAY_MS = ${refetchRetryDelayMs};`;
 "}\n" +
 "\n";
 
-  const navModeCode = navMode === "network-first" ? "\"network-first\"" : navMode === "default" ? "\"default\"" : navMode === "stale-while-revalidate" ? "\"stale-while-revalidate\"" : navMode === "ssr" ? "\"ssr\"" : "\"spa\"";
+  const navModeCode = navMode === "ssr" ? "\"ssr\"" : navMode === "spa" ? "\"spa\"" : "\"default\"";
   const offlineFallbackCode = offlineFallbackPath ? `"${offlineFallbackPath}"` : '""';
   const hasRules = navRules.length > 0;
   const navRulesCode = hasRules ? `const NAV_RULES = ${JSON.stringify(navRules.map((r) => ({
@@ -359,6 +359,16 @@ async function _processRefreshQueue() {
             }
             for (const client of clients) {
               client.postMessage({ type: "CACHE_UPDATED", url: fetchUrl });
+            }
+          } else if (response.status === 401) {
+            // Auth failure during background refetch — notify clients so they can check auth.
+            // Don't delete the cached entry — the stale response is better than no response,
+            // and the user may re-authenticate.
+            if (typeof staleVersions !== "undefined" && staleVersions.has(entry.cacheKey)) {
+              staleVersions.delete(entry.cacheKey);
+            }
+            for (const client of clients) {
+              client.postMessage({ type: "AUTH_FAILURE", detail: { url: fetchUrl } });
             }
           }
         } catch {
@@ -573,23 +583,6 @@ async function cacheResponse(request, response) {
   }
 }
 
-async function fromSpaFallback(request) {
-  if (NAV_MODE === "spa" && request.mode === "navigate") {
-    const cache = await caches.open(CACHE_NAME);
-    const response = await cache.match("${spaPath}");
-    if (response) {
-      const clients = await self.clients.matchAll();
-      for (const client of clients) {
-        client.postMessage({
-          type: "OFFLINE_FALLBACK_ACTIVATED",
-          detail: { route: new URL(request.url).pathname, fallbackLevel: "spa-shell", timestamp: Date.now() },
-        });
-      }
-    }
-    return response;
-  }
-}
-
 async function fromOfflineFallback(request) {
   if (!OFFLINE_FALLBACK_PATH) return null;
   const cache = await caches.open(CACHE_NAME);
@@ -606,7 +599,7 @@ async function fromOfflineFallback(request) {
   return response;
 }
 
-async function fromUltimateFallback(request) {
+async function fromUltimateFallback(event, request) {
   // For non-navigation requests that don't expect HTML, return a JSON error
   // to prevent content-type mismatches (e.g. HTML returned for JSON-expected responses)
   if (request.mode !== "navigate") {
@@ -617,6 +610,10 @@ async function fromUltimateFallback(request) {
         { status: 503, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
       );
     }
+  }
+  // Start retry loop for any navigation request that reaches ultimate fallback
+  if (request.mode === "navigate") {
+    event.waitUntil(startRetryLoop(event, request));
   }
   // Try per-route offline fallback first (from navigation rules)${hasRules ? `
   const routeFallbackPath = matchRouteFallback(request.url);
@@ -634,13 +631,22 @@ async function fromUltimateFallback(request) {
       return match;
     }
   }` : ""}
-  // Try the global offline fallback page first (user-provided)
+  // In SPA mode, try the SPA shell before the custom offline fallback
+  // so the client-side router can render the route instead of showing a static page
+  if (NAV_MODE === "spa") {
+    const cache = await caches.open(CACHE_NAME);
+    const shell = await cache.match("${spaPath}");
+    if (shell) return shell;
+  }
+  // Try the global offline fallback page (user-provided)
   const offline = await fromOfflineFallback(request);
   if (offline) return offline;
-  // Last resort: try the SPA shell index.html
-  const cache = await caches.open(CACHE_NAME);
-  const shell = await cache.match("${spaPath}");
-  if (shell) return shell;
+  // In non-SPA mode, try the SPA shell as last resort before inline 503
+  if (NAV_MODE !== "spa") {
+    const cache = await caches.open(CACHE_NAME);
+    const shell = await cache.match("${spaPath}");
+    if (shell) return shell;
+  }
   // Absolute last resort: return an inline HTML page so the browser
   // doesn't show its own "This site can't be reached" error
   const clients = await self.clients.matchAll();
@@ -657,61 +663,11 @@ async function fromUltimateFallback(request) {
 }
 
 ${
-  navMode === "network-first" || navMode === "ssr" || hasRules
-    ? `// --- Navigate-First handler (for SSR/MPA navigation mode) ---
-
-async function navigateFirst(event, request) {
-  try {
-    const response = await _fetch(event, request);
-    if (response && response.ok) {
-      event.waitUntil(storeRuntime(request.clone(), response.clone()));
-    }
-    if (response) return response;
-  } catch {}
-
-  const cached = await fromRuntime(request);
-  if (cached) return markFromCache(cached);
-
-  const precached = await fromPrecache(request);
-  if (precached) return markFromCache(precached);
-
-  const fallback = await fromUltimateFallback(request);
-  event.waitUntil(startRetryLoop(event, request));
-  return fallback;
-}`
-    : ""
-}${
-  navMode === "stale-while-revalidate" || hasRules
-    ? `
-// --- Navigate-First-SWR handler (for stale-while-revalidate navigation mode) ---
-
-async function navigateFirst_SWR(event, request) {
-  const cached = await fromRuntime(request);
-  if (cached) {
-    event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
-    return markFromCache(cached);
-  }
-
-  const precached = await fromPrecache(request);
-  if (precached) {
-    event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
-    return markFromCache(precached);
-  }
-
-  try {
-    const response = await _fetch(event, request);
-    if (response && response.ok) {
-      event.waitUntil(storeRuntime(request.clone(), response.clone()));
-    }
-    if (response) return response;
-  } catch {}
-
-  const fallback = await fromUltimateFallback(request);
-  event.waitUntil(startRetryLoop(event, request));
-  return fallback;
-}`
-    : ""
-}${
+  hasRules ? "" : `
+// Navigation modes are handled through standard strategy dispatch.
+// - spa:     client-routed, no special SW handling
+// - ssr:     server-rendered, auto-prefetch in client-injector
+// - default: SSG, no special handling`}${
   hasRules
     ? `
 // --- Navigate-With-Rules handler (for per-route navigation policies) ---
@@ -719,14 +675,8 @@ async function navigateFirst_SWR(event, request) {
 async function navigateWithRules(event, request) {
   const rule = matchRoutePolicy(request.url);
   if (!rule) {
-    // No matching rule — use global navigation mode behavior
-    if (NAV_MODE === "network-first") {
-      return navigateFirst(event, request);
-    }
-    if (NAV_MODE === "stale-while-revalidate") {
-      return navigateFirst_SWR(event, request);
-    }
-    return applyStrategy(event, request, determineCacheStrategy(event.request, ${JSON.stringify(strategies)}, { defaultStrategy: "${defaultStrategy}" }));
+    // No matching rule — use global strategy
+    return _executeStrategy(event, request, determineCacheStrategy(event.request, ${JSON.stringify(strategies)}, { defaultStrategy: "${defaultStrategy}" }));
   }
   const policy = rule.policy;
   switch (policy) {
@@ -735,9 +685,7 @@ async function navigateWithRules(event, request) {
       if (precached) return markFromCache(precached);
       const cached = await fromRuntime(request);
       if (cached) return markFromCache(cached);
-      const fb1 = await fromUltimateFallback(request);
-      event.waitUntil(startRetryLoop(event, request));
-      return fb1;
+      return fromUltimateFallback(event, request);
     }
     case "network-first": {
       try {
@@ -751,9 +699,7 @@ async function navigateWithRules(event, request) {
       if (cached) return markFromCache(cached);
       const precached = await fromPrecache(request);
       if (precached) return markFromCache(precached);
-      const fb2 = await fromUltimateFallback(request);
-      event.waitUntil(startRetryLoop(event, request));
-      return fb2;
+      return fromUltimateFallback(event, request);
     }
     case "network-only": {
       return _fetch(event, request);
@@ -776,9 +722,7 @@ async function navigateWithRules(event, request) {
         }
         if (response) return response;
       } catch {}
-      const fb3 = await fromUltimateFallback(request);
-      event.waitUntil(startRetryLoop(event, request));
-      return fb3;
+      return fromUltimateFallback(event, request);
     }
   }
 }`
@@ -832,32 +776,31 @@ function determineCacheStrategy(request, customStrategies, globalDefaults) {
   return { strategy: globalDefaults.defaultStrategy };
 }
 
+async function _executeStrategy(event, request, config) {
+  try {
+    const { strategy } = config;
+    if (strategy === "reactive") {
+      const reactiveCfg = findReactiveConfig(new URL(request.url).href);
+      const staleTime = config.staleTime !== undefined ? config.staleTime : reactiveCfg?.staleTime;
+      return await reactiveStrategy(event, request, staleTime);
+    } else if (strategy === "stale-while-revalidate") {
+      return await staleWhileRevalidate(event, request);
+    } else if (strategy === "network-first") {
+      return await networkFirst(event, request);
+    } else if (strategy === "cache-only") {
+      return await cacheOnly(event, request);
+    } else if (strategy === "network-only") {
+      return await networkOnly(event, request);
+    } else {
+      return await cacheFirst(event, request);
+    }
+  } catch {
+    return fromUltimateFallback(event, request);
+  }
+}
+
 function applyStrategy(event, request, config) {
-  event.respondWith(
-    (async () => {
-      try {
-        const { strategy } = config;
-        if (strategy === "reactive") {
-          const reactiveCfg = findReactiveConfig(new URL(request.url).href);
-          const staleTime = config.staleTime !== undefined ? config.staleTime : reactiveCfg?.staleTime;
-          return await reactiveStrategy(event, request, staleTime);
-        } else if (strategy === "stale-while-revalidate") {
-          return await staleWhileRevalidate(event, request);
-        } else if (strategy === "network-first") {
-          return await networkFirst(event, request);
-        } else if (strategy === "cache-only") {
-          return await cacheOnly(event, request);
-        } else if (strategy === "network-only") {
-          return await networkOnly(event, request);
-        } else {
-          return await cacheFirst(event, request);
-        }
-      } catch {
-        const fallback = await fromUltimateFallback(request);
-        return fallback;
-      }
-    })()
-  );
+  event.respondWith(_executeStrategy(event, request, config));
 }
 
 ${
@@ -974,21 +917,8 @@ async function handleMutation(event) {
     event.respondWith(navigateWithRules(event, request));
     return;
   }
-` : navMode === "stale-while-revalidate" ? `
-  if (request.mode === "navigate") {
-    event.respondWith(navigateFirst_SWR(event, request));
-    return;
-  }
-` : navMode === "ssr" ? `
-  if (request.mode === "navigate") {
-    event.respondWith(navigateFirst(event, request));
-    return;
-  }
-` : navMode === "network-first" ? `
-  if (request.mode === "navigate") {
-    event.respondWith(navigateFirst(event, request));
-    return;
-  }
+` : navMode === "ssr" || navMode === "spa" || navMode === "default" ? `
+  // Navigation mode: ${navMode} — handled by standard strategy dispatch
 ` : ""}
   applyStrategy(event, request, determineCacheStrategy(event.request, ${JSON.stringify(strategies)}, { defaultStrategy: "${defaultStrategy}" }));
 });
@@ -1065,9 +995,6 @@ async function cacheFirst(event, request) {
   const precached = await fromPrecache(request);
   if (precached) return markFromCache(precached);
 
-  const fallback = await fromSpaFallback(request);
-  if (fallback) return fallback;
-
   const response = await _fetch(event, request);
   if (response && response.ok) {
     const responseToCache = response.clone();
@@ -1093,9 +1020,6 @@ async function networkFirst(event, request) {
 
     const precached = await fromPrecache(request);
     if (precached) return markFromCache(precached);
-
-    const fallback = await fromSpaFallback(request);
-    if (fallback) return fallback;
 
     throw new Error("Network request failed and no cached response available");
   }
@@ -1137,9 +1061,6 @@ async function reactiveStrategy(event, request, staleTime) {
 
   const precached = await fromPrecache(request);
   if (precached) return markFromCache(precached);
-
-  const fallback = await fromSpaFallback(request);
-  if (fallback) return fallback;
 
   const reqForCache = request.clone();
   const response = await _fetch(event, request);

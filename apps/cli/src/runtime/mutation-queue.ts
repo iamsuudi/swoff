@@ -11,8 +11,8 @@ export function generateMutationQueueCode(
 ): string {
   const { ext, ts } = ctx;
 
-  const importLines = authEnabled
-    ? `import { getAuth } from "../auth/store.${ext}";
+  const authImports = authEnabled
+    ? `import { getAuth, ensureValidAuth, clearAuth } from "../auth/store.${ext}";
 `
     : "";
 
@@ -31,6 +31,41 @@ ${ts
   const authHeaderSpread = authEnabled
     ? `            ...authHeader,\n`
     : "            ";
+
+  const auth401ReplayBlock = authEnabled
+    ? `    if (response.status === 401) {
+      // Auth failure — try silent refresh (/refresh endpoint)
+      const refreshed = await ensureValidAuth();
+      if (refreshed?.token) {
+        // Refresh succeeded — retry the mutation once
+        const retryHeader${T(ts, "Record<string, string>")} = refreshed?.token ? { Authorization: \`Bearer \${refreshed.token}\` } : {};
+        const retryResponse = await fetch(item.url, {
+          method: item.method,
+          headers: {
+            ...(contentType ? { "Content-Type": contentType } : {}),
+            ...item.headers,
+            ...retryHeader,
+          },
+          ...(replayBody != null ? { body: replayBody } : {}),
+        });
+        if (retryResponse.ok) {
+          // Success after auth refresh — normal flow
+          if (item.tags && item.tags.length > 0) {
+            await invalidateByTags(item.tags);
+          }
+          await removeFromQueue(item.id, db);
+          return true;
+        }
+        // Retry still failed — authenticated but not authorized for this resource
+        // Drop this mutation immediately (don't retry)
+        await removeFromQueue(item.id, db);
+        return true;
+      }
+      // Refresh failed — session expired. ClearAuth cascades to clear queue + caches.
+      await clearAuth();
+      return false;
+    }
+` : "";
 
   const code = `/**
  * Swoff Mutation Queue
@@ -60,7 +95,7 @@ ${ts
  *   retryBackoffMs: ${retryBackoffMs} — exponential backoff base
  */
 
-${importLines}${additionalImports}const DB_NAME = "swoff-queue";
+${authImports}${additionalImports}const DB_NAME = "swoff-queue";
 const STORE_NAME = "mutations";
 const BATCH_SIZE = ${batchSize};
 const BATCH_DELAY_MS = ${batchDelayMs};
@@ -159,7 +194,7 @@ ${authHeaderSpread}      },
       ...(replayBody != null ? { body: replayBody } : {}),
     });
 
-    if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
+${auth401ReplayBlock}    if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
 
     if (item.tags && item.tags.length > 0) {
       await invalidateByTags(item.tags);
@@ -173,6 +208,18 @@ ${authHeaderSpread}      },
     await updateInQueue(item, db);
     return false;
   }
+}
+
+/** Clear all queued mutations. Called when auth context changes (logout, session expiry) — queued operations belong to the old session and must not leak. */
+export async function clearQueue()${R(ts, "Promise<void>")}{
+  const db = await openQueueDB();
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  tx.objectStore(STORE_NAME).clear();
+  await new Promise${PT(ts, "void")}((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
 }
 
 /** Process all queued mutations in order. Sends them to the server. Runs automatically when mutations are queued or on reconnection. Respects batchSize for progress reporting and batchDelayMs for rate limiting. */

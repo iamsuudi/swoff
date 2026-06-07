@@ -176,8 +176,8 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       }
       const navigation = sw.navigation as Record<string, unknown> | undefined;
       if (navigation && typeof navigation === "object") {
-        if (navigation.mode !== undefined && !["spa", "default", "network-first", "stale-while-revalidate", "ssr"].includes(navigation.mode as string)) {
-          errors.push('features.serviceWorker.navigation.mode must be "spa", "default", "network-first", "stale-while-revalidate", or "ssr"');
+        if (navigation.mode !== undefined && !["spa", "default", "ssr"].includes(navigation.mode as string)) {
+          errors.push('features.serviceWorker.navigation.mode must be "spa", "default", or "ssr"');
         }
         if (navigation.fallback !== undefined && typeof navigation.fallback !== "string") {
           errors.push("features.serviceWorker.navigation.fallback must be a string");

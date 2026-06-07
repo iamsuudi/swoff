@@ -31,7 +31,7 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 | Stale-while-revalidate | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ via Query |
 | Cache-first / Network-first | ✅ both | ✅ both | ✅ both | ✅ both | ❌ | ❌ | ❌ | ❌ |
 | Reactive strategy (staleTime) | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ via Query |
-| SSR navigation mode | ✅ 5 modes | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Navigation modes | ✅ 3 (spa, default, ssr) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | HTML cache isolation | ✅ Content-Type routing | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Auto-prefetch on client nav | ✅ pushState interceptor | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Configurable mode (all/explicit) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -81,7 +81,7 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 | Built-in auth header injection | ✅ 3 types | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Auth-aware offline queue | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Token refresh before expiry | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 401 detection → clear auth | ✅ SW + client | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 401 detection → clear auth | ✅ Client auto + SW background notification | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Memory-only token storage | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Offline user data cache | ✅ IndexedDB | ❌ | ❌ | ❌ | ❌ | ✅ |
 
@@ -135,7 +135,7 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 Each feature has a dedicated comparison with code examples, tradeoff analysis, and guidance on when to choose what:
 
 - [Prefetch](./comparisons/prefetch.md) — Manual `prefetchCache`, auto-prefetch on pushState, and framework built-in comparison
-- [Offline Navigation](./comparisons/offline-navigation.md) — 5 navigation modes, HTML cache isolation, auto-prefetch, per-route policies, smart retry vs Serwist / next-pwa / Workbox
+- [Offline Navigation](./comparisons/offline-navigation.md) — 3 navigation modes, HTML cache isolation, auto-prefetch, per-route policies, smart retry vs Serwist / next-pwa / Workbox
 - [Data Fetching](./comparisons/data-fetching.md) — `useCachedFetch` vs TanStack Query / SWR
 - [Caching & Data Layer](./comparisons/caching-and-data.md) — SW-level HTTP caching vs client databases
 - [Cache Invalidation](./comparisons/invalidation.md) — Tag-based vs query-key

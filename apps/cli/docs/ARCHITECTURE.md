@@ -96,7 +96,7 @@ Non-reactive strategies (cache-first, network-first, stale-while-revalidate) do 
 
 ## SSR navigation mode
 
-The `"ssr"` navigation mode is designed for server-rendered applications (Next.js, Remix, Nuxt, SvelteKit, Astro, HTMX). It behaves identically to `"network-first"` for navigation requests — try the network first, cache the response on success, fall back to runtime cache → precache → offline fallback — but adds one extra feature:
+The `"ssr"` navigation mode is designed for server-rendered applications (Next.js, Remix, Nuxt, SvelteKit, Astro, HTMX). Unlike the old architecture which required separate `navigateFirst` handlers, SSR mode now falls through to the global caching strategy like all other modes. The key differentiator is **auto-prefetch**:
 
 **Auto-prefetch on client-side navigation:** When `"ssr"` mode is enabled, the generated `client-injector` code intercepts `history.pushState()` and `history.replaceState()` and calls `prefetchCache(url)` for each navigation. This ensures that when the user clicks a client-side link (e.g. via a framework router), the SW starts fetching the page in the background before the server responds. The next time the user refreshes or navigates to that page, the cached HTML is available instantly.
 
@@ -113,10 +113,7 @@ history.pushState = function (data, unused, url) {
 };
 ```
 
-The `navigateFirst` handler is used for both `"ssr"` and `"network-first"` modes:
-```
-try network → cache on success → fromRuntime → fromPrecache → ultimate fallback
-```
+All navigation modes (`spa`, `ssr`, `default`) use the same standard strategy dispatch for the actual fetch — the mode only controls whether auto-prefetch is injected in the client.
 
 Non-navigation requests (API calls, assets, RSC payloads) are handled by the configured caching strategy via the normal strategy dispatch system.
 
@@ -358,7 +355,7 @@ Auth tokens are stored **in memory only** — never persisted to IndexedDB or lo
 2. `createAuthFromResponse(response)` extracts the token (edit this to match your backend)
 3. Token held in memory; user data optionally cached in IndexedDB
 4. `fetchWithCache(url, { auth: true })` calls `getAuth()` → `withAuthHeaders(headers, auth)`
-5. On 401: `clearAuth()` + dispatch `sw-auth-unauthorized` event
+5. On 401 (client-side): `clearAuth()` + dispatch `sw-auth-unauthorized` event. On 401 during SW background refetch: SW sends `AUTH_FAILURE` to client → client calls `ensureValidAuth()` → clears queue/caches on failure
 
 **Auth types:**
 - `bearer`: `Authorization: Bearer <token>`

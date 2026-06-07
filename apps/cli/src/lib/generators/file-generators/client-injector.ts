@@ -15,6 +15,7 @@ export function generateClientInjector(ctx: GeneratorContext): void {
     ctx.config.features.mutationQueue.enabled,
     ctx.config.features.serverPush?.enabled ?? false,
     ctx.config.features.serviceWorker.navigation.mode,
+    ctx.config.features.auth.enabled,
   );
 
   writeFile(ctx, `client-injector.${ext}`, code);

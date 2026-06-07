@@ -15,26 +15,24 @@ The only framework-specific surface is **view adapters** (React hooks, future Vu
 
 | Category | Examples | Config Hint |
 |---|---|---|
-| **Backend** | PHP, Laravel, Django, Rails, ASP.NET, Go, Java, Node | `navigation.mode: "network-first"` |
-| **HTML-over-wire** | HTMX, Turbo Hotwire, Unpoly, Livewire | `navigation.mode: "network-first"` |
+| **Backend** | PHP, Laravel, Django, Rails, ASP.NET, Go, Java, Node | `navigation.mode: "ssr"` |
+| **HTML-over-wire** | HTMX, Turbo Hotwire, Unpoly, Livewire | `navigation.mode: "ssr"` |
 | **SSG** | Astro, Hugo, 11ty, Jekyll | `navigation.mode: "default"`, strategy `cache-first` |
 | **SPA frameworks** | React, Vue, Svelte, Solid, Angular, Alpine | `navigation.mode: "spa"` (default) |
-| **Meta-frameworks** | Next.js, Remix, Nuxt, SvelteKit, TanStack Start | Auto-detected; `navigation.mode: "network-first"` + framework-specific `ignoreQueryParams` |
-| **RSC-based** | Next.js App Router | `navigation.mode: "network-first"` + `ignoreQueryParams: ["_rsc"]` (auto-detected) |
+| **Meta-frameworks** | Next.js, Remix, Nuxt, SvelteKit, TanStack Start | Auto-detected; `navigation.mode: "ssr"` + framework-specific `ignoreQueryParams` |
+| **RSC-based** | Next.js App Router | `navigation.mode: "ssr"` + `ignoreQueryParams: ["_rsc"]` (auto-detected) |
 | **Edge / Serverless** | Cloudflare Workers, Deno Deploy, Vercel Edge | Edge runs on CDN, Swoff runs in browser — independent layers, no conflict |
 | **Islands / Resumability** | Astro islands, Qwik, Marko | SW runs in its own thread regardless of component hydration |
 
 ## Navigation modes
 
-Swoff supports five navigation modes for different rendering strategies:
+Swoff supports three navigation modes for different rendering strategies:
 
 | Mode | Behavior | Use case |
 |---|---|---|
-| `"spa"` | Serves `/index.html` from precache for all unmatched `navigate` requests (checked *before* network). | Traditional SPAs (React, Vue, Svelte SPA). |
-| `"default"` | No special navigation handling. The SPA fallback is **not** served for navigations — the configured caching strategy handles all requests equally. | SSG sites (Astro, Hugo, 11ty) where pages are static files. |
-| `"network-first"` | Navigation requests try network first, cache the response on success, and fall back to runtime cache → precache → SPA fallback on failure. Non-navigation requests (API, RSC fetches, assets) use the configured strategy normally. | Any SSR/MPA framework (Next.js, Remix, Nuxt, SvelteKit, Laravel, Django, PHP, HTMX). |
-| `"stale-while-revalidate"` | Serves cached HTML instantly if available, then fetches a fresh version in the background. On cache miss, tries network, then falls through the offline chain. | Previously-visited SSR pages where instant loading matters more than absolute freshness. |
-| `"ssr"` | Same as `"network-first"` but adds auto-prefetch: intercepts `history.pushState`/`replaceState` to call `prefetchCache(url)` on every client-side navigation, warming the SW cache with HTML pages as the user browses. | Framework-agnostic SSR — all meta-frameworks (Next.js, Remix, Nuxt, SvelteKit, TanStack Start, Astro, HTMX). |
+| `"spa"` | Navigation requests fall through to the global caching strategy. The SPA shell (`/index.html`) is served only at the ultimate fallback level as the last resort. | Traditional SPAs (React, Vue, Svelte SPA). |
+| `"default"` | No special navigation handling. The configured caching strategy handles all requests equally. | SSG sites (Astro, Hugo, 11ty) where pages are static files. |
+| `"ssr"` | Navigation requests use the global caching strategy. Adds auto-prefetch: intercepts `history.pushState`/`replaceState` to call `prefetchCache(url)` on every client-side navigation, warming the SW cache with HTML pages as the user browses. | Framework-agnostic SSR — all meta-frameworks (Next.js, Remix, Nuxt, SvelteKit, TanStack Start, Astro, HTMX). |
 
 ## Per-route navigation policies
 
@@ -161,8 +159,8 @@ The `?_rsc=<token>` query param used by RSC frameworks is now safe to strip via 
 | Scenario | Behavior |
 |---|---|
 | Client navigation to visited page | React's in-memory RSC cache handles this (not SW). Works offline if page was previously visited in the same session. |
-| Refresh visited page (online) | `navigateFirst` fetches fresh HTML from network, caches in HTML cache, returns it |
-| Refresh visited page (offline) | `navigateFirst` looks up `/about` in HTML cache → **hit** if previously full-loaded online; otherwise fall through |
+| Refresh visited page (online) | Strategy dispatch fetches fresh HTML from network, caches in HTML cache, returns it |
+| Refresh visited page (offline) | Strategy dispatch looks up `/about` in HTML cache → **hit** if previously full-loaded online; otherwise fall through |
 | Refresh but never full-loaded (only client-nav) | HTML cache has no entry for `/about` (RSC payload stored in main cache) → cache miss → 503 |
 | First visit to SSG route (offline) | Works if route is in `precacheRoutes` — fetched at install time |
 | Navigate to new page (offline) | Network error → main cache serves RSC/data payload if previously cached |

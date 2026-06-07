@@ -119,7 +119,6 @@ ${cookieGuard}
           const response = await refreshSession(${tokenArg});
         if (!response.ok) {
           await clearAuth();
-          window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
           return null;
         }
 
@@ -129,7 +128,6 @@ ${cookieGuard}
         return updated;
       } catch {
         await clearAuth();
-        window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
         return null;
       }
     })();
@@ -271,7 +269,9 @@ export async function getAuth()${R(ts, "Promise<AuthData | null>")}{
   return memoryAuth;
 }
 
-/** Clear auth from memory and IndexedDB. Call on logout or 401. */
+/** Clear auth from memory and IndexedDB. Call on logout or 401.
+ *  Does NOT cascade to queue/caches — the app decides when to clear those.
+ *  The fetch-wrapper dispatches sw-auth-unauthorized when needed. */
 export async function clearAuth()${R(ts, "Promise<void>")}{
   memoryAuth = null;
   await clearPersistedData();

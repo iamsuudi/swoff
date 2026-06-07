@@ -12,6 +12,7 @@ describe("assembleSW", () => {
     expect(sw).toContain("CACHE_NAME = 'sw-v1.0.0'");
     expect(sw).toContain("self.addEventListener");
     expect(sw).toContain("CACHE_NAME_RUNTIME");
+    expect(sw).toContain("CACHE_NAME_RUNTIME_HTML");
   });
 
   it("includes config header with resolved version", () => {

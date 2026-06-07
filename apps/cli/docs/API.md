@@ -496,6 +496,26 @@ Always generated.
 
 ## `fetch/state.ts`
 
+Global fetch counter for tracking in-flight requests across the application. Used by `useIsFetching()` to determine if any network requests are currently active.
+
+```ts
+import {
+  incrementFetchCount,
+  decrementFetchCount,
+  getFetchCount,
+} from "swoff/fetch/state";
+```
+
+| Function | Returns | Description |
+|---|---|---|
+| `incrementFetchCount` | `void` | Increments the global in-flight counter and dispatches a `fetch-count-changed` custom event |
+| `decrementFetchCount` | `void` | Decrements the global in-flight counter and dispatches a `fetch-count-changed` custom event |
+| `getFetchCount` | `number` | Returns the current number of in-flight requests |
+
+The `fetchCount` is a module-level variable (not persisted). A `Set<string>` of in-flight cache keys is also maintained to prevent duplicate requests to the same URL. Both are reset on page reload.
+
+Always generated.
+
 ---
 
 ## React hooks

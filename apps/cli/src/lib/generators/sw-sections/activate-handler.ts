@@ -1,7 +1,7 @@
 export function generateActivateHandler(clearRuntimeOnUpdate: boolean, navigationPreload?: boolean, maxRuntimeCacheAge?: number): string {
   const cacheCleanup = clearRuntimeOnUpdate
     ? `keys.filter((key) => key !== CACHE_NAME)`
-    : `keys.filter((key) => key !== CACHE_NAME && key !== CACHE_NAME_RUNTIME)`;
+    : `keys.filter((key) => key !== CACHE_NAME && key !== CACHE_NAME_RUNTIME && key !== CACHE_NAME_RUNTIME_HTML)`;
 
   const navPreloadCode = navigationPreload ? `
       if (self.registration.navigationPreload) {
@@ -15,20 +15,22 @@ export function generateActivateHandler(clearRuntimeOnUpdate: boolean, navigatio
 const MAX_RUNTIME_CACHE_AGE = ${maxRuntimeCacheAge};
 
 async function evictStaleRuntimeCache() {
-  const cache = await caches.open(CACHE_NAME_RUNTIME);
-  const keys = await cache.keys();
-  const cutoff = Date.now() - MAX_RUNTIME_CACHE_AGE * 1000;
-  const promises = [];
-  for (const request of keys) {
-    promises.push((async () => {
-      const response = await cache.match(request);
-      const cachedAt = response?.headers.get("X-SW-Cached-At");
-      if (cachedAt && Number(cachedAt) < cutoff) {
-        await cache.delete(request);
-      }
-    })());
+  for (const name of [CACHE_NAME_RUNTIME, CACHE_NAME_RUNTIME_HTML]) {
+    const cache = await caches.open(name);
+    const keys = await cache.keys();
+    const cutoff = Date.now() - MAX_RUNTIME_CACHE_AGE * 1000;
+    const promises = [];
+    for (const request of keys) {
+      promises.push((async () => {
+        const response = await cache.match(request);
+        const cachedAt = response?.headers.get("X-SW-Cached-At");
+        if (cachedAt && Number(cachedAt) < cutoff) {
+          await cache.delete(request);
+        }
+      })());
+    }
+    await Promise.all(promises);
   }
-  await Promise.all(promises);
 }
 ` : "";
 

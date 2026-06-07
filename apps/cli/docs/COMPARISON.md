@@ -5,10 +5,12 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 ## Libraries Compared
 
 | Library | Category | Approach | Runtime size |
-|---|---|---|---|
+|---|---|---|---|---|
 | **Swoff** | Offline infra generator | Config-driven code gen | 0 kB |
 | **Workbox** | SW toolkit | Build-time + runtime modules | ~30 kB |
 | **vite-plugin-pwa** | SW (Vite) | Vite plugin wrapping Workbox | ~30 kB |
+| **Serwist** | SW (Next.js-first) | Build-time + runtime modules | ~35 kB |
+| **next-pwa** | SW (Next.js) | Workbox wrapper plugin | ~30 kB |
 | **TanStack Query** | Server state | Runtime JS | 3.8 kB gzip |
 | **SWR** | Server state | Runtime JS | 3.3 kB gzip |
 | **RTK Query** | Server state | Runtime JS + Redux | 2.9 kB + Redux |
@@ -22,18 +24,21 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 
 ### Caching & Strategies
 
-| Feature | Swoff | Workbox | TanStack Query | Apollo | RxDB | TanStack DB |
-|---|---|---|---|---|---|---|
-| SW code generation | ✅ Full source | 🟡 Partial runtime | ❌ | ❌ | ❌ | ❌ |
-| Caching strategies | ✅ 6 | ✅ 5 | ❌ | ❌ | ❌ | 🟡 via Query |
-| Stale-while-revalidate | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ via Query |
-| Cache-first / Network-first | ✅ both | ✅ both | ❌ | ❌ | ❌ | ❌ |
-| Reactive strategy (staleTime) | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ via Query |
-| Configurable mode (all/explicit) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Cache key normalization | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Ignore query params in cache key | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Request batching (coalescing) | ✅ 50 ms window | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Precaching at install time | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Feature | Swoff | Workbox | Serwist | next-pwa | TanStack Query | Apollo | RxDB | TanStack DB |
+|---|---|---|---|---|---|---|---|---|
+| SW code generation | ✅ Full source | 🟡 Partial runtime | 🟡 Partial runtime | 🟡 Partial runtime | ❌ | ❌ | ❌ | ❌ |
+| Caching strategies | ✅ 6 | ✅ 5 | ✅ 5 | ✅ 5 | ❌ | ❌ | ❌ | 🟡 via Query |
+| Stale-while-revalidate | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ via Query |
+| Cache-first / Network-first | ✅ both | ✅ both | ✅ both | ✅ both | ❌ | ❌ | ❌ | ❌ |
+| Reactive strategy (staleTime) | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ via Query |
+| SSR navigation mode | ✅ 5 modes | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| HTML cache isolation | ✅ Content-Type routing | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Auto-prefetch on client nav | ✅ pushState interceptor | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Configurable mode (all/explicit) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Cache key normalization | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Ignore query params in cache key | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Request batching (coalescing) | ✅ 50 ms window | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Precaching at install time | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 ### Invalidation
 
@@ -60,14 +65,14 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 
 ### Service Worker
 
-| Feature | Swoff | Workbox | TanStack Query | Apollo | RxDB | TanStack DB |
-|---|---|---|---|---|---|---|
-| Generated auditable SW code | ✅ full source | 🟡 loader module | ❌ | ❌ | ❌ | ❌ |
-| 3-tier config resolution | ✅ per-request → pattern → global | 🟡 2-tier | ❌ | ❌ | ❌ | ❌ |
-| SW update versioning | ✅ 3 modes | ✅ runtime | ❌ | ❌ | ❌ | ❌ |
-| Navigation preload | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| SPA fallback for navigation | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| SW lifecycle coordination | ✅ client-injector | ✅ built-in | ❌ | ❌ | ❌ | ❌ |
+| Feature | Swoff | Workbox | Serwist | next-pwa | TanStack Query | Apollo | RxDB | TanStack DB |
+|---|---|---|---|---|---|---|---|---|
+| Generated auditable SW code | ✅ full source | 🟡 loader module | 🟡 loader module | 🟡 loader module | ❌ | ❌ | ❌ | ❌ |
+| 3-tier config resolution | ✅ per-request → pattern → global | 🟡 2-tier | 🟡 2-tier | 🟡 2-tier | ❌ | ❌ | ❌ | ❌ |
+| SW update versioning | ✅ 3 modes | ✅ runtime | ✅ runtime | ✅ runtime | ❌ | ❌ | ❌ | ❌ |
+| Navigation preload | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| SPA fallback for navigation | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| SW lifecycle coordination | ✅ client-injector | ✅ built-in | ✅ built-in | ✅ built-in | ❌ | ❌ | ❌ | ❌ |
 
 ### Auth
 
@@ -129,8 +134,8 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 
 Each feature has a dedicated comparison with code examples, tradeoff analysis, and guidance on when to choose what:
 
-- [Prefetch](./comparisons/prefetch.md) — Swoff vs Next.js / TanStack Router / Remix / SvelteKit
-- [Offline Navigation](./comparisons/offline-navigation.md) — Fallback chain, Content-Type safety, and navigation modes vs next-pwa / Serwist / Workbox
+- [Prefetch](./comparisons/prefetch.md) — Manual `prefetchCache`, auto-prefetch on pushState, and framework built-in comparison
+- [Offline Navigation](./comparisons/offline-navigation.md) — 5 navigation modes, HTML cache isolation, auto-prefetch, per-route policies, smart retry vs Serwist / next-pwa / Workbox
 - [Data Fetching](./comparisons/data-fetching.md) — `useCachedFetch` vs TanStack Query / SWR
 - [Caching & Data Layer](./comparisons/caching-and-data.md) — SW-level HTTP caching vs client databases
 - [Cache Invalidation](./comparisons/invalidation.md) — Tag-based vs query-key

@@ -26,7 +26,7 @@ The only framework-specific surface is **view adapters** (React hooks, future Vu
 
 ## Navigation modes
 
-Swoff supports four navigation modes for different rendering strategies:
+Swoff supports five navigation modes for different rendering strategies:
 
 | Mode | Behavior | Use case |
 |---|---|---|
@@ -34,6 +34,7 @@ Swoff supports four navigation modes for different rendering strategies:
 | `"default"` | No special navigation handling. The SPA fallback is **not** served for navigations — the configured caching strategy handles all requests equally. | SSG sites (Astro, Hugo, 11ty) where pages are static files. |
 | `"network-first"` | Navigation requests try network first, cache the response on success, and fall back to runtime cache → precache → SPA fallback on failure. Non-navigation requests (API, RSC fetches, assets) use the configured strategy normally. | Any SSR/MPA framework (Next.js, Remix, Nuxt, SvelteKit, Laravel, Django, PHP, HTMX). |
 | `"stale-while-revalidate"` | Serves cached HTML instantly if available, then fetches a fresh version in the background. On cache miss, tries network, then falls through the offline chain. | Previously-visited SSR pages where instant loading matters more than absolute freshness. |
+| `"ssr"` | Same as `"network-first"` but adds auto-prefetch: intercepts `history.pushState`/`replaceState` to call `prefetchCache(url)` on every client-side navigation, warming the SW cache with HTML pages as the user browses. | Framework-agnostic SSR — all meta-frameworks (Next.js, Remix, Nuxt, SvelteKit, TanStack Start, Astro, HTMX). |
 
 ## Per-route navigation policies
 
@@ -138,66 +139,39 @@ For SSG routes or any deterministic URL, you can precache routes at install time
 
 The SW fetches each route during installation and stores it in the precache cache. Routes already covered by scanned assets are deduplicated. This is framework-agnostic — works with SSG pages, API responses, or any fetchable URL. If a route fails to fetch during installation (e.g. server is down), the SW logs a warning and continues.
 
-## React Server Components (RSC)
+## HTML cache isolation
 
-Next.js App Router uses RSC as its transport format: client-side navigation fetches serialised component trees via `fetch()` with a unique `?_rsc=<token>` query parameter. This token is ephemeral — it changes on every navigation for deduplication, not for cache busting.
+A single URL can serve different content types depending on the request. For example, a Next.js App Router page returns `text/html` on full page load and `text/x-component` (RSC) on client navigation. HTMX can return partial HTML fragments. Any API endpoint can return JSON or HTML depending on the `Accept` header.
 
-**Impact on caching:**
+If these different content types were stored at the same cache key, a hard refresh while offline could serve the wrong response to the browser.
 
-- Every client navigation produces a different URL: `/about?_rsc=abc` vs `/about?_rsc=xyz`
-- The request is `mode: ""` (not `"navigate"`), so SPA fallback does not serve cached HTML
-- Each RSC response is a `text/x-component` payload — NOT an HTML page. It's a serialised component tree that only the React client can interpret.
+Swoff isolates `text/html` responses in their own cache container (`CACHE_NAME_RUNTIME_HTML`), separate from all other content. The rule is simple and framework-agnostic:
 
-**Why `ignoreQueryParams: ["_rsc"]` is NOT used:**
+- `text/html` → HTML cache
+- Everything else (RSC, JSON, JS, CSS, images) → main runtime cache
 
-Setting `ignoreQueryParams: ["_rsc"]` would map both RSC fetches (`/about?_rsc=abc`) and full page loads (`/about`) to the same cache key `/about`. But they are **completely different resources**:
+Navigation requests only read from the HTML cache. Non-navigation requests only read from the main runtime cache. This is always-on with no user-facing config.
 
-| Request | Content | Serves as |
-|---|---|---|
-| RSC fetch `/about?_rsc=abc` | `text/x-component` (component tree) | Client-side navigation (SPA) |
-| Full page load `/about` | `text/html` (full page) | Page refresh / initial load |
+**Impact on Next.js / TanStack Start (RSC):**
 
-If the RSC payload were cached at `/about`, a full page refresh offline would find it and return `text/x-component` to the browser — which can't render it as a page. Therefore, the SW includes a safety check: **for navigation requests, only cached HTML responses are served**.
-
-**Recommended configuration (auto-applied when Next.js is detected):**
-
-```jsonc
-{
-  "features": {
-    "serviceWorker": {
-      "strategy": {
-        "default": "network-first",
-        "patterns": {
-          "/_next/*": "cache-first",
-          "/api/*": "network-first"
-        }
-      },
-      "navigation": {
-        "mode": "network-first",
-        "precacheRoutes": ["/", "/about"]
-      }
-    }
-  }
-}
-```
+The `?_rsc=<token>` query param used by RSC frameworks is now safe to strip via `ignoreQueryParams: ["_rsc"]`. RSC payloads and HTML pages for the same URL are stored in different caches — they never collide.
 
 **How offline navigation works:**
 
 | Scenario | Behavior |
 |---|---|
 | Client navigation to visited page | React's in-memory RSC cache handles this (not SW). Works offline if page was previously visited in the same session. |
-| Refresh visited page (online) | `navigateFirst` fetches fresh HTML from network, caches at clean URL, returns it |
-| Refresh visited page (offline) | `navigateFirst` looks up `/about` in runtime cache → **hit** if previously full-loaded online; otherwise fall through cache |
-| Refresh but never full-loaded (only client-nav) | Runtime cache has no HTML entry for `/about` (only RSC payloads) → cache miss → 503 |
+| Refresh visited page (online) | `navigateFirst` fetches fresh HTML from network, caches in HTML cache, returns it |
+| Refresh visited page (offline) | `navigateFirst` looks up `/about` in HTML cache → **hit** if previously full-loaded online; otherwise fall through |
+| Refresh but never full-loaded (only client-nav) | HTML cache has no entry for `/about` (RSC payload stored in main cache) → cache miss → 503 |
 | First visit to SSG route (offline) | Works if route is in `precacheRoutes` — fetched at install time |
-| Navigate to new page (offline) | Network error → no RSC cache → React shows error state |
+| Navigate to new page (offline) | Network error → main cache serves RSC/data payload if previously cached |
 
 **Limitations:**
 
-- Pages that have never been full-loaded (only visited via client navigation) cannot be refreshed offline — the RSC payload cached by the SW at its full URL cannot serve as an HTML page
+- Pages that have never been full-loaded (only visited via client navigation) cannot be refreshed offline — the RSC payload in the main cache cannot serve as an HTML page
 - Dynamic pages (SSR-only) require a successful full page load to cache their HTML
-- Use `navigation.precacheRoutes` for SSG routes that should work offline immediately on first visit
-- React's in-memory RSC cache is per-session; navigating away and coming back via client nav works within the same session, but a fresh tab or refresh requires the SW or network
+- React's in-memory RSC cache is per-session; a fresh tab or refresh requires the SW or network
 
 ## Offline Fallback Page
 

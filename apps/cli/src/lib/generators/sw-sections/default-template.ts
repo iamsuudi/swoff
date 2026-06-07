@@ -12,6 +12,7 @@ let ASSETS_TO_CACHE = [];
 // [[AUTO_SKIP_WAITING]]
 
 const CACHE_NAME_RUNTIME = "swoff-runtime";
+const CACHE_NAME_RUNTIME_HTML = "swoff-runtime-html";
 
 // [[INSTALL_HANDLER]]
 // [[ACTIVATE_HANDLER]]

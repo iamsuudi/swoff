@@ -79,4 +79,8 @@ function InstallButton() {
 | **Cross-framework** | ✅ Any framework or none | ❌ Vite only | ✅ Any build tool | ✅ Any setup |
 | **Bundle cost** | 0 kB (generated code) | ~35 kB (Workbox + plugin) | ~30 kB (Workbox) | N/A |
 
+## When to choose what
 
+- **Choose Swoff when:** You want PWA installability, manifest generation, push notifications, and splash screens from a single config file — all without importing a runtime library. You want the `beforeinstallprompt` event wiring generated automatically and don't want to manage SW lifecycle for PWA events separately.
+- **Choose vite-plugin-pwa when:** You're already in the Vite ecosystem, need a one-plugin setup for Workbox-based PWA support, and don't need generated React hooks or cross-framework support.
+- **Choose Workbox when:** You need precise control over your SW's PWA event handlers (install, activate, push, notificationclick) and are comfortable writing them manually. The ~30 kB runtime cost is acceptable for your use case.

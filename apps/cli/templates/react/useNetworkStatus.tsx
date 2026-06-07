@@ -19,17 +19,21 @@ export function useNetworkStatus() {
 
   const [state, setState] = useState(() => {
     const online = typeof navigator !== "undefined" ? navigator.onLine : true;
-    const connection = navigator?.connection;
     return {
       online,
-      wasOffline: false,
+      wasOffline: !online,
       lastChangedAt: null as number | null,
-      effectiveType: connection?.effectiveType ?? null,
-      downlink: connection?.downlink ?? null,
+      effectiveType: null as string | null,
+      downlink: null as number | null,
     };
   });
 
   useEffect(() => {
+    const wasOffline = !navigator.onLine;
+    if (wasOffline) wasOfflineRef.current = true;
+
+    const connection = (navigator as any).connection;
+
     const onOnline = () => {
       setState((s) => ({
         ...s,
@@ -47,7 +51,6 @@ export function useNetworkStatus() {
       }));
     };
 
-    const connection = navigator?.connection;
     const onTypeChange = () => {
       if (!connection) return;
       setState((s) => ({
@@ -57,10 +60,19 @@ export function useNetworkStatus() {
       }));
     };
 
+    const onSWNotification = (event: MessageEvent) => {
+      if (event.data?.type === "SW_NOTIFICATION" && event.data?.code === "FETCH_FAILED") {
+        onOffline();
+      }
+    };
+
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
     if (connection) {
       connection.addEventListener("change", onTypeChange);
+    }
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", onSWNotification);
     }
 
     return () => {
@@ -68,6 +80,9 @@ export function useNetworkStatus() {
       window.removeEventListener("offline", onOffline);
       if (connection) {
         connection.removeEventListener("change", onTypeChange);
+      }
+      if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", onSWNotification);
       }
     };
   }, []);

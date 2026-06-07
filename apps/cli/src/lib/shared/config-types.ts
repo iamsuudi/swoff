@@ -99,7 +99,7 @@ export interface SwoffConfig {
         timeout?: number;
       };
       navigation: {
-        mode: "spa" | "default" | "network-first" | "stale-while-revalidate";
+        mode: "spa" | "default" | "network-first" | "stale-while-revalidate" | "ssr";
         preload?: boolean;
         fallback: string;
         precacheRoutes?: string[];

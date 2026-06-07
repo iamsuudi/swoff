@@ -5,6 +5,7 @@ export function generateClientInjectorCode(
   pwaEnabled: boolean,
   mutationQueueEnabled: boolean,
   serverPushEnabled: boolean,
+  navMode?: string,
 ): string {
   const { ext, ts } = ctx;
 
@@ -78,6 +79,35 @@ if (typeof document !== "undefined") {
   const swImport = `import { initServiceWorker as swInit } from "./sw/injector.${ext}";
 `;
 
+  const autoPrefetchImport = navMode === "ssr"
+    ? `import { prefetchCache } from "./fetch/core.${ext}";
+`
+    : "";
+
+  const autoPrefetchCode = navMode === "ssr"
+    ? `
+// --- Auto-prefetch HTML on client-side navigation (SSR mode) ---
+// Intercepts history.pushState/replaceState to warm the SW cache with HTML
+// for routes the user navigates to via client-side routing.
+if (typeof history !== "undefined") {
+  const origPushState = history.pushState.bind(history);
+  history.pushState = function (data, unused, url) {
+    origPushState(data, unused, url);
+    if (typeof url === "string" && url.startsWith("/")) {
+      prefetchCache(url);
+    }
+  };
+  const origReplaceState = history.replaceState.bind(history);
+  history.replaceState = function (data, unused, url) {
+    origReplaceState(data, unused, url);
+    if (typeof url === "string" && url.startsWith("/")) {
+      prefetchCache(url);
+    }
+  };
+}
+`
+    : "";
+
   return `/**
  * Swoff Client Injector
  * Orchestrates SW registration, PWA install, and cross-tab sync.
@@ -107,8 +137,8 @@ if (typeof document !== "undefined") {
  *   sw-update-available   - New version ready (detail: { version })
  *   sw-version-detected   - Version info available
  */
-${pwaImport}${mutationImport}${swImport}${pushImport}
-${pwaCall}${mutationOnlineListener}${pushCall}${onlineRefetchListener}${focusListener}
+${pwaImport}${mutationImport}${swImport}${pushImport}${autoPrefetchImport}
+${pwaCall}${mutationOnlineListener}${pushCall}${onlineRefetchListener}${focusListener}${autoPrefetchCode}
 // --- SW Message Listener ---
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (event) => {

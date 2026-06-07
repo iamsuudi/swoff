@@ -51,7 +51,7 @@ export function generateFetchHandler(
       timeout?: number;
     };
     navigation: {
-      mode?: "spa" | "default" | "network-first" | "stale-while-revalidate";
+      mode?: "spa" | "default" | "network-first" | "stale-while-revalidate" | "ssr";
       preload?: boolean;
       fallback?: string;
       offlineFallback?: string;
@@ -204,7 +204,7 @@ const REFRESH_RETRY_DELAY_MS = ${refetchRetryDelayMs};`;
 "}\n" +
 "\n";
 
-  const navModeCode = navMode === "network-first" ? "\"network-first\"" : navMode === "default" ? "\"default\"" : navMode === "stale-while-revalidate" ? "\"stale-while-revalidate\"" : "\"spa\"";
+  const navModeCode = navMode === "network-first" ? "\"network-first\"" : navMode === "default" ? "\"default\"" : navMode === "stale-while-revalidate" ? "\"stale-while-revalidate\"" : navMode === "ssr" ? "\"ssr\"" : "\"spa\"";
   const offlineFallbackCode = offlineFallbackPath ? `"${offlineFallbackPath}"` : '""';
   const hasRules = navRules.length > 0;
   const navRulesCode = hasRules ? `const NAV_RULES = ${JSON.stringify(navRules.map((r) => ({
@@ -418,17 +418,19 @@ ${patternsWithInterval
   .map(
     (p) =>
       `  setInterval(async () => {
-    const cache = await caches.open(CACHE_NAME_RUNTIME);
-    const keys = await cache.keys();
-    for (const request of keys) {
-      const url = new URL(request.url);
-      if (url.pathname.startsWith("/__swc/")) continue;
-      if (!matchGlob(url.pathname, "${p.pattern}")) continue;
-      const config = findReactiveConfig(url.href);
-      if (!config) continue;
-      const cached = await cache.match(request);
-      if (cached && shouldReactiveRefresh(cached, config)) {
-        queueRefresh(request.url, url.href);
+    for (const name of [CACHE_NAME_RUNTIME, CACHE_NAME_RUNTIME_HTML]) {
+      const cache = await caches.open(name);
+      const keys = await cache.keys();
+      for (const request of keys) {
+        const url = new URL(request.url);
+        if (url.pathname.startsWith("/__swc/")) continue;
+        if (!matchGlob(url.pathname, "${p.pattern}")) continue;
+        const config = findReactiveConfig(url.href);
+        if (!config) continue;
+        const cached = await cache.match(request);
+        if (cached && shouldReactiveRefresh(cached, config)) {
+          queueRefresh(request.url, url.href);
+        }
       }
     }
   }, ${p.refetchInterval * 1000});`,
@@ -450,31 +452,35 @@ async function handleOnline() {
   }
 
   // Step 2: Refresh reactive entries with refetchOnReconnect
-  const cache = await caches.open(CACHE_NAME_RUNTIME);
-  const keys = await cache.keys();
-  for (const request of keys) {
-    const url = new URL(request.url);
-    if (url.pathname.startsWith("/__swc/")) continue;
-    const config = findReactiveConfig(url.href);
-    if (!config || !config.refetchOnReconnect) continue;
-    const cached = await cache.match(request);
-    if (cached && shouldReactiveRefresh(cached, config)) {
-      queueRefresh(request.url, url.href);
+  for (const name of [CACHE_NAME_RUNTIME, CACHE_NAME_RUNTIME_HTML]) {
+    const cache = await caches.open(name);
+    const keys = await cache.keys();
+    for (const request of keys) {
+      const url = new URL(request.url);
+      if (url.pathname.startsWith("/__swc/")) continue;
+      const config = findReactiveConfig(url.href);
+      if (!config || !config.refetchOnReconnect) continue;
+      const cached = await cache.match(request);
+      if (cached && shouldReactiveRefresh(cached, config)) {
+        queueRefresh(request.url, url.href);
+      }
     }
   }
 }
 
 async function handleOnFocus() {
-  const cache = await caches.open(CACHE_NAME_RUNTIME);
-  const keys = await cache.keys();
-  for (const request of keys) {
-    const url = new URL(request.url);
-    if (url.pathname.startsWith("/__swc/")) continue;
-    const config = findReactiveConfig(url.href);
-    if (!config || !config.refetchOnFocus) continue;
-    const cached = await cache.match(request);
-    if (cached && shouldReactiveRefresh(cached, config)) {
-      queueRefresh(request.url, url.href);
+  for (const name of [CACHE_NAME_RUNTIME, CACHE_NAME_RUNTIME_HTML]) {
+    const cache = await caches.open(name);
+    const keys = await cache.keys();
+    for (const request of keys) {
+      const url = new URL(request.url);
+      if (url.pathname.startsWith("/__swc/")) continue;
+      const config = findReactiveConfig(url.href);
+      if (!config || !config.refetchOnFocus) continue;
+      const cached = await cache.match(request);
+      if (cached && shouldReactiveRefresh(cached, config)) {
+        queueRefresh(request.url, url.href);
+      }
     }
   }
 }
@@ -519,20 +525,24 @@ async function fromPrecache(request) {
 }
 
 async function fromRuntime(request) {
-  const cache = await caches.open(CACHE_NAME_RUNTIME);
-  const response = await cache.match(cacheKey(request));
-  if (!response) return null;
-  // Only serve HTML responses for navigation requests to prevent
-  // content-type mismatches (e.g. RSC payload served as a page)
   if (request.mode === "navigate") {
-    const ct = response.headers.get("Content-Type") || "";
-    if (!ct.startsWith("text/html")) return null;
+    const htmlCache = await caches.open(CACHE_NAME_RUNTIME_HTML);
+    return htmlCache.match(cacheKey(request));
   }
-  return response;
+  const cache = await caches.open(CACHE_NAME_RUNTIME);
+  return cache.match(cacheKey(request));
 }
 
 async function storeRuntime(request, response) {
-  const cache = await caches.open(CACHE_NAME_RUNTIME);
+  const key = cacheKey(request);
+  // Skip if already in precache — strip all query params to match fromPrecache's lookup
+  const precache = await caches.open(CACHE_NAME);
+  const checkUrl = new URL(key);
+  checkUrl.search = "";
+  if (await precache.match(checkUrl.href)) return;
+  const ct = response.headers.get("Content-Type") || "";
+  const cacheName = ct.startsWith("text/html") ? CACHE_NAME_RUNTIME_HTML : CACHE_NAME_RUNTIME;
+  const cache = await caches.open(cacheName);
   const headers = new Headers(response.headers);
   headers.set("X-SW-Cached-At", String(Date.now()));
   const cloned = new Response(response.body, {
@@ -540,7 +550,7 @@ async function storeRuntime(request, response) {
     statusText: response.statusText,
     headers,
   });
-  await cache.put(cacheKey(request), cloned);
+  await cache.put(key, cloned);
 }
 
 async function cacheResponse(request, response) {
@@ -604,7 +614,7 @@ async function fromUltimateFallback(request) {
     if (!accept.includes("text/html")) {
       return new Response(
         JSON.stringify({ error: "offline", message: "You are offline and this resource is not cached" }),
-        { status: 503, headers: { "Content-Type": "application/json" } }
+        { status: 503, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
       );
     }
   }
@@ -642,12 +652,12 @@ async function fromUltimateFallback(request) {
   }
   return new Response(
     \`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Offline</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f5f5f5}div{text-align:center}h1{font-size:2rem;color:#333}p{color:#666}</style></head><body><div><h1>You're offline</h1><p>Please check your connection and try again.</p></div></body></html>\`,
-    { status: 503, headers: { "Content-Type": "text/html" } }
+    { status: 503, headers: { "Content-Type": "text/html", "Cache-Control": "no-store" } }
   );
 }
 
 ${
-  navMode === "network-first" || hasRules
+  navMode === "network-first" || navMode === "ssr" || hasRules
     ? `// --- Navigate-First handler (for SSR/MPA navigation mode) ---
 
 async function navigateFirst(event, request) {
@@ -907,13 +917,23 @@ async function storeMutationInSW(request) {
   });
 }
 
+function _fetchWithTimeout(request) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  return fetch(request, { signal: controller.signal }).finally(() => clearTimeout(id));
+}
+
 async function handleMutation(event) {
   const request = event.request;
   if (request.headers.get("X-SW-No-Queue") === "true") {
-    return fetch(request.clone());
+    try {
+      return await _fetchWithTimeout(request.clone());
+    } catch {
+      throw new Error("Mutation failed (no-queue mode)");
+    }
   }
   try {
-    return await fetch(request.clone());
+    return await _fetchWithTimeout(request.clone());
   } catch {
     await storeMutationInSW(request);
     // Notify open clients that a mutation was stored so they can try to process
@@ -959,6 +979,11 @@ async function handleMutation(event) {
     event.respondWith(navigateFirst_SWR(event, request));
     return;
   }
+` : navMode === "ssr" ? `
+  if (request.mode === "navigate") {
+    event.respondWith(navigateFirst(event, request));
+    return;
+  }
 ` : navMode === "network-first" ? `
   if (request.mode === "navigate") {
     event.respondWith(navigateFirst(event, request));
@@ -977,7 +1002,11 @@ const FETCH_TIMEOUT_MS = ${fetchTimeout * 1000};
 
 async function _fetchWithConditional(request) {
   const cache = await caches.open(CACHE_NAME_RUNTIME);
-  const cached = await cache.match(cacheKey(request));
+  let cached = await cache.match(cacheKey(request));
+  if (!cached && request.mode === "navigate") {
+    const htmlCache = await caches.open(CACHE_NAME_RUNTIME_HTML);
+    cached = await htmlCache.match(cacheKey(request));
+  }
   const etag = cached?.headers.get("ETag");
   if (etag) {
     request = new Request(request, {

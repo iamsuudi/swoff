@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { handleUpdateApproved } from "../sw/injector";
 
+type UpdateStatus = "idle" | "available" | "installing" | "ready";
+
 export function useSWUpdate() {
   const [state, setState] = useState(() => ({
-    updateStatus: "idle" as "idle" | "available" | "downloading" | "ready",
-    currentVersion: typeof window !== "undefined" ? (window.currentSWVersion as string | undefined) || null : null,
-    availableVersion: null as string | null,
-    progress: 0 as number,
-    forceUpdate: false,
+    status: "idle" as UpdateStatus,
+    progress: 0,
     error: null as string | null,
+    forceUpdate: false,
   }));
 
   useEffect(() => {
@@ -16,17 +16,27 @@ export function useSWUpdate() {
 
     const onAvailable = (e: WindowEventMap["sw-update-available"]) =>
       setState((s) => ({
-        ...s,
-        updateStatus: "available",
-        availableVersion: e.detail.version,
+        status: s.status === "installing" ? "ready" : "available",
+        progress: s.progress,
+        error: null,
         forceUpdate: window.swUpdateRequired || false,
       }));
+
     const onProgress = (e: WindowEventMap["sw-progress"]) =>
-      setState((s) => ({ ...s, updateStatus: "downloading", progress: e.detail.percent }));
-    const onReady = () =>
-      setState((s) => ({ ...s, updateStatus: "idle", progress: 0 }));
+      setState((s) => ({
+        ...s,
+        status: s.status === "idle" ? "installing" : s.status,
+        progress: e.detail.percent,
+      }));
+
+    const onReady = () => setState((s) => ({
+      ...s,
+      status: s.status === "installing" ? "idle" : s.status,
+      progress: 0,
+    }));
+
     const onError = () =>
-      setState((s) => ({ ...s, error: "SW registration failed" }));
+      setState((s) => ({ ...s, status: "idle", error: "SW registration failed" }));
 
     window.addEventListener("sw-update-available", onAvailable);
     window.addEventListener("sw-progress", onProgress);
@@ -41,36 +51,15 @@ export function useSWUpdate() {
   }, []);
 
   const acceptUpdate = useCallback(async () => {
-    if (!state.availableVersion) return;
-    await handleUpdateApproved(state.availableVersion);
-  }, [state.availableVersion]);
+    const version = window.swAvailableVersion;
+    if (!version) return;
+    await handleUpdateApproved(version);
+  }, []);
 
   const dismissUpdate = useCallback(() => {
     sessionStorage.setItem("sw-dismissed-update", "true");
-    setState((s) => ({ ...s, updateStatus: "idle" }));
+    setState((s) => ({ ...s, status: "idle" }));
   }, []);
 
   return { ...state, acceptUpdate, dismissUpdate };
-}
-
-export function useSWProgress() {
-  const [state, setState] = useState({
-    status: "idle" as "idle" | "installing",
-    progress: 0 as number,
-  });
-
-  useEffect(() => {
-    const onProgress = (e: WindowEventMap["sw-progress"]) =>
-      setState({ status: "installing", progress: e.detail.percent });
-    const onReady = () => setState({ status: "idle", progress: 0 });
-
-    window.addEventListener("sw-progress", onProgress);
-    window.addEventListener("sw-ready", onReady);
-    return () => {
-      window.removeEventListener("sw-progress", onProgress);
-      window.removeEventListener("sw-ready", onReady);
-    };
-  }, []);
-
-  return state;
 }

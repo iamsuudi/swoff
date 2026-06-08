@@ -42,7 +42,7 @@ import { generateGuide } from "./file-generators/guide-generator.js";
 import { generateReset } from "./file-generators/reset.js";
 import { generateOpenDB } from "./file-generators/open-db.js";
 import { generateFetchState } from "./file-generators/fetch-state.js";
-import { generateNotification } from "./file-generators/notification-generator.js";
+import { generateStorage } from "./file-generators/storage-generator.js";
 import { generateSwVersion } from "./file-generators/sw-version-gen.js";
 interface Step {
   name: string;
@@ -73,10 +73,10 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     { name: "pwa/injector", gen: () => generatePwaInstall(ctx), enabled: ctx.config.features.pwa.enabled },
     { name: "cache/tags", gen: () => generateInvalidationTags(ctx), enabled: true },
     { name: "graphql/index", gen: () => generateGqlWrapper(ctx), enabled: ctx.config.features.graphql.enabled },
-    { name: "realtime/notifications", gen: () => generatePush(ctx), enabled: ctx.config.features.pushNotifications?.enabled ?? false },
-    { name: "realtime/server-push", gen: () => generateServerPush(ctx), enabled: ctx.config.features.serverPush.enabled },
+    { name: "realtime/notifications", gen: () => generatePush(ctx), enabled: ctx.config.features.realtime.pushNotifications },
+    { name: "realtime/server-push", gen: () => generateServerPush(ctx), enabled: ctx.config.features.realtime.serverPush.enabled },
     { name: "framework-adapters", gen: () => generateFrameworkAdapters(ctx), enabled: ["react", "nextjs", "remix", "astro"].includes(ctx.frameworkName) },
-    { name: "notification", gen: () => generateNotification(ctx), enabled: ctx.config.features.pushNotifications?.enabled ?? false },
+    { name: "storage", gen: () => generateStorage(ctx), enabled: ctx.config.features.realtime.pushNotifications },
     { name: "GUIDE.md", gen: () => generateGuide(ctx), enabled: true },
   ];
 

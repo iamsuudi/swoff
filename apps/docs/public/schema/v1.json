@@ -10,33 +10,22 @@
       "description": "Reference to the schema version",
       "example": "https://swoff.netlify.app/schema/v1.json"
     },
-    "configVersion": {
-      "type": "integer",
-      "description": "Config schema version. The CLI warns when loading a config with a missing or outdated version. Set automatically by `swoff init`.",
-      "default": 1,
-      "minimum": 1
-    },
-    "enabled": {
-      "type": "boolean",
-      "description": "Enable or disable config-driven generation",
-      "default": true
-    },
     "framework": {
       "type": "string",
       "description": "Detected frontend framework. Used to generate framework-specific hooks and adapters. Set automatically by `swoff init`. When a meta-framework is detected (nextjs, remix, etc.), navigation.mode and strategy defaults are auto-configured.",
       "default": "vanilla",
       "enum": ["react", "vue", "svelte", "vanilla", "nextjs", "remix", "astro", "nuxt", "sveltekit"]
     },
-    "apiBaseUrl": {
-      "type": "string",
-      "description": "Base URL prepended to all relative API URLs in generated code (fetch-wrapper, server-push, auth-store, config.ts). Set to your API server origin when the frontend and API are on different domains. Leave empty string when they share the same origin.",
-      "default": "",
-      "examples": ["", "https://api.example.com"]
-    },
     "features": {
       "type": "object",
       "description": "Feature toggles - enable/disable specific functionality",
       "properties": {
+        "requestBatchWindowMs": {
+          "type": "integer",
+          "description": "Time window in ms to coalesce concurrent GET requests to the same URL before dispatching to the SW. 0 disables batching.",
+          "default": 50,
+          "minimum": 0
+        },
         "pwa": {
           "type": "object",
           "description": "PWA installability configuration",
@@ -73,27 +62,10 @@
               ],
               "default": "package"
             },
-            "minSupportedVersion": {
-              "type": "string",
-              "description": "Minimum supported SW version for forced updates. Clients running older versions are force-updated on page load.",
-              "default": "0.0.0",
-              "pattern": "^\\d+\\.\\d+\\.\\d+$"
-            },
-            "autoUpdate": {
-              "type": "boolean",
-              "description": "Automatically register new service worker versions when detected. When false, dispatches sw-update-available event for manual registration via handleUpdateApproved().",
-              "default": true
-            },
             "autoActivate": {
               "type": "boolean",
               "description": "Automatically activate newly registered service workers (skipWaiting). Only applies when a new version is registered — use with autoUpdate for fully silent updates, or wait for user consent then call handleUpdateApproved().",
               "default": false
-            },
-            "requestBatchWindowMs": {
-              "type": "integer",
-              "description": "Time window in ms to coalesce concurrent GET requests to the same URL before dispatching to the SW. 0 disables batching.",
-              "default": 50,
-              "minimum": 0
             },
             "strategy": {
               "type": "object",
@@ -320,7 +292,7 @@
               }
             }
           },
-          "required": ["version", "autoUpdate", "autoActivate"]
+          "required": ["version", "autoActivate"]
         },
         "refetchQueue": {
           "type": "object",
@@ -384,13 +356,13 @@
               "description": "Exponential backoff base in ms",
               "default": 1000,
               "minimum": 0
+            },
+            "backgroundSync": {
+              "type": "boolean",
+              "description": "Enable Background Sync API (Chrome/Edge only). Nests under mutationQueue because it requires mutation queue processing.",
+              "default": false
             }
           }
-        },
-        "backgroundSync": {
-          "type": "boolean",
-          "description": "Enable Background Sync API (Chrome/Edge only)",
-          "default": false
         },
         "auth": {
           "type": "object",
@@ -420,18 +392,13 @@
           },
           "required": ["enabled", "type"]
         },
-        "crossTabSync": {
-          "type": "boolean",
-          "description": "Cross-tab cache invalidation sync",
-          "default": true
-        },
         "tagInvalidation": {
           "type": "object",
           "description": "Tag-based cache invalidation configuration. Object-only (boolean shorthand not supported).",
           "properties": {
-            "enabled": {
+            "crossTabSync": {
               "type": "boolean",
-              "description": "Enable tag-based cache invalidation. When false, the cache/tags file is not generated and tag logic is omitted from the SW.",
+              "description": "Cross-tab cache invalidation sync. When true, invalidation events broadcast to all open tabs.",
               "default": true
             },
             "debounceMs": {
@@ -440,7 +407,7 @@
               "default": 0,
               "minimum": 0
             },
-            "prefixes": {
+            "skipPrefixes": {
               "type": "array",
               "description": "URL path prefixes to skip during tag generation",
               "items": { "type": "string" },
@@ -481,71 +448,69 @@
               "description": "Enable GraphQL wrapper with body-hash caching",
               "default": false
             },
-            "endpoint": {
-              "type": "string",
-              "description": "GraphQL API endpoint",
-              "example": "/graphql"
+            "endpoints": {
+              "type": "array",
+              "description": "GraphQL API endpoints. Supports multiple endpoints — pass endpointIndex to fetchWithCache/useCachedFetch to select one.",
+              "items": { "type": "string" },
+              "default": ["/graphql"],
+              "examples": [["/graphql"], ["/api/graphql", "/api/v2/graphql"]]
             }
           }
         },
-        "serverPush": {
+        "realtime": {
           "type": "object",
-          "description": "Server push event configuration (SSE or WebSocket). The service worker connects to a push endpoint and invalidates cache tags when the server signals data changes.",
+          "description": "Real-time features container. Push notifications and server-sent events for cache invalidation.",
           "properties": {
-            "enabled": {
+            "pushNotifications": {
               "type": "boolean",
-              "description": "Enable server push event connection for real-time cache invalidation",
-              "default": false
-            },
-            "type": {
-              "type": "string",
-              "description": "Transport type: 'sse' (Server-Sent Events via fetch stream) or 'websocket'",
-              "default": "sse",
-              "enum": ["sse", "websocket"]
-            },
-            "endpoint": {
-              "type": "string",
-              "description": "Push event endpoint URL (e.g., /api/events for SSE, wss://example.com/events for WebSocket)",
-              "example": "/api/events"
-            },
-            "reconnectDelayMs": {
-              "type": "integer",
-              "description": "Delay in ms before reconnecting after connection loss",
-              "default": 5000,
-              "minimum": 0
-            }
-          },
-          "required": ["enabled", "type", "endpoint"]
-        },
-        "pushNotifications": {
-          "type": "object",
-          "description": "Push notification configuration",
-          "properties": {
-            "enabled": {
-              "type": "boolean",
-              "description": "Enable push notification support (generates push notification client + SW push handlers)",
+              "description": "Enable push notification subscription management. Generates realtime/notifications.ts with subscribe/unsubscribe helpers.",
               "default": false
             },
             "vapidPublicKey": {
               "type": "string",
-              "description": "VAPID public key for push subscription. Baked into the generated push handler at build time — not needed at runtime.",
+              "description": "VAPID public key for push subscription. Baked into the generated push handler at build time — the key is not needed at runtime.",
               "example": "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeghA5N1Fha7J3Ef4sQyKgOoF7m4wA1gPXi6gXqJxYd3o="
+            },
+            "serverPush": {
+              "type": "object",
+              "description": "Server push event configuration (SSE or WebSocket). The service worker connects to a push endpoint and invalidates cache tags when the server signals data changes.",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Enable server push event connection for real-time cache invalidation",
+                  "default": false
+                },
+                "type": {
+                  "type": "string",
+                  "description": "Transport type: 'sse' (Server-Sent Events via fetch stream) or 'websocket'",
+                  "default": "sse",
+                  "enum": ["sse", "websocket"]
+                },
+                "endpoint": {
+                  "type": "string",
+                  "description": "Push event endpoint URL (e.g., /api/events for SSE, wss://example.com/events for WebSocket)",
+                  "example": "/api/events"
+                },
+                "reconnectDelayMs": {
+                  "type": "integer",
+                  "description": "Delay in ms before reconnecting after connection loss",
+                  "default": 5000,
+                  "minimum": 0
+                }
+              },
+              "required": ["enabled", "type", "endpoint"]
             }
-          },
-          "required": ["enabled"]
+          }
         }
       },
       "required": [
         "pwa",
         "serviceWorker",
         "mutationQueue",
-        "backgroundSync",
         "auth",
-        "crossTabSync",
         "tagInvalidation",
-        "pushNotifications",
         "graphql",
-        "serverPush"
+        "realtime"
       ]
     },
     "build": {
@@ -575,6 +540,6 @@
       "required": ["outputDir", "swFilename"]
     }
   },
-  "required": ["enabled", "features", "build"],
+  "required": ["features", "build"],
   "additionalProperties": false
 }

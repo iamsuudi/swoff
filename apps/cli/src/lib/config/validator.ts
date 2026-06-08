@@ -1,15 +1,7 @@
-import { KNOWN_FEATURES, OBJECT_FEATURES, VALID_STRATEGIES, REACTIVE_FIELDS, CONFIG_VERSION } from "../shared/config-types.js";
+import { KNOWN_FEATURES, OBJECT_FEATURES, VALID_STRATEGIES, REACTIVE_FIELDS } from "../shared/config-types.js";
 
 export function validateConfig(config: Record<string, unknown>): string[] {
   const errors: string[] = [];
-
-  if (config.configVersion !== undefined) {
-    if (typeof config.configVersion !== "number") {
-      errors.push("configVersion must be a number");
-    } else if (config.configVersion !== CONFIG_VERSION) {
-      errors.push(`configVersion must be ${CONFIG_VERSION}, got ${config.configVersion}`);
-    }
-  }
 
   const requiredFields = ["features", "build"];
   const missingFields = requiredFields.filter(
@@ -306,32 +298,31 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       }
     }
 
-    const serverPush = features.serverPush as Record<string, unknown> | undefined;
-    if (serverPush && typeof serverPush === "object") {
-      if (serverPush.enabled !== undefined && typeof serverPush.enabled !== "boolean") {
-        errors.push("features.serverPush.enabled must be a boolean");
+    const realtime = features.realtime as Record<string, unknown> | undefined;
+    if (realtime && typeof realtime === "object") {
+      if (realtime.pushNotifications !== undefined && typeof realtime.pushNotifications !== "boolean") {
+        errors.push("features.realtime.pushNotifications must be a boolean");
       }
-      if (serverPush.type !== undefined && !["sse", "websocket"].includes(serverPush.type as string)) {
-        errors.push('features.serverPush.type must be "sse" or "websocket"');
+      if (realtime.vapidPublicKey !== undefined && typeof realtime.vapidPublicKey !== "string") {
+        errors.push("features.realtime.vapidPublicKey must be a string");
       }
-      if (serverPush.endpoint !== undefined && typeof serverPush.endpoint !== "string") {
-        errors.push("features.serverPush.endpoint must be a string");
-      }
-      if (serverPush.reconnectDelayMs !== undefined && (typeof serverPush.reconnectDelayMs !== "number" || serverPush.reconnectDelayMs < 0 || !Number.isInteger(serverPush.reconnectDelayMs))) {
-        errors.push("features.serverPush.reconnectDelayMs must be a non-negative integer (capped at 30000ms)");
-      }
-      if (serverPush.reconnectDelayMs !== undefined && typeof serverPush.reconnectDelayMs === "number" && serverPush.reconnectDelayMs > 30000) {
-        errors.push("features.serverPush.reconnectDelayMs is capped at 30000ms (30s)");
-      }
-    }
-
-    const pushNotifications = features.pushNotifications as Record<string, unknown> | undefined;
-    if (pushNotifications && typeof pushNotifications === "object") {
-      if (pushNotifications.enabled !== undefined && typeof pushNotifications.enabled !== "boolean") {
-        errors.push("features.pushNotifications.enabled must be a boolean");
-      }
-      if (pushNotifications.vapidPublicKey !== undefined && typeof pushNotifications.vapidPublicKey !== "string") {
-        errors.push("features.pushNotifications.vapidPublicKey must be a string");
+      const sp = realtime.serverPush as Record<string, unknown> | undefined;
+      if (sp && typeof sp === "object") {
+        if (sp.enabled !== undefined && typeof sp.enabled !== "boolean") {
+          errors.push("features.realtime.serverPush.enabled must be a boolean");
+        }
+        if (sp.type !== undefined && !["sse", "websocket"].includes(sp.type as string)) {
+          errors.push('features.realtime.serverPush.type must be "sse" or "websocket"');
+        }
+        if (sp.endpoint !== undefined && typeof sp.endpoint !== "string") {
+          errors.push("features.realtime.serverPush.endpoint must be a string");
+        }
+        if (sp.reconnectDelayMs !== undefined && (typeof sp.reconnectDelayMs !== "number" || sp.reconnectDelayMs < 0 || !Number.isInteger(sp.reconnectDelayMs))) {
+          errors.push("features.realtime.serverPush.reconnectDelayMs must be a non-negative integer (capped at 30000ms)");
+        }
+        if (sp.reconnectDelayMs !== undefined && typeof sp.reconnectDelayMs === "number" && sp.reconnectDelayMs > 30000) {
+          errors.push("features.realtime.serverPush.reconnectDelayMs is capped at 30000ms (30s)");
+        }
       }
     }
 

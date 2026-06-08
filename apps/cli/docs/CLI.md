@@ -48,12 +48,12 @@ All files land in `swoff/`. See [API.md](./API.md) for the full reference.
 | `fetch/core.ts` | always | Unified fetch with caching, auth, offline queue, auto-invalidation |
 | `offline/queue.ts` | `mutationQueue.enabled` | Offline write queue in IndexedDB |
 | `offline/state.ts` | `mutationQueue.enabled` | Per-mutation status tracking |
-| `realtime/server-push.ts` | `serverPush.enabled` | Client-side SSE/WebSocket connection manager |
-| `cache/index.ts` | `tagInvalidation` | Low-level `invalidateByTag()` / `invalidateByTags()` |
-| `cache/tags.ts` | `tagInvalidation` | Tag generation helpers from URL paths |
-| `graphql/index.ts` | `graphql.enabled` | GraphQL wrapper with body-hash caching |
-| `realtime/notifications.ts` | `pushNotifications.enabled` | Push notification subscription management |
-| `offline/sync.ts` | `backgroundSync` | Background Sync API registration |
+| `realtime/server-push.ts` | `features.realtime.serverPush.enabled` | Client-side SSE/WebSocket connection manager |
+| `cache/index.ts` | always | Low-level `invalidateByTag()` / `invalidateByTags()` |
+| `cache/tags.ts` | always | Tag generation helpers from URL paths |
+| `graphql/index.ts` | `features.graphql.enabled` | GraphQL wrapper with body-hash caching |
+| `realtime/notifications.ts` | `features.realtime.pushNotifications` | Push notification subscription management |
+| `offline/sync.ts` | `features.mutationQueue.backgroundSync` | Background Sync API registration |
 | `auth/store.ts` | `auth.enabled` | Token/user persistence + auth header helpers |
 | `auth/user.ts` | `auth.enabled` | User data caching |
 | `auth/state.ts` | `auth.enabled` | Online/offline × auth state detection |
@@ -67,7 +67,7 @@ All files land in `swoff/`. See [API.md](./API.md) for the full reference.
 | `manifest.json` | `pwa.enabled` | Web app manifest |
 | `reset.ts` | always | `resetSwoff()` — wipes caches, IndexedDB databases, localStorage, unregisters SW, re-registers via `initServiceWorker` |
 | `fetch/state.ts` | always | Global fetch counter (`incrementFetchCount`/`decrementFetchCount`/`getFetchCount`) with `fetch-count-changed` custom events |
-| `notification.ts` | always | Storage estimation (`checkStorage`/`getStorageEstimate`) and `swoff:notification` event relay for SW errors and warnings |
+| `storage.ts` | always | Storage estimation (`checkStorage`/`getStorageEstimate`) and `swoff:notification` event relay for SW errors and warnings |
 
 ### PWA assets
 
@@ -111,14 +111,14 @@ Enables a feature in `swoff.config.json` and immediately regenerates.
 swoff add pwa
 swoff add mutation-queue
 swoff add auth
-swoff add cross-tab
-swoff add background-sync
-swoff add push-notification
 swoff add graphql
+swoff add cross-tab       # enables tagInvalidation.crossTabSync
+swoff add background-sync # enables mutationQueue.backgroundSync
+swoff add push-notification # enables realtime.pushNotifications
 ```
 
-For object-type features (auth, mutation-queue, graphql, push-notification),
-this sets `enabled: true` with defaults. Tweak the config file afterwards for fine-grained options.
+Each feature maps to a config path — run `swoff add` with the feature name, then
+tweak the config file afterwards for fine-grained options.
 
 ---
 

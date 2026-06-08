@@ -31,12 +31,12 @@ function applyReplacements(sw: string, config: SwoffConfig, assetsToCache: { url
   sw = sw.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(true, features.tagInvalidation?.debounceMs ?? 0));
   sw = sw.replace("// [[TAG_MANAGEMENT]]", generateTagManagement());
 
-  sw = features.pushNotifications?.enabled
+  sw = features.realtime.pushNotifications
     ? sw.replace("// [[PUSH_HANDLERS]]", generateSwPushHandlers())
     : sw.replace("// [[PUSH_HANDLERS]]", "");
 
-  sw = features.serverPush?.enabled
-    ? sw.replace("// [[SERVER_PUSH_HANDLER]]", generateServerPushHandler(features.serverPush.type, features.serverPush.endpoint, features.serverPush.reconnectDelayMs))
+  sw = features.realtime.serverPush?.enabled
+    ? sw.replace("// [[SERVER_PUSH_HANDLER]]", generateServerPushHandler(features.realtime.serverPush.type, features.realtime.serverPush.endpoint, features.realtime.serverPush.reconnectDelayMs))
     : sw.replace("// [[SERVER_PUSH_HANDLER]]", "");
 
   return sw;

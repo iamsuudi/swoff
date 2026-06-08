@@ -13,7 +13,7 @@ export function generateClientInjector(ctx: GeneratorContext): void {
     { ts, ext },
     ctx.config.features.pwa.enabled,
     ctx.config.features.mutationQueue.enabled,
-    ctx.config.features.serverPush?.enabled ?? false,
+    ctx.config.features.realtime.serverPush?.enabled ?? false,
     ctx.config.features.serviceWorker.navigation.mode,
     ctx.config.features.auth.enabled,
   );

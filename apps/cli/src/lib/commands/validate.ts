@@ -31,12 +31,9 @@ export async function validateCommand(projectRoot: string) {
   log.info("\nConfig summary:");
   log.help(`Version: ${config.features.serviceWorker.version}`);
   log.help(
-    `Min supported version: ${config.features.serviceWorker.minSupportedVersion}`,
-  );
-  log.help(
     `Default strategy: ${config.features.serviceWorker.strategy.default}`,
   );
-  log.help(`Auto update: ${config.features.serviceWorker.autoUpdate}`);
+  log.help(`Auto activate: ${config.features.serviceWorker.autoActivate}`);
   log.help(
     `Features enabled: ${Object.entries(config.features)
       .filter(([k, v]) => {

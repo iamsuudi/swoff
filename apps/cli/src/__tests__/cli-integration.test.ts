@@ -27,8 +27,6 @@ describe("CLI commands integration", () => {
           pwa: { enabled: true, preventDefaultInstall: false },
           serviceWorker: {
             version: "package",
-            minSupportedVersion: "1.0.0",
-            autoUpdate: true,
             autoActivate: false,
             strategy: {
               default: "cache-first",
@@ -131,7 +129,7 @@ describe("CLI commands integration", () => {
       const config = {
         features: {
           pwa: { enabled: true, preventDefaultInstall: false },
-          serviceWorker: { version: "package", minSupportedVersion: "0.0.0", autoUpdate: true, autoActivate: false, strategy: { default: "cache-first", patterns: {} } },
+          serviceWorker: { version: "package", autoActivate: false, strategy: { default: "cache-first", patterns: {} } },
           auth: 1,
         },
       };
@@ -158,8 +156,6 @@ describe("CLI commands integration", () => {
           pwa: { enabled: true, preventDefaultInstall: false },
           serviceWorker: {
             version: "package",
-            minSupportedVersion: "1.0.0",
-            autoUpdate: true,
             autoActivate: false,
             strategy: {
               default: "cache-first",

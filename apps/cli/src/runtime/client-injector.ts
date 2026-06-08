@@ -140,8 +140,6 @@ if (typeof history !== "undefined") {
  *   pwa-installed         - User accepted install (detail: { outcome: 'accepted' })
  *   sw-auth-unauthorized  - 401 response received
  *   sw-auth-state-change  - Login or logout (detail: { authenticated: boolean })
- *   sw-update-available   - New version ready (detail: { version })
- *   sw-version-detected   - Version info available
  */
 ${pwaImport}${mutationImport}${authImport}${swImport}${pushImport}${autoPrefetchImport}
 ${pwaCall}${mutationOnlineListener}${pushCall}${onlineRefetchListener}${focusListener}${autoPrefetchCode}

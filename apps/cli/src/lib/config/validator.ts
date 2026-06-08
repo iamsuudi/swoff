@@ -65,25 +65,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     if (sw) {
       if (sw.version !== undefined && typeof sw.version !== "string") {
         errors.push('features.serviceWorker.version must be a string');
-      } else if (typeof sw.version === "string") {
-        const ver = sw.version;
-        const isSemver = /^\d+\.\d+\.\d+$/.test(ver);
-        const isPackage = ver === "package";
-        const isHash = ver === "hash";
-        if (!isSemver && !isPackage && !isHash) {
-          errors.push(`features.serviceWorker.version must be "package", "hash", or a semver string (e.g. "1.0.0")`);
-        }
-      }
-      if (sw.minSupportedVersion !== undefined && typeof sw.minSupportedVersion === "string") {
-        if (!/^\d+\.\d+\.\d+$/.test(sw.minSupportedVersion as string)) {
-          errors.push(
-            `Invalid minSupportedVersion "${sw.minSupportedVersion}". Must be semver (e.g., "1.0.0")`,
-          );
-        }
-      }
-
-      if (sw.autoUpdate !== undefined && typeof sw.autoUpdate !== "boolean") {
-        errors.push("features.serviceWorker.autoUpdate must be a boolean");
       }
       if (sw.autoActivate !== undefined && typeof sw.autoActivate !== "boolean") {
         errors.push("features.serviceWorker.autoActivate must be a boolean");
@@ -185,9 +166,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         if (navigation.preload !== undefined && typeof navigation.preload !== "boolean") {
           errors.push("features.serviceWorker.navigation.preload must be a boolean");
         }
-        if (navigation.offlineFallback !== undefined && typeof navigation.offlineFallback !== "string") {
-          errors.push("features.serviceWorker.navigation.offlineFallback must be a string");
-        }
         if (navigation.precacheRoutes !== undefined) {
           if (!Array.isArray(navigation.precacheRoutes) || !(navigation.precacheRoutes as unknown[]).every((r) => typeof r === "string")) {
             errors.push("features.serviceWorker.navigation.precacheRoutes must be an array of strings");
@@ -211,8 +189,8 @@ export function validateConfig(config: Record<string, unknown>): string[] {
               if (rule.policy !== undefined && !validPolicies.includes(rule.policy as string)) {
                 errors.push(`features.serviceWorker.navigation.rules[${i}].policy must be one of: ${validPolicies.join(", ")}`);
               }
-              if (rule.offlineFallback !== undefined && typeof rule.offlineFallback !== "string") {
-                errors.push(`features.serviceWorker.navigation.rules[${i}].offlineFallback must be a string`);
+              if (rule.fallback !== undefined && typeof rule.fallback !== "string") {
+                errors.push(`features.serviceWorker.navigation.rules[${i}].fallback must be a string`);
               }
             }
           }

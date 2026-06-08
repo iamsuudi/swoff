@@ -38,7 +38,6 @@ declare global {
 
   interface WindowEventMap {
     beforeinstallprompt: BeforeInstallPromptEvent;
-    "sw-update-available": CustomEvent<{ version: string }>;
     "sw-progress": CustomEvent<{ percent: number; downloaded: number; total: number }>;
     "sw-ready": CustomEvent;
     "sw-error": CustomEvent;
@@ -62,10 +61,6 @@ declare global {
     pwaInstallable?: boolean;
     latestSWVersion?: string;
     currentSWVersion?: string;
-    swRegisteredVersion?: string;
-    swAvailableVersion?: string;
-    swUpdateRequired?: boolean;
-    swMinSupportedVersion?: string;
     swReady?: boolean;
     swError?: boolean;
     swAuthState?: "authenticated" | "unauthenticated" | "loading";

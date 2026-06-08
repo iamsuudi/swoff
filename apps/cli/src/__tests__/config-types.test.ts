@@ -18,7 +18,6 @@ describe("config-types", () => {
 
     it("has correct default values", () => {
       expect(defaultConfig.enabled).toBe(true);
-      expect(defaultConfig.features.serviceWorker.autoUpdate).toBe(true);
       expect(defaultConfig.features.serviceWorker.autoActivate).toBe(false);
       expect(defaultConfig.features.serviceWorker.strategy.default).toBe(
         "cache-first",
@@ -28,7 +27,7 @@ describe("config-types", () => {
       ).toBe(false);
       expect(defaultConfig.features.serviceWorker.navigation.mode).toBe("spa");
       expect(defaultConfig.features.serviceWorker.navigation.fallback).toBe(
-        "/index.html",
+        "",
       );
       expect(defaultConfig.features.serviceWorker.navigation.rules).toEqual([]);
       expect(defaultConfig.features.serviceWorker.navigation.retry).toEqual({
@@ -37,9 +36,6 @@ describe("config-types", () => {
         maxRetries: 12,
       });
       expect(defaultConfig.features.serviceWorker.version).toBe("package");
-      expect(defaultConfig.features.serviceWorker.minSupportedVersion).toBe(
-        "0.0.0",
-      );
       expect(defaultConfig.build.outputDir).toBe("dist");
       expect(defaultConfig.build.swFilename).toBe("sw");
       expect(defaultConfig.features.pwa.enabled).toBe(true);
@@ -125,12 +121,6 @@ describe("config-types", () => {
         "/static/*": "cache-first",
       });
     });
-
-    it("has minSupportedVersion of 0.0.0", () => {
-      expect(defaultInitConfig.features.serviceWorker.minSupportedVersion).toBe(
-        "0.0.0",
-      );
-    });
   });
 
   describe("constants", () => {
@@ -146,7 +136,6 @@ describe("config-types", () => {
       expect(KNOWN_FEATURES).not.toContain("pwa");
       expect(KNOWN_FEATURES).not.toContain("serviceWorker");
       expect(KNOWN_FEATURES).not.toContain("versionedSw");
-      expect(KNOWN_FEATURES).not.toContain("autoUpdate");
     });
 
     it("OBJECT_FEATURES lists object-typed features", () => {

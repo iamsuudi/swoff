@@ -30,9 +30,9 @@ Swoff supports three navigation modes for different rendering strategies:
 
 | Mode | Behavior | Use case |
 |---|---|---|
-| `"spa"` | Navigation requests fall through to the global caching strategy. The SPA shell (`/index.html`) is served only at the ultimate fallback level as the last resort. | Traditional SPAs (React, Vue, Svelte SPA). |
+| `"spa"` | Runtime serves global fallback directly from precache (no runtime HTML caching for navigation). | Traditional SPAs (React, Vue, Svelte SPA). |
 | `"default"` | No special navigation handling. The configured caching strategy handles all requests equally. | SSG sites (Astro, Hugo, 11ty) where pages are static files. |
-| `"ssr"` | Navigation requests use the global caching strategy. Adds auto-prefetch: intercepts `history.pushState`/`replaceState` to call `prefetchCache(url)` on every client-side navigation, warming the SW cache with HTML pages as the user browses. | Framework-agnostic SSR — all meta-frameworks (Next.js, Remix, Nuxt, SvelteKit, TanStack Start, Astro, HTMX). |
+| `"ssr"` | Runtime checks HTML cache → per-route fallback → global fallback. Adds auto-prefetch: intercepts `history.pushState`/`replaceState` to call `prefetchCache(url)` on every client-side navigation, warming the SW cache with HTML pages as the user browses. | Framework-agnostic SSR — all meta-frameworks (Next.js, Remix, Nuxt, SvelteKit, TanStack Start, Astro, HTMX). |
 
 ## Per-route navigation policies
 
@@ -47,7 +47,7 @@ Beyond the global mode, Swoff supports **per-route navigation policies** via `na
         "rules": [
           { "match": "/", "policy": "cache-first" },
           { "match": "/about", "policy": "cache-first" },
-          { "match": "/blog/*", "policy": "network-first", "offlineFallback": "/blog-offline.html" },
+          { "match": "/blog/*", "policy": "network-first", "fallback": "/blog-offline.html" },
           { "match": "/dashboard/**", "policy": "network-only" },
           { "match": "/notes/**", "policy": "stale-while-revalidate" }
         ]
@@ -64,7 +64,7 @@ Beyond the global mode, Swoff supports **per-route navigation policies** via `na
 | `network-only` | Always fetch from network. Never caches. For dynamic pages. |
 | `stale-while-revalidate` | Serve cached HTML instantly, fetch fresh in background, update cache. |
 
-Rules are evaluated in order; the first match wins. Per-route `offlineFallback` paths are automatically precached at install time.
+Rules are evaluated in order; the first match wins. Per-route `fallback` paths are automatically precached at install time.
 
 ## Smart navigation retry
 
@@ -175,10 +175,9 @@ The `?_rsc=<token>` query param used by RSC frameworks is now safe to strip via 
 
 When the SW can't satisfy a navigation request (no cache, no network), it **never** lets the browser show its own "This site can't be reached" error. Instead, it falls back through this chain:
 
-1. **Per-route offline page** — serve the route-specific offline page from precache if a `NavigationRule` with `offlineFallback` matched
-2. **Global offline page** — serve the user's `navigation.offlineFallback` from precache
-3. **SPA shell** — serve `/index.html` from precache (client-side router can take over)
-4. **Inline 503 HTML** — a minimal built-in page saying "You're offline"
+1. **Per-route fallback** — serve the route-specific fallback from precache if a `NavigationRule` with `fallback` matched
+2. **Global fallback (`FALLBACK_PATH`)** — serve the user's `navigation.fallback` from precache (e.g. `/offline.html` for SSR, `/index.html` for SPA)
+3. **Inline 503 HTML** — a minimal built-in page saying "You're offline"
 
 The browser always receives a valid HTML response with `Content-Type: text/html`, preventing the native browser error page from kicking in.
 
@@ -189,7 +188,7 @@ The browser always receives a valid HTML response with `Content-Type: text/html`
   "features": {
     "serviceWorker": {
       "navigation": {
-        "offlineFallback": "/offline.html"
+        "fallback": "/offline.html"
       }
     }
   }
@@ -198,7 +197,7 @@ The browser always receives a valid HTML response with `Content-Type: text/html`
 
 When set, the path is precached at install time so it's always available. Build your `/offline.html` to guide users back online — for example with connection status, retry button, or links to previously visited pages.
 
-Without this config, the SW still serves the inline 503 HTML page (step 3), so the user is never thrown to a browser error.
+Without this config, the SW still serves the inline 503 HTML page, so the user is never thrown to a browser error.
 
 ## Why it matters
 

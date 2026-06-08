@@ -54,7 +54,6 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ vers
         JSON.stringify(
           {
             version,
-            minSupportedVersion: config.features.serviceWorker.minSupportedVersion,
             generatedAt: new Date().toISOString(),
             configEnabled: config.enabled,
             configSource,

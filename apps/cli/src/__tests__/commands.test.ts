@@ -97,7 +97,7 @@ describe("addCommand", () => {
   });
 
   it("updates existing config with feature", async () => {
-    const base = { enabled: true, features: { auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" }, mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 }, backgroundSync: false, crossTabSync: false, serviceWorker: { version: "package", minSupportedVersion: "0.0.0", autoUpdate: true, autoActivate: false, strategy: { default: "cache-first", mode: "all", clearRuntimeOnUpdate: false, patterns: {}, reactive: { defaults: {} } }, navigation: { mode: "spa", fallback: "/index.html" } }, pwa: { enabled: false, preventDefaultInstall: false }, tagInvalidation: {}, graphql: { enabled: false, endpoint: "/graphql" }, pushNotifications: { enabled: false }, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 }, refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 } }, build: { outputDir: "dist", swFilename: "sw" } };
+    const base = { enabled: true, features: { auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" }, mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 }, backgroundSync: false, crossTabSync: false, serviceWorker: { version: "package",  autoActivate: false, strategy: { default: "cache-first", mode: "all", clearRuntimeOnUpdate: false, patterns: {}, reactive: { defaults: {} } }, navigation: { mode: "spa", fallback: "/index.html" } }, pwa: { enabled: false, preventDefaultInstall: false }, tagInvalidation: {}, graphql: { enabled: false, endpoint: "/graphql" }, pushNotifications: { enabled: false }, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 }, refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 } }, build: { outputDir: "dist", swFilename: "sw" } };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(base));
     await addCommand(testDir, "auth");
     const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
@@ -161,8 +161,6 @@ describe("generateCommand", () => {
         pwa: { enabled: true, preventDefaultInstall: false },
         serviceWorker: {
           version: "package",
-          minSupportedVersion: "1.0.0",
-          autoUpdate: true,
           autoActivate: false,
           strategy: {
             default: "cache-first",
@@ -222,8 +220,6 @@ describe("generateCommand", () => {
         pwa: { enabled: false, preventDefaultInstall: false },
         serviceWorker: {
           version: "package",
-          minSupportedVersion: "1.0.0",
-          autoUpdate: true,
           autoActivate: false,
           strategy: { default: "cache-first", patterns: {}, mode: "all", clearRuntimeOnUpdate: false, reactive: { defaults: {} } },
           navigation: { mode: "spa", fallback: "/index.html" },
@@ -273,9 +269,7 @@ describe("validateCommand", () => {
       features: {
         pwa: { enabled: false, preventDefaultInstall: false },
         serviceWorker: {
-          version: "1.0.0",
-          minSupportedVersion: "1.0.0",
-          autoUpdate: true,
+          version: "package",
           autoActivate: false,
           strategy: {
             default: "cache-first",

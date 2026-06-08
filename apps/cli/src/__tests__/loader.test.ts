@@ -28,7 +28,7 @@ describe("loadConfig", () => {
     const config = {
       enabled: true,
       features: {
-        serviceWorker: { version: "2.0.0", autoUpdate: false, autoActivate: true, strategy: { default: "network-first", patterns: {} } },
+        serviceWorker: { version: "2.0.0", autoActivate: true, strategy: { default: "network-first", patterns: {} } },
         mutationQueue: { enabled: true, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
         backgroundSync: false, pwa: { enabled: true, preventDefaultInstall: true }, auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
         crossTabSync: true, tagInvalidation: {},
@@ -41,7 +41,6 @@ describe("loadConfig", () => {
     expect(result.configPath).toContain("swoff.config.json");
     expect(result.configSource).toBe("JSON");
     expect(result.config.features.serviceWorker.version).toBe("2.0.0");
-    expect(result.config.features.serviceWorker.autoUpdate).toBe(false);
     expect(result.config.build.outputDir).toBe("build");
   });
 
@@ -52,7 +51,7 @@ describe("loadConfig", () => {
     const result = loadConfig(testDir);
     expect(result.config.features.serviceWorker.version).toBe("3.0.0");
     expect(result.config.enabled).toBe(true); // from defaults
-    expect(result.config.features.serviceWorker.autoUpdate).toBe(true); // from defaults
+    expect(result.config.features.serviceWorker.autoActivate).toBe(false); // from defaults
   });
 
   it("prefers JSON over JS config", () => {

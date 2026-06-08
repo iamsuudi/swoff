@@ -19,7 +19,7 @@ swoff/sw/
 2. **Cache management** — Creates and manages named caches (`runtime-cache-v1`, `precache-v1`, etc.) with versioned cache names.
 3. **Tag-based invalidation** — Receives `INVALIDATE_TAG` messages, queries the IndexedDB tag registry, clears matching cache entries, and dispatches `TAG_INVALIDATED` back to all clients.
 4. **Refresh queue** — Background refetches stale URLs after invalidation, with debouncing and deduplication.
-5. **Update flow** — 3 update modes (immediate, on-next-nav, prompt-user) managed through SW lifecycle.
+5. **Update flow** — Implicit browser-managed lifecycle. Updating the SW URL or cache name triggers automatic update. `autoActivate` controls `skipWaiting()` behavior. No user consent prompts — no `sw-update-available` event, no `acceptUpdate`/`dismissUpdate`.
 6. **Navigation preload** — Enabled by default for faster navigation responses.
 7. **Auth handling** — Forwards `401` detection to the client, coordinates token refresh.
 8. **Cross-tab sync** — Broadcasts invalidation events to all connected clients via `self.clients.matchAll()`.
@@ -75,7 +75,7 @@ registerRoute(
 | **Background sync**          | ✅ Built-in (SW + client)                                               | 🟡 Via `workbox-background-sync` | 🟡 Same                   |
 | **Auth handling**            | ✅ Token injection, 401, refresh                                        | ❌ Not supported                 | ❌ Not supported          |
 | **Cross-tab sync**           | ✅ SW broadcasts to all clients                                         | ❌ Not supported                 | ❌ Not supported          |
-| **Update flow**              | ✅ 3 modes (immediate, on-nav, prompt)                                  | ✅ Runtime update handling       | ✅ Same as Workbox        |
+| **Update flow**              | ✅ Implicit (browser-managed, no user consent)                         | ✅ Runtime update handling       | ✅ Same as Workbox        |
 | **Config-driven**            | ✅ swoff.config.json                                                    | ❌ Code-based                    | 🟡 Vite plugin config     |
 | **Standalone rebuild**       | ✅ `node sw/generator.js`                                               | ❌ Requires build tool plugin    | ❌ Requires Vite          |
 

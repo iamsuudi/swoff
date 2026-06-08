@@ -114,7 +114,7 @@ export function generateGuide(ctx: GuideContext): string[] {
     }
   }
 
-  if (config.features.backgroundSync) {
+  if (config.features.mutationQueue.backgroundSync) {
     lines.push("");
     lines.push("  ── Background Sync ──");
     lines.push("  ⚠️ Chrome/Edge only (not supported in Firefox or Safari).");

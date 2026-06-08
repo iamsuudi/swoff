@@ -4,9 +4,9 @@ import { generateGqlWrapperCode } from "../../../runtime/gql-wrapper.js";
 export function generateGqlWrapper(ctx: GeneratorContext): void {
   const ext = ctx.ext;
   const ts = ext === "ts";
-  const endpoint = ctx.config.features.graphql.endpoint;
+  const endpoints = ctx.config.features.graphql.endpoints;
 
-  const code = generateGqlWrapperCode({ ts, ext }, endpoint);
+  const code = generateGqlWrapperCode({ ts, ext }, endpoints);
 
   writeFile(ctx, `graphql/index.${ext}`, code);
 }

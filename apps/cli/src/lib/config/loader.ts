@@ -66,10 +66,9 @@ export function loadConfig(projectRoot: string, explicitPath?: string): LoadConf
       }
     }
 
-      // JS configs are handled by loadConfigAsync
-  }
+    }
 
-  return { config: defaultConfig, configPath: null, configSource: "defaults" };
+    return { config: defaultConfig, configPath: null, configSource: "defaults" };
 }
 
 /**

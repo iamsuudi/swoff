@@ -69,7 +69,7 @@ describe("assembleSW", () => {
   it("includes background sync handler when enabled", () => {
     const configWithSync: SwoffConfig = {
       ...config,
-      features: { ...config.features, backgroundSync: true },
+      features: { ...config.features, mutationQueue: { ...config.features.mutationQueue, backgroundSync: true } },
     };
     const sw = assembleSW(configWithSync, "1.0.0");
     expect(sw).toContain('self.addEventListener("sync"');

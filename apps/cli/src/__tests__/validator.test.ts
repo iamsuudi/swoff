@@ -3,7 +3,6 @@ import { validateConfig } from "../lib/config/validator.js";
 
 describe("validateConfig", () => {
   const validConfig: Record<string, any> = {
-    enabled: true,
     features: {
       pwa: { enabled: true, preventDefaultInstall: false },
       serviceWorker: {
@@ -33,11 +32,9 @@ describe("validateConfig", () => {
         retryDelayMs: 1000,
       },
       mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
-      backgroundSync: false,
       auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
-      crossTabSync: true,
-      tagInvalidation: {},
-      graphql: { enabled: false, endpoint: "/graphql" },
+      tagInvalidation: { crossTabSync: true },
+      graphql: { enabled: false, endpoints: ["/graphql"] },
     },
     build: { outputDir: "dist", swFilename: "sw" },
   };
@@ -46,13 +43,6 @@ describe("validateConfig", () => {
     it("passes valid config", () => {
       const errors = validateConfig(validConfig);
       expect(errors).toEqual([]);
-    });
-
-    it("fails when enabled is missing", () => {
-      const { enabled: _, ...rest } = validConfig;
-      const errors = validateConfig(rest as Record<string, unknown>);
-      expect(errors).toHaveLength(1);
-      expect(errors[0]).toContain("Missing required fields");
     });
 
     it("fails when features is missing", () => {
@@ -348,15 +338,6 @@ describe("validateConfig", () => {
       expect(errors[0]).toContain('Feature "mutationQueue" must be an object');
     });
 
-    it("rejects boolean for object feature tagInvalidation", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, tagInvalidation: true },
-      };
-      const errors = validateConfig(config);
-      expect(errors[0]).toContain('Feature "tagInvalidation" must be an object');
-    });
-
     it("accepts object feature pwa", () => {
       const config = {
         ...validConfig,
@@ -386,16 +367,16 @@ describe("validateConfig", () => {
     it("rejects backgroundSync without mutationQueue enabled", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, backgroundSync: true, mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 } },
+        features: { ...validConfig.features, mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000, backgroundSync: true } },
       };
       const errors = validateConfig(config);
-      expect(errors).toContain("backgroundSync requires mutationQueue to be enabled");
+      expect(errors).toContain("features.mutationQueue.backgroundSync requires mutationQueue to be enabled");
     });
 
     it("passes backgroundSync with mutationQueue enabled", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, backgroundSync: true, mutationQueue: { enabled: true, batchSize: 5, batchDelayMs: 500, maxRetries: 3, retryBackoffMs: 2000 } },
+        features: { ...validConfig.features, mutationQueue: { enabled: true, batchSize: 5, batchDelayMs: 500, maxRetries: 3, retryBackoffMs: 2000, backgroundSync: true } },
       };
       const errors = validateConfig(config);
       expect(errors).toEqual([]);

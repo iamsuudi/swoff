@@ -3,7 +3,7 @@ import { T, R, G, AS } from "./utils.js";
 
 export function generateGqlWrapperCode(
   ctx: RuntimeContext,
-  endpoint: string,
+  endpoints: string[],
 ): string {
   const { ext, ts } = ctx;
 
@@ -57,6 +57,8 @@ export interface GqlOptions {
 import { fetchWithCache } from "../fetch/core.${ext}";
 import type { GqlResult } from "../swoff";
 ${optionsInterface}
+const GQL_ENDPOINTS = ${JSON.stringify(endpoints)};
+
 /** Extract operation name from a GraphQL document. Returns null for anonymous queries (e.g. "{ todos { id } }"). */
 function getOperationName(query${T(ts, "string")})${T(ts, "string | null")}{
   const match = query.match(/(query|mutation|subscription)\\s+(\\w+)/);
@@ -88,18 +90,20 @@ function tagsFromOpName(name${T(ts, "string | null")})${T(ts, "string[]")}{
   return [plural, tag];
 }
 
-/** Fetch a GraphQL endpoint with Swoff's caching, auth, offline queue, and auto-invalidation. Hashes query + variables for deterministic cache keys. */
+/** Fetch a GraphQL endpoint with Swoff's caching, auth, offline queue, and auto-invalidation. Hashes query + variables for deterministic cache keys. Uses GQL_ENDPOINTS[0] by default. Pass endpointIndex to use a different endpoint. */
 export async function fetchWithGql${G(ts, "T")}(
   query${T(ts, "string")},
-  options${T(ts, "GqlOptions")} = {}
+  options${T(ts, "GqlOptions")} = {},
+  endpointIndex${T(ts, "number")} = 0
 )${R(ts, "Promise<GqlResult<T>>")}{
   const isRead = isReadOperation(query);
   const opName = getOperationName(query);
   const variables = options.variables;
   const hash = await bodyHash({ query, variables });
   const tags = options.tags || tagsFromOpName(opName);
+  const endpoint = GQL_ENDPOINTS[endpointIndex] || GQL_ENDPOINTS[0];
 
-  const { response, fromCache } = await fetchWithCache("${endpoint}", {
+  const { response, fromCache } = await fetchWithCache(endpoint, {
     method: "POST",
     body: JSON.stringify({ query, variables }),
     headers: {
@@ -124,18 +128,20 @@ export async function fetchWithGql${G(ts, "T")}(
 export async function queryGql${G(ts, "T")}(
   query${T(ts, "string")},
   variables${T(ts, "Record<string, unknown> | undefined")} = undefined,
-  options${T(ts, "GqlOptions")} = {}
+  options${T(ts, "GqlOptions")} = {},
+  endpointIndex${T(ts, "number")} = 0
 )${R(ts, "Promise<GqlResult<T>>")}{
-  return fetchWithGql${G(ts, "T")}(query, { ...options, variables });
+  return fetchWithGql${G(ts, "T")}(query, { ...options, variables }, endpointIndex);
 }
 
 /** Shorthand for GraphQL mutations (type: "mutation"). Auto-invalidates related cache tags. */
 export async function mutateGql${G(ts, "T")}(
   mutation${T(ts, "string")},
   variables${T(ts, "Record<string, unknown> | undefined")} = undefined,
-  options${T(ts, "GqlOptions")} = {}
+  options${T(ts, "GqlOptions")} = {},
+  endpointIndex${T(ts, "number")} = 0
 )${R(ts, "Promise<GqlResult<T>>")}{
-  return fetchWithGql${G(ts, "T")}(mutation, { ...options, variables });
+  return fetchWithGql${G(ts, "T")}(mutation, { ...options, variables }, endpointIndex);
 }
 `;
 }

@@ -40,7 +40,7 @@ export async function validateCommand(projectRoot: string) {
         if (k === "serviceWorker") return false;
         if (typeof v === "object" && v !== null)
           return (v as Record<string, unknown>).enabled === true;
-        return v === true;
+        return typeof v === "boolean" && v === true;
       })
       .map(([k]) => k)
       .join(", ")}`,

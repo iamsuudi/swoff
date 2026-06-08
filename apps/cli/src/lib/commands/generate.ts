@@ -22,11 +22,6 @@ export async function generateCommand(
     return;
   }
 
-  if (!config.enabled) {
-    log.warn("Swoff is disabled in config. Nothing to generate.");
-    return;
-  }
-
   log.dim(`Config: ${configPath}`);
   log.dim(`Framework: ${config.framework ?? "vanilla"}`);
 

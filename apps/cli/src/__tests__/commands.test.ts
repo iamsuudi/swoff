@@ -33,7 +33,6 @@ describe("initCommand", () => {
     await initCommand(testDir);
     expect(existsSync(join(testDir, "swoff.config.json"))).toBe(true);
     const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
-    expect(config.enabled).toBe(true);
     expect(config.$schema).toBe("https://swoff.netlify.app/schema/v1.json");
   });
 
@@ -66,14 +65,13 @@ describe("initCommand", () => {
   it("creates config with correct structure", async () => {
     await initCommand(testDir);
     const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
-    expect(config).toHaveProperty("enabled");
     expect(config).toHaveProperty("build");
     expect(config).toHaveProperty("features");
     expect(config.features).toHaveProperty("pwa");
     expect(config.features).toHaveProperty("serviceWorker");
     expect(config.features).toHaveProperty("mutationQueue");
     expect(config.features).toHaveProperty("auth");
-    expect(config.features).toHaveProperty("crossTabSync");
+    expect(config.features).toHaveProperty("tagInvalidation");
   });
 
   it("includes configVersion in created config", async () => {
@@ -97,12 +95,12 @@ describe("addCommand", () => {
   });
 
   it("updates existing config with feature", async () => {
-    const base = { enabled: true, features: { auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" }, mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 }, backgroundSync: false, crossTabSync: false, serviceWorker: { version: "package",  autoActivate: false, strategy: { default: "cache-first", mode: "all", clearRuntimeOnUpdate: false, patterns: {}, reactive: { defaults: {} } }, navigation: { mode: "spa", fallback: "/index.html" } }, pwa: { enabled: false, preventDefaultInstall: false }, tagInvalidation: {}, graphql: { enabled: false, endpoint: "/graphql" }, pushNotifications: { enabled: false }, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 }, refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 } }, build: { outputDir: "dist", swFilename: "sw" } };
+    const base = { features: { auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" }, mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 }, serviceWorker: { version: "package",  autoActivate: false, strategy: { default: "cache-first", mode: "all", clearRuntimeOnUpdate: false, patterns: {}, reactive: { defaults: {} } }, navigation: { mode: "spa", fallback: "/index.html" } }, pwa: { enabled: false, preventDefaultInstall: false }, tagInvalidation: { crossTabSync: false }, graphql: { enabled: false, endpoints: ["/graphql"] }, pushNotifications: { enabled: false }, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 }, refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 } }, build: { outputDir: "dist", swFilename: "sw" } };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(base));
     await addCommand(testDir, "auth");
     const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
     expect(config.features.auth.enabled).toBe(true);
-    expect(config.features.backgroundSync).toBe(false);
+    expect(config.features.mutationQueue.backgroundSync).toBe(false);
   });
 
   it("normalizes feature aliases", async () => {
@@ -155,7 +153,6 @@ describe("generateCommand", () => {
     const config = {
       $schema: "https://swoff.netlify.app/schema/v1.json",
       configVersion: 1,
-      enabled: true,
       framework: "vanilla",
       features: {
         pwa: { enabled: true, preventDefaultInstall: false },
@@ -172,17 +169,11 @@ describe("generateCommand", () => {
           navigation: { mode: "spa", fallback: "/index.html" },
         },
         refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
-        mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
-        backgroundSync: false,
+        mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000, backgroundSync: false },
         auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
-        crossTabSync: false,
-        tagInvalidation: { enabled: true },
-        graphql: { enabled: false, endpoint: "/graphql" },
-        pushNotifications: { enabled: false },
-        serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
+        tagInvalidation: { crossTabSync: false },
       },
       build: { outputDir: "dist", swFilename: "sw" },
-      apiBaseUrl: "https://api.example.com",
     };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config, null, 2));
   }
@@ -212,36 +203,6 @@ describe("generateCommand", () => {
     warnSpy.mockRestore();
   });
 
-  it("warns when swoff is disabled in config", async () => {
-    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify({
-      configVersion: 1,
-      enabled: false,
-      features: {
-        pwa: { enabled: false, preventDefaultInstall: false },
-        serviceWorker: {
-          version: "package",
-          autoActivate: false,
-          strategy: { default: "cache-first", patterns: {}, mode: "all", clearRuntimeOnUpdate: false, reactive: { defaults: {} } },
-          navigation: { mode: "spa", fallback: "/index.html" },
-        },
-        refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
-        mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
-        backgroundSync: false,
-        auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
-        crossTabSync: false,
-        tagInvalidation: { enabled: true },
-        graphql: { enabled: false, endpoint: "/graphql" },
-        pushNotifications: { enabled: false },
-        serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
-      },
-      build: { outputDir: "dist", swFilename: "sw" },
-    }));
-    const warnSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    await generateCommand(testDir);
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
-  });
-
   it("feature-gates notification when push disabled", async () => {
     writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
     writeDefaultConfig();
@@ -264,7 +225,6 @@ describe("validateCommand", () => {
   function writeValidConfig() {
     const config = {
       configVersion: 1,
-      enabled: true,
       framework: "vanilla",
       features: {
         pwa: { enabled: false, preventDefaultInstall: false },
@@ -281,12 +241,10 @@ describe("validateCommand", () => {
           navigation: { mode: "spa", fallback: "/index.html" },
         },
         refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
-        mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
-        backgroundSync: false,
+        mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000, backgroundSync: false },
         auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
-        crossTabSync: false,
-        tagInvalidation: { enabled: true },
-        graphql: { enabled: false, endpoint: "/graphql" },
+        tagInvalidation: { crossTabSync: false },
+        graphql: { enabled: false, endpoints: ["/graphql"] },
         pushNotifications: { enabled: false },
         serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
       },

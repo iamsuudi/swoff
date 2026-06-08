@@ -38,7 +38,7 @@ const ADAPTERS: AdapterDef[] = [
   { name: "useAuth", condition: (c) => c.config.features.auth.enabled },
   { name: "useMutationQueue", condition: (c) => c.config.features.mutationQueue.enabled },
   { name: "usePushSubscription", condition: (c) => c.config.features.pushNotifications?.enabled ?? false },
-  { name: "useBackgroundSync", condition: (c) => !!c.config.features.backgroundSync },
+  { name: "useBackgroundSync", condition: (c) => !!c.config.features.mutationQueue.backgroundSync },
 ];
 
 const BASE_FRAMEWORK: Record<string, string> = {

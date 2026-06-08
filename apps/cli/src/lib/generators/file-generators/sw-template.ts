@@ -44,12 +44,11 @@ export function generateSwTemplate(ctx: GeneratorContext): void {
     ? code.replace("// [[PUSH_HANDLERS]]", generateSwPushHandlers())
     : code.replace("// [[PUSH_HANDLERS]]", "");
 
-  const baseUrl = config.apiBaseUrl || "";
   code = features.serverPush?.enabled
-    ? code.replace("// [[SERVER_PUSH_HANDLER]]", generateServerPushHandler(features.serverPush.type, baseUrl + features.serverPush.endpoint, features.serverPush.reconnectDelayMs))
+    ? code.replace("// [[SERVER_PUSH_HANDLER]]", generateServerPushHandler(features.serverPush.type, "SWOFF_API_BASE" + features.serverPush.endpoint, features.serverPush.reconnectDelayMs))
     : code.replace("// [[SERVER_PUSH_HANDLER]]", "");
 
-  if (features.backgroundSync && (!features.auth.enabled || features.auth.type === "cookie")) {
+  if (features.mutationQueue.backgroundSync && (!features.auth.enabled || features.auth.type === "cookie")) {
     const authType = features.auth.enabled ? features.auth.type : undefined;
     const mq = features.mutationQueue;
     code += `\n\n${generateBackgroundSyncHandler(authType, mq.batchSize, mq.batchDelayMs, mq.maxRetries, mq.retryBackoffMs, true)}`;

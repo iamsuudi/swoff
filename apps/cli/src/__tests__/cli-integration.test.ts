@@ -22,7 +22,6 @@ describe("CLI commands integration", () => {
     it("creates swoff.config.json with correct structure", () => {
       const config = {
         $schema: "https://swoff.netlify.app/schema/v1.json",
-        enabled: true,
         features: {
           pwa: { enabled: true, preventDefaultInstall: false },
           serviceWorker: {
@@ -41,11 +40,9 @@ describe("CLI commands integration", () => {
             },
           },
           refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
-          mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
-          backgroundSync: false,
+          mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000, backgroundSync: false },
           auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
-          crossTabSync: true,
-          tagInvalidation: {},
+          tagInvalidation: { crossTabSync: true },
         },
         build: { outputDir: "dist", swFilename: "sw" },
       };
@@ -53,7 +50,6 @@ describe("CLI commands integration", () => {
 
       const parsed = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
       expect(parsed.$schema).toBe("https://swoff.netlify.app/schema/v1.json");
-      expect(parsed.enabled).toBe(true);
       expect(parsed.features.serviceWorker.version).toBe("package");
       expect(parsed.features.pwa.preventDefaultInstall).toBe(false);
     });
@@ -118,8 +114,8 @@ describe("CLI commands integration", () => {
 
   describe("config validation scenarios", () => {
     it("detects missing required fields", () => {
-      const config = { enabled: true };
-      const required = ["enabled", "features", "build"];
+      const config = {};
+      const required = ["features", "build"];
       const missing = required.filter((f) => !(f in config));
       expect(missing).toContain("features");
       expect(missing).toContain("build");
@@ -150,7 +146,6 @@ describe("CLI commands integration", () => {
     function writeConfig(overrides: Record<string, unknown> = {}) {
       const config = {
         $schema: "https://swoff.netlify.app/schema/v1.json",
-        enabled: true,
         framework: "vanilla",
         features: {
           pwa: { enabled: true, preventDefaultInstall: false },
@@ -169,12 +164,10 @@ describe("CLI commands integration", () => {
             navigation: { mode: "spa" as const, preload: true, fallback: "/index.html" },
           },
           refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
-          mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
-          backgroundSync: false,
+          mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000, backgroundSync: false },
           auth: { enabled: false, type: "bearer" as const, refreshPath: "/api/refresh", userEndpoint: "/api/me" },
-          crossTabSync: true,
-          tagInvalidation: {},
-          graphql: { enabled: false, endpoint: "/graphql" },
+          tagInvalidation: { crossTabSync: true },
+          graphql: { enabled: false, endpoints: ["/graphql"] },
           pushNotifications: { enabled: false },
           serverPush: { enabled: false, type: "sse" as const, endpoint: "/api/events", reconnectDelayMs: 5000 },
         },

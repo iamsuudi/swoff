@@ -28,16 +28,15 @@ function applyReplacements(sw: string, config: SwoffConfig, assetsToCache: { url
 
   sw = sw.replace("// [[ACTIVATE_HANDLER]]", generateActivateHandler(strategy.clearRuntimeOnUpdate, navigation.preload, strategy.maxRuntimeCacheAge));
   sw = sw.replace("// [[INSTALL_HANDLER]]", generateInstallHandler());
-  sw = sw.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(true, features.tagInvalidation.debounceMs ?? 0));
+  sw = sw.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(true, features.tagInvalidation?.debounceMs ?? 0));
   sw = sw.replace("// [[TAG_MANAGEMENT]]", generateTagManagement());
 
   sw = features.pushNotifications?.enabled
     ? sw.replace("// [[PUSH_HANDLERS]]", generateSwPushHandlers())
     : sw.replace("// [[PUSH_HANDLERS]]", "");
 
-  const baseUrl = config.apiBaseUrl || "";
   sw = features.serverPush?.enabled
-    ? sw.replace("// [[SERVER_PUSH_HANDLER]]", generateServerPushHandler(features.serverPush.type, baseUrl + features.serverPush.endpoint, features.serverPush.reconnectDelayMs))
+    ? sw.replace("// [[SERVER_PUSH_HANDLER]]", generateServerPushHandler(features.serverPush.type, features.serverPush.endpoint, features.serverPush.reconnectDelayMs))
     : sw.replace("// [[SERVER_PUSH_HANDLER]]", "");
 
   return sw;
@@ -65,12 +64,12 @@ export function assembleSW(config: SwoffConfig, version: string, projectRoot?: s
     const sentinel = "SW_CACHE_SENTINEL";
     sw = sw.replace("// [[CACHE_NAME]]", `CACHE_NAME = '${sentinel}'`);
     sw = applyReplacements(sw, config, formattedAssets);
-    const cacheName = generateCacheNameFromHash(sw);
+    const cacheName = generateCacheNameFromHash();
     sw = sw.replace(sentinel, cacheName);
     sw = `${generateConfigHeader(config, version)}\n\n${sw}`;
   }
 
-  if (features.backgroundSync) {
+  if (features.mutationQueue.backgroundSync) {
     if (!features.auth.enabled || features.auth.type === "cookie") {
       const authType = features.auth.enabled ? features.auth.type : undefined;
       const mq = features.mutationQueue;

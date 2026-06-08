@@ -20,7 +20,6 @@ describe("loadConfig", () => {
     expect(result.config).toBeDefined();
     expect(result.configPath).toBeNull();
     expect(result.configSource).toBe("defaults");
-    expect(result.config.enabled).toBe(true);
     expect(result.config.features.serviceWorker.version).toBe("package");
   });
 
@@ -30,8 +29,8 @@ describe("loadConfig", () => {
       features: {
         serviceWorker: { version: "2.0.0", autoActivate: true, strategy: { default: "network-first", patterns: {} } },
         mutationQueue: { enabled: true, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
-        backgroundSync: false, pwa: { enabled: true, preventDefaultInstall: true }, auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
-        crossTabSync: true, tagInvalidation: {},
+        pwa: { enabled: true, preventDefaultInstall: true }, auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
+        tagInvalidation: { crossTabSync: true },
       },
       build: { outputDir: "build", swFilename: "service-worker" },
     };
@@ -50,7 +49,6 @@ describe("loadConfig", () => {
 
     const result = loadConfig(testDir);
     expect(result.config.features.serviceWorker.version).toBe("3.0.0");
-    expect(result.config.enabled).toBe(true); // from defaults
     expect(result.config.features.serviceWorker.autoActivate).toBe(false); // from defaults
   });
 

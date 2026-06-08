@@ -15,7 +15,7 @@ export function generateFetchWrapper(ctx: GeneratorContext): void {
     ctx.config.features.auth.enabled,
     ctx.config.features.auth.userEndpoint,
     ctx.config.features.mutationQueue.enabled,
-    ctx.config.features.serviceWorker.requestBatchWindowMs,
+    ctx.config.features.requestBatchWindowMs,
   );
 
   writeFile(ctx, `fetch/core.${ext}`, code);

@@ -43,6 +43,7 @@ import { generateReset } from "./file-generators/reset.js";
 import { generateOpenDB } from "./file-generators/open-db.js";
 import { generateFetchState } from "./file-generators/fetch-state.js";
 import { generateNotification } from "./file-generators/notification-generator.js";
+import { generateSwVersion } from "./file-generators/sw-version-gen.js";
 interface Step {
   name: string;
   gen: () => void;
@@ -52,6 +53,7 @@ interface Step {
 export function generateFiles(ctx: GeneratorContext): string[] {
   const steps: Step[] = [
     { name: "api-config", gen: () => generateApiConfig(ctx), enabled: true },
+    { name: "sw-version", gen: () => generateSwVersion(ctx), enabled: true },
     { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
     { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: true },
     { name: "client-injector", gen: () => generateClientInjector(ctx), enabled: true },

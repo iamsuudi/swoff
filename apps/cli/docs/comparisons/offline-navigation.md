@@ -8,9 +8,9 @@ When a user navigates offline, the browser shows "This site can't be reached" un
 
 | Mode | Behavior | Use case |
 |---|---|---|
-| `"spa"` | Navigation requests fall through to the global caching strategy; SPA shell served only as last resort offline fallback | Traditional SPAs |
+| `"spa"` | Runtime serves global fallback directly from precache (no runtime HTML caching for navigation). Default fallback: `"/index.html"`. | Traditional SPAs |
 | `"default"` | No special nav handling — strategies handle all requests equally | SSG sites |
-| `"ssr"` | Uses global caching strategy for navigation requests + auto-prefetch on `pushState`/`replaceState` | All meta-frameworks (Next.js, Remix, Nuxt, SvelteKit, TanStack Start, Astro, HTMX) |
+| `"ssr"` | Runtime checks HTML cache → per-route fallback → global fallback. Auto-prefetch on `pushState`/`replaceState` | All meta-frameworks (Next.js, Remix, Nuxt, SvelteKit, TanStack Start, Astro, HTMX) |
 
 **Auto-prefetch (SSR mode only):** When `navigation.mode` is `"ssr"`, the generated `client-injector` intercepts `history.pushState()` and `history.replaceState()` — the underlying API every client-side router uses — and calls `prefetchCache(url)` for each navigation. This warms the SW cache with HTML pages as the user browses, so refreshes and return visits load instantly.
 
@@ -32,11 +32,9 @@ history.pushState = function (data, unused, url) {
 ```
 applyStrategy catch (or navigateWithRules fallthrough)
   → startRetryLoop (for navigation requests — background retry)
-  → routeFallback (per-route offline fallback from navigation rules)
-  → fromRuntime (HTML cache only — request.mode === "navigate")
-  → fromPrecache (url.search = "")
-  → fromOfflineFallback (user-provided /offline.html)
-  → fromSpaShell (/index.html from precache)
+  → fromRuntime (HTML cache only — non-SPA navigate, else global fallback)
+  → routeFallback (per-route fallback from navigation rules)
+  → globalFallback (FALLBACK_PATH from precache)
   → inline 503 HTML page (guaranteed text/html response)
 ```
 
@@ -50,7 +48,7 @@ Each step checks existence before proceeding. The last step — an inline `new R
   "rules": [
     { "match": "/", "policy": "cache-first" },
     { "match": "/about", "policy": "cache-first" },
-    { "match": "/blog/*", "policy": "network-first", "offlineFallback": "/blog-offline.html" },
+    { "match": "/blog/*", "policy": "network-first", "fallback": "/blog-offline.html" },
     { "match": "/dashboard/**", "policy": "network-only" },
   ]
 }
@@ -80,7 +78,7 @@ On each retry, the SW fetches the failed URL. When a retry succeeds, the respons
     "serviceWorker": {
       "navigation": {
         "mode": "ssr",
-        "offlineFallback": "/offline.html",
+        "fallback": "/offline.html",
         "precacheRoutes": ["/", "/about"],
         "rules": [
           { "match": "/", "policy": "cache-first" }
@@ -153,7 +151,7 @@ VitePWA({
 | **SSR mode** | ✅ `"ssr"` with auto-prefetch | ❌ | ❌ | ❌ | ❌ |
 | **Auto-prefetch on pushState** | ✅ Built-in | ❌ | ❌ | ❌ | ❌ |
 | **HTML cache isolation** | ✅ Content-Type routing | ❌ | ❌ | ❌ | ❌ |
-| **Ultimate fallback chain** | ✅ 7-step (includes retry) | ❌ Single | ❌ Single | ❌ Single | ❌ Single |
+| **Ultimate fallback chain** | ✅ 6-step (includes retry) | ❌ Single | ❌ Single | ❌ Single | ❌ Single |
 | **Inline 503 guarantee** | ✅ Last resort HTML | ❌ | ❌ | ❌ | ❌ |
 | **Per-route policies** | ✅ Config rules | ❌ | ❌ | ❌ | ❌ |
 | **Per-route offline fallback** | ✅ Rule-level config | ❌ | 🟡 Per matcher function | ❌ | ❌ |

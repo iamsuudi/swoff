@@ -81,18 +81,15 @@ describe("generateSwTemplate", () => {
 describe("generateSwInjector", () => {
   it("generates JS registration with correct config values", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, autoUpdate: true, autoActivate: true } },
+      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, autoActivate: true } },
     });
     generateSwInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "sw", "injector.js"), "utf8");
-    expect(content).toContain("AUTO_UPDATE = true");
     expect(content).toContain("AUTO_ACTIVATE = true");
     expect(content).toContain("initServiceWorker");
-    expect(content).toContain("checkForUpdate");
-    expect(content).toContain("handleUpdateApproved");
     expect(content).toContain("skipWaiting");
     expect(content).toContain("waitForController");
-    expect(content).toContain("semverCompare");
+    expect(content).toContain("SW_VERSION");
   });
 
   it("generates TS when ext is ts", () => {
@@ -102,26 +99,33 @@ describe("generateSwInjector", () => {
     expect(existsSync(join(ctx.swoffDir, "sw", "injector.ts"))).toBe(true);
   });
 
-  it("reflects autoUpdate false", () => {
+  it("reflects autoActivate false", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, autoUpdate: false } },
+      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, autoActivate: false } },
     });
     generateSwInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "sw", "injector.js"), "utf8");
-    expect(content).toContain("AUTO_UPDATE = false");
+    expect(content).toContain("AUTO_ACTIVATE = false");
   });
 
-    it("generates simple injector when version mode is 'hash'", () => {
-      const ctx = makeContext({
-        features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, version: "hash" } },
-      });
-      generateSwInjector(ctx);
-      const content = readFileSync(join(ctx.swoffDir, "sw", "injector.js"), "utf8");
-      expect(content).toContain("Simple Mode");
-      expect(content).toContain("navigator.serviceWorker.register(\"/sw.js\")");
-      expect(content).not.toContain("checkForUpdate");
-      expect(content).not.toContain("AUTO_UPDATE");
+  it("generates hash-mode injector without SW_VERSION import", () => {
+    const ctx = makeContext({
+      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, version: "hash" } },
     });
+    generateSwInjector(ctx);
+    const content = readFileSync(join(ctx.swoffDir, "sw", "injector.js"), "utf8");
+    expect(content).not.toContain("SW_VERSION");
+    expect(content).toContain("/sw.js");
+  });
+
+  it("generates AUTO_ACTIVATE = true in hash mode", () => {
+    const ctx = makeContext({
+      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, version: "hash", autoActivate: true } },
+    });
+    generateSwInjector(ctx);
+    const content = readFileSync(join(ctx.swoffDir, "sw", "injector.js"), "utf8");
+    expect(content).toContain("AUTO_ACTIVATE = true");
+  });
 });
 
 describe("generateClientInjector", () => {

@@ -43,7 +43,7 @@ export interface StrategyEntry {
 export interface NavigationRule {
   match: string;
   policy?: "cache-first" | "network-first" | "network-only" | "stale-while-revalidate";
-  offlineFallback?: string;
+  fallback?: string;
 }
 
 export interface NavigationRetryConfig {
@@ -76,8 +76,6 @@ export interface SwoffConfig {
     };
     serviceWorker: {
       version: string;
-      minSupportedVersion: string;
-      autoUpdate: boolean;
       autoActivate: boolean;
       requestBatchWindowMs: number;
       strategy: {
@@ -103,7 +101,6 @@ export interface SwoffConfig {
         preload?: boolean;
         fallback: string;
         precacheRoutes?: string[];
-        offlineFallback?: string;
         rules?: NavigationRule[];
         retry?: NavigationRetryConfig;
       };
@@ -250,9 +247,6 @@ export function mergeConfigs(
         version:
           override.features?.serviceWorker?.version ??
           base.features.serviceWorker.version ?? "package",
-        minSupportedVersion:
-          override.features?.serviceWorker?.minSupportedVersion ??
-          base.features.serviceWorker.minSupportedVersion,
         strategy: {
           ...base.features.serviceWorker.strategy,
           ...override.features?.serviceWorker?.strategy,
@@ -318,8 +312,6 @@ export const defaultConfig: SwoffConfig = {
     },
     serviceWorker: {
       version: "package",
-      minSupportedVersion: "0.0.0",
-      autoUpdate: true,
       autoActivate: false,
       requestBatchWindowMs: 50,
       strategy: {
@@ -343,9 +335,8 @@ export const defaultConfig: SwoffConfig = {
       navigation: {
         mode: "spa",
         preload: true,
-        fallback: "/index.html",
+        fallback: "",
         precacheRoutes: [],
-        offlineFallback: "",
         rules: [],
         retry: { enabled: false, intervalMs: 5000, maxRetries: 12 },
       },
@@ -379,16 +370,13 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
     pwa: { enabled: true, preventDefaultInstall: false },
     serviceWorker: {
       version: "package",
-      minSupportedVersion: "0.0.0",
-      autoUpdate: true,
       autoActivate: false,
       requestBatchWindowMs: 50,
       navigation: {
         mode: "spa",
         preload: true,
-        fallback: "/index.html",
+        fallback: "",
         precacheRoutes: [],
-        offlineFallback: "",
         rules: [],
         retry: { enabled: false, intervalMs: 5000, maxRetries: 12 },
       },

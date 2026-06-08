@@ -6,6 +6,7 @@ import type { SwoffConfig } from "../shared/config-types.js";
 export function resolveVersion(versionField: string, pkgVersion: string): string {
   if (versionField === "hash") return "0.0.0";
   if (versionField === "package") return pkgVersion || "1.0.0";
+  if (versionField === "manual") return "0.0.0"; // resolved at build time from sw-version.ts
   return versionField;
 }
 
@@ -28,22 +29,18 @@ export function collectAssets(dir: string, baseDir: string): string[] {
   return assets;
 }
 
-export function generateCacheNameFromHash(swContent: string): string {
-  const hash = createHash("sha256").update(swContent).digest("hex").slice(0, 12);
-  return `sw-cache-${hash}`;
+export function generateCacheNameFromHash(_swContent: string): string {
+  const ts = Date.now().toString(36);
+  return `sw-cache-${ts}`;
 }
 
 export function buildFallbackList(config: SwoffConfig): string[] {
-  const navMode = config.features.serviceWorker.navigation.mode;
   const fallback: string[] = [];
-  if (navMode === "spa") {
-    fallback.push("/index.html");
-  }
   if (config.features.pwa.enabled) fallback.push("/manifest.json");
 
   const nav = config.features.serviceWorker.navigation;
-  if (nav.offlineFallback && !fallback.includes(nav.offlineFallback)) {
-    fallback.push(nav.offlineFallback);
+  if (nav.fallback && !fallback.includes(nav.fallback)) {
+    fallback.push(nav.fallback);
   }
 
   for (const route of nav.precacheRoutes || []) {
@@ -51,8 +48,8 @@ export function buildFallbackList(config: SwoffConfig): string[] {
   }
 
   for (const rule of nav.rules || []) {
-    if (rule.offlineFallback && !fallback.includes(rule.offlineFallback)) {
-      fallback.push(rule.offlineFallback);
+    if (rule.fallback && !fallback.includes(rule.fallback)) {
+      fallback.push(rule.fallback);
     }
     if (rule.policy === "cache-first" && rule.match && !fallback.includes(rule.match)) {
       fallback.push(rule.match);

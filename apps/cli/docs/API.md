@@ -716,13 +716,10 @@ const {
   status,
   progress,
   error,
-  forceUpdate,
-  acceptUpdate,
-  dismissUpdate,
 } = useSWUpdate();
 ```
 
-`status` follows a state machine: `"idle"` → `"available"` → `"installing"` → `"ready"`.
+`status` follows a state machine: `"idle"` → `"installing"` → `"idle"`.
 Returns `progress` (0–100) while installing. Merged from the removed `useSWProgress()` hook.
 
 ### `usePushSubscription()`

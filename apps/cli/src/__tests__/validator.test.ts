@@ -8,8 +8,6 @@ describe("validateConfig", () => {
       pwa: { enabled: true, preventDefaultInstall: false },
       serviceWorker: {
         version: "package",
-        minSupportedVersion: "1.0.0",
-        autoUpdate: true,
         autoActivate: false,
         strategy: {
           default: "cache-first",
@@ -71,15 +69,6 @@ describe("validateConfig", () => {
   });
 
   describe("serviceWorker validation", () => {
-    it("rejects invalid autoUpdate type", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, autoUpdate: "yes" } },
-      };
-      const errors = validateConfig(config);
-      expect(errors).toContain("features.serviceWorker.autoUpdate must be a boolean");
-    });
-
     it("rejects invalid autoActivate type", () => {
       const cfg = {
         ...validConfig,
@@ -184,15 +173,6 @@ describe("validateConfig", () => {
       expect(errors[0]).toContain("navigation.mode");
     });
 
-    it("rejects non-string offlineFallback", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", offlineFallback: 123 } } },
-      };
-      const errors = validateConfig(config as unknown as Record<string, unknown>);
-      expect(errors[0]).toContain("offlineFallback must be a string");
-    });
-
     it("rejects non-array precacheRoutes", () => {
       const config = {
         ...validConfig,
@@ -238,21 +218,21 @@ describe("validateConfig", () => {
       expect(errors[0]).toContain("policy must be one of");
     });
 
-    it("validates rules[].offlineFallback is a string", () => {
+    it("validates rules[].fallback is a string", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", rules: [{ match: "/blog/*", offlineFallback: 123 }] } } },
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", rules: [{ match: "/blog/*", fallback: 123 }] } } },
       };
       const errors = validateConfig(config as unknown as Record<string, unknown>);
-      expect(errors[0]).toContain("offlineFallback must be a string");
+      expect(errors[0]).toContain("fallback must be a string");
     });
 
     it("accepts valid rules", () => {
       const config = {
         ...validConfig,
         features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", rules: [
-          { match: "/blog/*", policy: "cache-first", offlineFallback: "/blog-offline.html" },
-          { match: "/dashboard/**", policy: "network-first", offlineFallback: "/dashboard-offline.html" },
+          { match: "/blog/*", policy: "cache-first", fallback: "/blog-offline.html" },
+          { match: "/dashboard/**", policy: "network-first", fallback: "/dashboard-offline.html" },
           { match: "/api/status", policy: "network-only" },
           { match: "/notes/**", policy: "stale-while-revalidate" },
         ] } } },
@@ -322,21 +302,12 @@ describe("validateConfig", () => {
       expect(validateConfig(config)).toEqual([]);
     });
 
-    it("accepts valid semver string version", () => {
+    it("accepts any string as version", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: "1.2.3" } },
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: "anything" } },
       };
       expect(validateConfig(config)).toEqual([]);
-    });
-
-    it("rejects invalid version string", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: "latest" } },
-      };
-      const errors = validateConfig(config);
-      expect(errors[0]).toContain('version must be "package", "hash", or a semver string');
     });
 
     it("rejects version with wrong type", () => {
@@ -346,25 +317,6 @@ describe("validateConfig", () => {
       };
       const errors = validateConfig(config);
       expect(errors[0]).toContain("features.serviceWorker.version must be a string");
-    });
-  });
-
-  describe("minSupportedVersion validation", () => {
-    it("accepts valid semver", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, minSupportedVersion: "0.1.0" } },
-      };
-      expect(validateConfig(config)).toEqual([]);
-    });
-
-    it("rejects invalid format", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, minSupportedVersion: "beta" } },
-      };
-      const errors = validateConfig(config);
-      expect(errors[0]).toContain("Invalid minSupportedVersion");
     });
   });
 

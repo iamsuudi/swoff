@@ -41,11 +41,25 @@ const swConfig = config.features?.serviceWorker || {};
 const versionField = swConfig.version;
 
 const versionEnabled = versionField !== false && versionField !== "hash";
-const version = versionField === "package"
-  ? (pkg.version || '1.0.0')
-  : versionField === "hash"
-    ? "0.0.0"
-    : (typeof versionField === "string" ? versionField : pkg.version || '1.0.0');
+const swoffDir = join(projectRoot, 'swoff');
+const swoffVersionPath = join(swoffDir, 'sw-version.js');
+let version;
+if (versionField === "package") {
+  version = (pkg.version || '1.0.0');
+} else if (versionField === "hash") {
+  version = "0.0.0";
+} else if (versionField === "manual") {
+  // Read version from the user-editable swoff/sw-version.js
+  if (existsSync(swoffVersionPath)) {
+    const versionContent = readFileSync(swoffVersionPath, 'utf8');
+    const match = versionContent.match(/SW_VERSION\s*=\s*["']([^"']+)["']/);
+    version = match ? match[1] : '1.0.0';
+  } else {
+    version = '1.0.0';
+  }
+} else {
+  version = (pkg.version || '1.0.0');
+}
 const outputDir = config.build?.outputDir || 'dist';
 const swFilename = config.build?.swFilename || 'sw';
 
@@ -68,8 +82,8 @@ function collectAssets(dir, baseDir) {
   return assets;
 }
 
-function generateCacheNameHash(content) {
-  return 'sw-cache-' + createHash('sha256').update(content).digest('hex').slice(0, 12);
+function generateCacheNameHash() {
+  return 'sw-cache-' + Date.now().toString(36);
 }
 
 const dirsRaw = config.build?.precacheDirs || {};
@@ -86,10 +100,10 @@ for (const [dir, prefix] of Object.entries(dirs)) {
 }
 const swFile = versionEnabled ? \`\${swFilename}-v\${version}.js\` : \`\${swFilename}.js\`;
 const filtered = allAssets.filter(a => !a.endsWith(swFile) && a !== '/version.json');
-const fallback = ['/index.html'];
-if (config.features?.pwa?.enabled) fallback.push('/manifest.json');
 const nav = config.features?.serviceWorker?.navigation || {};
-if (nav.offlineFallback) fallback.push(nav.offlineFallback);
+const fallback = [];
+if (nav.fallback) fallback.push(nav.fallback);
+if (config.features?.pwa?.enabled) fallback.push('/manifest.json');
 if (nav.precacheRoutes) {
   for (const route of nav.precacheRoutes) {
     if (!fallback.includes(route)) fallback.push(route);
@@ -97,7 +111,7 @@ if (nav.precacheRoutes) {
 }
 if (nav.rules) {
   for (const rule of nav.rules) {
-    if (rule.offlineFallback && !fallback.includes(rule.offlineFallback)) fallback.push(rule.offlineFallback);
+    if (rule.fallback && !fallback.includes(rule.fallback)) fallback.push(rule.fallback);
     if (rule.policy === "cache-first" && rule.match && !fallback.includes(rule.match)) fallback.push(rule.match);
   }
 }
@@ -105,10 +119,10 @@ const combined = [...new Set([...fallback, ...filtered])];
 const assetsToCache = combined.map(url => ({ url, options: {} }));
 
 let sw = template;
+const sentinel = 'SW_CACHE_SENTINEL';
 if (versionEnabled) {
   sw = sw.replace('// [[CACHE_NAME]]', \`CACHE_NAME = 'sw-v\${version}'\`);
 } else {
-  const sentinel = 'SW_CACHE_SENTINEL';
   sw = sw.replace('// [[CACHE_NAME]]', \`CACHE_NAME = '\${sentinel}'\`);
 }
 sw = sw.replace('// [[ASSETS_LIST]]', \`ASSETS_TO_CACHE = \${JSON.stringify(assetsToCache, null, 2)}\`);
@@ -123,7 +137,6 @@ if (!versionEnabled) {
   writeFileSync(join(outDir, swFile), sw);
   writeFileSync(join(outDir, 'version.json'), JSON.stringify({
     version,
-    minSupportedVersion: swConfig.minSupportedVersion || '0.0.0',
     generatedAt: new Date().toISOString(),
   }, null, 2));
   console.log(\`Service worker built: \${outputDir}/\${swFile}\`);

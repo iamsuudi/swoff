@@ -22,8 +22,6 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
     },
     "serviceWorker": {
       "version": "package",
-      "minSupportedVersion": "1.0.0",
-      "autoUpdate": true,
       "autoActivate": false,
       "strategy": {
         "default": "cache-first",
@@ -47,7 +45,8 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
       "navigation": {
         "mode": "spa",
         "preload": true,
-        "fallback": "/index.html"
+        "fallback": "/index.html",
+        "rules": []
       }
     },
     "refetchQueue": {
@@ -122,10 +121,8 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `version` | `"package"` \| `"hash"` \| `string` | `"package"` | SW version mode. `"package"`: reads from `package.json`. `"hash"`: SHA-256 hash of generated SW content (deterministic, fixed SW URL). Semver string (e.g. `"1.2.3"`): explicit version. |
-| `minSupportedVersion` | `string` | `"0.0.0"` | Minimum supported SW version — clients below this are force-updated on page load |
-| `autoUpdate` | `boolean` | `true` | Automatically register new service worker versions when detected. When false, dispatches `sw-update-available` event for manual registration via `handleUpdateApproved()`. |
-| `autoActivate` | `boolean` | `false` | Automatically activate newly registered service workers (`skipWaiting`). Only applies when a new version is registered — use with `autoUpdate` for fully silent updates, or wait for user consent then call `handleUpdateApproved()`. |
+| `version` | `"package"` \| `"hash"` \| `"manual"` \| `string` | `"package"` | SW version mode. Generates `swoff/sw-version.ts` as the single version source. `"package"`: auto-reads from `package.json` at build time. `"hash"`: every build produces a unique cache name (uses `Date.now().toString(36)`), SW URL stays fixed. `"manual"`: user edits `swoff/sw-version.ts` directly — the build script reads it. Any string works — no semver or keyword validation. |
+| `autoActivate` | `boolean` | `false` | Automatically activate newly registered service workers (`skipWaiting()`). When `false`, the SW activates on next navigation or browser reload — no user prompt. |
 | `requestBatchWindowMs` | `number` | `50` | Time window in ms to coalesce concurrent GET requests to the same URL before dispatching to the SW. 0 disables batching. |
 
 ### `features.serviceWorker.strategy`
@@ -148,12 +145,11 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `mode` | `"spa"` \| `"default"` \| `"ssr"` | `"spa"` | Navigation mode. `"spa"`: navigation requests use the global caching strategy; SPA shell served only as last resort offline fallback. `"default"`: no special navigation handling. `"ssr"`: same as `"default"` with auto-prefetch that intercepts `history.pushState`/`replaceState` to warm the SW cache on client-side navigation. |
+| `mode` | `"spa"` \| `"default"` \| `"ssr"` | `"spa"` | Navigation mode. `"spa"`: runtime serves global fallback directly from precache (no runtime HTML caching). `"default"`: no special navigation handling — strategies handle all requests equally. `"ssr"`: runtime checks HTML cache → per-route fallback → global fallback; adds auto-prefetch that intercepts `history.pushState`/`replaceState` to warm the SW cache on client-side navigation. |
 | `preload` | `boolean` | `true` | Enable Navigation Preload API — reduces SW startup latency |
-| `fallback` | `string` | `"/index.html"` | Fallback HTML for SPA navigation requests |
+| `fallback` | `string` | `""` | Global fallback HTML path for offline navigation. For SPA mode, set to `"/index.html"` to serve the SPA shell from precache when offline. For SSR mode, checked after per-route fallback if the runtime HTML cache misses. |
 | `precacheRoutes` | `string[]` | `[]` | Additional routes to fetch + cache during SW install (e.g. `["/", "/about"]`). Useful for SSG or critical pages. |
-| `offlineFallback` | `string` | `""` | Path to a custom offline HTML page. Served when the network is unavailable and no cached version exists. |
-| `rules` | `NavigationRule[]` | `[]` | Per-route navigation policies and offline fallback pages (see below). |
+| `rules` | `NavigationRule[]` | `[]` | Per-route navigation policies and fallback pages (see below). |
 | `retry` | `NavigationRetryConfig` | `{ "enabled": false, "intervalMs": 5000, "maxRetries": 12 }` | Smart retry when a navigation falls through to the ultimate offline fallback. The SW periodically retries the failed URL; on success, caches the response and broadcasts `swoff:navigation-online`. |
 
 #### `NavigationRule`
@@ -162,7 +158,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 |-------|------|---------|-------------|
 | `match` | `string` | (required) | Glob pattern matching request paths (supports `*`, `**`, `?`, `{a,b}`). |
 | `policy` | `"cache-first"` \| `"network-first"` \| `"network-only"` \| `"stale-while-revalidate"` | `"network-first"` | Navigation policy for matching routes. `"cache-first"`: serve from precache immediately; `"network-first"`: try network, fall back to cache; `"network-only"`: always fetch (never cache); `"stale-while-revalidate"`: serve cached HTML instantly, refresh in background. |
-| `offlineFallback` | `string` | — | Per-route offline fallback HTML path. Overrides the global `offlineFallback` for matching routes. |
+| `fallback` | `string` | — | Per-route offline fallback HTML path. Overrides the global `fallback` for matching routes. |
 
 #### `NavigationRetryConfig`
 
@@ -177,11 +173,11 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 ```json
 "navigation": {
   "mode": "network-first",
-  "offlineFallback": "/offline.html",
+  "fallback": "/offline.html",
   "rules": [
     { "match": "/", "policy": "cache-first" },
     { "match": "/about", "policy": "cache-first" },
-    { "match": "/blog/*", "policy": "network-first", "offlineFallback": "/blog-offline.html" },
+    { "match": "/blog/*", "policy": "network-first", "fallback": "/blog-offline.html" },
     { "match": "/dashboard/**", "policy": "network-only" },
     { "match": "/notes/**", "policy": "stale-while-revalidate" }
   ],

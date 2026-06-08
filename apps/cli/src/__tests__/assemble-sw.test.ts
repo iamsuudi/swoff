@@ -172,8 +172,8 @@ describe("assembleSW", () => {
             navigation: {
               ...config.features.serviceWorker.navigation,
               rules: [
-                { match: "/blog/*", policy: "cache-first", offlineFallback: "/blog-offline.html" },
-                { match: "/dashboard/**", policy: "network-first", offlineFallback: "/dashboard-offline.html" },
+                { match: "/blog/*", policy: "cache-first", fallback: "/blog-offline.html" },
+                { match: "/dashboard/**", policy: "network-first", fallback: "/dashboard-offline.html" },
                 { match: "/api/status", policy: "network-only" },
                 { match: "/notes/**", policy: "stale-while-revalidate" },
               ],
@@ -245,8 +245,8 @@ describe("assembleSW", () => {
             navigation: {
               ...config.features.serviceWorker.navigation,
               rules: [
-                { match: "/blog/*", policy: "cache-first", offlineFallback: "/blog-offline.html" },
-                { match: "/dashboard/**", policy: "network-first", offlineFallback: "/dashboard-offline.html" },
+                { match: "/blog/*", policy: "cache-first", fallback: "/blog-offline.html" },
+                { match: "/dashboard/**", policy: "network-first", fallback: "/dashboard-offline.html" },
               ],
             },
           },
@@ -344,7 +344,7 @@ describe("assembleSW", () => {
       expect(sw).toContain("OFFLINE_FALLBACK_ACTIVATED");
     });
 
-    it("generates OFFLINE_FALLBACK_ACTIVATED postMessage in fromOfflineFallback", () => {
+    it("generates FALLBACK_PATH constant for global fallback", () => {
       const configWithOfflineFallback: SwoffConfig = {
         ...config,
         features: {
@@ -353,13 +353,13 @@ describe("assembleSW", () => {
             ...config.features.serviceWorker,
             navigation: {
               ...config.features.serviceWorker.navigation,
-              offlineFallback: "/offline.html",
+              fallback: "/offline.html",
             },
           },
         },
       };
       const sw = assembleSW(configWithOfflineFallback, "1.0.0");
-      expect(sw).toContain("offline-page");
+      expect(sw).toContain('FALLBACK_PATH = "/offline.html"');
     });
 
     it("generates OFFLINE_FALLBACK_ACTIVATED postMessage for route fallback in fromUltimateFallback", () => {
@@ -372,7 +372,7 @@ describe("assembleSW", () => {
             navigation: {
               ...config.features.serviceWorker.navigation,
               rules: [
-                { match: "/blog/*", policy: "cache-first", offlineFallback: "/blog-offline.html" },
+                { match: "/blog/*", policy: "cache-first", fallback: "/blog-offline.html" },
               ],
             },
           },

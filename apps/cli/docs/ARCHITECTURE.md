@@ -304,7 +304,7 @@ Why per-mutation instead of once?
 
 ## Server push transport: SSE vs WebSocket
 
-Both transports are supported via `features.serverPush.type`.
+Both transports are supported via `features.realtime.serverPush.type`.
 
 | Aspect | SSE | WebSocket |
 |--------|-----|-----------|

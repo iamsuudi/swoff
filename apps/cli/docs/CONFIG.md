@@ -7,15 +7,13 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 ```json
 {
   "$schema": "https://swoff.netlify.app/schema/v1.json",
-  "configVersion": 1,
-  "enabled": true,
   "framework": "react",
-  "apiBaseUrl": "",
   "build": {
     "outputDir": "dist",
     "swFilename": "sw"
   },
   "features": {
+    "requestBatchWindowMs": 50,
     "pwa": {
       "enabled": true,
       "preventDefaultInstall": false
@@ -60,9 +58,9 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
       "batchSize": 1,
       "batchDelayMs": 0,
       "maxRetries": 5,
-      "retryBackoffMs": 1000
+      "retryBackoffMs": 1000,
+      "backgroundSync": false
     },
-    "backgroundSync": false,
     "auth": {
       "enabled": false,
       "type": "bearer",
@@ -71,21 +69,19 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
     },
     "graphql": {
       "enabled": false,
-      "endpoint": "/graphql"
+      "endpoints": ["/graphql"]
     },
-    "crossTabSync": true,
     "tagInvalidation": {
-      "enabled": true
+      "crossTabSync": true
     },
-    "pushNotifications": {
-      "enabled": false,
-      "vapidPublicKey": ""
-    },
-    "serverPush": {
-      "enabled": false,
-      "type": "sse",
-      "endpoint": "/api/events",
-      "reconnectDelayMs": 5000
+    "realtime": {
+      "pushNotifications": false,
+      "serverPush": {
+        "enabled": false,
+        "type": "sse",
+        "endpoint": "/api/events",
+        "reconnectDelayMs": 5000
+      }
     }
   }
 }
@@ -98,10 +94,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `$schema` | `string` | — | JSON Schema URL (for IDE autocomplete) |
-| `configVersion` | `number` | `1` | Config schema version. The CLI warns when loading a config with a missing or outdated version. Incremented when breaking changes are introduced. |
-| `enabled` | `boolean` | `true` | Master switch — disables all Swoff features |
 | `framework` | `"react"` \| `"vue"` \| `"svelte"` \| `"vanilla"` \| `"nextjs"` \| `"remix"` \| `"astro"` \| `"nuxt"` \| `"sveltekit"` | auto-detected | Your UI framework. Meta-frameworks auto-configure navigation mode, strategy defaults, and build paths via `swoff init`. |
-| `apiBaseUrl` | `string` | `""` | Base URL prepended to all relative API URLs. Set to your API server origin (e.g. `https://api.example.com`) when frontend and API are on different domains. Leave empty string when same origin. |
 | `build.outputDir` | `string` | `"dist"` | Build tool output directory |
 | `build.swFilename` | `string` | `"sw"` | Service worker filename prefix (e.g. `sw-v1.2.3.js`) |
 | `build.precacheDirs` | `object` | `{}` | Additional directories to precache. Keys are filesystem paths (relative to project root), values are the URL prefix to serve them under. E.g. `{ "public/assets": "/assets" }` precaches all files from `public/assets/` served at `/assets/*`. When empty, only `outputDir` is scanned. |
@@ -123,7 +116,6 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 |-------|------|---------|-------------|
 | `version` | `"package"` \| `"hash"` \| `"manual"` \| `string` | `"package"` | SW version mode. Generates `swoff/sw-version.ts` as the single version source. `"package"`: auto-reads from `package.json` at build time. `"hash"`: every build produces a unique cache name (uses `Date.now().toString(36)`), SW URL stays fixed. `"manual"`: user edits `swoff/sw-version.ts` directly — the build script reads it. Any string works — no semver or keyword validation. |
 | `autoActivate` | `boolean` | `false` | Automatically activate newly registered service workers (`skipWaiting()`). When `false`, the SW activates on next navigation or browser reload — no user prompt. |
-| `requestBatchWindowMs` | `number` | `50` | Time window in ms to coalesce concurrent GET requests to the same URL before dispatching to the SW. 0 disables batching. |
 
 ### `features.serviceWorker.strategy`
 
@@ -211,6 +203,14 @@ When a strategy value is an object instead of a string:
 
 ---
 
+## `features.requestBatchWindowMs`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `requestBatchWindowMs` | `number` | `50` | Time window in ms to coalesce concurrent GET requests to the same URL before dispatching to the SW. 0 disables batching. |
+
+---
+
 ## `features.refetchQueue`
 
 | Field | Type | Default | Description |
@@ -269,20 +269,22 @@ Object-only feature (boolean shorthand not supported).
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `boolean` | `false` | Generate GraphQL wrapper (`queryGql` / `mutateGql`) |
-| `endpoint` | `string` | `"/graphql"` | GraphQL endpoint URL |
+| `endpoints` | `string[]` | `["/graphql"]` | GraphQL API endpoints. Supports multiple — pass `endpointIndex` to `fetchWithCache()`, `useCachedFetch()`, `queryGql()`, or `mutateGql()` to select one. |
 
 ---
 
-## `features.pushNotifications`
+## `features.realtime`
+
+Container for real-time features — push notifications and server-sent events.
+
+### `features.realtime.pushNotifications`
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enabled` | `boolean` | `false` | Generate push notification subscription management |
-| `vapidPublicKey` | `string` | — | VAPID public key. Required for push notifications. Baked into the generated push handler at build time — not needed at runtime. |
+| `pushNotifications` | `boolean` | `false` | Enable push notification subscription management. Generates `swoff/realtime/notifications.ts` with `subscribeToPush()` / `unsubscribeFromPush()`. |
+| `vapidPublicKey` | `string` | — | VAPID public key for push subscription. Required when `pushNotifications` is `true`. Baked into the generated push handler at build time — not needed at runtime. |
 
----
-
-## `features.serverPush`
+### `features.realtime.serverPush`
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -295,25 +297,28 @@ Object-only feature (boolean shorthand not supported).
 
 ## `features.tagInvalidation`
 
-Object-only feature (boolean shorthand not supported).
+Object-only feature (boolean shorthand not supported). Tag invalidation is always active — the `enabled` field was removed in v1.0.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enabled` | `boolean` | `true` | Enable tag-based cache invalidation |
+| `crossTabSync` | `boolean` | `true` | Cross-tab cache invalidation sync. When `true`, invalidation events broadcast to all open tabs. |
 | `debounceMs` | `number` | `0` | Debounce window (ms) for coalescing rapid invalidations. When > 0, repeated `INVALIDATE_TAG` messages within the window are batched and processed once, reducing redundant cache scans. |
-| `prefixes` | `string[]` | `["api","v1","v2","v3","rest","graphql","gql"]` | URL path prefixes to skip during tag generation |
+| `skipPrefixes` | `string[]` | `["api","v1","v2","v3","rest","graphql","gql"]` | URL path prefixes to skip during tag generation |
 | `patterns` | `object` | `{}` | Custom glob patterns for tag generation. Keys are URL patterns (`/api/:id`), values are tag template arrays (`["{id}"]`) |
 | `singularization` | `object` | `{}` | Custom plural→singular mapping (e.g. `{"categories": "category"}`). Default: strips trailing `s`. |
 | `cascading` | `Record<string, string[]>` | `{}` | Cascading tag dependencies. `{"todos": ["categories"]}` — invalidating `todos` also invalidates `categories` |
 
 ---
 
-## Boolean features
+## Boolean sub-features
+
+These boolean flags nest under their parent object feature:
 
 | Feature | Config path | Default |
 |---------|-------------|---------|
-| Background Sync | `features.backgroundSync` | `false` |
-| Cross-tab Sync | `features.crossTabSync` | `true` |
+| Background Sync | `features.mutationQueue.backgroundSync` | `false` |
+| Cross-tab Sync | `features.tagInvalidation.crossTabSync` | `true` |
+| Push Notifications | `features.realtime.pushNotifications` | `false` |
 
 ---
 
@@ -323,8 +328,8 @@ Some features work best together:
 
 | Feature | Recommended combo | Why |
 |---------|------------------|-----|
-| `mutationQueue` | + `backgroundSync` | Background Sync processes mutations even after tab close |
-| `tagInvalidation` | + `crossTabSync` | Invalidation events broadcast to all open tabs |
-| `serverPush` | + `tagInvalidation` | Server push triggers `invalidateByTag()` — requires tag invalidation to function |
+| `mutationQueue.backgroundSync` | + `mutationQueue` | Background Sync processes mutations even after tab close |
+| `tagInvalidation.crossTabSync` | + `tagInvalidation` | Invalidation events broadcast to all open tabs |
+| `realtime.serverPush` | + `tagInvalidation` | Server push triggers `invalidateByTag()` — requires tag invalidation to function |
 | `auth` + `mutationQueue` | — | `flushMutations()` after re-login replays mutations that failed with 401 |
 | `graphql` | + `mutationQueue` + `tagInvalidation` | Offline GQL mutations queue in IndexedDB; mutations auto-invalidate operation-name tags |

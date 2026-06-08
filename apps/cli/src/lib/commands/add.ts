@@ -34,8 +34,8 @@ const FEATURE_CONFIG_UPDATES: Record<string, Record<string, unknown>> = {
   auth: { auth: { enabled: true, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" } },
   "background-sync": { mutationQueue: { backgroundSync: true } },
   graphql: { graphql: { enabled: true, endpoints: ["/graphql"] } },
-  "push-notification": { pushNotifications: { enabled: true } },
-  "server-push": { serverPush: { enabled: true, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 } },
+  "push-notification": { realtime: { pushNotifications: true } },
+  "server-push": { realtime: { serverPush: { enabled: true, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 } } },
   htmx: {},
   php: {},
 };

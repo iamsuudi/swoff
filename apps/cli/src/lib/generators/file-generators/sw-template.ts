@@ -40,12 +40,12 @@ export function generateSwTemplate(ctx: GeneratorContext): void {
   code = code.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(true, features.tagInvalidation.debounceMs ?? 0));
   code = code.replace("// [[TAG_MANAGEMENT]]", generateTagManagement());
 
-  code = features.pushNotifications?.enabled
+  code = features.realtime.pushNotifications
     ? code.replace("// [[PUSH_HANDLERS]]", generateSwPushHandlers())
     : code.replace("// [[PUSH_HANDLERS]]", "");
 
-  code = features.serverPush?.enabled
-    ? code.replace("// [[SERVER_PUSH_HANDLER]]", generateServerPushHandler(features.serverPush.type, "SWOFF_API_BASE" + features.serverPush.endpoint, features.serverPush.reconnectDelayMs))
+  code = features.realtime.serverPush?.enabled
+    ? code.replace("// [[SERVER_PUSH_HANDLER]]", generateServerPushHandler(features.realtime.serverPush.type, "SWOFF_API_BASE" + features.realtime.serverPush.endpoint, features.realtime.serverPush.reconnectDelayMs))
     : code.replace("// [[SERVER_PUSH_HANDLER]]", "");
 
   if (features.mutationQueue.backgroundSync && (!features.auth.enabled || features.auth.type === "cookie")) {

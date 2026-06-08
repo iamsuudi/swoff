@@ -194,7 +194,7 @@ data: {"tags": ["todos", "categories"]}
 { "event": "invalidate", "tags": ["todos", "categories"] }
 ```
 
-Generated when `features.serverPush.enabled` is `true`.
+Generated when `features.realtime.serverPush.enabled` is `true`.
 
 ---
 
@@ -215,7 +215,7 @@ import { invalidateByTag, invalidateByTags } from "swoff/cache/index";
 | `invalidateByTag`  | `(tag: string) => Promise<void>`    | Send `INVALIDATE_TAG` to the SW; the SW removes matching cache entries and confirms via `TAG_INVALIDATED` (client-injector dispatches `cache-invalidated` on the window). |
 | `invalidateByTags` | `(tags: string[]) => Promise<void>` | Invalidate multiple tags at once. Cascading is expanded by callers before calling this function. |
 
-Generated when `features.tagInvalidation` is `true`.
+Always generated.
 
 ---
 
@@ -250,7 +250,7 @@ import {
 | `getTagsForUrl`          | `(url: string) => Promise<string[]>`             | Get all tags associated with a given URL                             |
 | `invalidateMatching`     | `(glob: string) => Promise<void>`                | Invalidate all cached responses whose URL matches a glob pattern     |
 
-Generated when `features.tagInvalidation` is `true`.
+Always generated.
 
 ---
 
@@ -402,7 +402,7 @@ import {
 | `getPushSubscription()`           | Get current subscription object (returns `Promise<PushSubscription \| null>`)          |
 | `requestNotificationPermission()` | Request permission only. Returns `Promise<boolean>`.                                   |
 
-Generated when `features.pushNotifications.enabled` is `true`.
+Generated when `features.realtime.pushNotifications` is `true`.
 
 ---
 
@@ -420,7 +420,7 @@ import { syncWhenPossible, retrySync } from "swoff/offline/sync";
 | `retrySync()`                | Re-register sync if mutations are still pending (called automatically) |
 
 Fallback: uses the `online` event listener in unsupported browsers (Firefox, Safari).
-Generated when `features.backgroundSync` is `true`.
+Generated when `features.mutationQueue.backgroundSync` is `true`.
 
 ---
 
@@ -735,7 +735,7 @@ const {
 } = usePushSubscription();
 ```
 
-Generated when `pushNotifications.enabled`.
+Generated when `features.realtime.pushNotifications`.
 
 ### `useBackgroundSync()`
 
@@ -743,7 +743,7 @@ Generated when `pushNotifications.enabled`.
 const { supported, registered, lastSync, triggerSync } = useBackgroundSync();
 ```
 
-Generated when `backgroundSync` is `true`.
+Generated when `features.mutationQueue.backgroundSync`.
 
 ### `useStorageEstimate()`
 
@@ -773,4 +773,4 @@ const { invalidateByTag, invalidateByTags, invalidateUrl } =
 ```
 
 Stable `useCallback`-wrapped versions of cache invalidation functions.
-Generated when `tagInvalidation` is `true`.
+Always generated.

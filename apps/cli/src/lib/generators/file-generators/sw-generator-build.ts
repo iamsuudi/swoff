@@ -38,7 +38,7 @@ const config = JSON.parse(readFileSync(configPath, 'utf8'));
 let template = readFileSync(templatePath, 'utf8');
 
 // Resolve API_BASE for server push endpoint
-if (config.features?.serverPush?.enabled) {
+if (config.features?.realtime?.serverPush?.enabled) {
   let apiBase = '';
   const configJsPath = join(swoffDir, 'config.js');
   if (existsSync(configJsPath)) {

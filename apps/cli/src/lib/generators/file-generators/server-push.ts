@@ -10,7 +10,7 @@ import { generateServerPushCode } from "../../../runtime/server-push.js";
 export function generateServerPush(ctx: GeneratorContext): void {
   const ext = ctx.ext;
   const ts = ext === "ts";
-  const sp = ctx.config.features.serverPush;
+  const sp = ctx.config.features.realtime.serverPush;
 
   const code = generateServerPushCode(
     { ts, ext },

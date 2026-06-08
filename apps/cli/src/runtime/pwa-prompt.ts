@@ -52,6 +52,7 @@ ${preventLine}
 
 /** Check if the PWA install prompt is available (user has met install criteria). */
 export function isInstallable()${R(ts, "boolean")}{
+  if (typeof window === "undefined") return false;
   return !!window.deferredInstallPrompt;
 }
 

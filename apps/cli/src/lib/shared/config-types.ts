@@ -62,11 +62,19 @@ export interface TagInvalidationConfig {
   crossTabSync: boolean;
 }
 
-export const CONFIG_VERSION = 1;
+export interface RealtimeConfig {
+  pushNotifications: boolean;
+  vapidPublicKey?: string;
+  serverPush: {
+    enabled: boolean;
+    type: "sse" | "websocket";
+    endpoint: string;
+    reconnectDelayMs: number;
+  };
+}
 
 export interface SwoffConfig {
   $schema?: string;
-  configVersion?: number;
   framework?: "nextjs" | "remix" | "astro" | "nuxt" | "sveltekit" | "react" | "vue" | "svelte" | "vanilla";
   features: {
     pwa: {
@@ -109,16 +117,7 @@ export interface SwoffConfig {
     auth: AuthConfig;
     tagInvalidation: TagInvalidationConfig;
     graphql: GqlConfig;
-    pushNotifications: {
-      enabled: boolean;
-      vapidPublicKey?: string;
-    };
-    serverPush: {
-      enabled: boolean;
-      type: "sse" | "websocket";
-      endpoint: string;
-      reconnectDelayMs: number;
-    };
+    realtime: RealtimeConfig;
   };
   build: {
     outputDir: string;
@@ -132,17 +131,15 @@ export const KNOWN_FEATURES = [
   "mutationQueue",
   "auth",
   "graphql",
-  "pushNotifications",
-  "serverPush",
+  "realtime",
 ] as const;
 
 export const OBJECT_FEATURES = [
   "pwa",
   "serviceWorker",
   "auth",
-  "pushNotifications",
   "graphql",
-  "serverPush",
+  "realtime",
   "tagInvalidation",
   "mutationQueue",
   "refetchQueue",
@@ -187,15 +184,14 @@ export const defaultRefetchQueue: RefetchQueueConfig = {
   retryDelayMs: 1000,
 };
 
-export const defaultServerPush = {
-  enabled: false,
-  type: "sse" as const,
-  endpoint: "/api/events",
-  reconnectDelayMs: 5000,
-};
-
-export const defaultPushNotifications = {
-  enabled: false,
+export const defaultRealtimeConfig: RealtimeConfig = {
+  pushNotifications: false,
+  serverPush: {
+    enabled: false,
+    type: "sse",
+    endpoint: "/api/events",
+    reconnectDelayMs: 5000,
+  },
 };
 
 export const defaultTagInvalidation: TagInvalidationConfig = {
@@ -288,15 +284,15 @@ export function mergeConfigs(
         ...base.features.tagInvalidation,
         ...override.features?.tagInvalidation,
       },
-      pushNotifications: {
-        ...defaultPushNotifications,
-        ...base.features.pushNotifications,
-        ...override.features?.pushNotifications,
-      },
-      serverPush: {
-        ...defaultServerPush,
-        ...base.features.serverPush,
-        ...override.features?.serverPush,
+      realtime: {
+        ...defaultRealtimeConfig,
+        ...base.features.realtime,
+        ...override.features?.realtime,
+        serverPush: {
+          ...defaultRealtimeConfig.serverPush,
+          ...base.features.realtime?.serverPush,
+          ...override.features?.realtime?.serverPush,
+        },
       },
     },
     build: { ...base.build, ...override.build },
@@ -304,7 +300,6 @@ export function mergeConfigs(
 }
 
 export const defaultConfig: SwoffConfig = {
-  configVersion: CONFIG_VERSION,
   features: {
     requestBatchWindowMs: 50,
     pwa: {
@@ -346,8 +341,7 @@ export const defaultConfig: SwoffConfig = {
     auth: { ...defaultAuth },
     tagInvalidation: { ...defaultTagInvalidation },
     graphql: { ...defaultGql },
-    pushNotifications: { enabled: false },
-    serverPush: { ...defaultServerPush },
+    realtime: { ...defaultRealtimeConfig, serverPush: { ...defaultRealtimeConfig.serverPush } },
   },
   build: {
     outputDir: "dist",
@@ -360,7 +354,6 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
   $schema: string;
 } = {
   $schema: "https://swoff.netlify.app/schema/v1.json",
-  configVersion: CONFIG_VERSION,
   framework: "vanilla",
   features: {
     requestBatchWindowMs: 50,
@@ -403,8 +396,7 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
     auth: { ...defaultAuth },
     tagInvalidation: { ...defaultTagInvalidation },
     graphql: { ...defaultGql },
-    pushNotifications: { enabled: false },
-    serverPush: { ...defaultServerPush },
+    realtime: { ...defaultRealtimeConfig, serverPush: { ...defaultRealtimeConfig.serverPush } },
   },
   build: { outputDir: "dist", swFilename: "sw", precacheDirs: {} },
 };

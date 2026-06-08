@@ -45,10 +45,9 @@ describe("config-types", () => {
         expect(defaultConfig.features).toHaveProperty(feature);
         if (
           feature === "auth" ||
-          feature === "pushNotifications" ||
+          feature === "realtime" ||
           feature === "mutationQueue" ||
           feature === "graphql" ||
-          feature === "serverPush" ||
           feature === "tagInvalidation" ||
           feature === "refetchQueue"
         ) {
@@ -126,7 +125,7 @@ describe("config-types", () => {
       expect(KNOWN_FEATURES).toContain("mutationQueue");
       expect(KNOWN_FEATURES).toContain("auth");
       expect(KNOWN_FEATURES).toContain("graphql");
-      expect(KNOWN_FEATURES).toContain("pushNotifications");
+      expect(KNOWN_FEATURES).toContain("realtime");
       expect(KNOWN_FEATURES).not.toContain("clientRegistration");
       expect(KNOWN_FEATURES).not.toContain("pwa");
       expect(KNOWN_FEATURES).not.toContain("serviceWorker");
@@ -137,7 +136,7 @@ describe("config-types", () => {
       expect(OBJECT_FEATURES).toContain("pwa");
       expect(OBJECT_FEATURES).toContain("serviceWorker");
       expect(OBJECT_FEATURES).toContain("auth");
-      expect(OBJECT_FEATURES).toContain("pushNotifications");
+      expect(OBJECT_FEATURES).toContain("realtime");
       expect(OBJECT_FEATURES).toContain("graphql");
       expect(OBJECT_FEATURES).toContain("mutationQueue");
       expect(OBJECT_FEATURES).toContain("tagInvalidation");

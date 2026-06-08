@@ -64,14 +64,14 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     { name: "db", gen: () => generateOpenDB(ctx), enabled: true },
     { name: "offline/queue", gen: () => generateMutationQueue(ctx), enabled: ctx.config.features.mutationQueue.enabled },
     { name: "offline/state", gen: () => generateMutationState(ctx), enabled: ctx.config.features.mutationQueue.enabled },
-    { name: "offline/sync", gen: () => generateBackgroundSync(ctx), enabled: ctx.config.features.backgroundSync && ctx.config.features.mutationQueue.enabled && !(ctx.config.features.auth.enabled && ctx.config.features.auth.type !== "cookie") },
+    { name: "offline/sync", gen: () => generateBackgroundSync(ctx), enabled: ctx.config.features.mutationQueue.backgroundSync && ctx.config.features.mutationQueue.enabled && !(ctx.config.features.auth.enabled && ctx.config.features.auth.type !== "cookie") },
     { name: "auth-store", gen: () => generateAuthStore(ctx), enabled: ctx.config.features.auth.enabled },
     { name: "auth-user", gen: () => generateAuthUser(ctx), enabled: ctx.config.features.auth.enabled },
     { name: "auth-state", gen: () => generateAuthState(ctx), enabled: ctx.config.features.auth.enabled },
     { name: "sw-generator", gen: () => generateSwGeneratorBuild(ctx), enabled: true },
     { name: "swoff.d.ts", gen: () => generateTypeDefinitions(ctx), enabled: ctx.ext === "ts" },
     { name: "pwa/injector", gen: () => generatePwaInstall(ctx), enabled: ctx.config.features.pwa.enabled },
-    { name: "cache/tags", gen: () => generateInvalidationTags(ctx), enabled: ctx.config.features.tagInvalidation.enabled !== false },
+    { name: "cache/tags", gen: () => generateInvalidationTags(ctx), enabled: true },
     { name: "graphql/index", gen: () => generateGqlWrapper(ctx), enabled: ctx.config.features.graphql.enabled },
     { name: "realtime/notifications", gen: () => generatePush(ctx), enabled: ctx.config.features.pushNotifications?.enabled ?? false },
     { name: "realtime/server-push", gen: () => generateServerPush(ctx), enabled: ctx.config.features.serverPush.enabled },
@@ -101,11 +101,6 @@ if (fileURLToPath(import.meta.url) === fileURLToPath(new URL(process.argv[1], "f
   const configPath = getArg("config-path") || join(projectRoot, "swoff.config.json");
 
   loadConfigAsync(projectRoot, configPath).then(({ config }) => {
-    if (!config.enabled) {
-      console.log("Config generation disabled");
-      process.exit(0);
-    }
-
     const ext = language === "ts" ? "ts" : "js";
     const swoffDir = join(projectRoot, "swoff");
     const generatedFiles: string[] = [];

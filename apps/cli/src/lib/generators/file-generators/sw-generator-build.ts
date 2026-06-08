@@ -35,14 +35,35 @@ if (!existsSync(templatePath)) {
 
 const pkg = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) : { version: '1.0.0' };
 const config = JSON.parse(readFileSync(configPath, 'utf8'));
-const template = readFileSync(templatePath, 'utf8');
+let template = readFileSync(templatePath, 'utf8');
+
+// Resolve API_BASE for server push endpoint
+if (config.features?.serverPush?.enabled) {
+  let apiBase = '';
+  const configJsPath = join(swoffDir, 'config.js');
+  if (existsSync(configJsPath)) {
+    try {
+      const configMod = require(configJsPath);
+      apiBase = configMod.API_BASE || '';
+    } catch {}
+  } else {
+    const configTsPath = join(swoffDir, 'config.ts');
+    if (existsSync(configTsPath)) {
+      const content = readFileSync(configTsPath, 'utf8');
+      const match = content.match(/export\\s+const\\s+API_BASE\\s*=\\s*"([^"]+)"/);
+      apiBase = match ? match[1] : '';
+    }
+  }
+  template = template.replace(/SWOFF_API_BASE/g, apiBase);
+}
+
+const swoffDir = join(projectRoot, 'swoff');
+const swoffVersionPath = join(swoffDir, 'sw-version.js');
 
 const swConfig = config.features?.serviceWorker || {};
 const versionField = swConfig.version;
 
 const versionEnabled = versionField !== false && versionField !== "hash";
-const swoffDir = join(projectRoot, 'swoff');
-const swoffVersionPath = join(swoffDir, 'sw-version.js');
 let version;
 if (versionField === "package") {
   version = (pkg.version || '1.0.0');
@@ -129,7 +150,7 @@ sw = sw.replace('// [[ASSETS_LIST]]', \`ASSETS_TO_CACHE = \${JSON.stringify(asse
 sw = sw.replace('// [[AUTO_SKIP_WAITING]]', \`const AUTO_SKIP_WAITING = \${config.features?.serviceWorker?.autoActivate || false};\`);
 
 if (!versionEnabled) {
-  const cacheName = generateCacheNameHash(sw);
+  const cacheName = generateCacheNameHash();
   sw = sw.replace(sentinel, cacheName);
   writeFileSync(join(outDir, swFile), sw);
   console.log(\`Service worker built: \${outputDir}/\${swFile}\`);

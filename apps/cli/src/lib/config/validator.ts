@@ -3,10 +3,6 @@ import { KNOWN_FEATURES, OBJECT_FEATURES, VALID_STRATEGIES, REACTIVE_FIELDS, CON
 export function validateConfig(config: Record<string, unknown>): string[] {
   const errors: string[] = [];
 
-  if (config.enabled !== undefined && typeof config.enabled !== "boolean") {
-    errors.push("enabled must be a boolean");
-  }
-
   if (config.configVersion !== undefined) {
     if (typeof config.configVersion !== "number") {
       errors.push("configVersion must be a number");
@@ -15,11 +11,7 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     }
   }
 
-  if (config.apiBaseUrl !== undefined && typeof config.apiBaseUrl !== "string") {
-    errors.push("apiBaseUrl must be a string");
-  }
-
-  const requiredFields = ["enabled", "features", "build"];
+  const requiredFields = ["features", "build"];
   const missingFields = requiredFields.filter(
     (field) => config[field] === undefined || config[field] === null,
   );
@@ -36,9 +28,9 @@ export function validateConfig(config: Record<string, unknown>): string[] {
           errors.push(`Feature "${key}" must be an object`);
           continue;
         }
-      } else if (key === "backgroundSync" || key === "crossTabSync") {
-        if (typeof value !== "boolean") {
-          errors.push(`Feature "${key}" must be a boolean, got ${typeof value}`);
+      } else if (key === "requestBatchWindowMs") {
+        if (typeof value !== "number" || value < 0 || !Number.isInteger(value)) {
+          errors.push("features.requestBatchWindowMs must be a non-negative integer");
         }
       } else {
         if (!KNOWN_FEATURES.includes(key as (typeof KNOWN_FEATURES)[number])) {
@@ -212,9 +204,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
           }
         }
       }
-      if (sw.requestBatchWindowMs !== undefined && (typeof sw.requestBatchWindowMs !== "number" || sw.requestBatchWindowMs < 0 || !Number.isInteger(sw.requestBatchWindowMs))) {
-        errors.push("features.serviceWorker.requestBatchWindowMs must be a non-negative integer");
-      }
     }
 
     const refetchQueue = features.refetchQueue as Record<string, unknown> | undefined;
@@ -236,14 +225,11 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     const tagInvalidationVal = features.tagInvalidation as Record<string, unknown> | undefined;
     if (tagInvalidationVal && typeof tagInvalidationVal === "object") {
       const ti = tagInvalidationVal as Record<string, unknown>;
-      if (ti.enabled !== undefined && typeof ti.enabled !== "boolean") {
-        errors.push("features.tagInvalidation.enabled must be a boolean");
-      }
       if (ti.debounceMs !== undefined && (typeof ti.debounceMs !== "number" || ti.debounceMs < 0 || !Number.isInteger(ti.debounceMs))) {
         errors.push("features.tagInvalidation.debounceMs must be a non-negative integer");
       }
-      if (ti.prefixes !== undefined && (!Array.isArray(ti.prefixes) || !(ti.prefixes as unknown[]).every((p) => typeof p === "string"))) {
-        errors.push("features.tagInvalidation.prefixes must be an array of strings");
+      if (ti.skipPrefixes !== undefined && (!Array.isArray(ti.skipPrefixes) || !(ti.skipPrefixes as unknown[]).every((p) => typeof p === "string"))) {
+        errors.push("features.tagInvalidation.skipPrefixes must be an array of strings");
       }
       if (ti.patterns !== undefined && (typeof ti.patterns !== "object" || ti.patterns === null)) {
         errors.push("features.tagInvalidation.patterns must be an object");
@@ -254,9 +240,11 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       if (ti.cascading !== undefined && (typeof ti.cascading !== "object" || ti.cascading === null)) {
         errors.push("features.tagInvalidation.cascading must be an object");
       }
+      if (ti.crossTabSync !== undefined && typeof ti.crossTabSync !== "boolean") {
+        errors.push("features.tagInvalidation.crossTabSync must be a boolean");
+      }
     }
 
-    const backgroundSyncVal = features.backgroundSync;
     const mutationQueueVal = features.mutationQueue as Record<string, unknown> | undefined;
     if (mutationQueueVal && typeof mutationQueueVal === "object") {
       const mq = mutationQueueVal;
@@ -275,15 +263,18 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       if (mq.retryBackoffMs !== undefined && (typeof mq.retryBackoffMs !== "number" || mq.retryBackoffMs < 0 || !Number.isInteger(mq.retryBackoffMs))) {
         errors.push("features.mutationQueue.retryBackoffMs must be a non-negative integer");
       }
-    }
-    const mqEnabled = mutationQueueVal?.enabled === true;
-    if (backgroundSyncVal === true && !mqEnabled) {
-      errors.push("backgroundSync requires mutationQueue to be enabled");
-    }
-    if (backgroundSyncVal === true) {
-      const authBg = features.auth as Record<string, unknown> | undefined;
-      if (authBg?.enabled === true && authBg?.type !== "cookie") {
-        errors.push("backgroundSync is not supported with auth type \"bearer\" or \"custom\" — tokens must not be stored in IndexedDB");
+      if (mq.backgroundSync !== undefined && typeof mq.backgroundSync !== "boolean") {
+        errors.push("features.mutationQueue.backgroundSync must be a boolean");
+      }
+      const backgroundSyncVal = mq.backgroundSync === true;
+      if (backgroundSyncVal && mq.enabled !== true) {
+        errors.push("features.mutationQueue.backgroundSync requires mutationQueue to be enabled");
+      }
+      if (backgroundSyncVal) {
+        const authBg = features.auth as Record<string, unknown> | undefined;
+        if (authBg?.enabled === true && authBg?.type !== "cookie") {
+          errors.push("features.mutationQueue.backgroundSync is not supported with auth type \"bearer\" or \"custom\" — tokens must not be stored in IndexedDB");
+        }
       }
     }
 
@@ -308,8 +299,10 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       if (graphql.enabled !== undefined && typeof graphql.enabled !== "boolean") {
         errors.push("features.graphql.enabled must be a boolean");
       }
-      if (graphql.endpoint !== undefined && typeof graphql.endpoint !== "string") {
-        errors.push("features.graphql.endpoint must be a string");
+      if (graphql.endpoints !== undefined) {
+        if (!Array.isArray(graphql.endpoints) || !(graphql.endpoints as unknown[]).every((e) => typeof e === "string")) {
+          errors.push("features.graphql.endpoints must be an array of strings");
+        }
       }
     }
 
@@ -341,6 +334,7 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         errors.push("features.pushNotifications.vapidPublicKey must be a string");
       }
     }
+
   }
 
   const fw = config.framework;

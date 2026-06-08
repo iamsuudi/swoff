@@ -29,7 +29,7 @@ export function collectAssets(dir: string, baseDir: string): string[] {
   return assets;
 }
 
-export function generateCacheNameFromHash(_swContent: string): string {
+export function generateCacheNameFromHash(): string {
   const ts = Date.now().toString(36);
   return `sw-cache-${ts}`;
 }

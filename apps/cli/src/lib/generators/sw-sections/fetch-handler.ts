@@ -51,7 +51,7 @@ export function generateFetchHandler(
       timeout?: number;
     };
     navigation: {
-      mode?: "spa" | "default" | "network-first" | "stale-while-revalidate" | "ssr";
+      mode?: "spa" | "ssr" | "default";
       preload?: boolean;
       fallback?: string;
       rules?: Array<{ match: string; policy?: string; fallback?: string }>;

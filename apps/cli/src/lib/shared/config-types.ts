@@ -1,6 +1,6 @@
 export interface GqlConfig {
   enabled: boolean;
-  endpoint: string;
+  endpoints: string[];
 }
 
 export interface AuthConfig {
@@ -16,6 +16,7 @@ export interface MutationQueueConfig {
   batchDelayMs: number;
   maxRetries: number;
   retryBackoffMs: number;
+  backgroundSync: boolean;
 }
 
 export interface RefetchQueueConfig {
@@ -53,12 +54,12 @@ export interface NavigationRetryConfig {
 }
 
 export interface TagInvalidationConfig {
-  enabled?: boolean;
   debounceMs?: number;
-  prefixes?: string[];
+  skipPrefixes?: string[];
   patterns?: Record<string, string[]>;
   singularization?: Record<string, string>;
   cascading?: Record<string, string[]>;
+  crossTabSync: boolean;
 }
 
 export const CONFIG_VERSION = 1;
@@ -66,9 +67,7 @@ export const CONFIG_VERSION = 1;
 export interface SwoffConfig {
   $schema?: string;
   configVersion?: number;
-  enabled: boolean;
   framework?: "nextjs" | "remix" | "astro" | "nuxt" | "sveltekit" | "react" | "vue" | "svelte" | "vanilla";
-  apiBaseUrl?: string;
   features: {
     pwa: {
       enabled: boolean;
@@ -77,7 +76,6 @@ export interface SwoffConfig {
     serviceWorker: {
       version: string;
       autoActivate: boolean;
-      requestBatchWindowMs: number;
       strategy: {
         default: string;
         patterns: Record<string, string | StrategyEntry>;
@@ -97,7 +95,7 @@ export interface SwoffConfig {
         timeout?: number;
       };
       navigation: {
-        mode: "spa" | "default" | "network-first" | "stale-while-revalidate" | "ssr";
+        mode: "spa" | "ssr" | "default";
         preload?: boolean;
         fallback: string;
         precacheRoutes?: string[];
@@ -105,11 +103,10 @@ export interface SwoffConfig {
         retry?: NavigationRetryConfig;
       };
     };
+    requestBatchWindowMs: number;
     refetchQueue: RefetchQueueConfig;
     mutationQueue: MutationQueueConfig;
-    backgroundSync: boolean;
     auth: AuthConfig;
-    crossTabSync: boolean;
     tagInvalidation: TagInvalidationConfig;
     graphql: GqlConfig;
     pushNotifications: {
@@ -133,10 +130,7 @@ export interface SwoffConfig {
 export const KNOWN_FEATURES = [
   "refetchQueue",
   "mutationQueue",
-  "backgroundSync",
   "auth",
-  "crossTabSync",
-  "tagInvalidation",
   "graphql",
   "pushNotifications",
   "serverPush",
@@ -174,7 +168,7 @@ export const defaultAuth: AuthConfig = {
 
 export const defaultGql: GqlConfig = {
   enabled: false,
-  endpoint: "/graphql",
+  endpoints: ["/graphql"],
 };
 
 export const defaultMutationQueue: MutationQueueConfig = {
@@ -183,6 +177,7 @@ export const defaultMutationQueue: MutationQueueConfig = {
   batchDelayMs: 0,
   maxRetries: 5,
   retryBackoffMs: 1000,
+  backgroundSync: false,
 };
 
 export const defaultRefetchQueue: RefetchQueueConfig = {
@@ -199,13 +194,17 @@ export const defaultServerPush = {
   reconnectDelayMs: 5000,
 };
 
+export const defaultPushNotifications = {
+  enabled: false,
+};
+
 export const defaultTagInvalidation: TagInvalidationConfig = {
-  enabled: true,
   debounceMs: 0,
-  prefixes: [...API_PREFIXES],
+  skipPrefixes: [...API_PREFIXES],
   patterns: {},
   singularization: {},
   cascading: {},
+  crossTabSync: true,
 };
 
 export function deepMerge<T>(base: T, override: Partial<T> | Record<string, unknown>): T {
@@ -236,10 +235,12 @@ export function mergeConfigs(
   return {
     ...base,
     ...override,
-    apiBaseUrl: override.apiBaseUrl ?? base.apiBaseUrl,
     features: {
       ...base.features,
       ...override.features,
+      requestBatchWindowMs:
+        override.features?.requestBatchWindowMs ??
+        base.features.requestBatchWindowMs,
       pwa: { ...base.features.pwa, ...override.features?.pwa },
       serviceWorker: {
         ...base.features.serviceWorker,
@@ -288,6 +289,7 @@ export function mergeConfigs(
         ...override.features?.tagInvalidation,
       },
       pushNotifications: {
+        ...defaultPushNotifications,
         ...base.features.pushNotifications,
         ...override.features?.pushNotifications,
       },
@@ -303,9 +305,8 @@ export function mergeConfigs(
 
 export const defaultConfig: SwoffConfig = {
   configVersion: CONFIG_VERSION,
-  enabled: true,
-  apiBaseUrl: "",
   features: {
+    requestBatchWindowMs: 50,
     pwa: {
       enabled: true,
       preventDefaultInstall: false,
@@ -313,7 +314,6 @@ export const defaultConfig: SwoffConfig = {
     serviceWorker: {
       version: "package",
       autoActivate: false,
-      requestBatchWindowMs: 50,
       strategy: {
         default: "cache-first",
         mode: "all",
@@ -343,9 +343,7 @@ export const defaultConfig: SwoffConfig = {
     },
     refetchQueue: { ...defaultRefetchQueue },
     mutationQueue: { ...defaultMutationQueue },
-    backgroundSync: false,
     auth: { ...defaultAuth },
-    crossTabSync: true,
     tagInvalidation: { ...defaultTagInvalidation },
     graphql: { ...defaultGql },
     pushNotifications: { enabled: false },
@@ -363,15 +361,13 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
 } = {
   $schema: "https://swoff.netlify.app/schema/v1.json",
   configVersion: CONFIG_VERSION,
-  enabled: true,
   framework: "vanilla",
-  apiBaseUrl: "",
   features: {
+    requestBatchWindowMs: 50,
     pwa: { enabled: true, preventDefaultInstall: false },
     serviceWorker: {
       version: "package",
       autoActivate: false,
-      requestBatchWindowMs: 50,
       navigation: {
         mode: "spa",
         preload: true,
@@ -404,9 +400,7 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
     },
     refetchQueue: { ...defaultRefetchQueue },
     mutationQueue: { ...defaultMutationQueue },
-    backgroundSync: false,
     auth: { ...defaultAuth },
-    crossTabSync: true,
     tagInvalidation: { ...defaultTagInvalidation },
     graphql: { ...defaultGql },
     pushNotifications: { enabled: false },

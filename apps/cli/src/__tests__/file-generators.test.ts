@@ -12,7 +12,6 @@ import { generateCache } from "../lib/generators/file-generators/cache.js";
 import { generateMutationQueue } from "../lib/generators/file-generators/mutation-queue.js";
 import { generateBackgroundSync } from "../lib/generators/file-generators/background-sync.js";
 import { generatePwaInstall } from "../lib/generators/file-generators/pwa-install.js";
-import { generateManifest } from "../lib/generators/file-generators/manifest.js";
 import { generateInvalidationTags } from "../lib/generators/file-generators/invalidation-tags.js";
 import { generateSwGeneratorBuild } from "../lib/generators/file-generators/sw-generator-build.js";
 import { generateTypeDefinitions } from "../lib/generators/file-generators/type-definitions.js";
@@ -141,9 +140,9 @@ describe("generateClientInjector", () => {
     expect(content).toContain("BACKGROUND_SYNC_COMPLETE");
   });
 
-  it("includes TAG_INVALIDATED handler when crossTabSync is enabled", () => {
+  it("includes TAG_INVALIDATED handler", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, crossTabSync: true },
+      features: { ...defaultConfig.features, tagInvalidation: { ...defaultConfig.features.tagInvalidation, crossTabSync: true } },
     });
     generateClientInjector(ctx);
     const content = readFileSync(join(ctx.swoffDir, "client-injector.js"), "utf8");

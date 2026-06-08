@@ -1,4 +1,4 @@
-export function generateApiConfigCode(apiBaseUrl: string): string {
+export function generateApiConfigCode(): string {
   return `/**
  * Swoff Central Config
  *
@@ -12,6 +12,6 @@ export function generateApiConfigCode(apiBaseUrl: string): string {
  *   Deno:      Deno.env.get("SWOFF_API_BASE")
  */
 
-export const API_BASE = "${apiBaseUrl}";
+export const API_BASE = "";
 `;
 }

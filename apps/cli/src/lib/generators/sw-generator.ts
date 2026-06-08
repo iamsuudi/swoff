@@ -27,15 +27,10 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ vers
 
   const { config, configSource } = await loadConfigAsync(optProjectRoot, optConfigPath);
 
-  if (!config.enabled) {
-    console.log("Swoff config generation disabled. Using custom code mode.");
-    return { version: "", outputFile: "" };
-  }
-
   const v = config.features.serviceWorker.version;
   const versionEnabled = isVersionEnabled(v);
   const version = resolveVersion(v, pkg.version || "1.0.0");
-  const sw = assembleSW(config, version, optProjectRoot);
+  const sw = assembleSW(config, version, optProjectRoot).replace(/SWOFF_API_BASE/g, "");
 
   const outputDir = join(optProjectRoot, config.build.outputDir);
 
@@ -55,7 +50,6 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ vers
           {
             version,
             generatedAt: new Date().toISOString(),
-            configEnabled: config.enabled,
             configSource,
           },
           null,

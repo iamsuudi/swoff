@@ -11,13 +11,11 @@ import {
 describe("config-types", () => {
   describe("defaultConfig", () => {
     it("has all required fields", () => {
-      expect(defaultConfig).toHaveProperty("enabled");
       expect(defaultConfig).toHaveProperty("features");
       expect(defaultConfig).toHaveProperty("build");
     });
 
     it("has correct default values", () => {
-      expect(defaultConfig.enabled).toBe(true);
       expect(defaultConfig.features.serviceWorker.autoActivate).toBe(false);
       expect(defaultConfig.features.serviceWorker.strategy.default).toBe(
         "cache-first",
@@ -126,10 +124,7 @@ describe("config-types", () => {
   describe("constants", () => {
     it("KNOWN_FEATURES lists all known features", () => {
       expect(KNOWN_FEATURES).toContain("mutationQueue");
-      expect(KNOWN_FEATURES).toContain("backgroundSync");
       expect(KNOWN_FEATURES).toContain("auth");
-      expect(KNOWN_FEATURES).toContain("crossTabSync");
-      expect(KNOWN_FEATURES).toContain("tagInvalidation");
       expect(KNOWN_FEATURES).toContain("graphql");
       expect(KNOWN_FEATURES).toContain("pushNotifications");
       expect(KNOWN_FEATURES).not.toContain("clientRegistration");

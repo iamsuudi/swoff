@@ -236,7 +236,10 @@ function startRetryLoop(event, request) {
   let retries = 0;
   const retry = async () => {
     try {
-      const response = await fetch(request.clone());
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+      const response = await fetch(request.clone(), { signal: controller.signal });
+      clearTimeout(id);
       if (response.ok) {
         await storeRuntime(request.clone(), response.clone());
         const clients = await self.clients.matchAll();
@@ -334,7 +337,11 @@ async function _processRefreshQueue() {
             if (entry.body) fetchOpts.body = entry.body;
             if (entry.contentType) fetchOpts.headers = { "Content-Type": entry.contentType };
           }
+          const controller = new AbortController();
+          const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+          fetchOpts.signal = controller.signal;
           const response = await fetch(fetchUrl, fetchOpts);
+          clearTimeout(id);
           if (response.ok) {
             const request = new Request(entry.cacheKey);
             await storeRuntime(request, response);${

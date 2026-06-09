@@ -392,6 +392,8 @@ async function _processRefreshQueue() {
 
 const REACTIVE_PATTERNS = ${JSON.stringify(reactivePatterns)};
 
+const GLOBAL_REACTIVE_DEFAULTS = ${JSON.stringify(reactGlobalDefaults)};
+
 function findReactiveConfig(url) {
   const path = new URL(url).pathname;
   for (const cfg of REACTIVE_PATTERNS) {
@@ -406,46 +408,93 @@ function shouldReactiveRefresh(cached, config) {
   return isStale(cached, config.staleTime);
 }
 
-// --- Reactive Interval Timers ---
+// --- Reactive Entry Registry ---
+// Tracks reactive entries to avoid full cache scans on interval/focus/reconnect.
 
-${(() => {
-  const patternsWithInterval = reactivePatterns.filter(
-    (p): p is typeof p & { refetchInterval: number } =>
-      !!p.refetchInterval && p.refetchInterval > 0,
-  );
-  if (patternsWithInterval.length === 0) return "";
-  return `// Start intervals for reactive patterns with refetchInterval
+const _reactiveRegistry = new Map();
+
+function isEntryStale(entry) {
+  if (!entry.staleTime && entry.staleTime !== 0) return true;
+  if (entry.staleTime === 0) return true;
+  return Date.now() - entry.cachedAt > entry.staleTime * 1000;
+}
+
+function registerReactiveEntry(cacheKey, actualUrl) {
+  const config = findReactiveConfig(actualUrl);
+  if (!config) return;
+  const existing = _reactiveRegistry.get(cacheKey);
+  if (existing) {
+    existing.cachedAt = Date.now();
+    return;
+  }
+  const entry = {
+    url: actualUrl,
+    cachedAt: Date.now(),
+    staleTime: config.staleTime,
+    refetchInterval: config.refetchInterval,
+    refetchOnFocus: config.refetchOnFocus,
+    refetchOnReconnect: config.refetchOnReconnect,
+  };
+  _reactiveRegistry.set(cacheKey, entry);
+  if (entry.refetchInterval && entry.refetchInterval > 0) {
+    scheduleEntryRefresh(cacheKey, entry);
+  }
+}
+
+function unregisterReactiveEntry(cacheKey) {
+  const entry = _reactiveRegistry.get(cacheKey);
+  if (entry && entry._timer) {
+    clearTimeout(entry._timer);
+  }
+  _reactiveRegistry.delete(cacheKey);
+}
+
+function scheduleEntryRefresh(cacheKey, entry) {
+  if (!entry.refetchInterval || entry.refetchInterval <= 0) return;
+  const delay = Math.max(entry.refetchInterval * 1000 - (Date.now() - entry.cachedAt), 0);
+  entry._timer = setTimeout(async () => {
+    if (!_reactiveRegistry.has(cacheKey)) return;
+    if (isEntryStale(entry)) {
+      queueRefresh(cacheKey, entry.url);
+    }
+    entry.cachedAt = Date.now();
+    scheduleEntryRefresh(cacheKey, entry);
+  }, delay);
+}
+
+// Scan existing cache entries once to populate the registry
 (async () => {
-${patternsWithInterval
-  .map(
-    (p) =>
-      `  setInterval(async () => {
-    for (const name of [CACHE_NAME_RUNTIME, CACHE_NAME_RUNTIME_HTML]) {
-      const cache = await caches.open(name);
-      const keys = await cache.keys();
-      for (const request of keys) {
-        const url = new URL(request.url);
-        if (url.pathname.startsWith("/__swc/")) continue;
-        if (!matchGlob(url.pathname, "${p.pattern}")) continue;
-        const config = findReactiveConfig(url.href);
-        if (!config) continue;
-        const cached = await cache.match(request);
-        if (cached && shouldReactiveRefresh(cached, config)) {
-          queueRefresh(request.url, url.href);
-        }
+  for (const name of [CACHE_NAME_RUNTIME, CACHE_NAME_RUNTIME_HTML]) {
+    const cache = await caches.open(name);
+    const keys = await cache.keys();
+    for (const request of keys) {
+      const url = new URL(request.url);
+      if (url.pathname.startsWith("/__swc/")) continue;
+      const config = findReactiveConfig(url.href);
+      if (!config) continue;
+      const cached = await cache.match(request);
+      if (!cached) continue;
+      const key = request.url;
+      const entry = {
+        url: url.href,
+        cachedAt: Number(cached.headers.get("X-SW-Cached-At")) || Date.now(),
+        staleTime: config.staleTime,
+        refetchInterval: config.refetchInterval,
+        refetchOnFocus: config.refetchOnFocus,
+        refetchOnReconnect: config.refetchOnReconnect,
+      };
+      _reactiveRegistry.set(key, entry);
+      if (entry.refetchInterval && entry.refetchInterval > 0) {
+        scheduleEntryRefresh(key, entry);
       }
     }
-  }, ${p.refetchInterval * 1000});`,
-  )
-  .join("\n")}
+  }
 })();
-`;
-})()}
+
 async function handleOnline() {
   const clients = await self.clients.matchAll();
   if (clients.length === 0) return;
 
-  // Step 1: Retry stale version entries (failed refetches after invalidation)
   if (typeof staleVersions !== "undefined") {
     const staleUrls = [...staleVersions.keys()];
     for (const url of staleUrls) {
@@ -453,35 +502,28 @@ async function handleOnline() {
     }
   }
 
-  // Step 2: Refresh reactive entries with refetchOnReconnect
-  for (const name of [CACHE_NAME_RUNTIME, CACHE_NAME_RUNTIME_HTML]) {
-    const cache = await caches.open(name);
-    const keys = await cache.keys();
-    for (const request of keys) {
-      const url = new URL(request.url);
-      if (url.pathname.startsWith("/__swc/")) continue;
-      const config = findReactiveConfig(url.href);
-      if (!config || !config.refetchOnReconnect) continue;
-      const cached = await cache.match(request);
-      if (cached && shouldReactiveRefresh(cached, config)) {
-        queueRefresh(request.url, url.href);
+  for (const [cacheKey, entry] of _reactiveRegistry) {
+    if (!entry.refetchOnReconnect) continue;
+    for (const name of [CACHE_NAME_RUNTIME, CACHE_NAME_RUNTIME_HTML]) {
+      const cache = await caches.open(name);
+      const cached = await cache.match(cacheKey);
+      if (cached && shouldReactiveRefresh(cached, { staleTime: entry.staleTime })) {
+        queueRefresh(cacheKey, entry.url);
+        break;
       }
     }
   }
 }
 
 async function handleOnFocus() {
-  for (const name of [CACHE_NAME_RUNTIME, CACHE_NAME_RUNTIME_HTML]) {
-    const cache = await caches.open(name);
-    const keys = await cache.keys();
-    for (const request of keys) {
-      const url = new URL(request.url);
-      if (url.pathname.startsWith("/__swc/")) continue;
-      const config = findReactiveConfig(url.href);
-      if (!config || !config.refetchOnFocus) continue;
-      const cached = await cache.match(request);
-      if (cached && shouldReactiveRefresh(cached, config)) {
-        queueRefresh(request.url, url.href);
+  for (const [cacheKey, entry] of _reactiveRegistry) {
+    if (!entry.refetchOnFocus) continue;
+    for (const name of [CACHE_NAME_RUNTIME, CACHE_NAME_RUNTIME_HTML]) {
+      const cache = await caches.open(name);
+      const cached = await cache.match(cacheKey);
+      if (cached && shouldReactiveRefresh(cached, { staleTime: entry.staleTime })) {
+        queueRefresh(cacheKey, entry.url);
+        break;
       }
     }
   }
@@ -535,14 +577,39 @@ async function handleSpaNavigation(event, request) {
   if (FALLBACK_PATH) {
     const cache = await caches.open(CACHE_NAME);
     const match = await cache.match(FALLBACK_PATH);
-    if (match) return match;
+    if (match) {
+      const clients = await self.clients.matchAll();
+      for (const client of clients) {
+        client.postMessage({
+          type: "OFFLINE_FALLBACK_ACTIVATED",
+          detail: { route: new URL(request.url).pathname, fallbackLevel: "offline-page", timestamp: Date.now() },
+        });
+      }
+      return match;
+    }
   }${hasRules ? `
   const routeFallbackPath = matchRouteFallback(request.url);
   if (routeFallbackPath) {
     const cache = await caches.open(CACHE_NAME);
     const match = await cache.match(routeFallbackPath);
-    if (match) return match;
+    if (match) {
+      const clients = await self.clients.matchAll();
+      for (const client of clients) {
+        client.postMessage({
+          type: "OFFLINE_FALLBACK_ACTIVATED",
+          detail: { route: new URL(request.url).pathname, fallbackLevel: "route-fallback", timestamp: Date.now() },
+        });
+      }
+      return match;
+    }
   }` : ""}
+  const clients = await self.clients.matchAll();
+  for (const client of clients) {
+    client.postMessage({
+      type: "OFFLINE_FALLBACK_ACTIVATED",
+      detail: { route: new URL(request.url).pathname, fallbackLevel: "inline-503", timestamp: Date.now() },
+    });
+  }
   return inline503Response();
 }
 
@@ -583,9 +650,14 @@ async function storeRuntime(request, response) {
     headers,
   });
   await cache.put(key, cloned);
+  const actualUrl = new URL(request.url).href;
+  if (findReactiveConfig(actualUrl)) {
+    registerReactiveEntry(key, actualUrl);
+  }
 }
 
 async function cacheResponse(request, response) {
+  if (request.mode === "navigate" && NAV_MODE === "spa") return;
   await storeRuntime(request, response);
   const tagsHeader = request.headers.get("X-SW-Cache-Tags");
   if (tagsHeader) {
@@ -695,32 +767,38 @@ function resolveStrategyEntry(entry) {
 function determineCacheStrategy(request, customStrategies, globalDefaults) {
   const override = request.headers.get("X-SW-Strategy");
   if (override) {
-    const cfg = { strategy: override };
-    const hStale = request.headers.get("X-SW-Stale-Time");
-    if (hStale !== null) cfg.staleTime = Number(hStale);
-    const hFocus = request.headers.get("X-SW-Refetch-On-Focus");
-    if (hFocus !== null) cfg.refetchOnFocus = hFocus !== "false";
-    const hReconnect = request.headers.get("X-SW-Refetch-On-Reconnect");
-    if (hReconnect !== null) cfg.refetchOnReconnect = hReconnect !== "false";
-    return cfg;
+    return { strategy: override };
   }
   const path = new URL(request.url).pathname;
   for (const [pattern, entry] of Object.entries(customStrategies)) {
     if (matchGlob(path, pattern)) {
       const resolved = resolveStrategyEntry(entry);
-      return { strategy: resolved.strategy };
+      const cfg = { strategy: resolved.strategy };
+      if (resolved.strategy === "reactive") {
+        const reactive = findReactiveConfig(new URL(request.url).href);
+        if (reactive) {
+          cfg.staleTime = reactive.staleTime;
+          cfg.refetchOnFocus = reactive.refetchOnFocus;
+          cfg.refetchOnReconnect = reactive.refetchOnReconnect;
+        }
+      }
+      return cfg;
     }
   }
-  return { strategy: globalDefaults.defaultStrategy };
+  const cfg = { strategy: globalDefaults.defaultStrategy };
+  if (globalDefaults.defaultStrategy === "reactive") {
+    cfg.staleTime = GLOBAL_REACTIVE_DEFAULTS.staleTime;
+    cfg.refetchOnFocus = GLOBAL_REACTIVE_DEFAULTS.refetchOnFocus;
+    cfg.refetchOnReconnect = GLOBAL_REACTIVE_DEFAULTS.refetchOnReconnect;
+  }
+  return cfg;
 }
 
 async function _executeStrategy(event, request, config) {
   try {
     const { strategy } = config;
     if (strategy === "reactive") {
-      const reactiveCfg = findReactiveConfig(new URL(request.url).href);
-      const staleTime = config.staleTime !== undefined ? config.staleTime : reactiveCfg?.staleTime;
-      return await reactiveStrategy(event, request, staleTime);
+      return await reactiveStrategy(event, request, config.staleTime);
     } else if (strategy === "stale-while-revalidate") {
       return await staleWhileRevalidate(event, request);
     } else if (strategy === "network-first") {

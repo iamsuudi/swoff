@@ -309,7 +309,6 @@ export const defaultConfig: SwoffConfig = {
       autoActivate: false,
       strategy: {
         default: "cache-first",
-        mode: "all",
         clearRuntimeOnUpdate: false,
         maxRuntimeCacheAge: 2592000,
         normalizeKey: false,
@@ -369,7 +368,6 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
       },
       strategy: {
         default: "cache-first",
-        mode: "all",
         clearRuntimeOnUpdate: false,
         maxRuntimeCacheAge: 2592000,
         normalizeKey: false,

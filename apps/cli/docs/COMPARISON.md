@@ -34,7 +34,6 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 | Navigation modes                 | ✅ 3 (spa, default, ssr) | ❌                 | ❌                 | ❌                 | ❌             | ❌     | ❌   | ❌           |
 | HTML cache isolation             | ✅ Content-Type routing  | ❌                 | ❌                 | ❌                 | ❌             | ❌     | ❌   | ❌           |
 | Auto-prefetch on client nav      | ✅ pushState interceptor | ❌                 | ❌                 | ❌                 | ❌             | ❌     | ❌   | ❌           |
-| Configurable mode (all/explicit) | ✅                       | ❌                 | ❌                 | ❌                 | ❌             | ❌     | ❌   | ❌           |
 | Cache key normalization          | ✅                       | ❌                 | ❌                 | ❌                 | ❌             | ❌     | ❌   | ❌           |
 | Ignore query params in cache key | ✅                       | ❌                 | ❌                 | ❌                 | ❌             | ❌     | ❌   | ❌           |
 | Request batching (coalescing)    | ✅ 50 ms window          | ❌                 | ❌                 | ❌                 | ❌             | ❌     | ❌   | ❌           |
@@ -138,7 +137,7 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 Each feature has a dedicated comparison with code examples, tradeoff analysis, and guidance on when to choose what:
 
 - [Prefetch](./comparisons/prefetch.md) — Manual `prefetchCache`, auto-prefetch on pushState, and framework built-in comparison
-- [Offline Navigation](./comparisons/offline-navigation.md) — 3 navigation modes, HTML cache isolation, auto-prefetch, per-route policies, smart retry vs Serwist / next-pwa / Workbox
+- [Offline Navigation](./comparisons/offline-navigation.md) — 3 navigation modes, HTML cache isolation, auto-prefetch, per-route fallback rules, smart retry vs Serwist / next-pwa / Workbox
 - [Data Fetching](./comparisons/data-fetching.md) — `useCachedFetch` vs TanStack Query / SWR
 - [Caching & Data Layer](./comparisons/caching-and-data.md) — SW-level HTTP caching vs client databases
 - [Cache Invalidation](./comparisons/invalidation.md) — Tag-based vs query-key

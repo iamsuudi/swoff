@@ -105,9 +105,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         if (strategy.clearRuntimeOnUpdate !== undefined && typeof strategy.clearRuntimeOnUpdate !== "boolean") {
           errors.push("features.serviceWorker.strategy.clearRuntimeOnUpdate must be a boolean");
         }
-        if (strategy.mode !== undefined && !["all", "explicit-only"].includes(strategy.mode as string)) {
-          errors.push('features.serviceWorker.strategy.mode must be "all" or "explicit-only"');
-        }
         if (strategy.normalizeKey !== undefined && typeof strategy.normalizeKey !== "boolean") {
           errors.push("features.serviceWorker.strategy.normalizeKey must be a boolean");
         }
@@ -168,10 +165,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
               }
               if (typeof rule.match !== "string" || rule.match.trim() === "") {
                 errors.push(`features.serviceWorker.navigation.rules[${i}].match must be a non-empty string`);
-              }
-              const validPolicies = ["cache-first", "network-first", "network-only", "stale-while-revalidate"];
-              if (rule.policy !== undefined && !validPolicies.includes(rule.policy as string)) {
-                errors.push(`features.serviceWorker.navigation.rules[${i}].policy must be one of: ${validPolicies.join(", ")}`);
               }
               if (rule.fallback !== undefined && typeof rule.fallback !== "string") {
                 errors.push(`features.serviceWorker.navigation.rules[${i}].fallback must be a string`);

@@ -51,9 +51,6 @@ export function buildFallbackList(config: SwoffConfig): string[] {
     if (rule.fallback && !fallback.includes(rule.fallback)) {
       fallback.push(rule.fallback);
     }
-    if (rule.policy === "cache-first" && rule.match && !fallback.includes(rule.match)) {
-      fallback.push(rule.match);
-    }
   }
 
   return fallback;

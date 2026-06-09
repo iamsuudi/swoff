@@ -34,22 +34,19 @@ Swoff supports three navigation modes for different rendering strategies:
 | `"default"` | No special navigation handling. The configured caching strategy handles all requests equally. | SSG sites (Astro, Hugo, 11ty) where pages are static files. |
 | `"ssr"` | Runtime checks HTML cache → per-route fallback → global fallback. Adds auto-prefetch: intercepts `history.pushState`/`replaceState` to call `prefetchCache(url)` on every client-side navigation, warming the SW cache with HTML pages as the user browses. | Framework-agnostic SSR — all meta-frameworks (Next.js, Remix, Nuxt, SvelteKit, TanStack Start, Astro, HTMX). |
 
-## Per-route navigation policies
+## Per-route fallback rules
 
-Beyond the global mode, Swoff supports **per-route navigation policies** via `navigation.rules`. Each rule has a `match` glob pattern and a `policy`:
+Beyond the global fallback, `navigation.rules` provide per-route offline fallback pages. Each rule has a `match` glob pattern and an optional `fallback` path:
 
 ```jsonc
 {
   "features": {
     "serviceWorker": {
       "navigation": {
-        "mode": "network-first",
+        "mode": "ssr",
         "rules": [
-          { "match": "/", "policy": "cache-first" },
-          { "match": "/about", "policy": "cache-first" },
-          { "match": "/blog/*", "policy": "network-first", "fallback": "/blog-offline.html" },
-          { "match": "/dashboard/**", "policy": "network-only" },
-          { "match": "/notes/**", "policy": "stale-while-revalidate" }
+          { "match": "/blog/*", "fallback": "/blog-offline.html" },
+          { "match": "/dashboard/**", "fallback": "/dashboard-offline.html" }
         ]
       }
     }
@@ -57,14 +54,7 @@ Beyond the global mode, Swoff supports **per-route navigation policies** via `na
 }
 ```
 
-| Policy | Behavior |
-|---|---|
-| `cache-first` | Serve from precache immediately. Never fetches. Ideal for SSG pages. |
-| `network-first` | Try network → cache on success → fallback chain. Standard SSR mode. |
-| `network-only` | Always fetch from network. Never caches. For dynamic pages. |
-| `stale-while-revalidate` | Serve cached HTML instantly, fetch fresh in background, update cache. |
-
-Rules are evaluated in order; the first match wins. Per-route `fallback` paths are automatically precached at install time.
+Rules only provide per-route fallback paths for the ultimate fallback chain — they do not override the caching strategy. Per-route `fallback` paths are automatically precached at install time. Rules are evaluated in order; the first match wins.
 
 ## Smart navigation retry
 
@@ -107,7 +97,7 @@ For example, a Next.js project gets:
         }
       },
       "navigation": {
-        "mode": "network-first"
+        "mode": "ssr"
       }
     }
   },

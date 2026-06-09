@@ -86,10 +86,10 @@ When the browser fires `online`, the `client-injector` forwards the event to the
 
 **Phase 1 — staleVersions retry:** Any cache entries that failed to refetch after tag invalidation (while offline) are re-queued first via the batch refresh queue. This ensures invalidation-triggered refetches are prioritized.
 
-**Phase 2 — reactive pattern scan:** The SW scans its reactive route patterns and for each cached URL matching a reactive pattern with `refetchOnReconnect: true`:
+**Phase 2 — reactive entry registry scan:** The SW iterates its in-memory `_reactiveRegistry` Map (populated per-entry at cache-write time and initially seeded by a one-time scan at SW startup). For each registry entry with `refetchOnReconnect: true`:
 
-1. Resolves the pattern config to get the reactive entry
-2. Calls `shouldReactiveRefresh(cachedResponse, config)` which checks if the entry is stale (past `staleTime`, or if `staleTime` is 0/undefined)
+1. Looks up the cached response in the runtime cache by cache key
+2. Calls `shouldReactiveRefresh(cachedResponse, entry)` which checks if the entry is stale (past `staleTime`, or if `staleTime` is 0/undefined)
 3. If stale → queues a refresh via `queueRefresh(url)`
 
 Non-reactive strategies (cache-first, network-first, stale-while-revalidate) do **not** participate in the online recovery scan — their contracts are stateless with respect to staleness. This naturally recovers from: background refresh failure while offline, tab closed while offline, and first request after connectivity returns.
@@ -364,45 +364,44 @@ Auth tokens are stored **in memory only** — never persisted to IndexedDB or lo
 
 ---
 
-## Cache strategy modes
+## Request dispatch flow
 
-`features.serviceWorker.strategy.mode` controls when the SW applies caching strategies to requests:
-
-- **`"all"`** (default): every GET/HEAD request passes through the strategy dispatch system, including plain `fetch()` calls. This means third-party libraries that use `fetch()` are also cached.
-- **`"explicit-only"`**: only requests with `X-SW-Cache-Strategy` header are processed by the strategy system. `fetchWithCache()` sets this header automatically. Plain `fetch()` calls pass through unmodified.
-
-Use `"explicit-only"` when you want precise control over what gets cached and don't want the SW interfering with non-Swoff fetch calls.
-
-**Request dispatch flow:**
+All requests (navigate and non-navigate) flow through `serveFromCache`, which dispatches by mode:
 
 ```
-navigation (SPA fallback) → precache hit? → strategy dispatch → pass-through
+serveFromCache:
+  navigate + SPA → handleSpaNavigation (fallback chain, no runtime cache)
+  navigate + SSR/default → precache(URL) → runtime-html(URL) → null
+  non-navigate → runtime cache → precache → null
 
 cache-first:
-  → serve cache (if available)
+  → serveFromCache (if available)
   → fall back to network on miss → storeRuntime
 
 network-first:
-  → fetch → on failure → serve cache
+  → fetch → on failure → serveFromCache
 
 stale-while-revalidate:
-  → serve cache (if available)
+  → serveFromCache (if available)
   → always queueRefresh(url) (unconditional background refresh)
 
 cache-only:
-  → serve cache only
+  → serveFromCache only
 
 network-only:
   → fetch only (no cache interaction)
 
 reactive:
-  → serve cache (if available)
+  → serveFromCache (if available)
   → shouldReactiveRefresh? → stale? → queueRefresh(url)
   → also: refetchInterval timer, refetchOnFocus, refetchOnReconnect → all gate through staleTime
 
+On strategy failure (any):
+  → fromUltimateFallback → per-route fallback → global fallback → inline 503
+
 On "online" event from window:
   → handleOnline(phase 1) → staleVersions retry → queueRefresh()
-  → handleOnline(phase 2) → scan reactive patterns with refetchOnReconnect → queueRefresh()
+  → handleOnline(phase 2) → iterate reactive registry with refetchOnReconnect → queueRefresh()
 
 On tag invalidation:
   → delete cache entries

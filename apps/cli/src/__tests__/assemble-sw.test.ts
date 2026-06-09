@@ -46,12 +46,13 @@ describe("assembleSW", () => {
     expect(sw).toContain("reactiveStrategy");
   });
 
-  it("checks precache from all strategies", () => {
+  it("checks serve-from-cache from all strategies", () => {
     const sw = assembleSW(config, "1.0.0");
     expect(sw).toContain("fromPrecache");
     expect(sw).toContain("async function fromPrecache");
     expect(sw).toContain("return cache.match(url.href);");
-    expect(sw).toContain("precached = await fromPrecache(request)");
+    expect(sw).toContain("serveFromCache");
+    expect(sw).toContain("handleSpaNavigation");
   });
 
   it("includes message handler", () => {
@@ -172,10 +173,8 @@ describe("assembleSW", () => {
             navigation: {
               ...config.features.serviceWorker.navigation,
               rules: [
-                { match: "/blog/*", policy: "cache-first", fallback: "/blog-offline.html" },
-                { match: "/dashboard/**", policy: "network-first", fallback: "/dashboard-offline.html" },
-                { match: "/api/status", policy: "network-only" },
-                { match: "/notes/**", policy: "stale-while-revalidate" },
+                { match: "/blog/*", fallback: "/blog-offline.html" },
+                { match: "/dashboard/**", fallback: "/dashboard-offline.html" },
               ],
             },
           },
@@ -184,13 +183,10 @@ describe("assembleSW", () => {
       const sw = assembleSW(configWithRules, "1.0.0");
       expect(sw).toContain("NAV_RULES");
       expect(sw).toContain("/blog/*");
-      expect(sw).toContain("cache-first");
-      expect(sw).toContain("network-first");
-      expect(sw).toContain("network-only");
-      expect(sw).toContain("stale-while-revalidate");
+      expect(sw).toContain("/dashboard/**");
     });
 
-    it("generates matchRoutePolicy and matchRouteFallback functions", () => {
+    it("generates matchRouteFallback function", () => {
       const configWithRules: SwoffConfig = {
         ...config,
         features: {
@@ -200,39 +196,15 @@ describe("assembleSW", () => {
             navigation: {
               ...config.features.serviceWorker.navigation,
               rules: [
-                { match: "/blog/*", policy: "cache-first" },
+                { match: "/blog/*" },
               ],
             },
           },
         },
       };
       const sw = assembleSW(configWithRules, "1.0.0");
-      expect(sw).toContain("function matchRoutePolicy(url)");
       expect(sw).toContain("function matchRouteFallback(url)");
       expect(sw).toContain("matchGlob(path, rule.match)");
-    });
-
-    it("generates navigateWithRules handler when rules are configured", () => {
-      const configWithRules: SwoffConfig = {
-        ...config,
-        features: {
-          ...config.features,
-          serviceWorker: {
-            ...config.features.serviceWorker,
-            navigation: {
-              ...config.features.serviceWorker.navigation,
-              rules: [
-                { match: "/blog/*", policy: "cache-first" },
-              ],
-            },
-          },
-        },
-      };
-      const sw = assembleSW(configWithRules, "1.0.0");
-      expect(sw).toContain("async function navigateWithRules(event, request)");
-      expect(sw).toContain("navigateWithRules");
-      expect(sw).toContain("matchRoutePolicy(request.url)");
-      expect(sw).toContain('switch (policy)');
     });
 
     it("includes rule offline fallback pages in ASSETS_TO_CACHE", () => {
@@ -245,8 +217,8 @@ describe("assembleSW", () => {
             navigation: {
               ...config.features.serviceWorker.navigation,
               rules: [
-                { match: "/blog/*", policy: "cache-first", fallback: "/blog-offline.html" },
-                { match: "/dashboard/**", policy: "network-first", fallback: "/dashboard-offline.html" },
+                { match: "/blog/*", fallback: "/blog-offline.html" },
+                { match: "/dashboard/**", fallback: "/dashboard-offline.html" },
               ],
             },
           },
@@ -267,8 +239,8 @@ describe("assembleSW", () => {
             navigation: {
               ...config.features.serviceWorker.navigation,
               rules: [
-                { match: "/", policy: "cache-first" },
-                { match: "/about", policy: "cache-first" },
+                { match: "/", fallback: "/offline.html" },
+                { match: "/about" },
               ],
             },
           },
@@ -282,7 +254,6 @@ describe("assembleSW", () => {
     it("does not generate NAV_RULES when no rules configured", () => {
       const sw = assembleSW(config, "1.0.0");
       expect(sw).not.toContain("NAV_RULES");
-      expect(sw).not.toContain("navigateWithRules");
     });
   });
 
@@ -372,7 +343,7 @@ describe("assembleSW", () => {
             navigation: {
               ...config.features.serviceWorker.navigation,
               rules: [
-                { match: "/blog/*", policy: "cache-first", fallback: "/blog-offline.html" },
+                { match: "/blog/*", fallback: "/blog-offline.html" },
               ],
             },
           },

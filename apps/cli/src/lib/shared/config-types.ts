@@ -43,7 +43,6 @@ export interface StrategyEntry {
 
 export interface NavigationRule {
   match: string;
-  policy?: "cache-first" | "network-first" | "network-only" | "stale-while-revalidate";
   fallback?: string;
 }
 
@@ -95,7 +94,6 @@ export interface SwoffConfig {
             refetchOnFocus?: boolean;
           };
         };
-        mode?: "all" | "explicit-only";
         clearRuntimeOnUpdate: boolean;
         maxRuntimeCacheAge?: number;
         normalizeKey?: boolean;
@@ -311,7 +309,6 @@ export const defaultConfig: SwoffConfig = {
       autoActivate: false,
       strategy: {
         default: "cache-first",
-        mode: "all",
         clearRuntimeOnUpdate: false,
         maxRuntimeCacheAge: 2592000,
         normalizeKey: false,
@@ -371,7 +368,6 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
       },
       strategy: {
         default: "cache-first",
-        mode: "all",
         clearRuntimeOnUpdate: false,
         maxRuntimeCacheAge: 2592000,
         normalizeKey: false,

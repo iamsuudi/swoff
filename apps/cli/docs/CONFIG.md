@@ -35,7 +35,6 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
             "refetchOnFocus": false
           }
         },
-        "mode": "all",
         "clearRuntimeOnUpdate": false,
         "normalizeKey": false,
         "ignoreQueryParams": []
@@ -127,7 +126,6 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | `reactive.defaults.refetchInterval` | `number` | `0` | Global auto-refetch interval in seconds for reactive strategy. SW periodically re-fetches matching routes in the background. 0 disables. |
 | `reactive.defaults.refetchOnReconnect` | `boolean` | `false` | Global default — refetch reactive entries when the browser comes back online |
 | `reactive.defaults.refetchOnFocus` | `boolean` | `false` | Global default — refetch reactive entries when the tab gains focus |
-| `mode` | `"all"` \| `"explicit-only"` | `"all"` | When to apply caching strategies. `"all"`: every GET/HEAD request; `"explicit-only"`: only requests with `X-SW-Cache-Strategy` header |
 | `clearRuntimeOnUpdate` | `boolean` | `false` | Clear runtime cache when a new SW version activates |
 | `normalizeKey` | `boolean` | `false` | When `true`, query params are sorted alphabetically in cache keys so `?b=1&a=2` and `?a=2&b=1` resolve to the same entry. |
 | `ignoreQueryParams` | `string[]` | `[]` | Query params to strip from cache keys (e.g. `["_t", "utm_source"]`). Prevents cache-busting params from creating duplicate cache entries. |
@@ -141,7 +139,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | `preload` | `boolean` | `true` | Enable Navigation Preload API — reduces SW startup latency |
 | `fallback` | `string` | `""` | Global fallback HTML path for offline navigation. For SPA mode, set to `"/index.html"` to serve the SPA shell from precache when offline. For SSR mode, checked after per-route fallback if the runtime HTML cache misses. |
 | `precacheRoutes` | `string[]` | `[]` | Additional routes to fetch + cache during SW install (e.g. `["/", "/about"]`). Useful for SSG or critical pages. |
-| `rules` | `NavigationRule[]` | `[]` | Per-route navigation policies and fallback pages (see below). |
+| `rules` | `NavigationRule[]` | `[]` | Per-route offline fallback pages (see below). Rules provide the fallback path used when strategy dispatch fails; they do not override the caching strategy. |
 | `retry` | `NavigationRetryConfig` | `{ "enabled": false, "intervalMs": 5000, "maxRetries": 12 }` | Smart retry when a navigation falls through to the ultimate offline fallback. The SW periodically retries the failed URL; on success, caches the response and broadcasts `swoff:navigation-online`. |
 
 #### `NavigationRule`
@@ -149,8 +147,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `match` | `string` | (required) | Glob pattern matching request paths (supports `*`, `**`, `?`, `{a,b}`). |
-| `policy` | `"cache-first"` \| `"network-first"` \| `"network-only"` \| `"stale-while-revalidate"` | `"network-first"` | Navigation policy for matching routes. `"cache-first"`: serve from precache immediately; `"network-first"`: try network, fall back to cache; `"network-only"`: always fetch (never cache); `"stale-while-revalidate"`: serve cached HTML instantly, refresh in background. |
-| `fallback` | `string` | — | Per-route offline fallback HTML path. Overrides the global `fallback` for matching routes. |
+| `fallback` | `string` | — | Per-route offline fallback HTML path. Used in the ultimate fallback chain, checked before the global fallback. |
 
 #### `NavigationRetryConfig`
 
@@ -160,18 +157,15 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | `intervalMs` | `number` | `5000` | Milliseconds between retry attempts. |
 | `maxRetries` | `number` | `12` | Maximum number of retry attempts before giving up. |
 
-#### Example — per-route policies and fallbacks
+#### Example — per-route fallback rules
 
 ```json
 "navigation": {
-  "mode": "network-first",
+  "mode": "ssr",
   "fallback": "/offline.html",
   "rules": [
-    { "match": "/", "policy": "cache-first" },
-    { "match": "/about", "policy": "cache-first" },
-    { "match": "/blog/*", "policy": "network-first", "fallback": "/blog-offline.html" },
-    { "match": "/dashboard/**", "policy": "network-only" },
-    { "match": "/notes/**", "policy": "stale-while-revalidate" }
+    { "match": "/blog/*", "fallback": "/blog-offline.html" },
+    { "match": "/dashboard/**", "fallback": "/dashboard-offline.html" }
   ],
   "retry": {
     "enabled": true,

@@ -1,6 +1,6 @@
 # Offline Navigation: Swoff vs next-pwa / @serwist/next / Workbox / vite-plugin-pwa
 
-When a user navigates offline, the browser shows "This site can't be reached" unless the Service Worker intercepts the navigation and serves a fallback. Every SW library solves this, but Swoff is the only one with three navigation modes, a configurable multi-step fallback chain, HTML cache isolation that prevents Content-Type corruption, auto-prefetch on client-side navigation, per-route policies, and smart background retry — all without coupling to any specific framework.
+When a user navigates offline, the browser shows "This site can't be reached" unless the Service Worker intercepts the navigation and serves a fallback. Every SW library solves this, but Swoff is the only one with three navigation modes, a configurable multi-step fallback chain, HTML cache isolation that prevents Content-Type corruption, auto-prefetch on client-side navigation, per-route fallback rules, and smart background retry — all without coupling to any specific framework.
 
 ## How Swoff does it
 
@@ -30,31 +30,30 @@ history.pushState = function (data, unused, url) {
 **Ultimate fallback chain** (generated as `fromUltimateFallback` in the SW):
 
 ```
-applyStrategy catch (or navigateWithRules fallthrough)
+serveFromCache miss → _executeStrategy catch
   → startRetryLoop (for navigation requests — background retry)
-  → fromRuntime (HTML cache only — non-SPA navigate, else global fallback)
-  → routeFallback (per-route fallback from navigation rules)
-  → globalFallback (FALLBACK_PATH from precache)
+  → per-route fallback (from navigation rules, precache lookup)
+  → global fallback (FALLBACK_PATH from precache)
   → inline 503 HTML page (guaranteed text/html response)
 ```
 
 Each step checks existence before proceeding. The last step — an inline `new Response(...)` with status 503 — prevents the browser from ever showing its native error page.
 
-**Per-route navigation policies:** Beyond the global navigation mode, `navigation.rules` lets you configure per-path policies:
+**SPA navigation** uses a dedicated `handleSpaNavigation` path that serves the global fallback (or per-route fallback) directly from precache without checking runtime caches or the request URL — the app shell is always the same regardless of the requested URL. `OFFLINE_FALLBACK_ACTIVATED` messages are posted to all clients at each fallback level for analytics.
+
+**Per-route fallback rules:** `navigation.rules` lets you configure per-path fallbacks. Rules only provide offline fallback paths for the ultimate fallback chain — they do not override the caching strategy:
 
 ```jsonc
 "navigation": {
-  "mode": "network-first",
+  "mode": "ssr",
   "rules": [
-    { "match": "/", "policy": "cache-first" },
-    { "match": "/about", "policy": "cache-first" },
-    { "match": "/blog/*", "policy": "network-first", "fallback": "/blog-offline.html" },
-    { "match": "/dashboard/**", "policy": "network-only" },
+    { "match": "/blog/*", "fallback": "/blog-offline.html" },
+    { "match": "/dashboard/**", "fallback": "/dashboard-offline.html" },
   ]
 }
 ```
 
-Each rule has its own fallback page that is automatically precached at install time.
+Each rule's fallback page is automatically precached at install time.
 
 **Smart navigation retry:** When a navigation falls through to the inline 503, the SW starts a background retry loop:
 
@@ -81,7 +80,7 @@ On each retry, the SW fetches the failed URL. When a retry succeeds, the respons
         "fallback": "/offline.html",
         "precacheRoutes": ["/", "/about"],
         "rules": [
-          { "match": "/", "policy": "cache-first" }
+          { "match": "/blog/*", "fallback": "/blog-offline.html" }
         ],
         "retry": {
           "enabled": true,
@@ -98,7 +97,7 @@ On each retry, the SW fetches the failed URL. When a retry succeeds, the respons
 
 ## How competitors handle it
 
-**next-pwa:** Creates a `NavigationRoute` via Workbox and auto-detects a `pages/_offline.js` page as the navigation fallback. Works only with Next.js Pages Router — App Router support is unreliable. Navigation behavior is not configurable beyond the `_offline` convention. No HTML cache isolation: caching an RSC payload at a navigation URL corrupts the cache. No auto-prefetch, no per-route policies, no retry.
+**next-pwa:** Creates a `NavigationRoute` via Workbox and auto-detects a `pages/_offline.js` page as the navigation fallback. Works only with Next.js Pages Router — App Router support is unreliable. Navigation behavior is not configurable beyond the `_offline` convention. No HTML cache isolation: caching an RSC payload at a navigation URL corrupts the cache. No auto-prefetch, no per-route fallback rules, no retry.
 
 ```js
 // next.config.js
@@ -107,7 +106,7 @@ module.exports = withPWA({ /* next config */ });
 // pages/_offline.js — auto-detected
 ```
 
-**@serwist/next:** Requires manual configuration in both `next.config.ts` and a custom `app/sw.ts`. Supports App Router, navigation preload, and per-strategy fallbacks. However, setup is 10-15 lines across two files, and the fallback page path must be added to both `additionalPrecacheEntries` and `fallbacks.entries` manually. No HTML cache isolation — RSC payloads and HTML share the same cache slot. No auto-prefetch, no pushState interceptor. No per-route policies — fallbacks are matched by function, not config. No smart retry.
+**@serwist/next:** Requires manual configuration in both `next.config.ts` and a custom `app/sw.ts`. Supports App Router, navigation preload, and per-strategy fallbacks. However, setup is 10-15 lines across two files, and the fallback page path must be added to both `additionalPrecacheEntries` and `fallbacks.entries` manually. No HTML cache isolation — RSC payloads and HTML share the same cache slot. No auto-prefetch, no pushState interceptor. No per-route fallback rules — fallbacks are matched by function, not config. No smart retry.
 
 ```ts
 // app/sw.ts
@@ -153,7 +152,7 @@ VitePWA({
 | **HTML cache isolation** | ✅ Content-Type routing | ❌ | ❌ | ❌ | ❌ |
 | **Ultimate fallback chain** | ✅ 6-step (includes retry) | ❌ Single | ❌ Single | ❌ Single | ❌ Single |
 | **Inline 503 guarantee** | ✅ Last resort HTML | ❌ | ❌ | ❌ | ❌ |
-| **Per-route policies** | ✅ Config rules | ❌ | ❌ | ❌ | ❌ |
+| **Per-route fallback rules** | ✅ Config rules | ❌ | ❌ | ❌ | ❌ |
 | **Per-route offline fallback** | ✅ Rule-level config | ❌ | 🟡 Per matcher function | ❌ | ❌ |
 | **Smart retry loop** | ✅ Configurable | ❌ | ❌ | ❌ | ❌ |
 | **Offline fallback path** | ✅ Config field | ✅ `_offline` convention | 🟡 Manual in 2 files | ✅ navigateFallback | ✅ navigateFallback |
@@ -168,8 +167,8 @@ VitePWA({
 
 ## When to choose what
 
-- **Choose Swoff when:** You need offline navigation for any SSR framework (Next.js, Remix, Nuxt, SvelteKit, Astro, HTMX), want auto-prefetch that works without manual `<Link prefetch>` attributes, need HTML cache isolation to prevent RSC/JSON content corruption on hard refresh, or want per-route policies and smart retry out of the box.
+- **Choose Swoff when:** You need offline navigation for any SSR framework (Next.js, Remix, Nuxt, SvelteKit, Astro, HTMX), want auto-prefetch that works without manual `<Link prefetch>` attributes, need HTML cache isolation to prevent RSC/JSON content corruption on hard refresh, or want per-route fallback rules and smart retry out of the box.
 - **Choose next-pwa when:** You're locked into Next.js Pages Router, need only basic offline fallback, and prefer a minimal plugin setup (though the project is largely unmaintained).
 - **Choose @serwist/next when:** You need Next.js App Router offline support and are willing to manage a two-file configuration. Accept that RSC payloads and HTML share the same cache slot, which may cause issues on hard refresh.
-- **Choose Workbox when:** You need a framework-agnostic SW toolkit and the complexity of manually writing and maintaining your SW configuration is acceptable. You don't need HTML isolation, auto-prefetch, per-route policies, or retry.
+- **Choose Workbox when:** You need a framework-agnostic SW toolkit and the complexity of manually writing and maintaining your SW configuration is acceptable. You don't need HTML isolation, auto-prefetch, per-route fallback rules, or retry.
 - **Choose vite-plugin-pwa when:** You're in the Vite ecosystem and need one-plugin setup with basic offline fallback. You don't need SSR-specific features or Next.js support.

@@ -23,8 +23,7 @@ import { generateClientInjector } from "./file-generators/client-injector.js";
 import { generateFetchWrapper } from "./file-generators/fetch-wrapper.js";
 import { generateCache } from "./file-generators/cache.js";
 import { generateMutationQueue } from "./file-generators/mutation-queue.js";
-
-
+import { shouldIncludeBackgroundSync } from "./sw-sections/shared.js";
 import { generateBackgroundSync } from "./file-generators/background-sync.js";
 import { generatePwaInstall } from "./file-generators/pwa-install.js";
 import { generateInvalidationTags } from "./file-generators/invalidation-tags.js";
@@ -42,7 +41,7 @@ import { generateGuide } from "./file-generators/guide-generator.js";
 import { generateReset } from "./file-generators/reset.js";
 import { generateOpenDB } from "./file-generators/open-db.js";
 import { generateFetchState } from "./file-generators/fetch-state.js";
-import { generateStorage } from "./file-generators/storage-generator.js";
+import { generateStorageNotify } from "./file-generators/storage-notify.js";
 import { generateSwVersion } from "./file-generators/sw-version-gen.js";
 interface Step {
   name: string;
@@ -64,7 +63,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     { name: "db", gen: () => generateOpenDB(ctx), enabled: true },
     { name: "offline/queue", gen: () => generateMutationQueue(ctx), enabled: ctx.config.features.mutationQueue.enabled },
     { name: "offline/state", gen: () => generateMutationState(ctx), enabled: ctx.config.features.mutationQueue.enabled },
-    { name: "offline/sync", gen: () => generateBackgroundSync(ctx), enabled: ctx.config.features.mutationQueue.backgroundSync && ctx.config.features.mutationQueue.enabled && !(ctx.config.features.auth.enabled && ctx.config.features.auth.type !== "cookie") },
+    { name: "offline/sync", gen: () => generateBackgroundSync(ctx), enabled: shouldIncludeBackgroundSync(ctx.config) },
     { name: "auth-store", gen: () => generateAuthStore(ctx), enabled: ctx.config.features.auth.enabled },
     { name: "auth-user", gen: () => generateAuthUser(ctx), enabled: ctx.config.features.auth.enabled },
     { name: "auth-state", gen: () => generateAuthState(ctx), enabled: ctx.config.features.auth.enabled },
@@ -76,7 +75,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     { name: "realtime/notifications", gen: () => generatePush(ctx), enabled: ctx.config.features.realtime.pushNotifications },
     { name: "realtime/server-push", gen: () => generateServerPush(ctx), enabled: ctx.config.features.realtime.serverPush.enabled },
     { name: "framework-adapters", gen: () => generateFrameworkAdapters(ctx), enabled: ["react", "nextjs", "remix", "astro"].includes(ctx.frameworkName) },
-    { name: "storage", gen: () => generateStorage(ctx), enabled: ctx.config.features.realtime.pushNotifications },
+    { name: "storage-notify", gen: () => generateStorageNotify(ctx), enabled: ctx.config.features.realtime.pushNotifications },
     { name: "GUIDE.md", gen: () => generateGuide(ctx), enabled: true },
   ];
 

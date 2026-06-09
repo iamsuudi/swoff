@@ -7,14 +7,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const templatesDir = join(__dirname, "../../../../templates");
 
 function copyAdapter(frameworkDir: string, name: string, ext: string, outputDir: string) {
-  const src = join(frameworkDir, `${name}.${ext}x`);
-  if (existsSync(src)) {
-    copyFileSync(src, join(outputDir, `${name}.${ext}x`));
-  } else {
-    const jsSrc = src.replace(`.${ext}x`, ".jsx");
-    if (existsSync(jsSrc)) {
-      copyFileSync(jsSrc, join(outputDir, `${name}.${ext}x`));
-    }
+  const primarySrc = join(frameworkDir, `${name}.${ext}x`);
+  if (existsSync(primarySrc)) {
+    copyFileSync(primarySrc, join(outputDir, `${name}.${ext}x`));
+    return;
+  }
+  const fallbackExt = ext === "ts" ? "jsx" : "tsx";
+  const fallbackSrc = join(frameworkDir, `${name}.${fallbackExt}`);
+  if (existsSync(fallbackSrc)) {
+    copyFileSync(fallbackSrc, join(outputDir, `${name}.${ext}x`));
   }
 }
 

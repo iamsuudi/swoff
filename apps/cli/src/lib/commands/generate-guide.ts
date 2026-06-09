@@ -28,7 +28,7 @@ export function generateGuide(ctx: GuideContext): string[] {
   if (isReact) {
     lines.push("");
     lines.push("  React hook for reactive network state:");
-    lines.push(`    import { useNetworkStatus } from "../swoff/hooks/useNetworkStatus.${ext}x";`);
+    lines.push(`    import { useNetworkStatus } from "../swoff/adapters/useNetworkStatus.${ext}x";`);
     lines.push("    const online = useNetworkStatus();");
   }
   lines.push("");
@@ -46,8 +46,8 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push(`    <link rel="manifest" href="/manifest.json">`);
     if (isReact) {
       lines.push("");
-      lines.push("  React hooks generated in swoff/hooks/useSWUpdate.tsx:");
-      lines.push(`    import { useSWUpdate, useSWProgress } from "../swoff/hooks/useSWUpdate.${ext}x";`);
+      lines.push("  React hooks generated in swoff/adapters/useSWUpdate.tsx:");
+      lines.push(`    import { useSWUpdate, useSWProgress } from "../swoff/adapters/useSWUpdate.${ext}x";`);
       lines.push("");
       lines.push("    function App() {");
       lines.push("      const { updateStatus, progress, acceptUpdate, dismissUpdate } = useSWUpdate();");
@@ -66,8 +66,8 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push(`    import { queueMutation, processMutationQueue, getPendingCount } from "./swoff/offline/queue.${ext}";`);
     if (isReact) {
       lines.push("");
-      lines.push("  React hook generated in swoff/hooks/useMutationQueue.tsx:");
-      lines.push(`    import { useMutationQueue } from "../swoff/hooks/useMutationQueue.${ext}x";`);
+      lines.push("  React hook generated in swoff/adapters/useMutationQueue.tsx:");
+      lines.push(`    import { useMutationQueue } from "../swoff/adapters/useMutationQueue.${ext}x";`);
       lines.push("");
       lines.push("    function SyncStatus() {");
       lines.push("      const { pending, lastSync } = useMutationQueue();");
@@ -96,8 +96,8 @@ export function generateGuide(ctx: GuideContext): string[] {
     }
     if (isReact) {
       lines.push("");
-      lines.push("  React hook generated in swoff/hooks/useAuth.tsx:");
-      lines.push(`    import { useAuth } from "../swoff/hooks/useAuth.${ext}x";`);
+      lines.push("  React hook generated in swoff/adapters/useAuth.tsx:");
+      lines.push(`    import { useAuth } from "../swoff/adapters/useAuth.${ext}x";`);
       lines.push("");
       lines.push("    function Profile() {");
       lines.push("      const { authenticated, user, online } = useAuth();");
@@ -124,8 +124,8 @@ export function generateGuide(ctx: GuideContext): string[] {
     }
     if (isReact) {
       lines.push("");
-      lines.push("  React hook generated in swoff/hooks/useBackgroundSync.tsx:");
-      lines.push(`    import { useBackgroundSync } from "../swoff/hooks/useBackgroundSync.${ext}x";`);
+      lines.push("  React hook generated in swoff/adapters/useBackgroundSync.tsx:");
+      lines.push(`    import { useBackgroundSync } from "../swoff/adapters/useBackgroundSync.${ext}x";`);
       lines.push("");
       lines.push("    function SyncPanel() {");
       lines.push("      const { supported, triggerSync } = useBackgroundSync();");
@@ -147,8 +147,8 @@ export function generateGuide(ctx: GuideContext): string[] {
   lines.push('    await invalidateUrl("/api/todos/42");');
   if (isReact) {
     lines.push("");
-    lines.push("  React hook generated in swoff/hooks/useCacheInvalidation.tsx:");
-    lines.push(`    import { useCacheInvalidation } from "../swoff/hooks/useCacheInvalidation.${ext}x";`);
+    lines.push("  React hook generated in swoff/adapters/useCacheInvalidation.tsx:");
+    lines.push(`    import { useCacheInvalidation } from "../swoff/adapters/useCacheInvalidation.${ext}x";`);
     lines.push("");
     lines.push("    function InvalidateButton() {");
     lines.push('      const { invalidateUrl } = useCacheInvalidation();');

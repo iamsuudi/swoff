@@ -50,9 +50,9 @@ export function loadConfig(projectRoot: string, explicitPath?: string): LoadConf
       }
     }
 
-    }
+  }
 
-    return { config: defaultConfig, configPath: null, configSource: "defaults" };
+  return { config: defaultConfig, configPath: null, configSource: "defaults" };
 }
 
 /**

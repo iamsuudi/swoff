@@ -37,6 +37,8 @@ const pkg = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) : { 
 const config = JSON.parse(readFileSync(configPath, 'utf8'));
 let template = readFileSync(templatePath, 'utf8');
 
+const swoffDir = join(projectRoot, 'swoff');
+
 // Resolve API_BASE for server push endpoint
 if (config.features?.realtime?.serverPush?.enabled) {
   let apiBase = '';
@@ -57,7 +59,6 @@ if (config.features?.realtime?.serverPush?.enabled) {
   template = template.replace(/SWOFF_API_BASE/g, apiBase);
 }
 
-const swoffDir = join(projectRoot, 'swoff');
 const swoffVersionPath = join(swoffDir, 'sw-version.js');
 
 const swConfig = config.features?.serviceWorker || {};

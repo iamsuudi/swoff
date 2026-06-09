@@ -43,7 +43,6 @@ export interface StrategyEntry {
 
 export interface NavigationRule {
   match: string;
-  policy?: "cache-first" | "network-first" | "network-only" | "stale-while-revalidate";
   fallback?: string;
 }
 
@@ -95,7 +94,6 @@ export interface SwoffConfig {
             refetchOnFocus?: boolean;
           };
         };
-        mode?: "all" | "explicit-only";
         clearRuntimeOnUpdate: boolean;
         maxRuntimeCacheAge?: number;
         normalizeKey?: boolean;

@@ -199,15 +199,6 @@ describe("validateConfig", () => {
       expect(errors[0]).toContain("match must be a non-empty string");
     });
 
-    it("validates rules[].policy is valid", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", rules: [{ match: "/blog/*", policy: "invalid" }] } } },
-      };
-      const errors = validateConfig(config as unknown as Record<string, unknown>);
-      expect(errors[0]).toContain("policy must be one of");
-    });
-
     it("validates rules[].fallback is a string", () => {
       const config = {
         ...validConfig,
@@ -221,10 +212,10 @@ describe("validateConfig", () => {
       const config = {
         ...validConfig,
         features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", rules: [
-          { match: "/blog/*", policy: "cache-first", fallback: "/blog-offline.html" },
-          { match: "/dashboard/**", policy: "network-first", fallback: "/dashboard-offline.html" },
-          { match: "/api/status", policy: "network-only" },
-          { match: "/notes/**", policy: "stale-while-revalidate" },
+          { match: "/blog/*", fallback: "/blog-offline.html" },
+          { match: "/dashboard/**", fallback: "/dashboard-offline.html" },
+          { match: "/api/status" },
+          { match: "/notes/**" },
         ] } } },
       };
       expect(validateConfig(config)).toEqual([]);

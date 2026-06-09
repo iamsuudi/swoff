@@ -58,19 +58,21 @@ async function processMutationQueueInSW() {
       request.onerror = () => reject(request.error);
     });
 
-    const total = queue.length;
+    // Pre-filter: remove permanently failed items first, then filter for processable ones
+    const now = Date.now();
     for (const item of queue) {
       if (item.retryCount >= SW_MAX_RETRIES) {
         await removeFromSWQueue(db, item.id);
         failed++;
-        continue;
       }
+    }
+    const processable = queue.filter(item => {
+      if (item.retryCount >= SW_MAX_RETRIES) return false;
+      return !item.nextRetryAt || now >= item.nextRetryAt;
+    });
+    const total = processable.length;
 
-      // Skip items whose backoff delay hasn't elapsed yet
-      if (item.nextRetryAt && Date.now() < item.nextRetryAt) {
-        continue;
-      }
-
+    for (const item of processable) {
       // Stop processing if browser went offline during sync
       if (!self.navigator.onLine) break;
 

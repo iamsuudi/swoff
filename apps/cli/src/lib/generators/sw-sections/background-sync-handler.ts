@@ -1,4 +1,10 @@
-export function generateBackgroundSyncHandler(authType: string | undefined, batchSize: number, batchDelayMs: number, maxRetries: number, retryBackoffMs: number, tagInvalidationEnabled: boolean): string {
+export function generateBackgroundSyncHandler(
+  authType: string | undefined,
+  batchSize: number,
+  batchDelayMs: number,
+  retryConfig: { maxRetries: number; backoffMs: number; maxBackoffMs: number; jitterMs: number },
+  tagInvalidationEnabled: boolean,
+): string {
   const DB_NAME = "swoff-queue";
   const STORE_NAME = "mutations";
 
@@ -15,13 +21,20 @@ self.addEventListener("sync", (event) => {
 
 const SW_BATCH_SIZE = ${batchSize};
 const SW_BATCH_DELAY_MS = ${batchDelayMs};
-const SW_MAX_RETRIES = ${maxRetries};
-const SW_RETRY_BACKOFF_MS = ${retryBackoffMs};
+const SW_MAX_RETRIES = ${retryConfig.maxRetries};
+const SW_RETRY_BACKOFF_MS = ${retryConfig.backoffMs};
+const SW_MAX_BACKOFF_MS = ${retryConfig.maxBackoffMs};
+const SW_JITTER_MS = ${retryConfig.jitterMs};
 // Bump this when adding new indexes/stores for schema migration
 const SW_DB_VERSION = 1;
 
 function swSleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+function backoffDelay(attempt) {
+  const delay = Math.min(SW_RETRY_BACKOFF_MS * Math.pow(2, attempt), SW_MAX_BACKOFF_MS);
+  return delay + (SW_JITTER_MS > 0 ? Math.random() * SW_JITTER_MS : 0);
 }
 
 async function processMutationQueueInSW() {
@@ -119,7 +132,7 @@ ${credentialsLine}        });
         succeeded++;
       } catch {
         item.retryCount++;
-        item.nextRetryAt = Date.now() + SW_RETRY_BACKOFF_MS * Math.pow(2, item.retryCount - 1);
+        item.nextRetryAt = Date.now() + backoffDelay(item.retryCount - 1);
         await updateInSWQueue(db, item);
         failed++;
       }

@@ -12,8 +12,8 @@ export function generateMutationQueue(ctx: GeneratorContext): void {
     authEnabled,
     mqConfig.batchSize,
     mqConfig.batchDelayMs,
-    mqConfig.maxRetries,
-    mqConfig.retryBackoffMs,
+    mqConfig.retry.maxRetries,
+    mqConfig.retry.backoffMs,
   );
 
   writeFile(ctx, `offline/queue.${ext}`, code);

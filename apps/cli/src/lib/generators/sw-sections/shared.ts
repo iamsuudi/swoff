@@ -21,7 +21,7 @@ export function generateBackgroundSyncCode(config: SwoffConfig): string {
   const { features } = config;
   const authType = features.auth.enabled ? features.auth.type : undefined;
   const mq = features.mutationQueue;
-  return `\n\n${generateBackgroundSyncHandler(authType, mq.batchSize, mq.batchDelayMs, mq.maxRetries, mq.retryBackoffMs, true)}`;
+  return `\n\n${generateBackgroundSyncHandler(authType, mq.batchSize, mq.batchDelayMs, mq.retry, true)}`;
 }
 
 /**

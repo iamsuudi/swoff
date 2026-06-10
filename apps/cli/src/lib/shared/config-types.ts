@@ -10,20 +10,23 @@ export interface AuthConfig {
   userEndpoint: string;
 }
 
+export interface RetryConfig {
+  maxRetries: number;
+  backoffMs: number;
+  maxBackoffMs: number;
+  jitterMs: number;
+}
+
 export interface MutationQueueConfig {
   enabled: boolean;
   batchSize: number;
   batchDelayMs: number;
-  maxRetries: number;
-  retryBackoffMs: number;
   backgroundSync: boolean;
+  retry: RetryConfig;
 }
 
 export interface RefetchQueueConfig {
-  batchSize: number;
-  batchDelayMs: number;
-  maxRetries: number;
-  retryDelayMs: number;
+  retry: RetryConfig;
 }
 
 export const REACTIVE_FIELDS = [
@@ -35,6 +38,7 @@ export const REACTIVE_FIELDS = [
 
 export interface StrategyEntry {
   strategy: string;
+  timeout?: number;
   staleTime?: number;
   refetchInterval?: number;
   refetchOnReconnect?: boolean;
@@ -44,12 +48,6 @@ export interface StrategyEntry {
 export interface NavigationRule {
   match: string;
   fallback?: string;
-}
-
-export interface NavigationRetryConfig {
-  enabled: boolean;
-  intervalMs?: number;
-  maxRetries?: number;
 }
 
 export interface TagInvalidationConfig {
@@ -106,7 +104,6 @@ export interface SwoffConfig {
         fallback: string;
         precacheRoutes?: string[];
         rules?: NavigationRule[];
-        retry?: NavigationRetryConfig;
       };
     };
     requestBatchWindowMs: number;
@@ -170,16 +167,12 @@ export const defaultMutationQueue: MutationQueueConfig = {
   enabled: false,
   batchSize: 1,
   batchDelayMs: 0,
-  maxRetries: 5,
-  retryBackoffMs: 1000,
   backgroundSync: false,
+  retry: { maxRetries: 5, backoffMs: 1000, maxBackoffMs: 30000, jitterMs: 250 },
 };
 
 export const defaultRefetchQueue: RefetchQueueConfig = {
-  batchSize: 5,
-  batchDelayMs: 1000,
-  maxRetries: 3,
-  retryDelayMs: 1000,
+  retry: { maxRetries: 3, backoffMs: 1000, maxBackoffMs: 10000, jitterMs: 100 },
 };
 
 export const defaultRealtimeConfig: RealtimeConfig = {
@@ -330,7 +323,6 @@ export const defaultConfig: SwoffConfig = {
         fallback: "",
         precacheRoutes: [],
         rules: [],
-        retry: { enabled: false, intervalMs: 5000, maxRetries: 12 },
       },
     },
     refetchQueue: { ...defaultRefetchQueue },
@@ -364,7 +356,6 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
         fallback: "",
         precacheRoutes: [],
         rules: [],
-        retry: { enabled: false, intervalMs: 5000, maxRetries: 12 },
       },
       strategy: {
         default: "cache-first",

@@ -33,6 +33,12 @@ self.addEventListener("message", (event) => {
   if (event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
+  if (event.data.type === "FOCUS") {
+    if (typeof handleFocusRefetch === "function") handleFocusRefetch();
+  }
+  if (event.data.type === "ONLINE") {
+    if (typeof handleOnlineRefetch === "function") handleOnlineRefetch();
+  }
   if (event.data.type === "RESET_CACHE") {
     event.waitUntil(
       (async () => {

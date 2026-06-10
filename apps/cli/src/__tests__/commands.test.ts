@@ -202,7 +202,7 @@ describe("generateCommand", () => {
     writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
     writeDefaultConfig();
     await generateCommand(testDir);
-    expect(existsSync(join(testDir, "swoff/storage.js"))).toBe(false);
+    expect(existsSync(join(testDir, "swoff/storage-notify.js"))).toBe(false);
   });
 
   it("generates storage when push enabled", async () => {
@@ -213,7 +213,7 @@ describe("generateCommand", () => {
     config.features.realtime.vapidPublicKey = "test-key";
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
     await generateCommand(testDir);
-    expect(existsSync(join(testDir, "swoff/storage.js"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/storage-notify.js"))).toBe(true);
   });
 });
 

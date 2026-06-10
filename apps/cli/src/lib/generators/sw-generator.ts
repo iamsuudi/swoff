@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import { loadConfigAsync } from "../config/loader.js";
 import { resolveVersion, isVersionEnabled } from "./sw-build-utils.js";
 import { assembleSW } from "./sw-sections/assemble-sw.js";
+import { createRequire } from "module";
 
 interface GeneratorOptions {
   projectRoot?: string;
@@ -30,7 +31,26 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ vers
   const v = config.features.serviceWorker.version;
   const versionEnabled = isVersionEnabled(v);
   const version = resolveVersion(v, pkg.version || "1.0.0");
-  const sw = assembleSW(config, version, optProjectRoot).replace(/SWOFF_API_BASE/g, "");
+  let sw = assembleSW(config, version, optProjectRoot);
+  let apiBase = "";
+  const configJsPath = join(optProjectRoot, "swoff", "config.js");
+  if (existsSync(configJsPath)) {
+    try {
+      const _require = createRequire(import.meta.url);
+      const configMod = _require(configJsPath);
+      apiBase = configMod.API_BASE || "";
+    } catch {}
+  } else {
+    const configTsPath = join(optProjectRoot, "swoff", "config.ts");
+    if (existsSync(configTsPath)) {
+      const content = readFileSync(configTsPath, "utf8");
+      const match = content.match(/export\s+const\s+API_BASE\s*=\s*"([^"]+)"/);
+      apiBase = match ? match[1] : "";
+    }
+  }
+  if (sw.includes("SWOFF_API_BASE")) {
+    sw = sw.replace(/SWOFF_API_BASE/g, apiBase);
+  }
 
   const outputDir = join(optProjectRoot, config.build.outputDir);
 

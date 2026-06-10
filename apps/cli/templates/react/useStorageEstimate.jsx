@@ -1,16 +1,6 @@
 import { useState, useEffect } from "react";
 import { getStorageEstimate, formatBytes } from "../storage-notify";
 
-interface StorageEstimateState {
-  usage: number;
-  quota: number;
-  percentUsed: number;
-  formattedUsage: string;
-  formattedQuota: string;
-  loading: boolean;
-  error: string | null;
-}
-
 /**
  * Reactive storage estimate. Shows available quota and usage.
  *
@@ -20,10 +10,9 @@ interface StorageEstimateState {
  *   if (!loading && percentUsed > 80) return <StorageWarning />;
  *
  * @param autoRefresh - Re-check on visibility change (default true)
- * @returns {{ usage: number, quota: number, percentUsed: number, formattedUsage: string, formattedQuota: string, loading: boolean, error: string | null }}
  */
-export function useStorageEstimate(autoRefresh = true): StorageEstimateState {
-  const [state, setState] = useState<StorageEstimateState>({
+export function useStorageEstimate(autoRefresh = true) {
+  const [state, setState] = useState({
     usage: 0,
     quota: 0,
     percentUsed: 0,

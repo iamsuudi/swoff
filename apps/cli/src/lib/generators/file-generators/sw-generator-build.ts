@@ -14,6 +14,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 
 import { join, dirname, relative } from 'path';
 import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = process.cwd();
@@ -45,7 +46,8 @@ if (config.features?.realtime?.serverPush?.enabled) {
   const configJsPath = join(swoffDir, 'config.js');
   if (existsSync(configJsPath)) {
     try {
-      const configMod = require(configJsPath);
+      const _require = createRequire(import.meta.url);
+      const configMod = _require(configJsPath);
       apiBase = configMod.API_BASE || '';
     } catch {}
   } else {

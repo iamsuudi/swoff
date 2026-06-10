@@ -346,7 +346,7 @@ describe("validateConfig", () => {
       expect(errors).toContain("features.pwa.enabled must be a boolean");
     });
 
-    it("validates pva.preventDefaultInstall is boolean", () => {
+    it("validates pwa.preventDefaultInstall is boolean", () => {
       const config = {
         ...validConfig,
         features: { ...validConfig.features, pwa: { enabled: true, preventDefaultInstall: "true" } },

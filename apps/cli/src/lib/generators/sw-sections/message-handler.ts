@@ -72,13 +72,6 @@ self.addEventListener("message", (event) => {
   }
 
   code += `
-  if (event.data.type === "ONLINE") {
-    event.waitUntil(handleOnline());
-  }
-  if (event.data.type === "FOCUS") {
-    event.waitUntil(handleOnFocus());
-  }
-
 });`;
   return code;
 }

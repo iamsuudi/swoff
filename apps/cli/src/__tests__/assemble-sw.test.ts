@@ -52,7 +52,7 @@ describe("assembleSW", () => {
     expect(sw).toContain("async function fromPrecache");
     expect(sw).toContain("cache.match(url.href)");
     expect(sw).toContain("serveFromCache");
-    expect(sw).toContain("handleSpaNavigation");
+    expect(sw).toContain("NAV_MODE === \"spa\"");
   });
 
   it("includes message handler", () => {
@@ -156,12 +156,6 @@ describe("assembleSW", () => {
     expect(sw).toContain("matchGlob");
   });
 
-  it("includes refresh retry constants", () => {
-    const sw = assembleSW(config, "1.0.0");
-    expect(sw).toContain("REFRESH_MAX_RETRIES");
-    expect(sw).toContain("REFRESH_RETRY_DELAY_MS");
-  });
-
   describe("navigation rules", () => {
     it("generates NAV_RULES constant when rules are configured", () => {
       const configWithRules: SwoffConfig = {
@@ -254,58 +248,6 @@ describe("assembleSW", () => {
     it("does not generate NAV_RULES when no rules configured", () => {
       const sw = assembleSW(config, "1.0.0");
       expect(sw).not.toContain("NAV_RULES");
-    });
-  });
-
-  describe("smart navigation retry", () => {
-    it("generates retry constants and startRetryLoop when retry is enabled", () => {
-      const configRetry: SwoffConfig = {
-        ...config,
-        features: {
-          ...config.features,
-          serviceWorker: {
-            ...config.features.serviceWorker,
-            navigation: {
-              ...config.features.serviceWorker.navigation,
-              mode: "network-first",
-              retry: { enabled: true, intervalMs: 3000, maxRetries: 5 },
-            },
-          },
-        },
-      };
-      const sw = assembleSW(configRetry, "1.0.0");
-      expect(sw).toContain("NAV_RETRY_ENABLED = true");
-      expect(sw).toContain("NAV_RETRY_INTERVAL_MS = 3000");
-      expect(sw).toContain("NAV_RETRY_MAX_RETRIES = 5");
-      expect(sw).toContain("function startRetryLoop(event, request)");
-      expect(sw).toContain("NAV_RETRY_SUCCESS");
-    });
-
-    it("generates retry constants with defaults when retry is disabled", () => {
-      const sw = assembleSW(config, "1.0.0");
-      expect(sw).toContain("NAV_RETRY_ENABLED = false");
-      expect(sw).toContain("NAV_RETRY_INTERVAL_MS");
-      expect(sw).toContain("NAV_RETRY_MAX_RETRIES");
-      expect(sw).toContain("function startRetryLoop(event, request)");
-    });
-
-    it("calls startRetryLoop when navigation reaches fromUltimateFallback", () => {
-      const configRetry: SwoffConfig = {
-        ...config,
-        features: {
-          ...config.features,
-          serviceWorker: {
-            ...config.features.serviceWorker,
-            navigation: {
-              ...config.features.serviceWorker.navigation,
-              mode: "ssr",
-              retry: { enabled: true },
-            },
-          },
-        },
-      };
-      const sw = assembleSW(configRetry, "1.0.0");
-      expect(sw).toContain("startRetryLoop(event, request)");
     });
   });
 

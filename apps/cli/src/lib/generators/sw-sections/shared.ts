@@ -37,6 +37,7 @@ export function applySwSections(
   code: string,
   config: SwoffConfig,
   useApiBasePlaceholder: boolean,
+  debug?: boolean,
 ): string {
   const { features } = config;
   const { serviceWorker } = features;
@@ -45,7 +46,7 @@ export function applySwSections(
 
   code = code.replace(
     "// [[FETCH_HANDLER]]",
-    generateFetchHandler({ strategy, navigation, refetchQueue }, true, features.mutationQueue.enabled),
+    generateFetchHandler({ strategy, navigation, refetchQueue }, true, features.mutationQueue.enabled, debug),
   );
 
   code = code.replace(

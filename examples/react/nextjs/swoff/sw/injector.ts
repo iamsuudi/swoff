@@ -1,47 +1,18 @@
+import { SW_VERSION } from "../sw-version.ts";
 /**
  * Swoff SW Injector
- * Framework-agnostic SW registration with versioned URLs and update flow.
+ * Registers the service worker and tracks installation progress.
  *
  * Usage:
  *   import { initServiceWorker } from './swoff/sw/injector.ts';
  *   initServiceWorker();
  *
  * Window events:
- *   sw-version-detected  - Version info available on window
- *   sw-update-available  - New version ready for user consent (detail: { version })
  *   sw-progress          - Download progress (detail: { percent, downloaded, total })
  *   sw-ready             - SW active and controlling page
  *   sw-error             - SW registration failed
- *
- * Window properties:
- *   window.latestSWVersion       - Latest version from version.json
- *   window.currentSWVersion      - Active SW version
- *   window.swAvailableVersion    - Pending update version
- *   window.swUpdateRequired      - Forced update needed (version < minSupportedVersion)
- *   window.swMinSupportedVersion - Minimum supported version
- *   window.swReady               - SW is active
- *   window.swError               - Registration failed
  */
-const AUTO_UPDATE = true;
 const AUTO_ACTIVATE = false;
-
-function semverCompare(a: string, b: string): number {
-  const pa = a.split('.').map(Number);
-  const pb = b.split('.').map(Number);
-  for (let i = 0; i < 3; i++) {
-    if (pa[i] > pb[i]) return 1;
-    if (pa[i] < pb[i]) return -1;
-  }
-  return 0;
-}
-
-async function checkForUpdate() {
-  const response = await fetch("/version.json?t=" + Date.now());
-  if (!response.ok) {
-    throw new Error("Failed to fetch version.json");
-  }
-  return response.json();
-}
 
 async function waitForController(): Promise<void> {
   return new Promise<void>((resolve) => {
@@ -57,115 +28,65 @@ async function waitForController(): Promise<void> {
   });
 }
 
-async function doRegisterServiceWorker(version: string): Promise<ServiceWorkerRegistration> {
-  const swUrl = `/sw-v${version}.js`;
-  const registration = await navigator.serviceWorker.register(swUrl);
-  localStorage.setItem("swRegisteredVersion", version);
-  window.currentSWVersion = version;
-  window.swRegisteredVersion = version;
-  window.dispatchEvent(new CustomEvent("sw-version-detected"));
-  await waitForController();
-  window.dispatchEvent(new CustomEvent("sw-ready"));
-  return registration;
-}
-
-/** Register the SW with version checking and update flow. Checks version.json, handles updates, and dispatches sw-ready/sw-error events. */
+/** Register the SW. On update, the browser handles the lifecycle natively — no version.json or consent needed. */
 export async function initServiceWorker(): Promise<void> {
+  const dbg = (msg: string) => console.log("[SW][initServiceWorker]", msg, Date.now());
+
   if (!("serviceWorker" in navigator)) {
     console.warn("Service Workers not supported");
     return;
   }
 
+  dbg("entering online=" + navigator.onLine + " controller=" + (navigator.serviceWorker.controller ? "present" : "absent"));
+  dbg("BEFORE register() call for /sw-v" + SW_VERSION + ".js");
+
   try {
-    const manifest = await checkForUpdate();
-    const currentVersion = localStorage.getItem("swRegisteredVersion");
-    window.latestSWVersion = manifest.version;
-    window.swMinSupportedVersion = manifest.minSupportedVersion || "0.0.0";
+    const regPromise = navigator.serviceWorker.register(`/sw-v${SW_VERSION}.js`);
+    dbg("register() returned promise, awaiting...");
 
-    if (currentVersion === manifest.version) {
-      const registration = await navigator.serviceWorker.getRegistration();
-      if (registration && registration.active) {
-        window.currentSWVersion = currentVersion ?? undefined;
-        window.dispatchEvent(new CustomEvent("sw-version-detected"));
-        await waitForController();
-        if (!window.swReady) {
-          window.dispatchEvent(new CustomEvent("sw-ready"));
-        }
-      }
-    } else if (currentVersion && currentVersion !== manifest.version) {
-      window.swAvailableVersion = manifest.version;
-      window.swUpdateRequired =
-        semverCompare(currentVersion, manifest.minSupportedVersion || "0.0.0") < 0;
+    // Timeout the register to detect hang
+    const timeout = new Promise<ServiceWorkerRegistration>((_, reject) =>
+      setTimeout(() => reject(new Error("REGISTER_TIMEOUT")), 5000)
+    );
+    const registration = await Promise.race([regPromise, timeout]);
+    regPromise.catch(() => {}); // suppress unhandled rejection
+    dbg("register() RESOLVED");
 
-      if (AUTO_UPDATE) {
-        const registration = await navigator.serviceWorker.getRegistration();
-        if (registration && registration.waiting) {
+    if (registration.installing) {
+      const installingWorker = registration.installing;
+      dbg("SW installing, state=" + installingWorker.state);
+      installingWorker.addEventListener("statechange", () => {
+        dbg("statechange: " + installingWorker.state);
+        if (installingWorker.state === "installed") {
           if (AUTO_ACTIVATE) {
-            registration.waiting.postMessage({ type: "SKIP_WAITING" });
-          } else {
-            window.dispatchEvent(
-              new CustomEvent("sw-update-available", {
-                detail: { version: manifest.version },
-              })
-            );
+            registration.waiting?.postMessage({ type: "SKIP_WAITING" });
           }
-        } else {
-          const newReg = await doRegisterServiceWorker(manifest.version);
-          if (AUTO_ACTIVATE && newReg.waiting) {
-            newReg.waiting.postMessage({ type: "SKIP_WAITING" });
-          } else {
-            window.dispatchEvent(
-              new CustomEvent("sw-update-available", {
-                detail: { version: manifest.version },
-              })
-            );
-          }
-        }
-      } else {
-        window.dispatchEvent(
-          new CustomEvent("sw-update-available", {
-            detail: { version: manifest.version },
-          })
-        );
-      }
-    } else {
-      await doRegisterServiceWorker(manifest.version);
-    }
-  } catch (error) {
-    try {
-      const existing = await navigator.serviceWorker.getRegistration();
-      if (existing && existing.active) {
-        window.currentSWVersion = localStorage.getItem("swRegisteredVersion") || "unknown";
-        window.dispatchEvent(new CustomEvent("sw-version-detected"));
-        await waitForController();
-        if (!window.swReady) {
           window.dispatchEvent(new CustomEvent("sw-ready"));
         }
+      });
+    } else {
+      dbg("registration.installing is null, waiting=" + (registration.waiting ? "present" : "absent") + " active=" + (registration.active ? "present" : "absent"));
+    }
+
+    dbg("before waitForController()");
+    await waitForController();
+    dbg("AFTER waitForController()");
+    window.dispatchEvent(new CustomEvent("sw-ready"));
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    dbg("CATCH: " + msg);
+    if (msg === "REGISTER_TIMEOUT") {
+      dbg("register() TIMED OUT after 5s");
+      // Check if SW became active despite timeout
+      if (navigator.serviceWorker.controller) {
+        dbg("controller present despite timeout, dispatching ready");
+        window.dispatchEvent(new CustomEvent("sw-ready"));
         return;
       }
-    } catch {
-      // Handle the case where no existing active registration is found
     }
-
-    console.error("Service Worker initialization failed:", error);
+    console.error("Service Worker registration failed:", error);
     window.swError = true;
     window.dispatchEvent(new CustomEvent("sw-error"));
-  }
-}
-
-/** Accept a pending SW update. Reloads the page once the new SW takes control. */
-export async function handleUpdateApproved(newVersion: string): Promise<void> {
-  const registration = await navigator.serviceWorker.getRegistration();
-  if (registration && registration.waiting) {
-    registration.waiting.postMessage({ type: "SKIP_WAITING" });
-    registration.addEventListener("controllerchange", () => {
-      window.location.reload();
-    });
-  } else {
-    await doRegisterServiceWorker(newVersion);
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      window.location.reload();
-    });
   }
 }
 

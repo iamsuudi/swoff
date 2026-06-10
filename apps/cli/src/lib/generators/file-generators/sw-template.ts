@@ -8,7 +8,7 @@ import { getDefaultTemplate } from "../sw-sections/default-template.js";
 import { applySwSections, shouldIncludeBackgroundSync, generateBackgroundSyncCode } from "../sw-sections/shared.js";
 
 export function generateSwTemplate(ctx: GeneratorContext): void {
-  const { config } = ctx;
+  const { config, debug } = ctx;
 
   let code = getDefaultTemplate();
   code = `// [[HEADER]]\n\n${code}`;
@@ -17,7 +17,7 @@ export function generateSwTemplate(ctx: GeneratorContext): void {
   code = code.replace("// [[ASSETS_LIST]]", "// [[ASSETS_LIST]]");
   code = code.replace("// [[AUTO_SKIP_WAITING]]", "// [[AUTO_SKIP_WAITING]]");
 
-  code = applySwSections(code, config, true);
+  code = applySwSections(code, config, true, debug);
 
   if (shouldIncludeBackgroundSync(config)) {
     code += generateBackgroundSyncCode(config);

@@ -50,7 +50,7 @@ describe("assembleSW", () => {
     const sw = assembleSW(config, "1.0.0");
     expect(sw).toContain("fromPrecache");
     expect(sw).toContain("async function fromPrecache");
-    expect(sw).toContain("return cache.match(url.href);");
+    expect(sw).toContain("cache.match(url.href)");
     expect(sw).toContain("serveFromCache");
     expect(sw).toContain("handleSpaNavigation");
   });

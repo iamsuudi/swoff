@@ -7,13 +7,14 @@ import { log } from "../cli/logger.js";
 
 export interface GenerateOptions {
   language?: string;
+  debug?: boolean;
 }
 
 export async function generateCommand(
   projectRoot: string,
   options: GenerateOptions = {},
 ) {
-  const { language } = options;
+  const { language, debug } = options;
 
   const { config, configPath } = await loadConfigAsync(projectRoot);
 
@@ -41,6 +42,7 @@ export async function generateCommand(
     ext,
     generatedFiles,
     frameworkName: config.framework ?? "vanilla",
+    debug: debug ?? false,
   };
 
   try {

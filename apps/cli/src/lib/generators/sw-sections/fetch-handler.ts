@@ -65,6 +65,7 @@ export function generateFetchHandler(
   },
   tagInvalidation: boolean,
   mutationQueueEnabled: boolean,
+  debug?: boolean,
 ): string {
   const {
     strategy: {
@@ -95,6 +96,7 @@ export function generateFetchHandler(
     refetchOnFocus: globalRefetchOnFocus,
   } = swConfig.strategy.reactive?.defaults || {};
 
+  const debugMode = debug === true;
   const staleVersionCode = tagInvalidation
     ? `
     cleanStaleVersions();
@@ -232,15 +234,18 @@ const NAV_RETRY_MAX_RETRIES = ${retryMaxRetries};
 // --- Smart Navigation Retry ---
 
 function startRetryLoop(event, request) {
+  swLog("startRetryLoop", "ENTER retry loop enabled=" + NAV_RETRY_ENABLED, request.url);
   if (!NAV_RETRY_ENABLED) return;
   let retries = 0;
   const retry = async () => {
+    swLog("startRetryLoop/retry", "attempt=" + (retries + 1) + "/" + NAV_RETRY_MAX_RETRIES, request.url);
     try {
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
       const response = await fetch(request.clone(), { signal: controller.signal });
       clearTimeout(id);
       if (response.ok) {
+        swLog("startRetryLoop/retry", "SUCCESS", request.url);
         await storeRuntime(request.clone(), response.clone());
         const clients = await self.clients.matchAll();
         for (const client of clients) {
@@ -251,11 +256,16 @@ function startRetryLoop(event, request) {
         }
         return;
       }
-    } catch {}
+    } catch {
+      swLog("startRetryLoop/retry", "CATCH fetch failed", request.url);
+    }
     retries++;
     if (retries < NAV_RETRY_MAX_RETRIES) {
       const delay = NAV_RETRY_INTERVAL_MS * Math.pow(2, retries - 1);
+      swLog("startRetryLoop/retry", "schedule retry in " + Math.min(delay, 30000) + "ms", request.url);
       setTimeout(retry, Math.min(delay, 30000));
+    } else {
+      swLog("startRetryLoop/retry", "exhausted retries", request.url);
     }
   };
   setTimeout(retry, NAV_RETRY_INTERVAL_MS);
@@ -267,6 +277,14 @@ function startRetryLoop(event, request) {
 const FALLBACK_PATH = ${fallbackCode};
 
 ${navRulesCode}${retryCode}${trimDecl}
+// --- Debug Logging ---
+
+const SW_DEBUG = ${debugMode};
+function swLog(fn, msg, url) {
+  if (!SW_DEBUG) return;
+  console.log("[SW][" + fn + "]", msg, url || "", Date.now());
+}
+
 // --- Batch Refresh Queue ---
 
 const _refreshQueue = new Map();
@@ -539,8 +557,9 @@ async function handleOnFocus() {
 // --- Cache Key ---
 
 function cacheKey(request) {
+  swLog("cacheKey", "ENTER", request.url);
   const key = request.headers.get("X-SW-Cache-Key");
-  if (key) return new URL("/__swc/" + key, self.location.origin).href;
+  if (key) { swLog("cacheKey", "header key=" + key); return new URL("/__swc/" + key, self.location.origin).href; }
   const url = new URL(request.url);${
     normalizeCacheKey
       ? `
@@ -569,22 +588,30 @@ function cacheKey(request) {
 // --- Cache Helpers ---
 
 async function fromPrecache(request) {
+  swLog("fromPrecache", "ENTER", request.url);
   const cache = await caches.open(CACHE_NAME);
   const url = new URL(request.url);
   url.search = "";
-  return cache.match(url.href);
+  const match = await cache.match(url.href);
+  swLog("fromPrecache", match ? "HIT" : "MISS", request.url);
+  return match;
 }
 
 async function fromRuntime(request) {
+  swLog("fromRuntime", "ENTER", request.url);
   const cache = await caches.open(CACHE_NAME_RUNTIME);
-  return cache.match(cacheKey(request));
+  const match = await cache.match(cacheKey(request));
+  swLog("fromRuntime", match ? "HIT" : "MISS", request.url);
+  return match;
 }
 
 async function handleSpaNavigation(event, request) {
+  swLog("handleSpaNavigation", "ENTER FALLBACK_PATH=" + FALLBACK_PATH, request.url);
   if (FALLBACK_PATH) {
     const cache = await caches.open(CACHE_NAME);
     const match = await cache.match(FALLBACK_PATH);
     if (match) {
+      swLog("handleSpaNavigation", "global fallback HIT", request.url);
       const clients = await self.clients.matchAll();
       for (const client of clients) {
         client.postMessage({
@@ -594,12 +621,15 @@ async function handleSpaNavigation(event, request) {
       }
       return match;
     }
+    swLog("handleSpaNavigation", "global fallback MISS", request.url);
   }${hasRules ? `
   const routeFallbackPath = matchRouteFallback(request.url);
   if (routeFallbackPath) {
+    swLog("handleSpaNavigation", "route fallback path=" + routeFallbackPath, request.url);
     const cache = await caches.open(CACHE_NAME);
     const match = await cache.match(routeFallbackPath);
     if (match) {
+      swLog("handleSpaNavigation", "route fallback HIT", request.url);
       const clients = await self.clients.matchAll();
       for (const client of clients) {
         client.postMessage({
@@ -609,7 +639,9 @@ async function handleSpaNavigation(event, request) {
       }
       return match;
     }
+    swLog("handleSpaNavigation", "route fallback MISS", request.url);
   }` : ""}
+  swLog("handleSpaNavigation", "returning inline 503", request.url);
   const clients = await self.clients.matchAll();
   for (const client of clients) {
     client.postMessage({
@@ -621,31 +653,36 @@ async function handleSpaNavigation(event, request) {
 }
 
 async function serveFromCache(event, request) {
+  swLog("serveFromCache", "ENTER mode=" + request.mode + " NAV_MODE=" + NAV_MODE, request.url);
   if (request.mode === "navigate") {
     if (NAV_MODE === "spa") {
+      swLog("serveFromCache", "SPA navigation", request.url);
       return handleSpaNavigation(event, request);
     }
+    swLog("serveFromCache", "SSR/SSG navigation, checking precache", request.url);
     const pc = await caches.open(CACHE_NAME);
     const pUrl = new URL(request.url);
     pUrl.search = "";
     const precached = await pc.match(pUrl.href);
-    if (precached) return precached;
+    if (precached) { swLog("serveFromCache", "precache HIT", request.url); return precached; }
+    swLog("serveFromCache", "precache MISS, checking HTML runtime", request.url);
     const htmlCache = await caches.open(CACHE_NAME_RUNTIME_HTML);
     return htmlCache.match(cacheKey(request));
   }
   const cached = await fromRuntime(request);
-  if (cached) return cached;
+  if (cached) { swLog("serveFromCache", "runtime HIT", request.url); return cached; }
+  swLog("serveFromCache", "runtime MISS, checking precache", request.url);
   return fromPrecache(request);
 }
 
 async function storeRuntime(request, response) {
-  if (request.mode === "navigate" && NAV_MODE === "spa") return;
+  swLog("storeRuntime", "ENTER", request.url);
+  if (request.mode === "navigate" && NAV_MODE === "spa") { swLog("storeRuntime", "skip SPA nav"); return; }
   const key = cacheKey(request);
-  // Skip if already in precache — strip all query params to match fromPrecache's lookup
   const precache = await caches.open(CACHE_NAME);
   const checkUrl = new URL(key);
   checkUrl.search = "";
-  if (await precache.match(checkUrl.href)) return;
+  if (await precache.match(checkUrl.href)) { swLog("storeRuntime", "skip already in precache", key); return; }
   const ct = response.headers.get("Content-Type") || "";
   const cacheName = ct.startsWith("text/html") ? CACHE_NAME_RUNTIME_HTML : CACHE_NAME_RUNTIME;
   const cache = await caches.open(cacheName);
@@ -657,6 +694,7 @@ async function storeRuntime(request, response) {
     headers,
   });
   await cache.put(key, cloned);
+  swLog("storeRuntime", "stored in " + cacheName, key);
   const actualUrl = new URL(request.url).href;
   if (findReactiveConfig(actualUrl)) {
     registerReactiveEntry(key, actualUrl);
@@ -685,6 +723,7 @@ async function cacheResponse(request, response) {
 }
 
 function inline503Response() {
+  swLog("inline503Response", "ENTER", "");
   return new Response(
     \`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Offline</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f5f5f5}div{text-align:center}h1{font-size:2rem;color:#333}p{color:#666}</style></head><body><div><h1>You're offline</h1><p>Please check your connection and try again.</p></div></body></html>\`,
     { status: 503, headers: { "Content-Type": "text/html", "Cache-Control": "no-store" } }
@@ -692,19 +731,22 @@ function inline503Response() {
 }
 
 async function fromUltimateFallback(event, request) {
+  swLog("fromUltimateFallback", "ENTER retryEnabled=" + NAV_RETRY_ENABLED, request.url);
   const isNav = request.mode === "navigate";
 
-  // Start retry loop for navigation requests (only when enabled)
   if (isNav && NAV_RETRY_ENABLED) {
+    swLog("fromUltimateFallback", "starting retry loop", request.url);
     event.waitUntil(startRetryLoop(event, request));
   }
 
-  // 1. Per-route fallback (from navigation rules)${hasRules ? `
+  ${hasRules ? `
+  swLog("fromUltimateFallback", "checking route fallback", request.url);
   const routeFallbackPath = matchRouteFallback(request.url);
   if (routeFallbackPath) {
     const cache = await caches.open(CACHE_NAME);
     const match = await cache.match(routeFallbackPath);
     if (match) {
+      swLog("fromUltimateFallback", "route fallback HIT", request.url);
       const clients = await self.clients.matchAll();
       for (const client of clients) {
         client.postMessage({
@@ -714,12 +756,14 @@ async function fromUltimateFallback(event, request) {
       }
       return match;
     }
+    swLog("fromUltimateFallback", "route fallback MISS", request.url);
   }` : ""}
-  // 2. Global fallback from precache
   if (FALLBACK_PATH) {
+    swLog("fromUltimateFallback", "checking global fallback", request.url);
     const cache = await caches.open(CACHE_NAME);
     const match = await cache.match(FALLBACK_PATH);
     if (match) {
+      swLog("fromUltimateFallback", "global fallback HIT", request.url);
       const clients = await self.clients.matchAll();
       for (const client of clients) {
         client.postMessage({
@@ -729,8 +773,9 @@ async function fromUltimateFallback(event, request) {
       }
       return match;
     }
+    swLog("fromUltimateFallback", "global fallback MISS", request.url);
   }
-  // 3. Inline 503
+  swLog("fromUltimateFallback", "returning inline 503", request.url);
   const clients = await self.clients.matchAll();
   for (const client of clients) {
     client.postMessage({
@@ -749,6 +794,7 @@ async function fromUltimateFallback(event, request) {
 // --- Response Helpers ---
 
 function markFromCache(response) {
+  swLog("markFromCache", "ENTER url=" + (response.url || "(no url)"), "");
   const headers = new Headers(response.headers);
   headers.set("X-SW-From-Cache", "true");
   return new Response(response.body, {
@@ -774,6 +820,7 @@ function resolveStrategyEntry(entry) {
 function determineCacheStrategy(request, customStrategies, globalDefaults) {
   const override = request.headers.get("X-SW-Strategy");
   if (override) {
+    swLog("determineCacheStrategy", "header override=" + override, request.url);
     return { strategy: override };
   }
   const path = new URL(request.url).pathname;
@@ -789,6 +836,7 @@ function determineCacheStrategy(request, customStrategies, globalDefaults) {
           cfg.refetchOnReconnect = reactive.refetchOnReconnect;
         }
       }
+      swLog("determineCacheStrategy", "custom rule matched pattern=" + pattern + " strategy=" + resolved.strategy, request.url);
       return cfg;
     }
   }
@@ -798,10 +846,12 @@ function determineCacheStrategy(request, customStrategies, globalDefaults) {
     cfg.refetchOnFocus = GLOBAL_REACTIVE_DEFAULTS.refetchOnFocus;
     cfg.refetchOnReconnect = GLOBAL_REACTIVE_DEFAULTS.refetchOnReconnect;
   }
+  swLog("determineCacheStrategy", "default strategy=" + cfg.strategy, request.url);
   return cfg;
 }
 
 async function _executeStrategy(event, request, config) {
+  swLog("_executeStrategy", "entering strategy=" + config.strategy, request.url);
   try {
     const { strategy } = config;
     if (strategy === "reactive") {
@@ -818,11 +868,13 @@ async function _executeStrategy(event, request, config) {
       return await cacheFirst(event, request);
     }
   } catch {
+    swLog("_executeStrategy", "CATCH -> fromUltimateFallback", request.url);
     return fromUltimateFallback(event, request);
   }
 }
 
 function applyStrategy(event, request, config) {
+  swLog("applyStrategy", "strategy=" + config.strategy, request.url);
   event.respondWith(_executeStrategy(event, request, config));
 }
 
@@ -891,6 +943,7 @@ function _fetchWithTimeout(request) {
 
 async function handleMutation(event) {
   const request = event.request;
+  swLog("handleMutation", "ENTER noQueue=" + (request.headers.get("X-SW-No-Queue") === "true"), request.url);
   if (request.headers.get("X-SW-No-Queue") === "true") {
     try {
       return await _fetchWithTimeout(request.clone());
@@ -901,6 +954,7 @@ async function handleMutation(event) {
   try {
     return await _fetchWithTimeout(request.clone());
   } catch {
+    swLog("handleMutation", "fetch failed, queueing mutation", request.url);
     await storeMutationInSW(request);
     // Notify open clients that a mutation was stored so they can try to process
     const clients = await self.clients.matchAll();
@@ -919,22 +973,27 @@ async function handleMutation(event) {
 `
     : ""
 }self.addEventListener("fetch", (event) => {
-  const { request } = event;${
+  const { request } = event;
+  swLog("fetch", "INCOMING", request.url);
+  swLog("fetch", "method=" + request.method + " mode=" + request.mode + " destination=" + request.destination + " online=" + navigator.onLine);${
     mutationQueueEnabled
       ? `
   if (request.method !== "GET" && request.method !== "HEAD") {
     if (request.headers.get("X-SW-Cache-Strategy") === "mutation") {
+      swLog("fetch", "ROUTE mutation handler", request.url);
       event.respondWith(handleMutation(event));
       return;
     }
-    if (!request.headers.get("X-SW-Cache-Key")) return;
+    if (!request.headers.get("X-SW-Cache-Key")) { swLog("fetch", "SKIP no cache key", request.url); return; }
   }`
       : `
   if (request.method !== "GET" && request.method !== "HEAD") {
-    if (!request.headers.get("X-SW-Cache-Key")) return;
+    if (!request.headers.get("X-SW-Cache-Key")) { swLog("fetch", "SKIP no cache key non-GET", request.url); return; }
   }`
   }
-  applyStrategy(event, request, determineCacheStrategy(event.request, ${JSON.stringify(strategies)}, { defaultStrategy: "${defaultStrategy}" }));
+  const strat = determineCacheStrategy(event.request, ${JSON.stringify(strategies)}, { defaultStrategy: "${defaultStrategy}" });
+  swLog("fetch", "strategy=" + strat.strategy, request.url);
+  applyStrategy(event, request, strat);
 });
 
 // --- Strategies ---
@@ -945,6 +1004,7 @@ const FETCH_TIMEOUT_MS = ${fetchTimeout * 1000};
 // Transparently handles If-None-Match/304 so strategies always see a 200 response.
 
 async function _fetchWithConditional(request) {
+  swLog("_fetchWithConditional", "ENTER timeout=" + FETCH_TIMEOUT_MS, request.url);
   let cached;
   if (!(request.mode === "navigate" && NAV_MODE === "spa")) {
     const cache = await caches.open(CACHE_NAME_RUNTIME);
@@ -954,6 +1014,7 @@ async function _fetchWithConditional(request) {
       cached = await htmlCache.match(cacheKey(request));
     }
   }
+  swLog("_fetchWithConditional", "cached=" + !!cached + " etag=" + (cached?.headers.get("ETag") || "none"), request.url);
   const etag = cached?.headers.get("ETag");
   if (etag) {
     request = new Request(request, {
@@ -963,11 +1024,14 @@ async function _fetchWithConditional(request) {
   try {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    swLog("_fetchWithConditional", "BEFORE fetch", request.url);
     const response = await fetch(request, { signal: controller.signal });
     clearTimeout(id);
+    swLog("_fetchWithConditional", "AFTER fetch status=" + response.status, request.url);
     if (response.status === 304 && cached) {
       const headers = new Headers(cached.headers);
       headers.set("X-SW-Cached-At", String(Date.now()));
+      swLog("_fetchWithConditional", "304 -> returning cached", request.url);
       return new Response(cached.body, {
         status: 200,
         statusText: cached.statusText,
@@ -976,6 +1040,7 @@ async function _fetchWithConditional(request) {
     }
     return response;
   } catch {
+    swLog("_fetchWithConditional", "CATCH fetch failed", request.url);
     const clients = await self.clients.matchAll();
     for (const client of clients) {
       client.postMessage({
@@ -993,10 +1058,16 @@ ${
   navigationPreload
     ? `
 async function fetchWithPreload(event, request) {
+  swLog("fetchWithPreload", "ENTER", request.url);
   try {
+    swLog("fetchWithPreload", "BEFORE await preloadResponse", request.url);
     const preload = await event.preloadResponse;
+    swLog("fetchWithPreload", "AFTER await preloadResponse preload=" + !!preload, request.url);
     if (preload) return preload;
-  } catch {}
+  } catch (err) {
+    swLog("fetchWithPreload", "CATCH preloadResponse err", request.url);
+  }
+  swLog("fetchWithPreload", "fallback to _fetchWithConditional", request.url);
   return _fetchWithConditional(request);
 }
 `
@@ -1004,11 +1075,13 @@ async function fetchWithPreload(event, request) {
 }const _fetch = ${navigationPreload ? "fetchWithPreload" : "_fetchWithConditional"};
 
 async function cacheFirst(event, request) {
+  swLog("cacheFirst", "ENTER", request.url);
   const cached = await serveFromCache(event, request);
   if (cached) {${staleVersionCode}
+    swLog("cacheFirst", "cache HIT", request.url);
     return markFromCache(cached);
   }
-
+  swLog("cacheFirst", "cache MISS, fetching", request.url);
   const response = await _fetch(event, request);
   if (response && response.ok) {
     const responseToCache = response.clone();
@@ -1018,31 +1091,37 @@ async function cacheFirst(event, request) {
 }
 
 async function networkFirst(event, request) {
+  swLog("networkFirst", "ENTER", request.url);
   try {
     const reqForCache = request.clone();
     const response = await _fetch(event, request);
+    swLog("networkFirst", "fetch done status=" + response.status, request.url);
     if (response.ok) {
       const responseToCache = response.clone();
       event.waitUntil(cacheResponse(reqForCache, responseToCache));
     }
     return response;
   } catch {
+    swLog("networkFirst", "CATCH, trying cache", request.url);
     const cached = await serveFromCache(event, request);
     if (cached) {
+      swLog("networkFirst", "cache HIT", request.url);
       return markFromCache(cached);
     }
-
+    swLog("networkFirst", "cache MISS -> ultimate fallback", request.url);
     throw new Error("Network request failed and no cached response available");
   }
 }
 
 async function staleWhileRevalidate(event, request) {
+  swLog("staleWhileRevalidate", "ENTER", request.url);
   const cached = await serveFromCache(event, request);
   if (cached) {
+    swLog("staleWhileRevalidate", "cache HIT, queueing refresh", request.url);
     event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
     return markFromCache(cached);
   }
-
+  swLog("staleWhileRevalidate", "cache MISS, fetching", request.url);
   const reqForCache = request.clone();
   const response = await _fetch(event, request);
   if (response.ok) {
@@ -1053,16 +1132,18 @@ async function staleWhileRevalidate(event, request) {
 }
 
 async function reactiveStrategy(event, request, staleTime) {
+  swLog("reactiveStrategy", "ENTER staleTime=" + staleTime, request.url);
   const headerStale = request.headers.get("X-SW-Stale-Time");
   const effectiveStaleTime = headerStale !== null ? Number(headerStale) : staleTime;
   const cached = await serveFromCache(event, request);
   if (cached) {${staleVersionCode}
     if (shouldReactiveRefresh(cached, { staleTime: effectiveStaleTime })) {
+      swLog("reactiveStrategy", "stale, queueing refresh", request.url);
       event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
     }
     return markFromCache(cached);
   }
-
+  swLog("reactiveStrategy", "cache MISS, fetching", request.url);
   const reqForCache = request.clone();
   const response = await _fetch(event, request);
   if (response.ok) {
@@ -1073,15 +1154,17 @@ async function reactiveStrategy(event, request, staleTime) {
 }
 
 async function cacheOnly(event, request) {
+  swLog("cacheOnly", "ENTER", request.url);
   const cached = await serveFromCache(event, request);
   if (cached) {${staleVersionCode}
     return markFromCache(cached);
   }
-
+  swLog("cacheOnly", "MISS -> 404", request.url);
   return new Response("Not in cache", { status: 404 });
 }
 
 async function networkOnly(event, request) {
+  swLog("networkOnly", "ENTER", request.url);
   return _fetch(event, request);
 }`;
 }

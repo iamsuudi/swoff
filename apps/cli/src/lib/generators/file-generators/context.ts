@@ -14,6 +14,7 @@ export interface GeneratorContext {
   ext: string;
   generatedFiles: string[];
   frameworkName: string;
+  debug?: boolean;
 }
 
 export function ensureDir(dir: string): void {

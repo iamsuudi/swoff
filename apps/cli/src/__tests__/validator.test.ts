@@ -220,50 +220,6 @@ describe("validateConfig", () => {
       };
       expect(validateConfig(config)).toEqual([]);
     });
-
-    it("rejects retry non-object", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", retry: "yes" } } },
-      };
-      const errors = validateConfig(config as unknown as Record<string, unknown>);
-      expect(errors[0]).toContain("retry must be an object");
-    });
-
-    it("validates retry.enabled is boolean", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", retry: { enabled: "yes" } } } },
-      };
-      const errors = validateConfig(config as unknown as Record<string, unknown>);
-      expect(errors[0]).toContain("retry.enabled must be a boolean");
-    });
-
-    it("validates retry.intervalMs is a non-negative integer", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", retry: { enabled: true, intervalMs: -100 } } } },
-      };
-      const errors = validateConfig(config as unknown as Record<string, unknown>);
-      expect(errors[0]).toContain("retry.intervalMs must be a non-negative integer");
-    });
-
-    it("validates retry.maxRetries is a non-negative integer", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", retry: { enabled: true, maxRetries: -1 } } } },
-      };
-      const errors = validateConfig(config as unknown as Record<string, unknown>);
-      expect(errors[0]).toContain("retry.maxRetries must be a non-negative integer");
-    });
-
-    it("accepts valid retry config", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", retry: { enabled: true, intervalMs: 3000, maxRetries: 5 } } } },
-      };
-      expect(validateConfig(config)).toEqual([]);
-    });
   });
 
   describe("version validation", () => {
@@ -382,13 +338,13 @@ describe("validateConfig", () => {
       expect(errors).toContain("features.mutationQueue.batchSize must be a positive integer");
     });
 
-    it("validates mutationQueue.maxRetries must be a positive integer", () => {
+    it("validates mutationQueue.retry.maxRetries must be a non-negative integer", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, mutationQueue: { enabled: true, maxRetries: -1 } },
+        features: { ...validConfig.features, mutationQueue: { enabled: true, retry: { maxRetries: -1 } } },
       };
-      const errors = validateConfig(config);
-      expect(errors).toContain("features.mutationQueue.maxRetries must be a positive integer");
+      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      expect(errors[0]).toContain("mutationQueue.retry.maxRetries must be a non-negative integer");
     });
 
     it("validates auth.enabled is boolean", () => {

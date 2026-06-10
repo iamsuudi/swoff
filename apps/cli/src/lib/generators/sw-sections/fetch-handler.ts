@@ -7,6 +7,7 @@ export function generateFetchHandler(
         | string
         | {
             strategy: string;
+            timeout?: number;
             staleTime?: number;
             refetchInterval?: number;
             refetchOnReconnect?: boolean;
@@ -32,10 +33,12 @@ export function generateFetchHandler(
       rules?: Array<{ match: string; fallback?: string }>;
     };
     refetchQueue: {
-      batchSize?: number;
-      batchDelayMs?: number;
-      maxRetries?: number;
-      retryDelayMs?: number;
+      retry: {
+        maxRetries: number;
+        backoffMs: number;
+        maxBackoffMs: number;
+        jitterMs: number;
+      };
     };
   },
   tagInvalidation: boolean,
@@ -60,6 +63,7 @@ export function generateFetchHandler(
 
   const debugMode = debug === true;
   const globalStaleTime = swConfig.strategy.reactive?.defaults?.staleTime;
+  const refetchRetry = swConfig.refetchQueue.retry;
 
   const hasRules = navRules.length > 0;
   const navModeCode = navMode === "ssr" ? '"ssr"' : navMode === "spa" ? '"spa"' : '"default"';
@@ -166,6 +170,8 @@ function matchRouteFallback(url) {
   }`
     : "";
 
+  const refetchRetryCode = JSON.stringify(refetchRetry);
+
   return `// --- Mode & Strategy Configuration ---
 
 const NAV_MODE = ${navModeCode};
@@ -174,6 +180,7 @@ const DEFAULT_STRATEGY = "${defaultStrategy}";
 const CUSTOM_STRATEGIES = ${JSON.stringify(strategies)};
 const REACTIVE_STALE_DEFAULT = ${globalStaleTime != null ? globalStaleTime : 0};
 const FETCH_TIMEOUT_MS = ${fetchTimeout * 1000};
+const REFETCH_RETRY = ${refetchRetryCode};
 const SW_DEBUG = ${debugMode};
 
 ${navRulesCode}// --- Debug Logging ---
@@ -384,10 +391,39 @@ function isStale(response, staleTimeSeconds) {
   return Date.now() - Number(cachedAt) > staleTimeSeconds * 1000;
 }
 
+// --- Backoff, Sleep & Retry Helpers ---
+
+function backoffDelay(attempt, config) {
+  const delay = Math.min(config.backoffMs * Math.pow(2, attempt), config.maxBackoffMs);
+  return delay + (config.jitterMs > 0 ? Math.random() * config.jitterMs : 0);
+}
+
+function sleep(ms) {
+  return new Promise(function(resolve) { setTimeout(resolve, ms); });
+}
+
+async function fetchWithRetry(request, retryConfig) {
+  if (!retryConfig) return fetch(request);
+  for (var attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
+    try {
+      var controller = new AbortController();
+      var id = setTimeout(function() { controller.abort(); }, FETCH_TIMEOUT_MS);
+      var response = await fetch(request, { signal: controller.signal });
+      clearTimeout(id);
+      if (response.ok) return response;
+    } catch {}
+    if (attempt < retryConfig.maxRetries) {
+      await sleep(backoffDelay(attempt, retryConfig));
+    }
+  }
+  return null;
+}
+
 // --- Fetch Helpers ---
 
-async function _fetchWithConditional(request) {
-  swLog("_fetchWithConditional", "ENTER timeout=" + FETCH_TIMEOUT_MS, request.url);
+async function _fetchWithConditional(request, timeoutMs) {
+  timeoutMs = timeoutMs || FETCH_TIMEOUT_MS;
+  swLog("_fetchWithConditional", "ENTER timeout=" + timeoutMs, request.url);
   let cached;
   if (!(isNavRequest(request) && NAV_MODE === "spa")) {
     const cache = await caches.open(CACHE_NAME_RUNTIME);
@@ -405,7 +441,7 @@ async function _fetchWithConditional(request) {
   }
   try {
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const id = setTimeout(() => controller.abort(), timeoutMs);
     const response = await fetch(request, { signal: controller.signal });
     clearTimeout(id);
     if (response.status === 304 && cached) {
@@ -433,12 +469,12 @@ async function _fetchWithConditional(request) {
 ${
   navigationPreload
     ? `
-async function fetchWithPreload(event, request) {
+async function fetchWithPreload(event, request, timeoutMs) {
   try {
     const preload = await event.preloadResponse;
     if (preload) return preload;
   } catch {}
-  return _fetchWithConditional(request);
+  return _fetchWithConditional(request, timeoutMs);
 }
 `
     : ""
@@ -448,23 +484,88 @@ async function fetchWithPreload(event, request) {
 
 function determineCacheStrategy(request) {
   const override = request.headers.get("X-SW-Strategy");
-  if (override) return { strategy: override };
+  if (override) return { strategy: override, timeoutMs: FETCH_TIMEOUT_MS };
 
   const path = new URL(request.url).pathname;
   for (const [pattern, entry] of Object.entries(CUSTOM_STRATEGIES)) {
     if (matchGlob(path, pattern)) {
       const resolved = typeof entry === "string" ? { strategy: entry } : entry;
+      const timeoutMs = (resolved.timeout != null ? resolved.timeout * 1000 : FETCH_TIMEOUT_MS);
       if (resolved.strategy === "reactive") {
-        return { strategy: "reactive", staleTime: resolved.staleTime ?? REACTIVE_STALE_DEFAULT };
+        return {
+          strategy: "reactive",
+          timeoutMs: timeoutMs,
+          staleTime: resolved.staleTime ?? REACTIVE_STALE_DEFAULT,
+          refetchInterval: resolved.refetchInterval ?? 0,
+          refetchOnFocus: resolved.refetchOnFocus ?? false,
+          refetchOnReconnect: resolved.refetchOnReconnect ?? false,
+        };
       }
-      return { strategy: resolved.strategy };
+      return { strategy: resolved.strategy, timeoutMs: timeoutMs };
     }
   }
 
   if (DEFAULT_STRATEGY === "reactive") {
-    return { strategy: "reactive", staleTime: REACTIVE_STALE_DEFAULT };
+    return {
+      strategy: "reactive",
+      timeoutMs: FETCH_TIMEOUT_MS,
+      staleTime: REACTIVE_STALE_DEFAULT,
+      refetchInterval: 0,
+      refetchOnFocus: false,
+      refetchOnReconnect: false,
+    };
   }
-  return { strategy: DEFAULT_STRATEGY };
+  return { strategy: DEFAULT_STRATEGY, timeoutMs: FETCH_TIMEOUT_MS };
+}
+
+// --- Reactive Entry Store ---
+
+var REACTIVE_ENTRIES = new Map();
+var REACTIVE_INTERVALS = new Map();
+
+function registerReactiveEntry(url, config) {
+  if (REACTIVE_ENTRIES.has(url)) return;
+  REACTIVE_ENTRIES.set(url, {
+    refetchOnFocus: !!config.refetchOnFocus,
+    refetchOnReconnect: !!config.refetchOnReconnect,
+    refetchInterval: config.refetchInterval || 0,
+    staleTime: config.staleTime || 0,
+    lastRefetch: 0,
+  });
+  if ((config.refetchInterval || 0) > 0 && !REACTIVE_INTERVALS.has(url)) {
+    var id = setInterval(function() { refetchEntry(url); }, (config.refetchInterval || 0) * 1000);
+    REACTIVE_INTERVALS.set(url, id);
+  }
+}
+
+async function refetchEntry(url) {
+  var entry = REACTIVE_ENTRIES.get(url);
+  if (!entry) return;
+  var req = new Request(url);
+  var cached = await serveFromCache(req);
+  if (cached && !isStale(cached, entry.staleTime)) {
+    entry.lastRefetch = Date.now();
+    return;
+  }
+  try {
+    var response = await fetchWithRetry(req, REFETCH_RETRY);
+    if (response && response.ok) {
+      await cacheResponse(response.clone(), req);
+      entry.lastRefetch = Date.now();
+    }
+  } catch {}
+}
+
+function handleFocusRefetch() {
+  REACTIVE_ENTRIES.forEach(function(config, url) {
+    if (config.refetchOnFocus) refetchEntry(url);
+  });
+}
+
+function handleOnlineRefetch() {
+  REACTIVE_ENTRIES.forEach(function(config, url) {
+    if (config.refetchOnReconnect) refetchEntry(url);
+  });
 }
 
 // --- Strategies ---
@@ -478,12 +579,13 @@ function determineCacheStrategy(request) {
  * Cache-Only: cache only → 404
  */
 
-async function reactiveStrategy(event, request, staleTime) {
+async function reactiveStrategy(event, request, config) {
+  const staleTime = config.staleTime != null ? config.staleTime : REACTIVE_STALE_DEFAULT;
   const cached = await serveFromCache(request);
   if (cached && !isStale(cached, staleTime)) return markFromCache(cached);
 
   try {
-    const response = await _fetch(event, request);
+    const response = await _fetch(event, request, config.timeoutMs);
     if (response.ok) {
       event.waitUntil(cacheResponse(response.clone(), request));
       return response;
@@ -494,9 +596,9 @@ async function reactiveStrategy(event, request, staleTime) {
   }
 }
 
-async function networkOnlyStrategy(event, request) {
+async function networkOnlyStrategy(event, request, config) {
   try {
-    const response = await _fetch(event, request);
+    const response = await _fetch(event, request, config.timeoutMs);
     if (response.ok) {
       event.waitUntil(cacheResponse(response.clone(), request));
       return response;
@@ -507,9 +609,9 @@ async function networkOnlyStrategy(event, request) {
   }
 }
 
-async function networkFirstStrategy(event, request) {
+async function networkFirstStrategy(event, request, config) {
   try {
-    const response = await _fetch(event, request);
+    const response = await _fetch(event, request, config.timeoutMs);
     if (response.ok) {
       event.waitUntil(cacheResponse(response.clone(), request));
       return response;
@@ -524,12 +626,12 @@ async function networkFirstStrategy(event, request) {
   }
 }
 
-async function cacheFirstStrategy(event, request) {
+async function cacheFirstStrategy(event, request, config) {
   const cached = await serveFromCache(request);
   if (cached) return markFromCache(cached);
 
   try {
-    const response = await _fetch(event, request);
+    const response = await _fetch(event, request, config.timeoutMs);
     if (response.ok) {
       event.waitUntil(cacheResponse(response.clone(), request));
       return response;
@@ -540,27 +642,27 @@ async function cacheFirstStrategy(event, request) {
   }
 }
 
-async function staleWhileRevalidateStrategy(event, request) {
+async function staleWhileRevalidateStrategy(event, request, config) {
   const cached = await serveFromCache(request);
 
   event.waitUntil(
-    (async () => {
+    (async function() {
       try {
-        const response = await _fetch(event, request);
-        if (response.ok) await cacheResponse(response.clone(), request);
+        var response = await fetchWithRetry(request, REFETCH_RETRY);
+        if (response && response.ok) await cacheResponse(response.clone(), request);
       } catch {}
     })(),
   );
 
   if (cached) return markFromCache(cached);
   try {
-    return await _fetch(event, request);
+    return await _fetch(event, request, config.timeoutMs);
   } catch {
     return fallback(request);
   }
 }
 
-async function cacheOnlyStrategy(event, request) {
+async function cacheOnlyStrategy(event, request, _config) {
   const cached = await serveFromCache(request);
   if (cached) return markFromCache(cached);
   return new Response("Not in cache", { status: 404 });
@@ -697,6 +799,9 @@ async function handleMutation(event) {
   }
   const cfg = determineCacheStrategy(request);
   swLog("fetch", "strategy=" + cfg.strategy, request.url);
+  if (cfg.strategy === "reactive") {
+    registerReactiveEntry(cacheKey(request), cfg);
+  }
   applyStrategy(event, request, cfg);
 });`;
 }

@@ -28,11 +28,7 @@ describe("config-types", () => {
         "",
       );
       expect(defaultConfig.features.serviceWorker.navigation.rules).toEqual([]);
-      expect(defaultConfig.features.serviceWorker.navigation.retry).toEqual({
-        enabled: false,
-        intervalMs: 5000,
-        maxRetries: 12,
-      });
+      expect(defaultConfig.features.serviceWorker.navigation.mode).toBe("spa");
       expect(defaultConfig.features.serviceWorker.version).toBe("package");
       expect(defaultConfig.build.outputDir).toBe("dist");
       expect(defaultConfig.build.swFilename).toBe("sw");
@@ -92,10 +88,10 @@ describe("config-types", () => {
     });
 
     it("has refetchQueue defaults", () => {
-      expect(defaultConfig.features.refetchQueue.batchSize).toBe(5);
-      expect(defaultConfig.features.refetchQueue.batchDelayMs).toBe(1000);
-      expect(defaultConfig.features.refetchQueue.maxRetries).toBe(3);
-      expect(defaultConfig.features.refetchQueue.retryDelayMs).toBe(1000);
+      expect(defaultConfig.features.refetchQueue.retry.maxRetries).toBe(3);
+      expect(defaultConfig.features.refetchQueue.retry.backoffMs).toBe(1000);
+      expect(defaultConfig.features.refetchQueue.retry.maxBackoffMs).toBe(10000);
+      expect(defaultConfig.features.refetchQueue.retry.jitterMs).toBe(100);
     });
 
     it("has tagInvalidation with debounceMs", () => {

@@ -174,36 +174,31 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         }
         const retry = navigation.retry as Record<string, unknown> | undefined;
         if (retry !== undefined) {
-          if (typeof retry !== "object") {
-            errors.push("features.serviceWorker.navigation.retry must be an object");
-          } else {
-            if (retry.enabled !== undefined && typeof retry.enabled !== "boolean") {
-              errors.push("features.serviceWorker.navigation.retry.enabled must be a boolean");
-            }
-            if (retry.intervalMs !== undefined && (typeof retry.intervalMs !== "number" || retry.intervalMs < 0 || !Number.isInteger(retry.intervalMs))) {
-              errors.push("features.serviceWorker.navigation.retry.intervalMs must be a non-negative integer");
-            }
-            if (retry.maxRetries !== undefined && (typeof retry.maxRetries !== "number" || retry.maxRetries < 0 || !Number.isInteger(retry.maxRetries))) {
-              errors.push("features.serviceWorker.navigation.retry.maxRetries must be a non-negative integer");
-            }
-          }
+          // navigation.retry is deprecated and ignored
         }
       }
     }
 
     const refetchQueue = features.refetchQueue as Record<string, unknown> | undefined;
     if (refetchQueue && typeof refetchQueue === "object") {
-      if (refetchQueue.batchSize !== undefined && (typeof refetchQueue.batchSize !== "number" || refetchQueue.batchSize < 1 || !Number.isInteger(refetchQueue.batchSize))) {
-        errors.push("features.refetchQueue.batchSize must be a positive integer");
-      }
-      if (refetchQueue.batchDelayMs !== undefined && (typeof refetchQueue.batchDelayMs !== "number" || refetchQueue.batchDelayMs < 0 || !Number.isInteger(refetchQueue.batchDelayMs))) {
-        errors.push("features.refetchQueue.batchDelayMs must be a non-negative integer");
-      }
-      if (refetchQueue.maxRetries !== undefined && (typeof refetchQueue.maxRetries !== "number" || refetchQueue.maxRetries < 0 || !Number.isInteger(refetchQueue.maxRetries))) {
-        errors.push("features.refetchQueue.maxRetries must be a non-negative integer");
-      }
-      if (refetchQueue.retryDelayMs !== undefined && (typeof refetchQueue.retryDelayMs !== "number" || refetchQueue.retryDelayMs < 0 || !Number.isInteger(refetchQueue.retryDelayMs))) {
-        errors.push("features.refetchQueue.retryDelayMs must be a non-negative integer");
+      const retry = refetchQueue.retry as Record<string, unknown> | undefined;
+      if (retry !== undefined) {
+        if (typeof retry !== "object" || retry === null) {
+          errors.push("features.refetchQueue.retry must be an object");
+        } else {
+          if (retry.maxRetries !== undefined && (typeof retry.maxRetries !== "number" || retry.maxRetries < 0 || !Number.isInteger(retry.maxRetries))) {
+            errors.push("features.refetchQueue.retry.maxRetries must be a non-negative integer");
+          }
+          if (retry.backoffMs !== undefined && (typeof retry.backoffMs !== "number" || retry.backoffMs < 0 || !Number.isInteger(retry.backoffMs))) {
+            errors.push("features.refetchQueue.retry.backoffMs must be a non-negative integer");
+          }
+          if (retry.maxBackoffMs !== undefined && (typeof retry.maxBackoffMs !== "number" || retry.maxBackoffMs < 0 || !Number.isInteger(retry.maxBackoffMs))) {
+            errors.push("features.refetchQueue.retry.maxBackoffMs must be a non-negative integer");
+          }
+          if (retry.jitterMs !== undefined && (typeof retry.jitterMs !== "number" || retry.jitterMs < 0 || !Number.isInteger(retry.jitterMs))) {
+            errors.push("features.refetchQueue.retry.jitterMs must be a non-negative integer");
+          }
+        }
       }
     }
 
@@ -242,11 +237,24 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       if (mq.batchDelayMs !== undefined && (typeof mq.batchDelayMs !== "number" || mq.batchDelayMs < 0 || !Number.isInteger(mq.batchDelayMs))) {
         errors.push("features.mutationQueue.batchDelayMs must be a non-negative integer");
       }
-      if (mq.maxRetries !== undefined && (typeof mq.maxRetries !== "number" || mq.maxRetries < 1 || !Number.isInteger(mq.maxRetries))) {
-        errors.push("features.mutationQueue.maxRetries must be a positive integer");
-      }
-      if (mq.retryBackoffMs !== undefined && (typeof mq.retryBackoffMs !== "number" || mq.retryBackoffMs < 0 || !Number.isInteger(mq.retryBackoffMs))) {
-        errors.push("features.mutationQueue.retryBackoffMs must be a non-negative integer");
+      const mqRetry = mq.retry as Record<string, unknown> | undefined;
+      if (mqRetry !== undefined) {
+        if (typeof mqRetry !== "object" || mqRetry === null) {
+          errors.push("features.mutationQueue.retry must be an object");
+        } else {
+          if (mqRetry.maxRetries !== undefined && (typeof mqRetry.maxRetries !== "number" || mqRetry.maxRetries < 0 || !Number.isInteger(mqRetry.maxRetries))) {
+            errors.push("features.mutationQueue.retry.maxRetries must be a non-negative integer");
+          }
+          if (mqRetry.backoffMs !== undefined && (typeof mqRetry.backoffMs !== "number" || mqRetry.backoffMs < 0 || !Number.isInteger(mqRetry.backoffMs))) {
+            errors.push("features.mutationQueue.retry.backoffMs must be a non-negative integer");
+          }
+          if (mqRetry.maxBackoffMs !== undefined && (typeof mqRetry.maxBackoffMs !== "number" || mqRetry.maxBackoffMs < 0 || !Number.isInteger(mqRetry.maxBackoffMs))) {
+            errors.push("features.mutationQueue.retry.maxBackoffMs must be a non-negative integer");
+          }
+          if (mqRetry.jitterMs !== undefined && (typeof mqRetry.jitterMs !== "number" || mqRetry.jitterMs < 0 || !Number.isInteger(mqRetry.jitterMs))) {
+            errors.push("features.mutationQueue.retry.jitterMs must be a non-negative integer");
+          }
+        }
       }
       if (mq.backgroundSync !== undefined && typeof mq.backgroundSync !== "boolean") {
         errors.push("features.mutationQueue.backgroundSync must be a boolean");

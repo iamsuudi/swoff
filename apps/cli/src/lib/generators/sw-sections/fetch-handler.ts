@@ -283,51 +283,49 @@ async function serveFromCache(request) {
 
 // --- Cache Store ---
 
-async function storeRuntime(key, response) {
-  const ct = response.headers.get("Content-Type") || "";
-  const cacheName = ct.startsWith("text/html") ? CACHE_NAME_RUNTIME_HTML : CACHE_NAME_RUNTIME;
-  const cache = await caches.open(cacheName);
-  const headers = new Headers(response.headers);
-  headers.set("X-SW-Cached-At", String(Date.now()));
-  await cache.put(key, new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  }));
-}
-
 /*
  * cacheResponse stores a network response in the appropriate cache.
  *
- * Content-type rules:
- *   text/html         → runtime-html cache
- *   js / css / images → runtime cache (or precache if same content-type)
- *   SPA navigations   → never cached
+ * If already in precache:
+ *   - non-HTML with same content-type → update precache entry
+ *   - otherwise → skip (no runtime duplicate)
+ * If not in precache:
+ *   - HTML → runtime-html cache
+ *   - non-HTML → runtime cache
  *
- * If the response already exists in precache and the content-type matches,
- * the precache entry is updated instead of creating a runtime duplicate.
+ * Tags are recorded in all cases.
  */
 async function cacheResponse(response, request) {
-  if (isNavRequest(request) && NAV_MODE === "spa") return;
   const key = cacheKey(request);
   const ct = response.headers.get("Content-Type") || "";
 
-  if (!ct.startsWith("text/html")) {
-    const precache = await caches.open(CACHE_NAME);
-    const url = new URL(key);
-    url.search = "";
-    const precached = await precache.match(url.href);
-    if (precached) {
+  var skipRuntime = false;
+  const precache = await caches.open(CACHE_NAME);
+  const url = new URL(key);
+  url.search = "";
+  const precached = await precache.match(url.href);
+
+  if (precached) {
+    if (!ct.startsWith("text/html")) {
       const pct = precached.headers.get("Content-Type") || "";
       if (pct.split(";")[0] === ct.split(";")[0]) {
         await precache.put(url.href, response.clone());
-        return;
       }
-      return;
     }
+    skipRuntime = true;
   }
 
-  await storeRuntime(key, response);${tagCode}
+  if (!skipRuntime) {
+    const cacheName = ct.startsWith("text/html") ? CACHE_NAME_RUNTIME_HTML : CACHE_NAME_RUNTIME;
+    const cache = await caches.open(cacheName);
+    const headers = new Headers(response.headers);
+    headers.set("X-SW-Cached-At", String(Date.now()));
+    await cache.put(key, new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    }));
+  }${tagCode}
 }
 
 // --- Fallback ---
@@ -432,48 +430,15 @@ async function fetchWithRetry(request, retryConfig) {
 
 // --- Fetch Helpers ---
 
-async function _fetchWithConditional(request, timeoutMs) {
+async function _fetchWithTimeout(_, request, timeoutMs) {
   timeoutMs = timeoutMs || FETCH_TIMEOUT_MS;
-  swLog("_fetchWithConditional", "ENTER timeout=" + timeoutMs, request.url);
-  let cached;
-  if (!(isNavRequest(request) && NAV_MODE === "spa")) {
-    const cache = await caches.open(CACHE_NAME_RUNTIME);
-    cached = await cache.match(cacheKey(request));
-    if (!cached && isNavRequest(request)) {
-      const htmlCache = await caches.open(CACHE_NAME_RUNTIME_HTML);
-      cached = await htmlCache.match(cacheKey(request));
-    }
-  }
-  const etag = cached?.headers.get("ETag");
-  if (etag) {
-    request = new Request(request, {
-      headers: Object.assign(Object.fromEntries(request.headers.entries()), { "If-None-Match": etag }),
-    });
-  }
+  swLog("_fetchWithTimeout", "ENTER timeout=" + timeoutMs, request.url);
+  const controller = new AbortController();
+  const id = setTimeout(function() { controller.abort(); }, timeoutMs);
   try {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeoutMs);
-    const response = await fetch(request, { signal: controller.signal });
+    return await fetch(request, { signal: controller.signal });
+  } finally {
     clearTimeout(id);
-    if (response.status === 304 && cached) {
-      const headers = new Headers(cached.headers);
-      headers.set("X-SW-Cached-At", String(Date.now()));
-      return new Response(cached.clone().body, {
-        status: 200,
-        statusText: cached.statusText,
-        headers,
-      });
-    }
-    return response;
-  } catch {
-    const clients = await self.clients.matchAll();
-    for (const client of clients) {
-      client.postMessage({
-        type: "SW_NOTIFICATION", level: "error", code: "FETCH_FAILED",
-        message: "Network request failed: " + request.url,
-      });
-    }
-    throw new Error("Network request failed: " + request.url);
   }
 }
 
@@ -490,11 +455,11 @@ async function fetchWithPreload(event, request, timeoutMs) {
     ]);
     if (preload) return preload;
   } catch {}
-  return _fetchWithConditional(request, timeoutMs);
+  return _fetchWithTimeout(_, request, timeoutMs);
 }
 `
     : ""
-}const _fetch = ${navigationPreload ? "fetchWithPreload" : "_fetchWithConditional"};
+}const _fetch = ${navigationPreload ? "fetchWithPreload" : "_fetchWithTimeout"};
 
 // --- Strategy Resolution ---
 

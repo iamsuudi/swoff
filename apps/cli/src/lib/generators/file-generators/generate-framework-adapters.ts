@@ -46,6 +46,8 @@ const ADAPTERS: AdapterDef[] = [
 const BASE_FRAMEWORK: Record<string, string> = {
   nextjs: "react",
   remix: "react",
+  "react-spa": "react",
+  "tanstack-start-react": "react",
   astro: "react",
 };
 

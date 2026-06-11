@@ -53,7 +53,7 @@ describe("initCommand", () => {
     writeFileSync(join(testDir, "package.json"), JSON.stringify({ dependencies: { react: "^18.0.0" } }));
     await initCommand(testDir);
     const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
-    expect(config.framework).toBe("react");
+    expect(config.framework).toBe("react-spa");
   });
 
   it("accepts explicit framework argument", async () => {

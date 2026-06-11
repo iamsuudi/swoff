@@ -74,7 +74,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     { name: "graphql/index", gen: () => generateGqlWrapper(ctx), enabled: ctx.config.features.graphql.enabled },
     { name: "realtime/notifications", gen: () => generatePush(ctx), enabled: ctx.config.features.realtime.pushNotifications },
     { name: "realtime/server-push", gen: () => generateServerPush(ctx), enabled: ctx.config.features.realtime.serverPush.enabled },
-    { name: "framework-adapters", gen: () => generateFrameworkAdapters(ctx), enabled: ["react", "nextjs", "remix", "astro"].includes(ctx.frameworkName) },
+    { name: "framework-adapters", gen: () => generateFrameworkAdapters(ctx), enabled: ["react-spa", "nextjs", "remix", "tanstack-start-react", "astro"].includes(ctx.frameworkName) },
     { name: "storage-notify", gen: () => generateStorageNotify(ctx), enabled: ctx.config.features.realtime.pushNotifications },
     { name: "GUIDE.md", gen: () => generateGuide(ctx), enabled: true },
   ];

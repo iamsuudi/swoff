@@ -21,7 +21,8 @@ export function generateBackgroundSyncCode(config: SwoffConfig): string {
   const { features } = config;
   const authType = features.auth.enabled ? features.auth.type : undefined;
   const mq = features.mutationQueue;
-  return `\n\n${generateBackgroundSyncHandler(authType, mq.batchSize, mq.batchDelayMs, mq.retry, true)}`;
+  const maxCacheAge = features.serviceWorker.strategy.maxRuntimeCacheAge;
+  return `\n\n${generateBackgroundSyncHandler(authType, mq.batchSize, mq.batchDelayMs, mq.retry, true, maxCacheAge)}`;
 }
 
 /**
@@ -43,6 +44,7 @@ export function applySwSections(
   const { serviceWorker } = features;
   const { strategy, navigation } = serviceWorker;
   const { refetchQueue } = features;
+  const maxCacheAge = strategy.maxRuntimeCacheAge;
 
   code = code.replace(
     "// [[FETCH_HANDLER]]",
@@ -51,12 +53,12 @@ export function applySwSections(
 
   code = code.replace(
     "// [[ACTIVATE_HANDLER]]",
-    generateActivateHandler(strategy.clearRuntimeOnUpdate, navigation.preload, strategy.maxRuntimeCacheAge),
+    generateActivateHandler(strategy.clearRuntimeOnUpdate, navigation.preload, maxCacheAge),
   );
 
   code = code.replace("// [[INSTALL_HANDLER]]", generateInstallHandler());
   code = code.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(true, features.tagInvalidation.debounceMs ?? 0));
-  code = code.replace("// [[TAG_MANAGEMENT]]", generateTagManagement());
+  code = code.replace("// [[TAG_MANAGEMENT]]", generateTagManagement(maxCacheAge));
 
   const endpoint = useApiBasePlaceholder
     ? "SWOFF_API_BASE" + (features.realtime.serverPush?.endpoint ?? "")

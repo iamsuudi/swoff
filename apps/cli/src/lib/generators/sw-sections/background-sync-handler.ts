@@ -4,6 +4,7 @@ export function generateBackgroundSyncHandler(
   batchDelayMs: number,
   retryConfig: { maxRetries: number; backoffMs: number; maxBackoffMs: number; jitterMs: number },
   tagInvalidationEnabled: boolean,
+  maxAge?: number,
 ): string {
   const DB_NAME = "swoff-queue";
   const STORE_NAME = "mutations";
@@ -49,22 +50,32 @@ async function processMutationQueueInSW() {
   let db;
 
   try {
-    db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open("${DB_NAME}", SW_DB_VERSION);
-      request.onupgradeneeded = (e) => {
-        const idb = e.target.result;
-        if (!idb.objectStoreNames.contains("${STORE_NAME}")) {
-          const store = idb.createObjectStore("${STORE_NAME}", { keyPath: "id" });
-          store.createIndex("by-timestamp", "timestamp");
-        }
-      };
-      request.onsuccess = (e) => resolve(e.target.result);
-      request.onerror = (e) => reject(e.target.error);
+    db = await openDB("${DB_NAME}", SW_DB_VERSION, function(db) {
+      if (!db.objectStoreNames.contains("${STORE_NAME}")) {
+        const store = db.createObjectStore("${STORE_NAME}", { keyPath: "id" });
+        store.createIndex("by-timestamp", "timestamp");
+      }
     });
 
-    const tx = db.transaction("${STORE_NAME}", "readonly");
+    const tx = db.transaction("${STORE_NAME}", "readwrite");
     const store = tx.objectStore("${STORE_NAME}");
-    const index = store.index("by-timestamp");
+    const index = store.index("by-timestamp");${
+      maxAge && maxAge > 0
+        ? `
+    // Prune entries past max age
+    const cutoff = Date.now() - MAX_RUNTIME_CACHE_AGE * 1000;
+    const allEntries = await new Promise(function(resolve, reject) {
+      var req = index.getAll();
+      req.onsuccess = function() { resolve(req.result); };
+      req.onerror = function() { reject(req.error); };
+    });
+    for (const item of allEntries) {
+      if (item.retryCount >= SW_MAX_RETRIES || (item.timestamp && item.timestamp < cutoff)) {
+        store.delete(item.id);
+      }
+    }`
+        : ""
+    }
     const queue = await new Promise((resolve, reject) => {
       const request = index.getAll();
       request.onsuccess = () => resolve(request.result);
@@ -75,7 +86,7 @@ async function processMutationQueueInSW() {
     const now = Date.now();
     for (const item of queue) {
       if (item.retryCount >= SW_MAX_RETRIES) {
-        await removeFromSWQueue(db, item.id);
+        store.delete(item.id);
         failed++;
       }
     }
@@ -84,6 +95,10 @@ async function processMutationQueueInSW() {
       return !item.nextRetryAt || now >= item.nextRetryAt;
     });
     const total = processable.length;
+
+    // Collect all mutations to update/remove in a single batch at the end
+    const toRemove = [];
+    const toUpdate = [];
 
     for (const item of processable) {
       // Stop processing if browser went offline during sync
@@ -128,12 +143,16 @@ ${credentialsLine}        });
           });
         }
 
-        await removeFromSWQueue(db, item.id);
+        toRemove.push(item.id);
         succeeded++;
       } catch {
         item.retryCount++;
-        item.nextRetryAt = Date.now() + backoffDelay(item.retryCount - 1);
-        await updateInSWQueue(db, item);
+        if (item.retryCount >= SW_MAX_RETRIES) {
+          toRemove.push(item.id);
+        } else {
+          item.nextRetryAt = Date.now() + backoffDelay(item.retryCount - 1);
+          toUpdate.push(item);
+        }
         failed++;
       }
 
@@ -153,6 +172,20 @@ ${credentialsLine}        });
         }
       }
     }
+
+    // Batch all writes in a single transaction
+    const writeTx = db.transaction("${STORE_NAME}", "readwrite");
+    const writeStore = writeTx.objectStore("${STORE_NAME}");
+    for (const id of toRemove) {
+      writeStore.delete(id);
+    }
+    for (const item of toUpdate) {
+      writeStore.put(item);
+    }
+    await new Promise(function(resolve, reject) {
+      writeTx.oncomplete = function() { resolve(); };
+      writeTx.onerror = function() { reject(writeTx.error); };
+    });
   } catch (err) {
     console.error("Background sync failed:", err);
     const syncClients = await self.clients.matchAll();
@@ -175,24 +208,6 @@ ${credentialsLine}        });
       detail: { succeeded, failed, tags: [...tagsToInvalidate] },
     });
   }
-}
-
-async function removeFromSWQueue(db, id) {
-  const tx = db.transaction("${STORE_NAME}", "readwrite");
-  tx.objectStore("${STORE_NAME}").delete(id);
-  await new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function updateInSWQueue(db, item) {
-  const tx = db.transaction("${STORE_NAME}", "readwrite");
-  tx.objectStore("${STORE_NAME}").put(item);
-  await new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
 }
 `;
 }

@@ -14,6 +14,19 @@ let ASSETS_TO_CACHE = [];
 const CACHE_NAME_RUNTIME = "swoff-runtime";
 const CACHE_NAME_RUNTIME_HTML = "swoff-runtime-html";
 
+// --- Shared IndexedDB Utility ---
+
+function openDB(dbName, version, onUpgrade) {
+  return new Promise(function(resolve, reject) {
+    var request = indexedDB.open(dbName, version);
+    request.onupgradeneeded = function(e) {
+      if (onUpgrade) onUpgrade(e.target.result);
+    };
+    request.onsuccess = function(e) { resolve(e.target.result); };
+    request.onerror = function(e) { reject(e.target.error); };
+  });
+}
+
 // [[INSTALL_HANDLER]]
 // [[ACTIVATE_HANDLER]]
 // [[MESSAGE_HANDLER]]

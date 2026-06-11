@@ -1,30 +1,39 @@
-export function generateTagManagement(): string {
+export function generateTagManagement(maxAge?: number): string {
+  const evict = maxAge && maxAge > 0;
+
   return `
 const TAG_DB_NAME = "swoff-cache-tags";
 const TAG_STORE_NAME = "tags";
 // Bump this when adding new indexes/stores for schema migration
 const TAG_DB_VERSION = 1;
 
-function openTagDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(TAG_DB_NAME, TAG_DB_VERSION);
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains(TAG_STORE_NAME)) {
-        const store = db.createObjectStore(TAG_STORE_NAME, { keyPath: "url" });
-        store.createIndex("by-tag", "tags", { multiEntry: true });
-      }
-    };
-    request.onsuccess = (e) => resolve(e.target.result);
-    request.onerror = (e) => reject(e.target.error);
-  });
-}
-
 async function cacheTagUrl(url, actualUrl, tags, method, body, contentType) {
-  const db = await openTagDB();
+  const db = await openDB(TAG_DB_NAME, TAG_DB_VERSION, function(db) {
+    if (!db.objectStoreNames.contains(TAG_STORE_NAME)) {
+      const store = db.createObjectStore(TAG_STORE_NAME, { keyPath: "url" });
+      store.createIndex("by-tag", "tags", { multiEntry: true });
+    }
+  });
   const tx = db.transaction(TAG_STORE_NAME, "readwrite");
-  const store = tx.objectStore(TAG_STORE_NAME);
-  store.put({ url, actualUrl, tags, method: method || "GET", body: body || null, contentType: contentType || null });
+  const store = tx.objectStore(TAG_STORE_NAME);${
+    evict
+      ? `
+  // Prune entries older than MAX_RUNTIME_CACHE_AGE
+  const cutoff = Date.now() - MAX_RUNTIME_CACHE_AGE * 1000;
+  const index = store.index("by-tag");
+  const allEntries = await new Promise(function(resolve, reject) {
+    var req = index.getAll();
+    req.onsuccess = function() { resolve(req.result); };
+    req.onerror = function() { reject(req.error); };
+  });
+  for (const entry of allEntries) {
+    if (entry.timestamp && entry.timestamp < cutoff) {
+      store.delete(entry.url);
+    }
+  }`
+      : ""
+  }
+  store.put({ url, actualUrl, tags, method: method || "GET", body: body || null, contentType: contentType || null, timestamp: Date.now() });
   await new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
@@ -32,7 +41,7 @@ async function cacheTagUrl(url, actualUrl, tags, method, body, contentType) {
 }
 
 async function getUrlsForTag(tag) {
-  const db = await openTagDB();
+  const db = await openDB(TAG_DB_NAME, TAG_DB_VERSION);
   const tx = db.transaction(TAG_STORE_NAME, "readonly");
   const store = tx.objectStore(TAG_STORE_NAME);
   const index = store.index("by-tag");
@@ -46,7 +55,7 @@ async function getUrlsForTag(tag) {
 }
 
 async function getTagsForUrl(url) {
-  const db = await openTagDB();
+  const db = await openDB(TAG_DB_NAME, TAG_DB_VERSION);
   const tx = db.transaction(TAG_STORE_NAME, "readonly");
   const store = tx.objectStore(TAG_STORE_NAME);
   const entry = await new Promise((resolve, reject) => {
@@ -59,7 +68,7 @@ async function getTagsForUrl(url) {
 }
 
 async function invalidateByTag(tag) {
-  const db = await openTagDB();
+  const db = await openDB(TAG_DB_NAME, TAG_DB_VERSION);
   const tx = db.transaction(TAG_STORE_NAME, "readwrite");
   const store = tx.objectStore(TAG_STORE_NAME);
   const index = store.index("by-tag");
@@ -98,7 +107,7 @@ async function invalidateByTag(tag) {
 }
 
 async function invalidateMatching(globPattern) {
-  const db = await openTagDB();
+  const db = await openDB(TAG_DB_NAME, TAG_DB_VERSION);
   const tx = db.transaction(TAG_STORE_NAME, "readonly");
   const store = tx.objectStore(TAG_STORE_NAME);
   const allEntries = await new Promise((resolve, reject) => {

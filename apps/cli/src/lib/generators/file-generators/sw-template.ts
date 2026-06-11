@@ -11,7 +11,6 @@ export function generateSwTemplate(ctx: GeneratorContext): void {
   const { config, debug } = ctx;
 
   let code = getDefaultTemplate();
-  code = `// [[HEADER]]\n\n${code}`;
 
   code = code.replace("// [[CACHE_NAME]]", "// [[CACHE_NAME]]");
   code = code.replace("// [[ASSETS_LIST]]", "// [[ASSETS_LIST]]");

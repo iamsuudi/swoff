@@ -72,6 +72,27 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
       },
     },
   },
+  "react-spa": {
+    features: {
+      serviceWorker: {
+        navigation: {
+          mode: "spa",
+        },
+      },
+    },
+  },
+  "tanstack-start-react": {
+    features: {
+      serviceWorker: {
+        strategy: {
+          default: "network-first",
+        },
+        navigation: {
+          mode: "ssr",
+        },
+      },
+    },
+  },
 };
 
 export async function initCommand(projectRoot: string, framework?: string) {

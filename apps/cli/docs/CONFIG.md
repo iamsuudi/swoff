@@ -7,7 +7,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 ```json
 {
   "$schema": "https://swoff.netlify.app/schema/v1.json",
-  "framework": "react",
+  "framework": "react-spa",
   "build": {
     "outputDir": "dist",
     "swFilename": "sw"
@@ -93,7 +93,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `$schema` | `string` | — | JSON Schema URL (for IDE autocomplete) |
-| `framework` | `"react"` \| `"vue"` \| `"svelte"` \| `"vanilla"` \| `"nextjs"` \| `"remix"` \| `"astro"` \| `"nuxt"` \| `"sveltekit"` | auto-detected | Your UI framework. Meta-frameworks auto-configure navigation mode, strategy defaults, and build paths via `swoff init`. |
+| `framework` | `"react-spa"` \| `"nextjs"` \| `"remix"` \| `"tanstack-start-react"` \| `"astro"` \| `"nuxt"` \| `"sveltekit"` \| `"vue"` \| `"svelte"` \| `"vanilla"` | auto-detected | Your UI framework. Meta-frameworks auto-configure navigation mode, strategy defaults, and build paths via `swoff init`. |
 | `build.outputDir` | `string` | `"dist"` | Build tool output directory |
 | `build.swFilename` | `string` | `"sw"` | Service worker filename prefix (e.g. `sw-v1.2.3.js`) |
 | `build.precacheDirs` | `object` | `{}` | Additional directories to precache. Keys are filesystem paths (relative to project root), values are the URL prefix to serve them under. E.g. `{ "public/assets": "/assets" }` precaches all files from `public/assets/` served at `/assets/*`. When empty, only `outputDir` is scanned. |
@@ -140,22 +140,12 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | `fallback` | `string` | `""` | Global fallback HTML path for offline navigation. For SPA mode, set to `"/index.html"` to serve the SPA shell from precache when offline. For SSR mode, checked after per-route fallback if the runtime HTML cache misses. |
 | `precacheRoutes` | `string[]` | `[]` | Additional routes to fetch + cache during SW install (e.g. `["/", "/about"]`). Useful for SSG or critical pages. |
 | `rules` | `NavigationRule[]` | `[]` | Per-route offline fallback pages (see below). Rules provide the fallback path used when strategy dispatch fails; they do not override the caching strategy. |
-| `retry` | `NavigationRetryConfig` | `{ "enabled": false, "intervalMs": 5000, "maxRetries": 12 }` | Smart retry when a navigation falls through to the ultimate offline fallback. The SW periodically retries the failed URL; on success, caches the response and broadcasts `swoff:navigation-online`. |
-
 #### `NavigationRule`
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `match` | `string` | (required) | Glob pattern matching request paths (supports `*`, `**`, `?`, `{a,b}`). |
 | `fallback` | `string` | — | Per-route offline fallback HTML path. Used in the ultimate fallback chain, checked before the global fallback. |
-
-#### `NavigationRetryConfig`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enabled` | `boolean` | `false` | Enable smart retry. When `true`, the SW starts a background retry loop when serving the ultimate offline fallback. |
-| `intervalMs` | `number` | `5000` | Milliseconds between retry attempts. |
-| `maxRetries` | `number` | `12` | Maximum number of retry attempts before giving up. |
 
 #### Example — per-route fallback rules
 
@@ -166,12 +156,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
   "rules": [
     { "match": "/blog/*", "fallback": "/blog-offline.html" },
     { "match": "/dashboard/**", "fallback": "/dashboard-offline.html" }
-  ],
-  "retry": {
-    "enabled": true,
-    "intervalMs": 3000,
-    "maxRetries": 20
-  }
+  ]
 }
 ```
 

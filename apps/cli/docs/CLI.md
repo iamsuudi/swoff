@@ -10,12 +10,12 @@ Creates `swoff.config.json` in your project root. Auto-detects:
 
 ```
 swoff init
-swoff init --framework react   # override auto-detection
+swoff init --framework react-spa   # override auto-detection
 ```
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--framework` | `"react"` \| `"vue"` \| `"svelte"` \| `"vanilla"` | Override framework auto-detection |
+| `--framework` | `"react-spa"` \| `"nextjs"` \| `"remix"` \| `"tanstack-start-react"` \| `"astro"` \| `"nuxt"` \| `"sveltekit"` \| `"vue"` \| `"svelte"` \| `"vanilla"` | Override framework auto-detection |
 
 ---
 
@@ -58,7 +58,7 @@ All files land in `swoff/`. See [API.md](./API.md) for the full reference.
 | `auth/user.ts` | `auth.enabled` | User data caching |
 | `auth/state.ts` | `auth.enabled` | Online/offline × auth state detection |
 | `pwa/index.ts` | `pwa.enabled` | Install prompt handling |
-| `adapters/*.tsx` | framework === "react" | React hooks (see [API.md](./API.md#react-hooks)) |
+| `adapters/*.tsx` | React-based framework (react-spa, nextjs, remix, tanstack-start-react, astro) | React hooks (see [API.md](./API.md#react-hooks)) |
 | `sw/template.js` | always | Service worker source — runs in SW scope |
 | `sw/injector.ts` | always | SW registration logic |
 | `sw/generator.js` | always | Build-time script — embeds asset hashes |

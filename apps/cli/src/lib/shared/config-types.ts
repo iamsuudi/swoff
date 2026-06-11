@@ -72,7 +72,7 @@ export interface RealtimeConfig {
 
 export interface SwoffConfig {
   $schema?: string;
-  framework?: "nextjs" | "remix" | "astro" | "nuxt" | "sveltekit" | "react" | "vue" | "svelte" | "vanilla";
+  framework?: "nextjs" | "remix" | "tanstack-start-react" | "astro" | "nuxt" | "sveltekit" | "react-spa" | "vue" | "svelte" | "vanilla";
   features: {
     pwa: {
       enabled: boolean;

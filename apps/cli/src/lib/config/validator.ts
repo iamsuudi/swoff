@@ -330,7 +330,7 @@ export function validateConfig(config: Record<string, unknown>): string[] {
   }
 
   const fw = config.framework;
-  const VALID_FRAMEWORKS = ["nextjs", "remix", "astro", "nuxt", "sveltekit", "react", "vue", "svelte", "vanilla"];
+  const VALID_FRAMEWORKS = ["nextjs", "remix", "tanstack-start-react", "astro", "nuxt", "sveltekit", "react-spa", "vue", "svelte", "vanilla"];
   if (fw !== undefined && typeof fw === "string" && !VALID_FRAMEWORKS.includes(fw)) {
     errors.push(`framework must be one of: ${VALID_FRAMEWORKS.join(", ")}`);
   }

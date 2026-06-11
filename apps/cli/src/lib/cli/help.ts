@@ -14,8 +14,8 @@ export interface CommandDef {
 export const commands: Record<string, CommandDef> = {
   init: {
     description: "Initialize Swoff in current directory",
-    usage: "swoff init [--framework react|vue|svelte|vanilla]",
-    examples: ["swoff init", "swoff init --framework react"],
+    usage: "swoff init [--framework react-spa|nextjs|remix|tanstack-start-react|astro|nuxt|sveltekit|vue|svelte|vanilla]",
+    examples: ["swoff init", "swoff init --framework react-spa"],
   },
   generate: {
     description: "Generate supporting files (swoff/)",

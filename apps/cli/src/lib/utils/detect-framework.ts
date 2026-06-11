@@ -5,6 +5,7 @@ const REACT_DEPS = [
   "react",
   "react-dom",
   "react-router-dom",
+  "@tanstack/react-router",
   "remix",
   "@remix-run/react",
 ];
@@ -12,10 +13,11 @@ const REACT_DEPS = [
 export type FrameworkName =
   | "nextjs"
   | "remix"
+  | "tanstack-start-react"
   | "astro"
   | "nuxt"
   | "sveltekit"
-  | "react"
+  | "react-spa"
   | "vue"
   | "svelte"
   | "vanilla";
@@ -24,6 +26,7 @@ const META_FRAMEWORKS: [string, FrameworkName][] = [
   ["next", "nextjs"],
   ["@remix-run/react", "remix"],
   ["remix", "remix"],
+  ["@tanstack/react-start", "tanstack-start-react"],
   ["astro", "astro"],
   ["nuxt", "nuxt"],
   ["@sveltejs/kit", "sveltekit"],
@@ -60,7 +63,7 @@ export function detectFramework(projectRoot: string): FrameworkName {
     if (allDeps[dep]) return name;
   }
 
-  if (REACT_DEPS.some((d) => allDeps[d])) return "react";
+  if (REACT_DEPS.some((d) => allDeps[d])) return "react-spa";
 
   return "vanilla";
 }

@@ -42,10 +42,6 @@ self.addEventListener("notificationclick", (event) => {
 
   event.waitUntil(
     (async () => {
-      if (action) {
-        // Handle action clicks (e.g., "reply", "dismiss")
-      }
-
       const clients = await self.clients.matchAll({ type: "window" });
 
       for (const client of clients) {

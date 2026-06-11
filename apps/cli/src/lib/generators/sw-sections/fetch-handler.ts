@@ -25,6 +25,7 @@ export function generateFetchHandler(
       normalizeKey?: boolean;
       ignoreQueryParams?: string[];
       timeout?: number;
+      maxRuntimeCacheAge?: number;
     };
     navigation: {
       mode?: "spa" | "ssr" | "default";
@@ -52,6 +53,7 @@ export function generateFetchHandler(
       normalizeKey: normalizeCacheKey,
       ignoreQueryParams,
       timeout: fetchTimeout = 10,
+      maxRuntimeCacheAge: maxCacheAge,
     },
     navigation: {
       mode: navMode = "spa",
@@ -66,14 +68,19 @@ export function generateFetchHandler(
   const refetchRetry = swConfig.refetchQueue.retry;
 
   const hasRules = navRules.length > 0;
-  const navModeCode = navMode === "ssr" ? '"ssr"' : navMode === "spa" ? '"spa"' : '"default"';
+  const navModeCode =
+    navMode === "ssr" ? '"ssr"' : navMode === "spa" ? '"spa"' : '"default"';
   const fallbackCode = globalFallback ? `"${globalFallback}"` : '""';
 
   const navRulesCode = hasRules
-    ? `const NAV_RULES = ${JSON.stringify(navRules.map((r) => ({
-        match: r.match,
-        ...(r.fallback ? { fallback: r.fallback } : {}),
-      })), null, 2)};
+    ? `const NAV_RULES = ${JSON.stringify(
+        navRules.map((r) => ({
+          match: r.match,
+          ...(r.fallback ? { fallback: r.fallback } : {}),
+        })),
+        null,
+        2,
+      )};
 
 function matchRouteFallback(url) {
   const path = new URL(url).pathname;
@@ -256,7 +263,14 @@ async function fromRuntime(request) {
  */
 async function serveFromCache(request) {
   if (isNavRequest(request)) {
-    if (NAV_MODE === "spa") return null;
+    if (NAV_MODE === "spa") {
+      if (FALLBACK_PATH) {
+        const cache = await caches.open(CACHE_NAME);
+        const match = await cache.match(FALLBACK_PATH);
+        if (match) return match;
+      }
+      return null;
+    }
     const pc = await fromPrecache(request);
     if (pc) return pc;
     const htmlCache = await caches.open(CACHE_NAME_RUNTIME_HTML);
@@ -323,30 +337,27 @@ async function cacheResponse(response, request) {
  *   SSR / Default:  per-route → global fallback → inline 503
  *   SPA:            per-route → inline 503
  */
-async function fallback(request) {
-  const isNav = isNavRequest(request);${
+async function fallback(request) {${
     hasRules
       ? `
-  if (isNav) {
-    const routeFallbackPath = matchRouteFallback(request.url);
-    if (routeFallbackPath) {
-      const cache = await caches.open(CACHE_NAME);
-      const match = await cache.match(routeFallbackPath);
-      if (match) {
-        const clients = await self.clients.matchAll();
-        for (const client of clients) {
-          client.postMessage({
-            type: "OFFLINE_FALLBACK_ACTIVATED",
-            detail: { route: new URL(request.url).pathname, fallbackLevel: "route-fallback", timestamp: Date.now() },
-          });
-        }
-        return match;
+  const routeFallbackPath = matchRouteFallback(request.url);
+  if (routeFallbackPath) {
+    const cache = await caches.open(CACHE_NAME);
+    const match = await cache.match(routeFallbackPath);
+    if (match) {
+      const clients = await self.clients.matchAll();
+      for (const client of clients) {
+        client.postMessage({
+          type: "OFFLINE_FALLBACK_ACTIVATED",
+          detail: { route: new URL(request.url).pathname, fallbackLevel: "route-fallback", timestamp: Date.now() },
+        });
       }
+      return match;
     }
   }`
       : ""
   }
-  if (!isNav || NAV_MODE !== "spa") {
+  if (NAV_MODE !== "spa") {
     if (FALLBACK_PATH) {
       const cache = await caches.open(CACHE_NAME);
       const match = await cache.match(FALLBACK_PATH);
@@ -447,7 +458,7 @@ async function _fetchWithConditional(request, timeoutMs) {
     if (response.status === 304 && cached) {
       const headers = new Headers(cached.headers);
       headers.set("X-SW-Cached-At", String(Date.now()));
-      return new Response(cached.body, {
+      return new Response(cached.clone().body, {
         status: 200,
         statusText: cached.statusText,
         headers,
@@ -471,7 +482,12 @@ ${
     ? `
 async function fetchWithPreload(event, request, timeoutMs) {
   try {
-    const preload = await event.preloadResponse;
+    const preload = await Promise.race([
+      event.preloadResponse,
+      new Promise(function(_, reject) {
+        setTimeout(function() { reject(new Error("preload timeout")); }, (timeoutMs || FETCH_TIMEOUT_MS) / 2);
+      }),
+    ]);
     if (preload) return preload;
   } catch {}
   return _fetchWithConditional(request, timeoutMs);
@@ -540,18 +556,19 @@ function registerReactiveEntry(url, config) {
 
 async function refetchEntry(url) {
   var entry = REACTIVE_ENTRIES.get(url);
-  if (!entry) return;
   var req = new Request(url);
-  var cached = await serveFromCache(req);
-  if (cached && !isStale(cached, entry.staleTime)) {
-    entry.lastRefetch = Date.now();
-    return;
+  if (entry) {
+    var cached = await serveFromCache(req);
+    if (cached && !isStale(cached, entry.staleTime)) {
+      entry.lastRefetch = Date.now();
+      return;
+    }
   }
   try {
     var response = await fetchWithRetry(req, REFETCH_RETRY);
     if (response && response.ok) {
       await cacheResponse(response.clone(), req);
-      entry.lastRefetch = Date.now();
+      if (entry) entry.lastRefetch = Date.now();
     }
   } catch {}
 }
@@ -698,21 +715,6 @@ const MUTATION_DB_NAME = "swoff-queue";
 const MUTATION_STORE_NAME = "mutations";
 const MUTATION_DB_VERSION = 1;
 
-function openMutationQueueDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(MUTATION_DB_NAME, MUTATION_DB_VERSION);
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains(MUTATION_STORE_NAME)) {
-        const store = db.createObjectStore(MUTATION_STORE_NAME, { keyPath: "id" });
-        store.createIndex("by-timestamp", "timestamp");
-      }
-    };
-    request.onsuccess = (e) => resolve(e.target.result);
-    request.onerror = (e) => reject(e.target.error);
-  });
-}
-
 async function storeMutationInSW(request) {
   let body, bodyType;
   try {
@@ -726,9 +728,31 @@ async function storeMutationInSW(request) {
   const tagsHeader = request.headers.get("X-SW-Invalidate-Tags");
   const tags = tagsHeader ? tagsHeader.split(",").map(function(t) { return t.trim(); }) : [];
 
-  const db = await openMutationQueueDB();
+  const db = await openDB(MUTATION_DB_NAME, MUTATION_DB_VERSION, function(db) {
+    if (!db.objectStoreNames.contains(MUTATION_STORE_NAME)) {
+      const store = db.createObjectStore(MUTATION_STORE_NAME, { keyPath: "id" });
+      store.createIndex("by-timestamp", "timestamp");
+    }
+  });
   const tx = db.transaction(MUTATION_STORE_NAME, "readwrite");
-  tx.objectStore(MUTATION_STORE_NAME).add({
+  const store = tx.objectStore(MUTATION_STORE_NAME);${
+    maxCacheAge && maxCacheAge > 0
+      ? `
+  // Prune entries past max age
+  const cutoff = Date.now() - MAX_RUNTIME_CACHE_AGE * 1000;
+  const allEntries = await new Promise(function(resolve, reject) {
+    var req = store.getAll();
+    req.onsuccess = function() { resolve(req.result); };
+    req.onerror = function() { reject(req.error); };
+  });
+  for (const item of allEntries) {
+    if (item.timestamp && item.timestamp < cutoff) {
+      store.delete(item.id);
+    }
+  }`
+      : ""
+  }
+  store.add({
     id: crypto.randomUUID(),
     method: request.method,
     url: new URL(request.url).href,
@@ -746,10 +770,14 @@ async function storeMutationInSW(request) {
   });
 }
 
-function _fetchWithTimeout(request) {
+async function _fetchWithTimeout(request) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  return fetch(request, { signal: controller.signal }).finally(() => clearTimeout(id));
+  try {
+    return await fetch(request, { signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
 }
 
 async function handleMutation(event) {

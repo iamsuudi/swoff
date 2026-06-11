@@ -1,29 +1,9 @@
-/**
- * Generates IndexedDB-based tag invalidation logic for the SW.
- * After invalidation, tries to re-fetch URLs in the background.
- * On failure, keeps the old entry as stale-while-revalidate fallback.
- *
- * Cascading is handled by the client — the SW processes one tag at a time.
- */
-
 export function generateTagManagement(): string {
   return `
-const staleVersions = new Map();
-const STALE_VERSIONS_MAX = 100;
-const STALE_VERSION_TTL = 30 * 60 * 1000;
 const TAG_DB_NAME = "swoff-cache-tags";
 const TAG_STORE_NAME = "tags";
 // Bump this when adding new indexes/stores for schema migration
 const TAG_DB_VERSION = 1;
-
-function cleanStaleVersions() {
-  const now = Date.now();
-  for (const [url, ts] of staleVersions) {
-    if (staleVersions.size > STALE_VERSIONS_MAX || now - ts > STALE_VERSION_TTL) {
-      staleVersions.delete(url);
-    }
-  }
-}
 
 function openTagDB() {
   return new Promise((resolve, reject) => {
@@ -48,52 +28,6 @@ async function cacheTagUrl(url, actualUrl, tags, method, body, contentType) {
   await new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function invalidateByTag(tag) {
-  const db = await openTagDB();
-  const tx = db.transaction(TAG_STORE_NAME, "readonly");
-  const store = tx.objectStore(TAG_STORE_NAME);
-  const index = store.index("by-tag");
-  const entries = await new Promise((resolve, reject) => {
-    const request = index.getAll(tag);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-  await db.close();
-
-  // Remove from tag index and runtime cache
-  const writeDb = await openTagDB();
-  const writeTx = writeDb.transaction(TAG_STORE_NAME, "readwrite");
-  const writeStore = writeTx.objectStore(TAG_STORE_NAME);
-  for (const entry of entries) {
-    writeStore.delete(entry.url);
-  }
-  await new Promise((resolve, reject) => {
-    writeTx.oncomplete = () => resolve();
-    writeTx.onerror = () => reject(writeTx.error);
-  });
-  writeDb.close();
-
-  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
-  for (const entry of entries) {
-    await runtimeCache.delete(entry.url);
-  }
-  const rscCache = await caches.open(CACHE_NAME_RUNTIME_HTML);
-  for (const entry of entries) {
-    await rscCache.delete(entry.url);
-  }
-
-  // Enqueue background refetch through batched refresh queue
-  for (const entry of entries) {
-    staleVersions.set(entry.url, Date.now());
-    queueRefresh(entry.url, entry.actualUrl, entry.tags, entry.method, entry.body, entry.contentType);
-  }
-
-  const clients = await self.clients.matchAll();
-  clients.forEach((client) => {
-    client.postMessage({ type: "TAG_INVALIDATED", tag });
   });
 }
 
@@ -124,6 +58,45 @@ async function getTagsForUrl(url) {
   return entry ? entry.tags : [];
 }
 
+async function invalidateByTag(tag) {
+  const db = await openTagDB();
+  const tx = db.transaction(TAG_STORE_NAME, "readwrite");
+  const store = tx.objectStore(TAG_STORE_NAME);
+  const index = store.index("by-tag");
+  const entries = await new Promise((resolve, reject) => {
+    const request = index.getAll(tag);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+
+  if (!entries || entries.length === 0) {
+    tx.oncomplete = () => db.close();
+    return;
+  }
+
+  for (const entry of entries) {
+    store.delete(entry.url);
+  }
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  db.close();
+
+  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
+  const rscCache = await caches.open(CACHE_NAME_RUNTIME_HTML);
+  for (const entry of entries) {
+    await runtimeCache.delete(entry.url);
+    await rscCache.delete(entry.url);
+    refetchEntry(entry.url);
+  }
+
+  const clients = await self.clients.matchAll();
+  clients.forEach((client) => {
+    client.postMessage({ type: "TAG_INVALIDATED", tag });
+  });
+}
+
 async function invalidateMatching(globPattern) {
   const db = await openTagDB();
   const tx = db.transaction(TAG_STORE_NAME, "readonly");
@@ -135,7 +108,7 @@ async function invalidateMatching(globPattern) {
   });
   await db.close();
 
-  const matching = allEntries.filter((entry) => matchGlob(entry.url, globPattern));
+  const matching = allEntries.filter((entry) => matchGlob(entry.actualUrl, globPattern));
   const tags = new Set();
   for (const entry of matching) {
     for (const tag of entry.tags) {

@@ -540,18 +540,19 @@ function registerReactiveEntry(url, config) {
 
 async function refetchEntry(url) {
   var entry = REACTIVE_ENTRIES.get(url);
-  if (!entry) return;
   var req = new Request(url);
-  var cached = await serveFromCache(req);
-  if (cached && !isStale(cached, entry.staleTime)) {
-    entry.lastRefetch = Date.now();
-    return;
+  if (entry) {
+    var cached = await serveFromCache(req);
+    if (cached && !isStale(cached, entry.staleTime)) {
+      entry.lastRefetch = Date.now();
+      return;
+    }
   }
   try {
     var response = await fetchWithRetry(req, REFETCH_RETRY);
     if (response && response.ok) {
       await cacheResponse(response.clone(), req);
-      entry.lastRefetch = Date.now();
+      if (entry) entry.lastRefetch = Date.now();
     }
   } catch {}
 }

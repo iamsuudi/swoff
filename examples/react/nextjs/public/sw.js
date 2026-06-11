@@ -1,9 +1,142 @@
 let CACHE_NAME = "";
 let ASSETS_TO_CACHE = [];
 
-// [[CACHE_NAME]]
-// [[ASSETS_LIST]]
-// [[AUTO_SKIP_WAITING]]
+CACHE_NAME = 'sw-cache-mq9pgfvf'
+ASSETS_TO_CACHE = [
+  {
+    "url": "/offline.html",
+    "options": {}
+  },
+  {
+    "url": "/manifest.json",
+    "options": {}
+  },
+  {
+    "url": "/file.svg",
+    "options": {}
+  },
+  {
+    "url": "/globe.svg",
+    "options": {}
+  },
+  {
+    "url": "/maskable-icon-512x512.png",
+    "options": {}
+  },
+  {
+    "url": "/next.svg",
+    "options": {}
+  },
+  {
+    "url": "/pwa-192x192.png",
+    "options": {}
+  },
+  {
+    "url": "/pwa-512x512.png",
+    "options": {}
+  },
+  {
+    "url": "/pwa-64x64.png",
+    "options": {}
+  },
+  {
+    "url": "/vercel.svg",
+    "options": {}
+  },
+  {
+    "url": "/window.svg",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/2W2yOnLN1_ETjRpiL_Wo1/_buildManifest.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/2W2yOnLN1_ETjRpiL_Wo1/_clientMiddlewareManifest.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/2W2yOnLN1_ETjRpiL_Wo1/_ssgManifest.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/0.550id55~-3h.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/00dnf_pj.q2on.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/01xlw8hd842-c.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/02g3221oh~3le.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/03~yq9q893hmn.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/05.-slimshgcr.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/07lhk_q6pmm3r.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/0bzupvr5gt3k9.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/0cifb5l_xewo7.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/0d3shmwh5_nmn.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/0pj4g.~bmgyjm.css",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/0pqt~8bl3ukh4.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/0tkil9v1nrq5o.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/0wwjasw.d5.0u.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/0zpusoduyxb-z.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/1073eqml-_spa.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/130pav8h1a7~4.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/chunks/turbopack-0l.eg18p.4nbp.js",
+    "options": {}
+  },
+  {
+    "url": "/_next/static/media/favicon.0x3dzn~oxb6tn.ico",
+    "options": {}
+  }
+]
+const AUTO_SKIP_WAITING = false;
 
 const CACHE_NAME_RUNTIME = "swoff-runtime";
 const CACHE_NAME_RUNTIME_HTML = "swoff-runtime-html";
@@ -1047,7 +1180,7 @@ let pushAbortController = null;
 async function connectPushEvents() {
   try {
     pushAbortController = new AbortController();
-    const response = await fetch("SWOFF_API_BASE/api/events", {
+    const response = await fetch("/api/events", {
       headers: { Accept: "text/event-stream" },
       credentials: "include",
       signal: pushAbortController.signal,

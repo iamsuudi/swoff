@@ -1,13 +1,3 @@
-/**
- * Swoff Service Worker - Auto-Generated
- * Generated from swoff.config.json
- * DO NOT EDIT MANUALLY
- * Version: 0.0.0
- * Features: version=package, mutationQueue=true, backgroundSync=true, tagInvalidation=true
- * Default Strategy: cache-first
- * See: https://swoff.netlify.app/docs
- */
-
 let CACHE_NAME = "";
 let ASSETS_TO_CACHE = [];
 
@@ -16,6 +6,20 @@ let ASSETS_TO_CACHE = [];
 // [[AUTO_SKIP_WAITING]]
 
 const CACHE_NAME_RUNTIME = "swoff-runtime";
+const CACHE_NAME_RUNTIME_HTML = "swoff-runtime-html";
+
+// --- Shared IndexedDB Utility ---
+
+function openDB(dbName, version, onUpgrade) {
+  return new Promise(function(resolve, reject) {
+    var request = indexedDB.open(dbName, version);
+    request.onupgradeneeded = function(e) {
+      if (onUpgrade) onUpgrade(e.target.result);
+    };
+    request.onsuccess = function(e) { resolve(e.target.result); };
+    request.onerror = function(e) { reject(e.target.error); };
+  });
+}
 
 
 async function precacheAssets() {
@@ -65,20 +69,22 @@ self.addEventListener("install", (event) => {
 const MAX_RUNTIME_CACHE_AGE = 2592000;
 
 async function evictStaleRuntimeCache() {
-  const cache = await caches.open(CACHE_NAME_RUNTIME);
-  const keys = await cache.keys();
-  const cutoff = Date.now() - MAX_RUNTIME_CACHE_AGE * 1000;
-  const promises = [];
-  for (const request of keys) {
-    promises.push((async () => {
-      const response = await cache.match(request);
-      const cachedAt = response?.headers.get("X-SW-Cached-At");
-      if (cachedAt && Number(cachedAt) < cutoff) {
-        await cache.delete(request);
-      }
-    })());
+  for (const name of [CACHE_NAME_RUNTIME, CACHE_NAME_RUNTIME_HTML]) {
+    const cache = await caches.open(name);
+    const keys = await cache.keys();
+    const cutoff = Date.now() - MAX_RUNTIME_CACHE_AGE * 1000;
+    const promises = [];
+    for (const request of keys) {
+      promises.push((async () => {
+        const response = await cache.match(request);
+        const cachedAt = response?.headers.get("X-SW-Cached-At");
+        if (cachedAt && Number(cachedAt) < cutoff) {
+          await cache.delete(request);
+        }
+      })());
+    }
+    await Promise.all(promises);
   }
-  await Promise.all(promises);
 }
 
 self.addEventListener("activate", (event) => {
@@ -91,7 +97,7 @@ self.addEventListener("activate", (event) => {
       await evictStaleRuntimeCache();
       const keys = await caches.keys();
       await Promise.all(
-        keys.filter((key) => key !== CACHE_NAME && key !== CACHE_NAME_RUNTIME).map((key) => caches.delete(key))
+        keys.filter((key) => key !== CACHE_NAME && key !== CACHE_NAME_RUNTIME && key !== CACHE_NAME_RUNTIME_HTML).map((key) => caches.delete(key))
       );
     })()
   );
@@ -100,6 +106,12 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("message", (event) => {
   if (event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
+  }
+  if (event.data.type === "FOCUS") {
+    if (typeof handleFocusRefetch === "function") handleFocusRefetch();
+  }
+  if (event.data.type === "ONLINE") {
+    if (typeof handleOnlineRefetch === "function") handleOnlineRefetch();
   }
   if (event.data.type === "RESET_CACHE") {
     event.waitUntil(
@@ -130,265 +142,30 @@ self.addEventListener("message", (event) => {
   if (event.data.type === "INVALIDATE_MATCHING" && event.data.glob) {
     event.waitUntil(invalidateMatching(event.data.glob));
   }
-  if (event.data.type === "ONLINE") {
-    event.waitUntil(handleOnline());
-  }
-  if (event.data.type === "FOCUS") {
-    event.waitUntil(handleOnFocus());
-  }
-
 });
-const REFETCH_BATCH_SIZE = 5;
-const REFETCH_BATCH_DELAY_MS = 1000;
-const REFRESH_MAX_RETRIES = 3;
-const REFRESH_RETRY_DELAY_MS = 1000;
-// --- Batch Refresh Queue ---
+// --- Mode & Strategy Configuration ---
 
-const _refreshQueue = new Map();
-let _refreshQueuePromise = null;
+const NAV_MODE = "spa";
+const FALLBACK_PATH = "/index.html";
+const DEFAULT_STRATEGY = "cache-first";
+const CUSTOM_STRATEGIES = {"/api/*":"network-first","/static/*":"cache-first"};
+const REACTIVE_STALE_DEFAULT = 0;
+const FETCH_TIMEOUT_MS = 10000;
+const REFETCH_RETRY = {"maxRetries":3,"backoffMs":1000,"maxBackoffMs":10000,"jitterMs":100};
+const SW_DEBUG = false;
 
-function queueRefresh(cacheKeyUrl, actualUrl, tags, method, body, contentType) {
-  // Use Map keyed by cacheKey for proper deduplication
-  // Don't let a tagless (SWR/reactive) refresh override an invalidation-triggered entry with tags
-  if (_refreshQueue.has(cacheKeyUrl) && !tags) return;
-  _refreshQueue.set(cacheKeyUrl, { cacheKey: cacheKeyUrl, actualUrl: actualUrl || cacheKeyUrl, retryCount: 0, tags: tags || null, method: method || null, body: body || null, contentType: contentType || null });
-  if (!_refreshQueuePromise) {
-    _refreshQueuePromise = _processRefreshQueue();
-  }
-  return _refreshQueuePromise;
-}
+// --- Debug Logging ---
 
-async function resolveActualUrl(entry) {
-  if (entry.actualUrl) return entry.actualUrl;
-  const url = entry.cacheKey;
-  if (url.includes("/__swc/")) {
-    // Virtual cache key — look up the real URL from tag registry
-    try {
-      const db = await openTagDB();
-      const tx = db.transaction(TAG_STORE_NAME, "readonly");
-      const store = tx.objectStore(TAG_STORE_NAME);
-      const stored = await new Promise((resolve) => {
-        const req = store.get(url);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => resolve(null);
-      });
-      db.close();
-      if (stored?.actualUrl) return stored.actualUrl;
-    } catch {}
-  }
-  return url;
-}
-
-async function _processRefreshQueue() {
-  try {
-    while (_refreshQueue.size > 0) {
-      const batch = [];
-      for (const [cacheKey, entry] of _refreshQueue) {
-        if (batch.length >= REFETCH_BATCH_SIZE) break;
-        if (entry.nextRetryAt && entry.nextRetryAt > Date.now()) continue;
-        batch.push(entry);
-        _refreshQueue.delete(cacheKey);
-      }
-      if (batch.length === 0) break;
-
-      const clients = await self.clients.matchAll();
-
-      await Promise.allSettled(batch.map(async (entry) => {
-        const fetchUrl = await resolveActualUrl(entry);
-        try {
-          const fetchOpts = {};
-          if (entry.method && entry.method !== "GET" && entry.method !== "HEAD") {
-            fetchOpts.method = entry.method;
-            if (entry.body) fetchOpts.body = entry.body;
-            if (entry.contentType) fetchOpts.headers = { "Content-Type": entry.contentType };
-          }
-          const response = await fetch(fetchUrl, fetchOpts);
-          if (response.ok) {
-            const request = new Request(entry.cacheKey);
-            await storeRuntime(request, response);
-          if (entry.tags && typeof cacheTagUrl !== "undefined") {
-            await cacheTagUrl(entry.cacheKey, fetchUrl, entry.tags, entry.method, entry.body, entry.contentType);
-          }
-            // Clean up stale version tracking on successful refresh
-            if (typeof staleVersions !== "undefined" && staleVersions.has(entry.cacheKey)) {
-              staleVersions.delete(entry.cacheKey);
-            }
-            for (const client of clients) {
-              client.postMessage({ type: "CACHE_UPDATED", url: fetchUrl });
-            }
-          }
-        } catch {
-          // Refresh failed — retry with exponential backoff
-          if (entry.retryCount < REFRESH_MAX_RETRIES) {
-            entry.retryCount++;
-            const delay = REFRESH_RETRY_DELAY_MS * Math.pow(2, entry.retryCount - 1);
-            entry.nextRetryAt = Date.now() + delay;
-            _refreshQueue.set(entry.cacheKey, entry);
-            setTimeout(() => {
-              if (!_refreshQueuePromise) {
-                _refreshQueuePromise = _processRefreshQueue();
-              }
-            }, delay);
-          }
-        }
-      }));
-
-      if (_refreshQueue.size > 0 && REFETCH_BATCH_DELAY_MS > 0) {
-        await new Promise(r => setTimeout(r, REFETCH_BATCH_DELAY_MS));
-      }
-    }
-  } finally {
-    _refreshQueuePromise = null;
-  }
-}
-
-// --- Reactive Patterns (extracted for interval/focus/reconnect) ---
-
-const REACTIVE_PATTERNS = [];
-
-function findReactiveConfig(url) {
-  const path = new URL(url).pathname;
-  for (const cfg of REACTIVE_PATTERNS) {
-    if (matchGlob(path, cfg.pattern)) return cfg;
-  }
-  return null;
-}
-
-function shouldReactiveRefresh(cached, config) {
-  if (!config.staleTime && config.staleTime !== 0) return true;
-  if (config.staleTime === 0) return true;
-  return isStale(cached, config.staleTime);
-}
-
-// --- Reactive Interval Timers ---
-
-
-async function handleOnline() {
-  const clients = await self.clients.matchAll();
-  if (clients.length === 0) return;
-
-  // Step 1: Retry stale version entries (failed refetches after invalidation)
-  if (typeof staleVersions !== "undefined") {
-    const staleUrls = [...staleVersions.keys()];
-    for (const url of staleUrls) {
-      queueRefresh(url, url);
-    }
-  }
-
-  // Step 2: Refresh reactive entries with refetchOnReconnect
-  const cache = await caches.open(CACHE_NAME_RUNTIME);
-  const keys = await cache.keys();
-  for (const request of keys) {
-    const url = new URL(request.url);
-    if (url.pathname.startsWith("/__swc/")) continue;
-    const config = findReactiveConfig(url.href);
-    if (!config || !config.refetchOnReconnect) continue;
-    const cached = await cache.match(request);
-    if (cached && shouldReactiveRefresh(cached, config)) {
-      queueRefresh(request.url, url.href);
-    }
-  }
-}
-
-async function handleOnFocus() {
-  const cache = await caches.open(CACHE_NAME_RUNTIME);
-  const keys = await cache.keys();
-  for (const request of keys) {
-    const url = new URL(request.url);
-    if (url.pathname.startsWith("/__swc/")) continue;
-    const config = findReactiveConfig(url.href);
-    if (!config || !config.refetchOnFocus) continue;
-    const cached = await cache.match(request);
-    if (cached && shouldReactiveRefresh(cached, config)) {
-      queueRefresh(request.url, url.href);
-    }
-  }
-}
-
-// --- Cache Key ---
-
-function cacheKey(request) {
-  const key = request.headers.get("X-SW-Cache-Key");
-  if (key) return new URL("/__swc/" + key, self.location.origin).href;
-  const url = new URL(request.url);
-  return url.href;
-}
-
-// --- Cache Helpers ---
-
-async function fromPrecache(request) {
-  const cache = await caches.open(CACHE_NAME);
-  return cache.match(new URL(request.url).pathname);
-}
-
-async function fromRuntime(request) {
-  const cache = await caches.open(CACHE_NAME_RUNTIME);
-  return cache.match(cacheKey(request));
-}
-
-async function storeRuntime(request, response) {
-  const cache = await caches.open(CACHE_NAME_RUNTIME);
-  const headers = new Headers(response.headers);
-  headers.set("X-SW-Cached-At", String(Date.now()));
-  const cloned = new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-  await cache.put(cacheKey(request), cloned);
-}
-
-async function cacheResponse(request, response) {
-  await storeRuntime(request, response);
-  const tagsHeader = request.headers.get("X-SW-Cache-Tags");
-  if (tagsHeader) {
-    const cacheKeyUrl = cacheKey(request);
-    const actualUrl = new URL(request.url).href;
-    const tags = tagsHeader.split(",").map((t) => t.trim());
-    const method = request.method;
-    let body = null;
-    let contentType = null;
-    if (method !== "GET" && method !== "HEAD") {
-      contentType = request.headers.get("Content-Type");
-      try {
-        body = await request.clone().text();
-      } catch {}
-    }
-    await cacheTagUrl(cacheKeyUrl, actualUrl, tags, method, body, contentType);
-  }
-}
-
-async function fromSpaFallback(request) {
-  if (request.mode === "navigate") {
-    const cache = await caches.open(CACHE_NAME);
-    return cache.match("/index.html");
-  }
-}
-
-// --- Response Helpers ---
-
-function markFromCache(response) {
-  const headers = new Headers(response.headers);
-  headers.set("X-SW-From-Cache", "true");
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-}
-
-function isStale(response, staleTimeSeconds) {
-  if (staleTimeSeconds == null || staleTimeSeconds <= 0) return false;
-  const cachedAt = response.headers.get("X-SW-Cached-At");
-  if (!cachedAt) return false;
-  return Date.now() - Number(cachedAt) > staleTimeSeconds * 1000;
+function swLog(fn, msg, url) {
+  if (!SW_DEBUG) return;
+  console.log("[SW][" + fn + "]", msg, url || "", Date.now());
 }
 
 
 // --- Glob Pattern Matching ---
 
 function escapeGlobMeta(s) {
-  return s.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+  return s.replace(/[.+^${}()|[\]\\]/g, "\\// [[FETCH_HANDLER]]");
 }
 
 function globPartRe(part) {
@@ -438,85 +215,464 @@ function matchGlob(path, pattern) {
   return pi === parts.length && ppi === pps.length;
 }
 
-// --- Strategy Selection (3-tier config resolution) ---
+// --- Navigation Detection ---
 
-function resolveStrategyEntry(entry) {
-  return typeof entry === "string" ? { strategy: entry } : entry;
+function isNavRequest(request) {
+  return (
+    request.mode === "navigate" ||
+    request.destination === "document" ||
+    (request.method === "GET" &&
+      request.headers.get("sec-fetch-mode") === "navigate")
+  );
 }
 
-function determineCacheStrategy(request, customStrategies, globalDefaults) {
+// --- Cache Key ---
+
+function cacheKey(request) {
+  const key = request.headers.get("X-SW-Cache-Key");
+  if (key) return new URL("/__swc/" + key, self.location.origin).href;
+  const url = new URL(request.url);
+  return url.href;
+}
+
+// --- Cache Lookup ---
+
+async function fromPrecache(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const url = new URL(request.url);
+  url.search = "";
+  return cache.match(url.href);
+}
+
+async function fromRuntime(request) {
+  const cache = await caches.open(CACHE_NAME_RUNTIME);
+  return cache.match(cacheKey(request));
+}
+
+/*
+ * serveFromCache returns a cached Response, or null if nothing is cached.
+ *
+ * Mode-specific behaviour for navigation requests:
+ *   SPA:      bypass cache entirely → return null
+ *   SSR:      precache → runtime-html → null
+ *   Default:  same as SSR
+ *
+ * Non-navigation requests:
+ *   runtime → precache → null
+ */
+async function serveFromCache(request) {
+  if (isNavRequest(request)) {
+    if (NAV_MODE === "spa") {
+      if (FALLBACK_PATH) {
+        const cache = await caches.open(CACHE_NAME);
+        const match = await cache.match(FALLBACK_PATH);
+        if (match) return match;
+      }
+      return null;
+    }
+    const pc = await fromPrecache(request);
+    if (pc) return pc;
+    const htmlCache = await caches.open(CACHE_NAME_RUNTIME_HTML);
+    return htmlCache.match(cacheKey(request));
+  }
+  const cached = await fromRuntime(request);
+  if (cached) return cached;
+  return fromPrecache(request);
+}
+
+// --- Cache Store ---
+
+/*
+ * cacheResponse stores a network response in the appropriate cache.
+ *
+ * If already in precache:
+ *   - non-HTML with same content-type → update precache entry
+ *   - otherwise → skip (no runtime duplicate)
+ * If not in precache:
+ *   - HTML → runtime-html cache
+ *   - non-HTML → runtime cache
+ *
+ * Tags are recorded in all cases.
+ */
+async function cacheResponse(response, request) {
+  const key = cacheKey(request);
+  const ct = response.headers.get("Content-Type") || "";
+
+  var skipRuntime = false;
+  const precache = await caches.open(CACHE_NAME);
+  const url = new URL(key);
+  url.search = "";
+  const precached = await precache.match(url.href);
+
+  if (precached) {
+    if (!ct.startsWith("text/html")) {
+      const pct = precached.headers.get("Content-Type") || "";
+      if (pct.split(";")[0] === ct.split(";")[0]) {
+        await precache.put(url.href, response.clone());
+      }
+    }
+    skipRuntime = true;
+  }
+
+  if (!skipRuntime) {
+    const cacheName = ct.startsWith("text/html") ? CACHE_NAME_RUNTIME_HTML : CACHE_NAME_RUNTIME;
+    const cache = await caches.open(cacheName);
+    const headers = new Headers(response.headers);
+    headers.set("X-SW-Cached-At", String(Date.now()));
+    await cache.put(key, new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    }));
+  }
+  const tagsHeader = request.headers.get("X-SW-Cache-Tags");
+  if (tagsHeader) {
+    const cacheKeyUrl = cacheKey(request);
+    const actualUrl = new URL(request.url).href;
+    const tags = tagsHeader.split(",").map((t) => t.trim());
+    const method = request.method;
+    let body = null;
+    let contentType = null;
+    if (method !== "GET" && method !== "HEAD") {
+      contentType = request.headers.get("Content-Type");
+      try { body = await request.clone().text(); } catch {}
+    }
+    await cacheTagUrl(cacheKeyUrl, actualUrl, tags, method, body, contentType);
+  }
+}
+
+// --- Fallback ---
+
+/*
+ * Fallback hierarchy for when a strategy cannot serve a response:
+ *   SSR / Default:  per-route → global fallback → inline 503
+ *   SPA:            per-route → inline 503
+ */
+async function fallback(request) {
+  if (NAV_MODE !== "spa") {
+    if (FALLBACK_PATH) {
+      const cache = await caches.open(CACHE_NAME);
+      const match = await cache.match(FALLBACK_PATH);
+      if (match) {
+        const clients = await self.clients.matchAll();
+        for (const client of clients) {
+          client.postMessage({
+            type: "OFFLINE_FALLBACK_ACTIVATED",
+            detail: { route: new URL(request.url).pathname, fallbackLevel: "offline-page", timestamp: Date.now() },
+          });
+        }
+        return match;
+      }
+    }
+  }
+  const clients = await self.clients.matchAll();
+  for (const client of clients) {
+    client.postMessage({
+      type: "OFFLINE_FALLBACK_ACTIVATED",
+      detail: { route: new URL(request.url).pathname, fallbackLevel: "inline-503", timestamp: Date.now() },
+    });
+  }
+  return inline503Response();
+}
+
+function inline503Response() {
+  return new Response(
+    `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Offline</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f5f5f5}div{text-align:center}h1{font-size:2rem;color:#333}p{color:#666}</style></head><body><div><h1>You\'re offline</h1><p>Please check your connection and try again.</p></div></body></html>`,
+    { status: 503, headers: { "Content-Type": "text/html", "Cache-Control": "no-store" } }
+  );
+}
+// --- Response Helpers ---
+
+function markFromCache(response) {
+  const headers = new Headers(response.headers);
+  headers.set("X-SW-From-Cache", "true");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+function isStale(response, staleTimeSeconds) {
+  if (staleTimeSeconds == null || staleTimeSeconds <= 0) return false;
+  const cachedAt = response.headers.get("X-SW-Cached-At");
+  if (!cachedAt) return false;
+  return Date.now() - Number(cachedAt) > staleTimeSeconds * 1000;
+}
+
+// --- Backoff, Sleep & Retry Helpers ---
+
+function backoffDelay(attempt, config) {
+  const delay = Math.min(config.backoffMs * Math.pow(2, attempt), config.maxBackoffMs);
+  return delay + (config.jitterMs > 0 ? Math.random() * config.jitterMs : 0);
+}
+
+function sleep(ms) {
+  return new Promise(function(resolve) { setTimeout(resolve, ms); });
+}
+
+async function fetchWithRetry(request, retryConfig) {
+  if (!retryConfig) return fetch(request);
+  for (var attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
+    try {
+      var controller = new AbortController();
+      var id = setTimeout(function() { controller.abort(); }, FETCH_TIMEOUT_MS);
+      var response = await fetch(request, { signal: controller.signal });
+      clearTimeout(id);
+      if (response.ok) return response;
+    } catch {}
+    if (attempt < retryConfig.maxRetries) {
+      await sleep(backoffDelay(attempt, retryConfig));
+    }
+  }
+  return null;
+}
+
+// --- Fetch Helpers ---
+
+async function _fetchWithTimeout(_, request, timeoutMs) {
+  timeoutMs = timeoutMs || FETCH_TIMEOUT_MS;
+  swLog("_fetchWithTimeout", "ENTER timeout=" + timeoutMs, request.url);
+  const controller = new AbortController();
+  const id = setTimeout(function() { controller.abort(); }, timeoutMs);
+  try {
+    return await fetch(request, { signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+
+async function fetchWithPreload(event, request, timeoutMs) {
+  try {
+    const preload = await Promise.race([
+      event.preloadResponse,
+      new Promise(function(_, reject) {
+        setTimeout(function() { reject(new Error("preload timeout")); }, (timeoutMs || FETCH_TIMEOUT_MS) / 2);
+      }),
+    ]);
+    if (preload) return preload;
+  } catch {}
+  return _fetchWithTimeout(_, request, timeoutMs);
+}
+const _fetch = fetchWithPreload;
+
+// --- Strategy Resolution ---
+
+function determineCacheStrategy(request) {
   const override = request.headers.get("X-SW-Strategy");
-  if (override) {
-    const cfg = { strategy: override };
-    const hStale = request.headers.get("X-SW-Stale-Time");
-    if (hStale !== null) cfg.staleTime = Number(hStale);
-    const hFocus = request.headers.get("X-SW-Refetch-On-Focus");
-    if (hFocus !== null) cfg.refetchOnFocus = hFocus !== "false";
-    const hReconnect = request.headers.get("X-SW-Refetch-On-Reconnect");
-    if (hReconnect !== null) cfg.refetchOnReconnect = hReconnect !== "false";
-    return cfg;
-  }
+  if (override) return { strategy: override, timeoutMs: FETCH_TIMEOUT_MS };
+
   const path = new URL(request.url).pathname;
-  for (const [pattern, entry] of Object.entries(customStrategies)) {
+  for (const [pattern, entry] of Object.entries(CUSTOM_STRATEGIES)) {
     if (matchGlob(path, pattern)) {
-      const resolved = resolveStrategyEntry(entry);
-      return { strategy: resolved.strategy };
+      const resolved = typeof entry === "string" ? { strategy: entry } : entry;
+      const timeoutMs = (resolved.timeout != null ? resolved.timeout * 1000 : FETCH_TIMEOUT_MS);
+      if (resolved.strategy === "reactive") {
+        return {
+          strategy: "reactive",
+          timeoutMs: timeoutMs,
+          staleTime: resolved.staleTime ?? REACTIVE_STALE_DEFAULT,
+          refetchInterval: resolved.refetchInterval ?? 0,
+          refetchOnFocus: resolved.refetchOnFocus ?? false,
+          refetchOnReconnect: resolved.refetchOnReconnect ?? false,
+        };
+      }
+      return { strategy: resolved.strategy, timeoutMs: timeoutMs };
     }
   }
-  return { strategy: globalDefaults.defaultStrategy };
+
+  if (DEFAULT_STRATEGY === "reactive") {
+    return {
+      strategy: "reactive",
+      timeoutMs: FETCH_TIMEOUT_MS,
+      staleTime: REACTIVE_STALE_DEFAULT,
+      refetchInterval: 0,
+      refetchOnFocus: false,
+      refetchOnReconnect: false,
+    };
+  }
+  return { strategy: DEFAULT_STRATEGY, timeoutMs: FETCH_TIMEOUT_MS };
 }
 
-function determineCacheStrategyForUrl(url, customStrategies, globalDefaults) {
-  const path = new URL(url).pathname;
-  for (const [pattern, entry] of Object.entries(customStrategies)) {
-    if (matchGlob(path, pattern)) {
-      const resolved = resolveStrategyEntry(entry);
-      return { strategy: resolved.strategy };
+// --- Reactive Entry Store ---
+
+var REACTIVE_ENTRIES = new Map();
+var REACTIVE_INTERVALS = new Map();
+
+function registerReactiveEntry(url, config) {
+  if (REACTIVE_ENTRIES.has(url)) return;
+  REACTIVE_ENTRIES.set(url, {
+    refetchOnFocus: !!config.refetchOnFocus,
+    refetchOnReconnect: !!config.refetchOnReconnect,
+    refetchInterval: config.refetchInterval || 0,
+    staleTime: config.staleTime || 0,
+    lastRefetch: 0,
+  });
+  if ((config.refetchInterval || 0) > 0 && !REACTIVE_INTERVALS.has(url)) {
+    var id = setInterval(function() { refetchEntry(url); }, (config.refetchInterval || 0) * 1000);
+    REACTIVE_INTERVALS.set(url, id);
+  }
+}
+
+async function refetchEntry(url) {
+  var entry = REACTIVE_ENTRIES.get(url);
+  var req = new Request(url);
+  if (entry) {
+    var cached = await serveFromCache(req);
+    if (cached && !isStale(cached, entry.staleTime)) {
+      entry.lastRefetch = Date.now();
+      return;
     }
   }
-  return { strategy: globalDefaults.defaultStrategy };
+  try {
+    var response = await fetchWithRetry(req, REFETCH_RETRY);
+    if (response && response.ok) {
+      await cacheResponse(response.clone(), req);
+      if (entry) entry.lastRefetch = Date.now();
+    }
+  } catch {}
+}
+
+function handleFocusRefetch() {
+  REACTIVE_ENTRIES.forEach(function(config, url) {
+    if (config.refetchOnFocus) refetchEntry(url);
+  });
+}
+
+function handleOnlineRefetch() {
+  REACTIVE_ENTRIES.forEach(function(config, url) {
+    if (config.refetchOnReconnect) refetchEntry(url);
+  });
+}
+
+// --- Strategies ---
+
+/*
+ * Reactive:   serve fresh from cache; if stale/miss → network → fallback
+ * Network-Only: network → fallback (cache ok responses)
+ * Network-First: network → cache (on fail) → fallback
+ * Cache-First: cache → network (on miss) → fallback
+ * Stale-While-Revalidate: stale cache immediately + bg network refresh → fallback
+ * Cache-Only: cache only → 404
+ */
+
+async function reactiveStrategy(event, request, config) {
+  const staleTime = config.staleTime != null ? config.staleTime : REACTIVE_STALE_DEFAULT;
+  const cached = await serveFromCache(request);
+  if (cached && !isStale(cached, staleTime)) return markFromCache(cached);
+
+  try {
+    const response = await _fetch(event, request, config.timeoutMs);
+    if (response.ok) {
+      event.waitUntil(cacheResponse(response.clone(), request));
+      return response;
+    }
+    return fallback(request);
+  } catch {
+    return fallback(request);
+  }
+}
+
+async function networkOnlyStrategy(event, request, config) {
+  try {
+    const response = await _fetch(event, request, config.timeoutMs);
+    if (response.ok) {
+      event.waitUntil(cacheResponse(response.clone(), request));
+      return response;
+    }
+    return fallback(request);
+  } catch {
+    return fallback(request);
+  }
+}
+
+async function networkFirstStrategy(event, request, config) {
+  try {
+    const response = await _fetch(event, request, config.timeoutMs);
+    if (response.ok) {
+      event.waitUntil(cacheResponse(response.clone(), request));
+      return response;
+    }
+    const cached = await serveFromCache(request);
+    if (cached) return markFromCache(cached);
+    return fallback(request);
+  } catch {
+    const cached = await serveFromCache(request);
+    if (cached) return markFromCache(cached);
+    return fallback(request);
+  }
+}
+
+async function cacheFirstStrategy(event, request, config) {
+  const cached = await serveFromCache(request);
+  if (cached) return markFromCache(cached);
+
+  try {
+    const response = await _fetch(event, request, config.timeoutMs);
+    if (response.ok) {
+      event.waitUntil(cacheResponse(response.clone(), request));
+      return response;
+    }
+    return fallback(request);
+  } catch {
+    return fallback(request);
+  }
+}
+
+async function staleWhileRevalidateStrategy(event, request, config) {
+  const cached = await serveFromCache(request);
+
+  event.waitUntil(
+    (async function() {
+      try {
+        var response = await fetchWithRetry(request, REFETCH_RETRY);
+        if (response && response.ok) await cacheResponse(response.clone(), request);
+      } catch {}
+    })(),
+  );
+
+  if (cached) return markFromCache(cached);
+  try {
+    return await _fetch(event, request, config.timeoutMs);
+  } catch {
+    return fallback(request);
+  }
+}
+
+async function cacheOnlyStrategy(event, request, _config) {
+  const cached = await serveFromCache(request);
+  if (cached) return markFromCache(cached);
+  return new Response("Not in cache", { status: 404 });
+}
+
+const STRATEGY_HANDLERS = {
+  "reactive": reactiveStrategy,
+  "network-only": networkOnlyStrategy,
+  "network-first": networkFirstStrategy,
+  "cache-first": cacheFirstStrategy,
+  "stale-while-revalidate": staleWhileRevalidateStrategy,
+  "cache-only": cacheOnlyStrategy,
+};
+
+async function _executeStrategy(event, request, config) {
+  const handler = STRATEGY_HANDLERS[config.strategy] || cacheFirstStrategy;
+  try {
+    return await handler(event, request, config);
+  } catch {
+    return fallback(request);
+  }
 }
 
 function applyStrategy(event, request, config) {
-  const { strategy } = config;
-  if (strategy === "reactive") {
-    const reactiveCfg = findReactiveConfig(new URL(request.url).href);
-    const staleTime = config.staleTime !== undefined ? config.staleTime : reactiveCfg?.staleTime;
-    event.respondWith(reactiveStrategy(event, request, staleTime));
-  } else if (strategy === "stale-while-revalidate") {
-    event.respondWith(staleWhileRevalidate(event, request));
-  } else if (strategy === "network-first") {
-    event.respondWith(networkFirst(event, request));
-  } else if (strategy === "cache-only") {
-    event.respondWith(cacheOnly(event, request));
-  } else if (strategy === "network-only") {
-    event.respondWith(networkOnly(event, request));
-  } else {
-    event.respondWith(cacheFirst(event, request));
-  }
+  event.respondWith(_executeStrategy(event, request, config));
 }
 
 // --- Mutation Queue IDB Helpers ---
 
 const MUTATION_DB_NAME = "swoff-queue";
 const MUTATION_STORE_NAME = "mutations";
-// Bump this when adding new indexes/stores for schema migration
 const MUTATION_DB_VERSION = 1;
-
-function openMutationQueueDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(MUTATION_DB_NAME, MUTATION_DB_VERSION);
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains(MUTATION_STORE_NAME)) {
-        const store = db.createObjectStore(MUTATION_STORE_NAME, { keyPath: "id" });
-        store.createIndex("by-timestamp", "timestamp");
-      }
-    };
-    request.onsuccess = (e) => resolve(e.target.result);
-    request.onerror = (e) => reject(e.target.error);
-  });
-}
 
 async function storeMutationInSW(request) {
   let body, bodyType;
@@ -531,9 +687,27 @@ async function storeMutationInSW(request) {
   const tagsHeader = request.headers.get("X-SW-Invalidate-Tags");
   const tags = tagsHeader ? tagsHeader.split(",").map(function(t) { return t.trim(); }) : [];
 
-  const db = await openMutationQueueDB();
+  const db = await openDB(MUTATION_DB_NAME, MUTATION_DB_VERSION, function(db) {
+    if (!db.objectStoreNames.contains(MUTATION_STORE_NAME)) {
+      const store = db.createObjectStore(MUTATION_STORE_NAME, { keyPath: "id" });
+      store.createIndex("by-timestamp", "timestamp");
+    }
+  });
   const tx = db.transaction(MUTATION_STORE_NAME, "readwrite");
-  tx.objectStore(MUTATION_STORE_NAME).add({
+  const store = tx.objectStore(MUTATION_STORE_NAME);
+  // Prune entries past max age
+  const cutoff = Date.now() - MAX_RUNTIME_CACHE_AGE * 1000;
+  const allEntries = await new Promise(function(resolve, reject) {
+    var req = store.getAll();
+    req.onsuccess = function() { resolve(req.result); };
+    req.onerror = function() { reject(req.error); };
+  });
+  for (const item of allEntries) {
+    if (item.timestamp && item.timestamp < cutoff) {
+      store.delete(item.id);
+    }
+  }
+  store.add({
     id: crypto.randomUUID(),
     method: request.method,
     url: new URL(request.url).href,
@@ -551,16 +725,29 @@ async function storeMutationInSW(request) {
   });
 }
 
+async function _fetchWithTimeout(request) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(request, { signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 async function handleMutation(event) {
   const request = event.request;
   if (request.headers.get("X-SW-No-Queue") === "true") {
-    return fetch(request.clone());
+    try {
+      return await _fetchWithTimeout(request.clone());
+    } catch {
+      throw new Error("Mutation failed (no-queue mode)");
+    }
   }
   try {
-    return await fetch(request.clone());
+    return await _fetchWithTimeout(request.clone());
   } catch {
     await storeMutationInSW(request);
-    // Notify open clients that a mutation was stored so they can try to process
     const clients = await self.clients.matchAll();
     clients.forEach(function(client) {
       client.postMessage({ type: "MUTATION_STORED" });
@@ -576,261 +763,58 @@ async function handleMutation(event) {
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
+  swLog("fetch", "INCOMING", request.url);
   if (request.method !== "GET" && request.method !== "HEAD") {
     if (request.headers.get("X-SW-Cache-Strategy") === "mutation") {
       event.respondWith(handleMutation(event));
       return;
     }
-    if (!request.headers.get("X-SW-Cache-Key")) return;
+    if (!request.headers.get("X-SW-Cache-Key")) { return; }
   }
-  
-  applyStrategy(event, request, determineCacheStrategy(event.request, {"/api/*":"network-first","/static/*":"cache-first"}, { defaultStrategy: "cache-first" }));
+  const cfg = determineCacheStrategy(request);
+  swLog("fetch", "strategy=" + cfg.strategy, request.url);
+  if (cfg.strategy === "reactive") {
+    registerReactiveEntry(cacheKey(request), cfg);
+  }
+  applyStrategy(event, request, cfg);
 });
 
-// --- Strategies ---
-
-const FETCH_TIMEOUT_MS = 10000;
-
-async function _fetchWithTimeout(request) {
-  try {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    const response = await fetch(request, { signal: controller.signal });
-    clearTimeout(id);
-    return response;
-  } catch {
-    const clients = await self.clients.matchAll();
-    for (const client of clients) {
-      client.postMessage({
-        type: "SW_NOTIFICATION",
-        level: "error",
-        code: "FETCH_FAILED",
-        message: "Network request failed: " + request.url,
-      });
-    }
-  }
-}
-
-
-async function fetchWithPreload(event, request) {
-  try {
-    const preload = await event.preloadResponse;
-    if (preload) return preload;
-  } catch {}
-  return _fetchWithTimeout(request);
-}
-const _fetch = fetchWithPreload;
-
-async function cacheFirst(event, request) {
-  const cached = await fromRuntime(request);
-  if (cached) {
-    cleanStaleVersions();
-    if (staleVersions.has(cacheKey(request))) {
-      queueRefresh(cacheKey(request), new URL(request.url).href);
-    }
-    return markFromCache(cached);
-  }
-
-  const precached = await fromPrecache(request);
-  if (precached) return markFromCache(precached);
-
-  const fallback = await fromSpaFallback(request);
-  if (fallback) return fallback;
-
-  const reqForCache = request.clone();
-  const response = await _fetch(event, request);
-  if (response.ok) {
-    const responseToCache = response.clone();
-    event.waitUntil(cacheResponse(reqForCache, responseToCache));
-  }
-  return response;
-}
-
-async function networkFirst(event, request) {
-  try {
-    const reqForCache = request.clone();
-    const response = await _fetch(event, request);
-    if (response.ok) {
-      const responseToCache = response.clone();
-      event.waitUntil(cacheResponse(reqForCache, responseToCache));
-    }
-    return response;
-  } catch {
-    const cached = await fromRuntime(request);
-    if (cached) {
-      return markFromCache(cached);
-    }
-
-    const precached = await fromPrecache(request);
-    if (precached) return markFromCache(precached);
-
-    const fallback = await fromSpaFallback(request);
-    if (fallback) return fallback;
-
-    throw new Error("Network request failed and no cached response available");
-  }
-}
-
-async function staleWhileRevalidate(event, request) {
-  const cached = await fromRuntime(request);
-  if (cached) {
-    event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
-    return markFromCache(cached);
-  }
-
-  const precached = await fromPrecache(request);
-  if (precached) {
-    event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
-    return markFromCache(precached);
-  }
-
-  const reqForCache = request.clone();
-  const response = await _fetch(event, request);
-  if (response.ok) {
-    const responseToCache = response.clone();
-    await cacheResponse(reqForCache, responseToCache);
-  }
-  return response;
-}
-
-async function reactiveStrategy(event, request, staleTime) {
-  const cached = await fromRuntime(request);
-  // Per-request staleTime header overrides config-level staleTime
-  const headerStale = request.headers.get("X-SW-Stale-Time");
-  const effectiveStaleTime = headerStale !== null ? Number(headerStale) : staleTime;
-  if (cached) {
-    cleanStaleVersions();
-    if (staleVersions.has(cacheKey(request))) {
-      queueRefresh(cacheKey(request), new URL(request.url).href);
-    }
-    if (shouldReactiveRefresh(cached, { staleTime: effectiveStaleTime })) {
-      event.waitUntil(queueRefresh(cacheKey(request), new URL(request.url).href));
-    }
-    return markFromCache(cached);
-  }
-
-  const precached = await fromPrecache(request);
-  if (precached) return markFromCache(precached);
-
-  const fallback = await fromSpaFallback(request);
-  if (fallback) return fallback;
-
-  const reqForCache = request.clone();
-  const response = await _fetch(event, request);
-  if (response.ok) {
-    const responseToCache = response.clone();
-    await cacheResponse(reqForCache, responseToCache);
-  }
-  return response;
-}
-
-async function cacheOnly(event, request) {
-  const cached = await fromRuntime(request);
-  if (cached) {
-    cleanStaleVersions();
-    if (staleVersions.has(cacheKey(request))) {
-      queueRefresh(cacheKey(request), new URL(request.url).href);
-    }
-    return markFromCache(cached);
-  }
-
-  const precached = await fromPrecache(request);
-  if (precached) return markFromCache(precached);
-
-  return new Response("Not in cache", { status: 404 });
-}
-
-async function networkOnly(event, request) {
-  return _fetch(event, request);
-}
-
-const staleVersions = new Map();
-const STALE_VERSIONS_MAX = 100;
-const STALE_VERSION_TTL = 30 * 60 * 1000;
 const TAG_DB_NAME = "swoff-cache-tags";
 const TAG_STORE_NAME = "tags";
 // Bump this when adding new indexes/stores for schema migration
 const TAG_DB_VERSION = 1;
 
-function cleanStaleVersions() {
-  const now = Date.now();
-  for (const [url, ts] of staleVersions) {
-    if (staleVersions.size > STALE_VERSIONS_MAX || now - ts > STALE_VERSION_TTL) {
-      staleVersions.delete(url);
-    }
-  }
-}
-
-function openTagDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(TAG_DB_NAME, TAG_DB_VERSION);
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains(TAG_STORE_NAME)) {
-        const store = db.createObjectStore(TAG_STORE_NAME, { keyPath: "url" });
-        store.createIndex("by-tag", "tags", { multiEntry: true });
-      }
-    };
-    request.onsuccess = (e) => resolve(e.target.result);
-    request.onerror = (e) => reject(e.target.error);
-  });
-}
-
 async function cacheTagUrl(url, actualUrl, tags, method, body, contentType) {
-  const db = await openTagDB();
+  const db = await openDB(TAG_DB_NAME, TAG_DB_VERSION, function(db) {
+    if (!db.objectStoreNames.contains(TAG_STORE_NAME)) {
+      const store = db.createObjectStore(TAG_STORE_NAME, { keyPath: "url" });
+      store.createIndex("by-tag", "tags", { multiEntry: true });
+    }
+  });
   const tx = db.transaction(TAG_STORE_NAME, "readwrite");
   const store = tx.objectStore(TAG_STORE_NAME);
-  store.put({ url, actualUrl, tags, method: method || "GET", body: body || null, contentType: contentType || null });
+  // Prune entries older than MAX_RUNTIME_CACHE_AGE
+  const cutoff = Date.now() - MAX_RUNTIME_CACHE_AGE * 1000;
+  const index = store.index("by-tag");
+  const allEntries = await new Promise(function(resolve, reject) {
+    var req = index.getAll();
+    req.onsuccess = function() { resolve(req.result); };
+    req.onerror = function() { reject(req.error); };
+  });
+  for (const entry of allEntries) {
+    if (entry.timestamp && entry.timestamp < cutoff) {
+      store.delete(entry.url);
+    }
+  }
+  store.put({ url, actualUrl, tags, method: method || "GET", body: body || null, contentType: contentType || null, timestamp: Date.now() });
   await new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
 }
 
-async function invalidateByTag(tag) {
-  const db = await openTagDB();
-  const tx = db.transaction(TAG_STORE_NAME, "readonly");
-  const store = tx.objectStore(TAG_STORE_NAME);
-  const index = store.index("by-tag");
-  const entries = await new Promise((resolve, reject) => {
-    const request = index.getAll(tag);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-  await db.close();
-
-  // Remove from tag index and runtime cache
-  const writeDb = await openTagDB();
-  const writeTx = writeDb.transaction(TAG_STORE_NAME, "readwrite");
-  const writeStore = writeTx.objectStore(TAG_STORE_NAME);
-  for (const entry of entries) {
-    writeStore.delete(entry.url);
-  }
-  await new Promise((resolve, reject) => {
-    writeTx.oncomplete = () => resolve();
-    writeTx.onerror = () => reject(writeTx.error);
-  });
-  writeDb.close();
-
-  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
-  for (const entry of entries) {
-    await runtimeCache.delete(entry.url);
-  }
-
-  // Enqueue background refetch through batched refresh queue
-  for (const entry of entries) {
-    staleVersions.set(entry.url, Date.now());
-    queueRefresh(entry.url, entry.actualUrl, entry.tags, entry.method, entry.body, entry.contentType);
-  }
-
-  const clients = await self.clients.matchAll();
-  clients.forEach((client) => {
-    client.postMessage({ type: "TAG_INVALIDATED", tag });
-  });
-}
-
 async function getUrlsForTag(tag) {
-  const db = await openTagDB();
+  const db = await openDB(TAG_DB_NAME, TAG_DB_VERSION);
   const tx = db.transaction(TAG_STORE_NAME, "readonly");
   const store = tx.objectStore(TAG_STORE_NAME);
   const index = store.index("by-tag");
@@ -844,7 +828,7 @@ async function getUrlsForTag(tag) {
 }
 
 async function getTagsForUrl(url) {
-  const db = await openTagDB();
+  const db = await openDB(TAG_DB_NAME, TAG_DB_VERSION);
   const tx = db.transaction(TAG_STORE_NAME, "readonly");
   const store = tx.objectStore(TAG_STORE_NAME);
   const entry = await new Promise((resolve, reject) => {
@@ -856,8 +840,47 @@ async function getTagsForUrl(url) {
   return entry ? entry.tags : [];
 }
 
+async function invalidateByTag(tag) {
+  const db = await openDB(TAG_DB_NAME, TAG_DB_VERSION);
+  const tx = db.transaction(TAG_STORE_NAME, "readwrite");
+  const store = tx.objectStore(TAG_STORE_NAME);
+  const index = store.index("by-tag");
+  const entries = await new Promise((resolve, reject) => {
+    const request = index.getAll(tag);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+
+  if (!entries || entries.length === 0) {
+    tx.oncomplete = () => db.close();
+    return;
+  }
+
+  for (const entry of entries) {
+    store.delete(entry.url);
+  }
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  db.close();
+
+  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
+  const rscCache = await caches.open(CACHE_NAME_RUNTIME_HTML);
+  for (const entry of entries) {
+    await runtimeCache.delete(entry.url);
+    await rscCache.delete(entry.url);
+    refetchEntry(entry.url);
+  }
+
+  const clients = await self.clients.matchAll();
+  clients.forEach((client) => {
+    client.postMessage({ type: "TAG_INVALIDATED", tag });
+  });
+}
+
 async function invalidateMatching(globPattern) {
-  const db = await openTagDB();
+  const db = await openDB(TAG_DB_NAME, TAG_DB_VERSION);
   const tx = db.transaction(TAG_STORE_NAME, "readonly");
   const store = tx.objectStore(TAG_STORE_NAME);
   const allEntries = await new Promise((resolve, reject) => {
@@ -867,7 +890,7 @@ async function invalidateMatching(globPattern) {
   });
   await db.close();
 
-  const matching = allEntries.filter((entry) => matchGlob(entry.url, globPattern));
+  const matching = allEntries.filter((entry) => matchGlob(entry.actualUrl, globPattern));
   const tags = new Set();
   for (const entry of matching) {
     for (const tag of entry.tags) {
@@ -914,10 +937,6 @@ self.addEventListener("notificationclick", (event) => {
 
   event.waitUntil(
     (async () => {
-      if (action) {
-        // Handle action clicks (e.g., "reply", "dismiss")
-      }
-
       const clients = await self.clients.matchAll({ type: "window" });
 
       for (const client of clients) {
@@ -953,7 +972,7 @@ let pushAbortController = null;
 async function connectPushEvents() {
   try {
     pushAbortController = new AbortController();
-    const response = await fetch("/api/events", {
+    const response = await fetch("SWOFF_API_BASE/api/events", {
       headers: { Accept: "text/event-stream" },
       credentials: "include",
       signal: pushAbortController.signal,
@@ -1013,179 +1032,5 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(connectPushEvents());
 });
 
-
-
-self.addEventListener("sync", (event) => {
-  if (event.tag === "sync-mutations") {
-    event.waitUntil(processMutationQueueInSW());
-  }
-});
-
-const SW_BATCH_SIZE = 1;
-const SW_BATCH_DELAY_MS = 0;
-const SW_MAX_RETRIES = 5;
-const SW_RETRY_BACKOFF_MS = 1000;
-// Bump this when adding new indexes/stores for schema migration
-const SW_DB_VERSION = 1;
-
-function swSleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-async function processMutationQueueInSW() {
-  // If any client pages are open, skip entirely — the client always wins when open.
-  // Only the SW processes the queue when all tabs are closed (background sync event).
-  const activeClients = await self.clients.matchAll();
-  if (activeClients.length > 0) return;
-
-  let succeeded = 0;
-  let failed = 0;
-  const tagsToInvalidate = new Set();
-  let db;
-
-  try {
-    db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open("swoff-queue", SW_DB_VERSION);
-      request.onupgradeneeded = (e) => {
-        const idb = e.target.result;
-        if (!idb.objectStoreNames.contains("mutations")) {
-          const store = idb.createObjectStore("mutations", { keyPath: "id" });
-          store.createIndex("by-timestamp", "timestamp");
-        }
-      };
-      request.onsuccess = (e) => resolve(e.target.result);
-      request.onerror = (e) => reject(e.target.error);
-    });
-
-    const tx = db.transaction("mutations", "readonly");
-    const store = tx.objectStore("mutations");
-    const index = store.index("by-timestamp");
-    const queue = await new Promise((resolve, reject) => {
-      const request = index.getAll();
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-
-    const total = queue.length;
-    for (const item of queue) {
-      if (item.retryCount >= SW_MAX_RETRIES) {
-        await removeFromSWQueue(db, item.id);
-        failed++;
-        continue;
-      }
-
-      // Skip items whose backoff delay hasn't elapsed yet
-      if (item.nextRetryAt && Date.now() < item.nextRetryAt) {
-        continue;
-      }
-
-      // Stop processing if browser went offline during sync
-      if (!self.navigator.onLine) break;
-
-      // Reconstruct request body based on stored bodyType
-      let replayBody = null;
-      let contentType;
-      const bt = item.bodyType || "json";
-      if (bt === "formdata") {
-        replayBody = new FormData();
-        const entries = item.body || [];
-        for (let i = 0; i < entries.length; i++) {
-          replayBody.append(entries[i][0], entries[i][1]);
-        }
-      } else if (bt === "blob") {
-        replayBody = item.body;
-      } else if (bt === "buffer") {
-        replayBody = item.body instanceof ArrayBuffer ? new Uint8Array(item.body) : item.body;
-      } else if (bt === "text") {
-        replayBody = item.body;
-      } else if (item.body != null) {
-        replayBody = JSON.stringify(item.body);
-        contentType = "application/json";
-      }
-
-      try {
-        const response = await fetch(item.url, {
-          method: item.method,
-          headers: {
-            ...(contentType ? { "Content-Type": contentType } : {}),
-            ...item.headers,
-          },
-          ...(replayBody != null ? { body: replayBody } : {}),
-          credentials: "same-origin",        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        if (item.tags) {
-          item.tags.forEach((tag) => {
-            tagsToInvalidate.add(tag);
-            if (typeof invalidateByTag !== "undefined") invalidateByTag(tag);
-          });
-        }
-
-        await removeFromSWQueue(db, item.id);
-        succeeded++;
-      } catch {
-        item.retryCount++;
-        item.nextRetryAt = Date.now() + SW_RETRY_BACKOFF_MS * Math.pow(2, item.retryCount - 1);
-        await updateInSWQueue(db, item);
-        failed++;
-      }
-
-      // Rate limiting delay between mutations
-      if (SW_BATCH_DELAY_MS > 0 && succeeded + failed < total) {
-        await swSleep(SW_BATCH_DELAY_MS);
-      }
-
-      // Emit progress after every SW_BATCH_SIZE mutations
-      if ((succeeded + failed) % SW_BATCH_SIZE === 0 || succeeded + failed === total) {
-        const clients = await self.clients.matchAll();
-        for (const client of clients) {
-          client.postMessage({
-            type: "BACKGROUND_SYNC_PROGRESS",
-            detail: { succeeded, failed, total, current: succeeded + failed },
-          });
-        }
-      }
-    }
-  } catch (err) {
-    console.error("Background sync failed:", err);
-    const syncClients = await self.clients.matchAll();
-    for (const c of syncClients) {
-      c.postMessage({
-        type: "SW_NOTIFICATION",
-        level: "error",
-        code: "BACKGROUND_SYNC_FAILED",
-        message: "Background sync processing failed",
-      });
-    }
-  } finally {
-    if (db) db.close();
-  }
-
-  const clients = await self.clients.matchAll();
-  for (const client of clients) {
-    client.postMessage({
-      type: "BACKGROUND_SYNC_COMPLETE",
-      detail: { succeeded, failed, tags: [...tagsToInvalidate] },
-    });
-  }
-}
-
-async function removeFromSWQueue(db, id) {
-  const tx = db.transaction("mutations", "readwrite");
-  tx.objectStore("mutations").delete(id);
-  await new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function updateInSWQueue(db, item) {
-  const tx = db.transaction("mutations", "readwrite");
-  tx.objectStore("mutations").put(item);
-  await new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
 // Dev mode fallback
 if (!CACHE_NAME) CACHE_NAME = "sw-dev-cache";

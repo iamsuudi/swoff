@@ -520,7 +520,7 @@ Always generated.
 
 ## React hooks
 
-Generated when `features.framework` is `"react"`. All hooks live in `swoff/adapters/`.
+Generated when the framework is React-based (`"react-spa"`, `"nextjs"`, `"remix"`, `"tanstack-start-react"`, `"astro"`). All hooks live in `swoff/adapters/`.
 
 ### `useCachedFetch<T>(url, options?)`
 

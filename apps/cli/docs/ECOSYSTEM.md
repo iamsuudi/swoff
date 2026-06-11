@@ -56,30 +56,6 @@ Beyond the global fallback, `navigation.rules` provide per-route offline fallbac
 
 Rules only provide per-route fallback paths for the ultimate fallback chain — they do not override the caching strategy. Per-route `fallback` paths are automatically precached at install time. Rules are evaluated in order; the first match wins.
 
-## Smart navigation retry
-
-When a navigation falls through to the ultimate offline fallback, Swoff can start a **background retry loop**:
-
-```jsonc
-{
-  "features": {
-    "serviceWorker": {
-      "navigation": {
-        "retry": {
-          "enabled": true,
-          "intervalMs": 3000,
-          "maxRetries": 20
-        }
-      }
-    }
-  }
-}
-```
-
-On each retry, the SW fetches the failed URL. When a retry succeeds, the response is cached and a `swoff:navigation-online` custom event is dispatched so the app can auto-reload or show a "back online" toast. This eliminates the "found connectivity but need to manually refresh" problem.
-
-Retries run in the background via `event.waitUntil` — they don't block the current response.
-
 When `swoff init` detects a meta-framework in `package.json`, it automatically sets the correct `navigation.mode` and framework-specific `ignoreQueryParams`.
 
 For example, a Next.js project gets:

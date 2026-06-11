@@ -70,9 +70,9 @@ Instead of fire-and-forget `event.waitUntil(refetch())` on every stale request, 
 1. Any trigger (staleTime expiry, refetchInterval tick, refetchOnFocus, refetchOnReconnect, or tag invalidation) calls `queueRefresh(url)` which adds the URL to a `Map<string, entry>` keyed by cache key (automatic dedup)
 2. A single `_processRefreshQueue()` microtask processes URLs in batches of `features.refetchQueue.batchSize`
 3. Between batches, a delay of `features.refetchQueue.batchDelayMs` is applied (rate limiting)
-4. On each successful refetch, `CACHE_UPDATED` is posted to all connected clients, and any `staleVersions` tracking is cleaned up
+4. On each successful refetch, `CACHE_UPDATED` is posted to all connected clients
 
-**Retry with exponential backoff**: if a refresh fetch fails (network error, non-ok response), the entry is re-queued with an incremented `retryCount`. The retry delay = `features.refetchQueue.retryDelayMs × 2^(retryCount - 1)`. After `features.refetchQueue.maxRetries` consecutive failures, the entry is dropped. A `setTimeout` schedules re-processing after the delay, ensuring the SW stays alive for retries.
+**Retry with exponential backoff**: if a refresh fetch fails (network error, non-ok response), the entry is re-queued with an incremented `retryCount`. The retry delay = `min(backoffMs × 2^retryCount, maxBackoffMs) + jitter`. The `RetryConfig` is unified across all retry contexts: `{ maxRetries, backoffMs, maxBackoffMs, jitterMs }`. After `maxRetries` consecutive failures, the entry is dropped. A `setTimeout` schedules re-processing after the delay, ensuring the SW stays alive for retries.
 
 This prevents:
 - **Stampedes**: 50 stale resources from a page load all get queued, not fetched simultaneously
@@ -82,15 +82,11 @@ This prevents:
 
 ## Online recovery
 
-When the browser fires `online`, the `client-injector` forwards the event to the SW. The SW runs `handleOnline()` in two phases:
-
-**Phase 1 — staleVersions retry:** Any cache entries that failed to refetch after tag invalidation (while offline) are re-queued first via the batch refresh queue. This ensures invalidation-triggered refetches are prioritized.
-
-**Phase 2 — reactive entry registry scan:** The SW iterates its in-memory `_reactiveRegistry` Map (populated per-entry at cache-write time and initially seeded by a one-time scan at SW startup). For each registry entry with `refetchOnReconnect: true`:
+When the browser fires `online`, the `client-injector` forwards the event to the SW. The SW runs `handleOnline()` which iterates its in-memory `_reactiveRegistry` Map (populated per-entry at cache-write time and initially seeded by a one-time scan at SW startup). For each registry entry with `refetchOnReconnect: true`:
 
 1. Looks up the cached response in the runtime cache by cache key
-2. Calls `shouldReactiveRefresh(cachedResponse, entry)` which checks if the entry is stale (past `staleTime`, or if `staleTime` is 0/undefined)
-3. If stale → queues a refresh via `queueRefresh(url)`
+2. Checks if the entry is stale (past `staleTime`, or if `staleTime` is 0/undefined)
+3. If stale → queues a refresh via `queueRefresh(url)` through the shared batch queue
 
 Non-reactive strategies (cache-first, network-first, stale-while-revalidate) do **not** participate in the online recovery scan — their contracts are stateless with respect to staleness. This naturally recovers from: background refresh failure while offline, tab closed while offline, and first request after connectivity returns.
 
@@ -121,15 +117,17 @@ Non-navigation requests (API calls, assets, RSC payloads) are handled by the con
 
 A single URL can serve different content types depending on the request context — full page loads return `text/html` while client-side fetches may return `text/x-component` (RSC), `application/json`, or partial HTML. If these were stored at the same cache key, a hard refresh while offline could serve a non-HTML response to the browser.
 
-Swoff isolates HTML responses in their own cache container (`CACHE_NAME_RUNTIME_HTML = "swoff-runtime-html"`). The `storeRuntime` function routes by Content-Type:
+Swoff isolates HTML responses in their own cache container (`CACHE_NAME_RUNTIME_HTML = "swoff-runtime-html"`). The `cacheResponse` function routes by Content-Type:
 
 - `text/html` → `CACHE_NAME_RUNTIME_HTML` (HTML-only cache)
 - Everything else (RSC, JSON, JS, CSS, images) → `CACHE_NAME_RUNTIME` (main runtime cache)
+- If the URL already exists in **precache**, the entry is skipped (never stored in runtime) — precache takes precedence
 
-The `fromRuntime` function remains simple:
+Cache lookup in `serveFromCache`:
 
-- **Navigation requests**: check `CACHE_NAME_RUNTIME_HTML` only
-- **Non-navigation requests**: check `CACHE_NAME_RUNTIME` only
+- **Navigation requests** (SSR/Default mode): check `CACHE_NAME_RUNTIME_HTML` first, then precache
+- **Non-navigation requests**: check `CACHE_NAME_RUNTIME` first, then precache
+- **SPA navigation**: checks precache only for the fallback path (`FALLBACK_PATH`), then returns null
 
 This is framework-agnostic and terminology-agnostic — there is no mention of RSC, dual-payload, or any specific framework. The rule is simply: "HTML is special for navigation; everything else is normal." Any framework that serves different content types at the same URL (Next.js, TanStack Start, HTMX partials, JSON-LD, API formats) is handled automatically.
 
@@ -333,11 +331,9 @@ data: {"tags": ["todos", "categories"]}
 ```
 
 When the SW receives an `invalidate` event, it calls `invalidateByTags(tags)` which:
-1. Removes matching cache entries from the runtime cache
-2. Tracks stale URLs in `staleVersions` (an in-memory `Map<cacheKey, timestamp>`)
-3. Queues each stale URL through the shared batch refresh queue (`queueRefresh`)
-4. On successful refetch, removes the entry from `staleVersions` and sends `CACHE_UPDATED` to all clients
-5. Any `staleVersions` that remain on next `online` event get priority retry in `handleOnline` phase 1
+1. Removes matching cache entries from the runtime cache (using a single readwrite transaction against the tag IndexedDB store)
+2. Queues each invalidated URL through the shared batch refresh queue (`queueRefresh`) — deduplicated by cache key via a `Map`
+3. On successful refetch, sends `CACHE_UPDATED` to all connected clients
 
 ---
 
@@ -364,50 +360,110 @@ Auth tokens are stored **in memory only** — never persisted to IndexedDB or lo
 
 ---
 
-## Request dispatch flow
+## Strategy resolution flow
 
-All requests (navigate and non-navigate) flow through `serveFromCache`, which dispatches by mode:
+Each request is dispatched through the configured strategy using a unified decision tree. All strategies share the same building blocks:
+
+- **`serveFromCache(request)`** — looks up request in precache or runtime caches, with mode-specific rules
+- **`_fetchWithTimeout(request)`** — pure fetch with `AbortController` timeout (no cache lookup, no ETag, no 304 handling)
+- **`cacheResponse(response, request)`** — stores responses by content-type, skipping runtime when entry exists in precache
+- **`fallback(request)`** — returns offline/error page per-route → global → inline 503 (SPA skips global)
+
+### Strategy flow
 
 ```
-serveFromCache:
-  navigate + SPA → handleSpaNavigation (fallback chain, no runtime cache)
-  navigate + SSR/default → precache(URL) → runtime-html(URL) → null
-  non-navigate → runtime cache → precache → null
-
 cache-first:
   → serveFromCache (if available)
-  → fall back to network on miss → storeRuntime
+  → fall back to _fetchWithTimeout on miss → cacheResponse
 
 network-first:
-  → fetch → on failure → serveFromCache
+  → _fetchWithTimeout → on failure → serveFromCache
 
 stale-while-revalidate:
-  → serveFromCache (if available)
-  → always queueRefresh(url) (unconditional background refresh)
+  → _fetchWithTimeout (background, non-blocking)
+  → serveFromCache (stale allowed — return immediately)
+  → on cache miss: wait for network or fallback
 
 cache-only:
-  → serveFromCache only
+  → serveFromCache only (never hits network)
 
 network-only:
-  → fetch only (no cache interaction)
+  → _fetchWithTimeout only (no cache interaction)
 
 reactive:
   → serveFromCache (if available)
-  → shouldReactiveRefresh? → stale? → queueRefresh(url)
-  → also: refetchInterval timer, refetchOnFocus, refetchOnReconnect → all gate through staleTime
+  → shouldReactiveRefresh? → stale (past staleTime)? → queueRefresh(url)
+  → also: refetchInterval timer (per-entry setInterval), refetchOnFocus, refetchOnReconnect
+    → all trigger refresh through queueRefresh when stale
+```
 
-On strategy failure (any):
-  → fromUltimateFallback → per-route fallback → global fallback → inline 503
+### serveFromCache by mode
 
+```
+navigate + SPA:
+  → check precache for FALLBACK_PATH → serve if found → null
+  → (does NOT check runtime-html — SPA shell comes from precache)
+
+navigate + SSR/default:
+  → precache → runtime-html → null
+  → followed by fallback() which also checks runtime-html first
+
+non-navigate (any mode):
+  → runtime cache → precache → null
+```
+
+### Fallback flow (`fallback()`)
+
+```
+SSR/Default:
+  → runtime-html cache check → per-route fallback → global fallback → inline 503
+
+SPA:
+  → per-route fallback → inline 503
+  → (no global fallback — already tried FALLBACK_PATH in serveFromCache)
+```
+
+### Cache rules
+
+- **`cacheResponse`** always skips storing in runtime when entry exists in precache (precache is authoritative)
+- **No SPA guard** in `cacheResponse` — the caller (strategy) decides whether to cache based on mode
+- Tags are recorded in IndexedDB for every cache write (runtime or precache)
+- `_fetchWithTimeout` is a pure fetch + timeout — all caching decisions happen at the strategy level via `event.waitUntil(cacheResponse(…))`
+
+### Online recovery
+
+```
 On "online" event from window:
-  → handleOnline(phase 1) → staleVersions retry → queueRefresh()
-  → handleOnline(phase 2) → iterate reactive registry with refetchOnReconnect → queueRefresh()
+  → handleOnline() → iterate _reactiveRegistry with refetchOnReconnect
+  → for each stale entry → queueRefresh(url) through batch queue
+```
 
+### Tag invalidation flow
+
+```
 On tag invalidation:
-  → delete cache entries
-  → mark staleVersions
-  → queueRefresh (through batch queue)
-  → on success: CACHE_UPDATED + cleanup staleVersions
+  → open tag DB → find all entries matching tag
+  → delete cache entries from runtime cache
+  → queueRefresh(url) for each (deduplicated via batch queue)
+  → on successful refetch → CACHE_UPDATED to all clients
+```
+
+---
+
+## Decision Matrix (Quick Reference)
+
+| Request type           | SPA (nav)                     | SSR / Default (nav)               | Any mode (subresource)          |
+| ---------------------- | ----------------------------- | --------------------------------- | ------------------------------- |
+| Reactive strategy      | network → fallback (no cache) | cache → network → fallback        | cache (fresh) → network → cache |
+| Network‑Only           | network → fallback (no cache) | network → fallback (cache on OK)  | network → cache (on OK)         |
+| Network‑First          | network → fallback (no cache) | cache → network → fallback        | cache → network → cache         |
+| Cache‑First            | network → fallback (no cache) | cache → network (miss) → fallback | cache → network (miss) → cache  |
+| Stale‑While‑Revalidate | network (bg) + fallback       | network (bg) + cache → fallback   | network (bg) + cache → fallback |
+
+> **Legend:**
+> - `→ fallback` means if network fails, go to `fallback()`.
+> - `(no cache)` means skip `cacheResponse`.
+> - `(bg)` = background network fetch.
 
 ## Tag introspection
 
@@ -433,7 +489,7 @@ Swoff broadcasts resource-level events from the Service Worker to the client win
 
 ```
 SW scope:
-  _fetch() catch     → postMessage(SW_NOTIFICATION, level: "error", code: "FETCH_FAILED")
+  _fetchWithTimeout() catch     → postMessage(SW_NOTIFICATION, level: "error", code: "FETCH_FAILED")
   precacheAssets()   → postMessage(SW_NOTIFICATION, level: "warn", code: "PRECACHE_FAILED")
   bg sync catch      → postMessage(SW_NOTIFICATION, level: "error", code: "BACKGROUND_SYNC_FAILED")
 

@@ -372,7 +372,15 @@ async function cacheResponse(response, request) {
  *   SPA:            per-route → inline 503
  */
 async function fallback(request) {
-  swLog("fallback", "ENTER", request.url, 3);${
+  swLog("fallback", "ENTER", request.url, 3);
+  if (NAV_MODE !== "spa") {
+    const htmlCache = await caches.open(CACHE_NAME_RUNTIME_HTML);
+    const htmlMatch = await htmlCache.match(cacheKey(request));
+    if (htmlMatch) {
+      swLog("fallback", "HIT runtime-html", request.url, 3);
+      return htmlMatch;
+    }
+  }${
     hasRules
       ? `
     const routeFallbackPath = matchRouteFallback(request.url);

@@ -48,30 +48,30 @@ export function applySwSections(
 
   code = code.replace(
     "// [[FETCH_HANDLER]]",
-    generateFetchHandler({ strategy, navigation, refetchQueue }, true, features.mutationQueue.enabled, debug),
+    () => generateFetchHandler({ strategy, navigation, refetchQueue }, true, features.mutationQueue.enabled, debug),
   );
 
   code = code.replace(
     "// [[ACTIVATE_HANDLER]]",
-    generateActivateHandler(strategy.clearRuntimeOnUpdate, navigation.preload, maxCacheAge),
+    () => generateActivateHandler(strategy.clearRuntimeOnUpdate, navigation.preload, maxCacheAge),
   );
 
-  code = code.replace("// [[INSTALL_HANDLER]]", generateInstallHandler());
-  code = code.replace("// [[MESSAGE_HANDLER]]", generateMessageHandler(true, features.tagInvalidation.debounceMs ?? 0));
-  code = code.replace("// [[TAG_MANAGEMENT]]", generateTagManagement(maxCacheAge));
+  code = code.replace("// [[INSTALL_HANDLER]]", () => generateInstallHandler());
+  code = code.replace("// [[MESSAGE_HANDLER]]", () => generateMessageHandler(true, features.tagInvalidation.debounceMs ?? 0));
+  code = code.replace("// [[TAG_MANAGEMENT]]", () => generateTagManagement(maxCacheAge));
 
   const endpoint = useApiBasePlaceholder
     ? "SWOFF_API_BASE" + (features.realtime.serverPush?.endpoint ?? "")
     : features.realtime.serverPush?.endpoint ?? "";
 
   code = features.realtime.pushNotifications
-    ? code.replace("// [[PUSH_HANDLERS]]", generateSwPushHandlers())
+    ? code.replace("// [[PUSH_HANDLERS]]", () => generateSwPushHandlers())
     : code.replace("// [[PUSH_HANDLERS]]", "");
 
   code = features.realtime.serverPush?.enabled
     ? code.replace(
         "// [[SERVER_PUSH_HANDLER]]",
-        generateServerPushHandler(
+        () => generateServerPushHandler(
           features.realtime.serverPush.type,
           endpoint,
           features.realtime.serverPush.reconnectDelayMs,

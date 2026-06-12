@@ -145,16 +145,16 @@ const assetsToCache = combined.map(url => ({ url, options: {} }));
 let sw = template;
 const sentinel = 'SW_CACHE_SENTINEL';
 if (versionEnabled) {
-  sw = sw.replace('// [[CACHE_NAME]]', \`CACHE_NAME = 'sw-v\${version}'\`);
+  sw = sw.replace('// [[CACHE_NAME]]', () => \`CACHE_NAME = 'sw-v\${version}'\`);
 } else {
-  sw = sw.replace('// [[CACHE_NAME]]', \`CACHE_NAME = '\${sentinel}'\`);
+  sw = sw.replace('// [[CACHE_NAME]]', () => \`CACHE_NAME = '\${sentinel}'\`);
 }
-sw = sw.replace('// [[ASSETS_LIST]]', \`ASSETS_TO_CACHE = \${JSON.stringify(assetsToCache, null, 2)}\`);
-sw = sw.replace('// [[AUTO_SKIP_WAITING]]', \`const AUTO_SKIP_WAITING = \${config.features?.serviceWorker?.autoActivate || false};\`);
+sw = sw.replace('// [[ASSETS_LIST]]', () => \`ASSETS_TO_CACHE = \${JSON.stringify(assetsToCache, null, 2)}\`);
+sw = sw.replace('// [[AUTO_SKIP_WAITING]]', () => \`const AUTO_SKIP_WAITING = \${config.features?.serviceWorker?.autoActivate || false};\`);
 
 if (!versionEnabled) {
   const cacheName = generateCacheNameHash();
-  sw = sw.replace(sentinel, cacheName);
+  sw = sw.replace(sentinel, () => cacheName);
   writeFileSync(join(outDir, swFile), sw);
   console.log(\`Service worker built: \${outputDir}/\${swFile}\`);
 } else {

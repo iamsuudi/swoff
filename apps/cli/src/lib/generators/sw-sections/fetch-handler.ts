@@ -655,17 +655,7 @@ async function reactiveStrategy(event, request, config) {
 }
 
 async function networkOnlyStrategy(event, request, config) {
-  swLog("networkOnlyStrategy", "ENTER", request.url, 2);
-  try {
-    const response = await _fetch(event, request, config.timeoutMs);
-    if (response.ok) {
-      event.waitUntil(cacheResponse(response.clone(), request));
-      return response;
-    }
-    return fallback(request);
-  } catch {
-    return fallback(request);
-  }
+  return fetch(request);
 }
 
 async function networkFirstStrategy(event, request, config) {

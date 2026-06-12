@@ -5,18 +5,27 @@
 import { writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { log } from "../cli/logger.js";
-import { defaultInitConfig, deepMerge, type SwoffConfig } from "../shared/config-types.js";
-import { detectFramework, type FrameworkName } from "../utils/detect-framework.js";
+import {
+  defaultInitConfig,
+  deepMerge,
+  type SwoffConfig,
+} from "../shared/config-types.js";
+import {
+  detectFramework,
+  type FrameworkName,
+} from "../utils/detect-framework.js";
 
 const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
   nextjs: {
+    build: {
+      outputDir: "public",
+    },
     features: {
       serviceWorker: {
         strategy: {
           default: "network-first",
           patterns: {
-            "/_next/*": "cache-first",
-            "/api/*": "network-first",
+            "/_next/static/*": "cache-first",
           },
           ignoreQueryParams: ["_rsc"],
         },
@@ -73,6 +82,9 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
     },
   },
   "react-spa": {
+    build: {
+      outputDir: "dist",
+    },
     features: {
       serviceWorker: {
         navigation: {
@@ -82,10 +94,16 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
     },
   },
   "tanstack-start-react": {
+    build: {
+      outputDir: ".output/public",
+    },
     features: {
       serviceWorker: {
         strategy: {
           default: "network-first",
+          patterns: {
+            "/_serverFn/*": "network-only",
+          },
         },
         navigation: {
           mode: "ssr",
@@ -112,7 +130,10 @@ export async function initCommand(projectRoot: string, framework?: string) {
 
   // Start with default config, deep-merge the preset
   const config = deepMerge(
-    { ...defaultInitConfig, framework: detected as SwoffConfig["framework"] } as unknown as Record<string, unknown>,
+    {
+      ...defaultInitConfig,
+      framework: detected as SwoffConfig["framework"],
+    } as unknown as Record<string, unknown>,
     preset as unknown as Record<string, unknown>,
   ) as unknown as SwoffConfig;
 

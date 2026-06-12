@@ -1,9 +1,11 @@
 import { readdirSync, existsSync } from "fs";
 import { join, relative } from "path";
-import { createHash } from "crypto";
 import type { SwoffConfig } from "../shared/config-types.js";
 
-export function resolveVersion(versionField: string, pkgVersion: string): string {
+export function resolveVersion(
+  versionField: string,
+  pkgVersion: string,
+): string {
   if (versionField === "hash") return "0.0.0";
   if (versionField === "package") return pkgVersion || "1.0.0";
   if (versionField === "manual") return "0.0.0"; // resolved at build time from sw-version.ts
@@ -70,7 +72,8 @@ export function scanPrecacheAssets(
     const normPrefix = prefix.replace(/\/+$/, "");
     for (const a of collectAssets(dirPath, dirPath)) {
       const urlPath = normPrefix + "/" + a.slice(1);
-      if (urlPath !== `/${swFile}` && urlPath !== "/version.json") scanned.push(urlPath);
+      if (urlPath !== `/${swFile}` && urlPath !== "/version.json")
+        scanned.push(urlPath);
     }
   }
   return scanned;

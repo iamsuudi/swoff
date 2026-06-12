@@ -72,7 +72,17 @@ export interface RealtimeConfig {
 
 export interface SwoffConfig {
   $schema?: string;
-  framework?: "nextjs" | "remix" | "tanstack-start-react" | "astro" | "nuxt" | "sveltekit" | "react-spa" | "vue" | "svelte" | "vanilla";
+  framework?:
+    | "nextjs"
+    | "remix"
+    | "tanstack-start-react"
+    | "astro"
+    | "nuxt"
+    | "sveltekit"
+    | "react-spa"
+    | "vue"
+    | "svelte"
+    | "vanilla";
   features: {
     pwa: {
       enabled: boolean;
@@ -153,7 +163,7 @@ export const API_PREFIXES = ["api", "v1", "v2", "v3", "rest", "graphql", "gql"];
 
 export const defaultAuth: AuthConfig = {
   enabled: false,
-  type: "bearer",
+  type: "cookie",
   refreshPath: "/api/refresh",
   userEndpoint: "/api/me",
 };
@@ -177,6 +187,7 @@ export const defaultRefetchQueue: RefetchQueueConfig = {
 
 export const defaultRealtimeConfig: RealtimeConfig = {
   pushNotifications: false,
+  vapidPublicKey: "",
   serverPush: {
     enabled: false,
     type: "sse",
@@ -194,7 +205,10 @@ export const defaultTagInvalidation: TagInvalidationConfig = {
   crossTabSync: true,
 };
 
-export function deepMerge<T>(base: T, override: Partial<T> | Record<string, unknown>): T {
+export function deepMerge<T>(
+  base: T,
+  override: Partial<T> | Record<string, unknown>,
+): T {
   const result = { ...base } as Record<string, unknown>;
   for (const key of Object.keys(override as Record<string, unknown>)) {
     const baseVal = (base as Record<string, unknown>)[key];
@@ -222,6 +236,7 @@ export function mergeConfigs(
   return {
     ...base,
     ...override,
+    build: { ...base.build, ...override.build },
     features: {
       ...base.features,
       ...override.features,
@@ -234,7 +249,8 @@ export function mergeConfigs(
         ...override.features?.serviceWorker,
         version:
           override.features?.serviceWorker?.version ??
-          base.features.serviceWorker.version ?? "package",
+          base.features.serviceWorker.version ??
+          "hash",
         strategy: {
           ...base.features.serviceWorker.strategy,
           ...override.features?.serviceWorker?.strategy,
@@ -286,11 +302,15 @@ export function mergeConfigs(
         },
       },
     },
-    build: { ...base.build, ...override.build },
   };
 }
 
 export const defaultConfig: SwoffConfig = {
+  build: {
+    outputDir: "dist",
+    swFilename: "sw",
+    precacheDirs: {},
+  },
   features: {
     requestBatchWindowMs: 50,
     pwa: {
@@ -298,7 +318,7 @@ export const defaultConfig: SwoffConfig = {
       preventDefaultInstall: false,
     },
     serviceWorker: {
-      version: "package",
+      version: "hash",
       autoActivate: false,
       strategy: {
         default: "cache-first",
@@ -330,12 +350,10 @@ export const defaultConfig: SwoffConfig = {
     auth: { ...defaultAuth },
     tagInvalidation: { ...defaultTagInvalidation },
     graphql: { ...defaultGql },
-    realtime: { ...defaultRealtimeConfig, serverPush: { ...defaultRealtimeConfig.serverPush } },
-  },
-  build: {
-    outputDir: "dist",
-    swFilename: "sw",
-    precacheDirs: {},
+    realtime: {
+      ...defaultRealtimeConfig,
+      serverPush: { ...defaultRealtimeConfig.serverPush },
+    },
   },
 };
 
@@ -383,7 +401,10 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
     auth: { ...defaultAuth },
     tagInvalidation: { ...defaultTagInvalidation },
     graphql: { ...defaultGql },
-    realtime: { ...defaultRealtimeConfig, serverPush: { ...defaultRealtimeConfig.serverPush } },
+    realtime: {
+      ...defaultRealtimeConfig,
+      serverPush: { ...defaultRealtimeConfig.serverPush },
+    },
   },
   build: { outputDir: "dist", swFilename: "sw", precacheDirs: {} },
 };

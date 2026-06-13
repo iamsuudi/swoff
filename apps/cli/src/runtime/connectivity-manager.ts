@@ -26,10 +26,13 @@ export async function verifyAndNotify() {
 
   try {
     await fetch(\`https://google.com?t=\${Date.now()}\`, {
-      method: 'POST',
+      method: 'HEAD',
       mode: 'no-cors',
       cache: 'no-cache',
       signal: AbortSignal.timeout(5000),
+      headers: {
+        "X-SW-Strategy": "network-only",
+      },
     })
 
     if (navigator.serviceWorker.controller) {

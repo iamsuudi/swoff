@@ -249,7 +249,9 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
                 const keys = await cache.keys();
                 await Promise.all(keys.map((k) => cache.delete(k)));
               }
-            } catch {}
+            } catch {
+              // Handle cache deletion errors
+            }
             window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
           }
         } catch {

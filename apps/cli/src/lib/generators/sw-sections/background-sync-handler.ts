@@ -33,7 +33,7 @@ function swSleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-function backoffDelay(attempt) {
+function swBackoffDelay(attempt) {
   const delay = Math.min(SW_RETRY_BACKOFF_MS * Math.pow(2, attempt), SW_MAX_BACKOFF_MS);
   return delay + (SW_JITTER_MS > 0 ? Math.random() * SW_JITTER_MS : 0);
 }
@@ -150,7 +150,7 @@ ${credentialsLine}        });
         if (item.retryCount >= SW_MAX_RETRIES) {
           toRemove.push(item.id);
         } else {
-          item.nextRetryAt = Date.now() + backoffDelay(item.retryCount - 1);
+          item.nextRetryAt = Date.now() + swBackoffDelay(item.retryCount - 1);
           toUpdate.push(item);
         }
         failed++;

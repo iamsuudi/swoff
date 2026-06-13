@@ -18,10 +18,9 @@ export function useNetworkStatus() {
   const [isRetrying, setIsRetrying] = useState(false);
 
   const [state, setState] = useState(() => {
-    const online = getCurrentOnlineStatus();
     return {
-      online,
-      wasOffline: !online,
+      online: true,
+      wasOffline: false,
       lastChangedAt: null,
       effectiveType:
         (typeof navigator !== "undefined" &&
@@ -41,6 +40,13 @@ export function useNetworkStatus() {
   };
 
   useEffect(() => {
+    // Sync with actual status after mount — prevents SSR hydration mismatch
+    // where the server defaults to online:true but the browser is offline.
+    if (!getCurrentOnlineStatus()) {
+      wasOfflineRef.current = true;
+      setState((s) => ({ ...s, online: false, wasOffline: true, lastChangedAt: Date.now() }));
+    }
+
     const connection = navigator.connection;
 
     const handleConnectivityChange = (e) => {

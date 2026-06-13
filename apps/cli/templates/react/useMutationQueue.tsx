@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { getPendingCount, getQueueItems, processMutationQueue } from "../offline/queue.ts";
+import {
+  getPendingCount,
+  getQueueItems,
+  processMutationQueue,
+} from "../mutation/queue.ts";
 import type { MutationQueueItem } from "../swoff.d.ts";
 
 export interface MutationQueueState {
@@ -25,7 +29,9 @@ export interface MutationQueueState {
  *
  * @returns {{ pending, items, lastSync, isProcessing, retryAll }}
  */
-export function useMutationQueue(): MutationQueueState & { retryAll: () => Promise<void> } {
+export function useMutationQueue(): MutationQueueState & {
+  retryAll: () => Promise<void>;
+} {
   const [state, setState] = useState<MutationQueueState>({
     pending: 0,
     items: [],

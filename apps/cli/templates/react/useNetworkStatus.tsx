@@ -1,4 +1,9 @@
 import { useState, useEffect, useRef } from "react";
+import {
+  CONNECTIVITY_EVENT,
+  forceRetry,
+  getCurrentOnlineStatus,
+} from "../connectivity-manager.ts";
 
 /**
  * Reactive network information: online status, connection type, and bandwidth.
@@ -12,80 +17,76 @@ import { useState, useEffect, useRef } from "react";
  *   // Warn on slow connection:
  *   if (online && effectiveType === "2g") return <SlowConnectionWarning />;
  *
- * @returns {{ online: boolean, wasOffline: boolean, lastChangedAt: number | null, effectiveType: string | null, downlink: number | null }}
+ * @returns {{ online: boolean, wasOffline: boolean, lastChangedAt: number | null, effectiveType: string | null, downlink: number | null, isRetrying: boolean, retry: () => Promise<void> }}
  */
 export function useNetworkStatus() {
   const wasOfflineRef = useRef(false);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const [state, setState] = useState(() => {
-    const online = typeof navigator !== "undefined" ? navigator.onLine : true;
+    const online = getCurrentOnlineStatus();
     return {
       online,
       wasOffline: !online,
       lastChangedAt: null as number | null,
-      effectiveType: null as string | null,
-      downlink: null as number | null,
+      effectiveType:
+        (typeof navigator !== "undefined" &&
+          navigator.connection?.effectiveType) ||
+        null,
+      downlink:
+        (typeof navigator !== "undefined" && navigator.connection?.downlink) ||
+        null,
     };
   });
 
+  // Manual trigger wrapper that handles local loading state
+  const retry = async () => {
+    setIsRetrying(true);
+    await forceRetry();
+    setIsRetrying(false);
+  };
+
   useEffect(() => {
-    const wasOffline = !navigator.onLine;
-    if (wasOffline) wasOfflineRef.current = true;
+    const connection = navigator.connection;
 
-    const connection = (navigator as any).connection;
+    const handleConnectivityChange = (e: Event) => {
+      const isTrulyOnline = (e as CustomEvent).detail.online;
 
-    const onOnline = () => {
+      if (!isTrulyOnline) {
+        wasOfflineRef.current = true;
+      } else {
+        wasOfflineRef.current = false;
+      }
+
       setState((s) => ({
         ...s,
-        online: true,
+        online: isTrulyOnline,
+        wasOffline: wasOfflineRef.current,
         lastChangedAt: Date.now(),
-      }));
-    };
-    const onOffline = () => {
-      wasOfflineRef.current = true;
-      setState((s) => ({
-        ...s,
-        online: false,
-        lastChangedAt: Date.now(),
-        wasOffline: true,
       }));
     };
 
     const onTypeChange = () => {
       if (!connection) return;
-      setState((s) => ({
+      setState((s: typeof state) => ({
         ...s,
         effectiveType: connection.effectiveType,
         downlink: connection.downlink,
       }));
     };
 
-    const onSWNotification = (event: MessageEvent) => {
-      if (event.data?.type === "SW_NOTIFICATION" && event.data?.code === "FETCH_FAILED") {
-        onOffline();
-      }
-    };
-
-    window.addEventListener("online", onOnline);
-    window.addEventListener("offline", onOffline);
+    window.addEventListener(CONNECTIVITY_EVENT, handleConnectivityChange);
     if (connection) {
       connection.addEventListener("change", onTypeChange);
     }
-    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
-      navigator.serviceWorker.addEventListener("message", onSWNotification);
-    }
 
     return () => {
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", onOffline);
+      window.removeEventListener(CONNECTIVITY_EVENT, handleConnectivityChange);
       if (connection) {
         connection.removeEventListener("change", onTypeChange);
-      }
-      if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
-        navigator.serviceWorker.removeEventListener("message", onSWNotification);
       }
     };
   }, []);
 
-  return state;
+  return { ...state, isRetrying, retry };
 }

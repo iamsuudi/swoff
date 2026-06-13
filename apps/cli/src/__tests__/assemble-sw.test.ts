@@ -8,35 +8,27 @@ describe("assembleSW", () => {
   };
 
   it("generates a service worker string", () => {
-    const sw = assembleSW(config, "1.0.0");
-    expect(sw).toContain("CACHE_NAME = 'sw-v1.0.0'");
+    const sw = assembleSW(config, "hash");
     expect(sw).toContain("self.addEventListener");
     expect(sw).toContain("CACHE_NAME_RUNTIME");
     expect(sw).toContain("CACHE_NAME_RUNTIME_HTML");
   });
 
-  it("includes config header with resolved version", () => {
-    const sw = assembleSW(config, "2.5.0");
-    expect(sw).toContain("Swoff Service Worker - Auto-Generated");
-    expect(sw).toContain("Version: 2.5.0");
-    expect(sw).not.toContain("Version: from-package");
-  });
-
   it("includes install handler", () => {
-    const sw = assembleSW(config, "1.0.0");
+    const sw = assembleSW(config, "hash");
     expect(sw).toContain('self.addEventListener("install"');
     expect(sw).toContain("SW_PROGRESS");
   });
 
   it("includes activate handler with clients.claim()", () => {
-    const sw = assembleSW(config, "1.0.0");
+    const sw = assembleSW(config, "hash");
     expect(sw).toContain('self.addEventListener("activate"');
     expect(sw).toContain("caches.keys()");
     expect(sw).toContain("self.clients.claim()");
   });
 
   it("includes fetch handler with strategies", () => {
-    const sw = assembleSW(config, "1.0.0");
+    const sw = assembleSW(config, "hash");
     expect(sw).toContain('self.addEventListener("fetch"');
     expect(sw).toContain("cacheFirst");
     expect(sw).toContain("networkFirst");
@@ -47,22 +39,22 @@ describe("assembleSW", () => {
   });
 
   it("checks serve-from-cache from all strategies", () => {
-    const sw = assembleSW(config, "1.0.0");
+    const sw = assembleSW(config, "hash");
     expect(sw).toContain("fromPrecache");
     expect(sw).toContain("async function fromPrecache");
     expect(sw).toContain("cache.match(url.href)");
     expect(sw).toContain("serveFromCache");
-    expect(sw).toContain("NAV_MODE === \"spa\"");
+    expect(sw).toContain('NAV_MODE === "spa"');
   });
 
   it("includes message handler", () => {
-    const sw = assembleSW(config, "1.0.0");
+    const sw = assembleSW(config, "hash");
     expect(sw).toContain('self.addEventListener("message"');
     expect(sw).toContain("SKIP_WAITING");
   });
 
   it("includes tag management", () => {
-    const sw = assembleSW(config, "1.0.0");
+    const sw = assembleSW(config, "hash");
     expect(sw).toContain("invalidateByTag");
     expect(sw).toContain("INVALIDATE_TAG");
   });
@@ -70,15 +62,22 @@ describe("assembleSW", () => {
   it("includes background sync handler when enabled", () => {
     const configWithSync: SwoffConfig = {
       ...config,
-      features: { ...config.features, mutationQueue: { ...config.features.mutationQueue, enabled: true, backgroundSync: true } },
+      features: {
+        ...config.features,
+        mutationQueue: {
+          ...config.features.mutationQueue,
+          enabled: true,
+          backgroundSync: true,
+        },
+      },
     };
-    const sw = assembleSW(configWithSync, "1.0.0");
+    const sw = assembleSW(configWithSync, "hash");
     expect(sw).toContain('self.addEventListener("sync"');
     expect(sw).toContain("sync-mutations");
   });
 
   it("excludes background sync when disabled", () => {
-    const sw = assembleSW(config, "1.0.0");
+    const sw = assembleSW(config, "hash");
     expect(sw).not.toContain('self.addEventListener("sync"');
   });
 
@@ -90,17 +89,20 @@ describe("assembleSW", () => {
         serviceWorker: { ...config.features.serviceWorker, autoActivate: true },
       },
     };
-    const sw = assembleSW(configAutoActivate, "1.0.0");
+    const sw = assembleSW(configAutoActivate, "hash");
     expect(sw).toContain("const AUTO_SKIP_WAITING = true");
 
     const configNoAutoActivate: SwoffConfig = {
       ...config,
       features: {
         ...config.features,
-        serviceWorker: { ...config.features.serviceWorker, autoActivate: false },
+        serviceWorker: {
+          ...config.features.serviceWorker,
+          autoActivate: false,
+        },
       },
     };
-    const sw2 = assembleSW(configNoAutoActivate, "1.0.0");
+    const sw2 = assembleSW(configNoAutoActivate, "hash");
     expect(sw2).toContain("const AUTO_SKIP_WAITING = false");
   });
 
@@ -115,7 +117,7 @@ describe("assembleSW", () => {
         },
       },
     };
-    const sw = assembleSW(configHash, "1.0.0");
+    const sw = assembleSW(configHash, "hash");
     expect(sw).toContain("CACHE_NAME = 'sw-cache-");
     expect(sw).not.toContain("sw-v1.0.0");
   });
@@ -123,18 +125,24 @@ describe("assembleSW", () => {
   it("includes PWA assets when pwa feature is enabled", () => {
     const configWithPwa: SwoffConfig = {
       ...config,
-      features: { ...config.features, pwa: { enabled: true, preventDefaultInstall: false } },
+      features: {
+        ...config.features,
+        pwa: { enabled: true, preventDefaultInstall: false },
+      },
     };
-    const sw = assembleSW(configWithPwa, "1.0.0");
+    const sw = assembleSW(configWithPwa, "hash");
     expect(sw).toContain("/manifest.json");
   });
 
   it("excludes PWA assets when pwa feature is disabled", () => {
     const configNoPwa: SwoffConfig = {
       ...config,
-      features: { ...config.features, pwa: { enabled: false, preventDefaultInstall: false } },
+      features: {
+        ...config.features,
+        pwa: { enabled: false, preventDefaultInstall: false },
+      },
     };
-    const sw = assembleSW(configNoPwa, "1.0.0");
+    const sw = assembleSW(configNoPwa, "hash");
     expect(sw).not.toContain("/manifest.json");
   });
 
@@ -145,11 +153,14 @@ describe("assembleSW", () => {
         ...config.features,
         serviceWorker: {
           ...config.features.serviceWorker,
-          strategy: { ...config.features.serviceWorker.strategy, patterns: { "/api/*": "network-first" } },
+          strategy: {
+            ...config.features.serviceWorker.strategy,
+            patterns: { "/api/*": "network-first" },
+          },
         },
       },
     };
-    const sw = assembleSW(configWithStrategies, "1.0.0");
+    const sw = assembleSW(configWithStrategies, "hash");
     expect(sw).toContain("/api/*");
     expect(sw).toContain("network-first");
     expect(sw).toContain("new URL(request.url).pathname");
@@ -174,7 +185,7 @@ describe("assembleSW", () => {
           },
         },
       };
-      const sw = assembleSW(configWithRules, "1.0.0");
+      const sw = assembleSW(configWithRules, "hash");
       expect(sw).toContain("NAV_RULES");
       expect(sw).toContain("/blog/*");
       expect(sw).toContain("/dashboard/**");
@@ -189,14 +200,12 @@ describe("assembleSW", () => {
             ...config.features.serviceWorker,
             navigation: {
               ...config.features.serviceWorker.navigation,
-              rules: [
-                { match: "/blog/*" },
-              ],
+              rules: [{ match: "/blog/*" }],
             },
           },
         },
       };
-      const sw = assembleSW(configWithRules, "1.0.0");
+      const sw = assembleSW(configWithRules, "hash");
       expect(sw).toContain("function matchRouteFallback(url)");
       expect(sw).toContain("matchGlob(path, rule.match)");
     });
@@ -218,7 +227,7 @@ describe("assembleSW", () => {
           },
         },
       };
-      const sw = assembleSW(configWithRules, "1.0.0");
+      const sw = assembleSW(configWithRules, "hash");
       expect(sw).toContain("/blog-offline.html");
       expect(sw).toContain("/dashboard-offline.html");
     });
@@ -240,20 +249,20 @@ describe("assembleSW", () => {
           },
         },
       };
-      const sw = assembleSW(configWithRules, "1.0.0");
+      const sw = assembleSW(configWithRules, "hash");
       expect(sw).toContain("/");
       expect(sw).toContain("/about");
     });
 
     it("does not generate NAV_RULES when no rules configured", () => {
-      const sw = assembleSW(config, "1.0.0");
+      const sw = assembleSW(config, "hash");
       expect(sw).not.toContain("NAV_RULES");
     });
   });
 
   describe("offline fallback analytics", () => {
     it("generates OFFLINE_FALLBACK_ACTIVATED postMessage in ultimate fallback", () => {
-      const sw = assembleSW(config, "1.0.0");
+      const sw = assembleSW(config, "hash");
       expect(sw).toContain("OFFLINE_FALLBACK_ACTIVATED");
     });
 
@@ -271,7 +280,7 @@ describe("assembleSW", () => {
           },
         },
       };
-      const sw = assembleSW(configWithOfflineFallback, "1.0.0");
+      const sw = assembleSW(configWithOfflineFallback, "hash");
       expect(sw).toContain('FALLBACK_PATH = "/offline.html"');
     });
 
@@ -284,20 +293,18 @@ describe("assembleSW", () => {
             ...config.features.serviceWorker,
             navigation: {
               ...config.features.serviceWorker.navigation,
-              rules: [
-                { match: "/blog/*", fallback: "/blog-offline.html" },
-              ],
+              rules: [{ match: "/blog/*", fallback: "/blog-offline.html" }],
             },
           },
         },
       };
-      const sw = assembleSW(configWithRules, "1.0.0");
+      const sw = assembleSW(configWithRules, "hash");
       expect(sw).toContain("OFFLINE_FALLBACK_ACTIVATED");
       expect(sw).toContain("route-fallback");
     });
 
     it("generates inline-503 fallback level in fromUltimateFallback", () => {
-      const sw = assembleSW(config, "1.0.0");
+      const sw = assembleSW(config, "hash");
       expect(sw).toContain("inline-503");
     });
   });

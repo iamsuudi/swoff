@@ -11,8 +11,6 @@ import { generateFetchWrapper } from "../lib/generators/file-generators/fetch-wr
 import { generateCache } from "../lib/generators/file-generators/cache.js";
 import { generateMutationQueue } from "../lib/generators/file-generators/mutation-queue.js";
 import { generateBackgroundSync } from "../lib/generators/file-generators/background-sync.js";
-import { generatePwaInstall } from "../lib/generators/file-generators/pwa-install.js";
-import { generateInvalidationTags } from "../lib/generators/file-generators/invalidation-tags.js";
 import { generateSwGeneratorBuild } from "../lib/generators/file-generators/sw-generator-build.js";
 import { generateTypeDefinitions } from "../lib/generators/file-generators/type-definitions.js";
 
@@ -26,7 +24,10 @@ function makeContext(overrides?: Partial<SwoffConfig>): GeneratorContext {
       ...defaultConfig.features,
       ...overrides?.features,
       pwa: { ...defaultConfig.features.pwa, ...overrides?.features?.pwa },
-      serviceWorker: { ...defaultConfig.features.serviceWorker, ...overrides?.features?.serviceWorker },
+      serviceWorker: {
+        ...defaultConfig.features.serviceWorker,
+        ...overrides?.features?.serviceWorker,
+      },
     },
     build: { ...defaultConfig.build, ...overrides?.build },
   };
@@ -54,7 +55,10 @@ describe("generateSwTemplate", () => {
   it("produces a template with placeholders", () => {
     const ctx = makeContext();
     generateSwTemplate(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw", "template.js"), "utf8");
+    const content = readFileSync(
+      join(ctx.swoffDir, "sw", "template.js"),
+      "utf8",
+    );
     expect(content).toContain("// [[CACHE_NAME]]");
     expect(content).toContain("// [[ASSETS_LIST]]");
     expect(content).toContain("// [[AUTO_SKIP_WAITING]]");
@@ -66,10 +70,22 @@ describe("generateSwTemplate", () => {
 
   it("includes config-driven strategy code", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, strategy: { ...defaultConfig.features.serviceWorker.strategy, patterns: { "/api/*": "network-first" } } } },
+      features: {
+        ...defaultConfig.features,
+        serviceWorker: {
+          ...defaultConfig.features.serviceWorker,
+          strategy: {
+            ...defaultConfig.features.serviceWorker.strategy,
+            patterns: { "/api/*": "network-first" },
+          },
+        },
+      },
     });
     generateSwTemplate(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw", "template.js"), "utf8");
+    const content = readFileSync(
+      join(ctx.swoffDir, "sw", "template.js"),
+      "utf8",
+    );
     expect(content).toContain("determineCacheStrategy");
     expect(content).toContain("fromPrecache");
     expect(content).toContain("network-first");
@@ -80,15 +96,23 @@ describe("generateSwTemplate", () => {
 describe("generateSwInjector", () => {
   it("generates JS registration with correct config values", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, autoActivate: true } },
+      features: {
+        ...defaultConfig.features,
+        serviceWorker: {
+          ...defaultConfig.features.serviceWorker,
+          autoActivate: true,
+        },
+      },
     });
     generateSwInjector(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw", "injector.js"), "utf8");
+    const content = readFileSync(
+      join(ctx.swoffDir, "sw", "injector.js"),
+      "utf8",
+    );
     expect(content).toContain("AUTO_ACTIVATE = true");
     expect(content).toContain("initServiceWorker");
     expect(content).toContain("skipWaiting");
     expect(content).toContain("waitForController");
-    expect(content).toContain("SW_VERSION");
   });
 
   it("generates TS when ext is ts", () => {
@@ -100,29 +124,57 @@ describe("generateSwInjector", () => {
 
   it("reflects autoActivate false", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, autoActivate: false } },
+      features: {
+        ...defaultConfig.features,
+        serviceWorker: {
+          ...defaultConfig.features.serviceWorker,
+          autoActivate: false,
+        },
+      },
     });
     generateSwInjector(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw", "injector.js"), "utf8");
+    const content = readFileSync(
+      join(ctx.swoffDir, "sw", "injector.js"),
+      "utf8",
+    );
     expect(content).toContain("AUTO_ACTIVATE = false");
   });
 
   it("generates hash-mode injector without SW_VERSION import", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, version: "hash" } },
+      features: {
+        ...defaultConfig.features,
+        serviceWorker: {
+          ...defaultConfig.features.serviceWorker,
+          version: "hash",
+        },
+      },
     });
     generateSwInjector(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw", "injector.js"), "utf8");
+    const content = readFileSync(
+      join(ctx.swoffDir, "sw", "injector.js"),
+      "utf8",
+    );
     expect(content).not.toContain("SW_VERSION");
     expect(content).toContain("/sw.js");
   });
 
   it("generates AUTO_ACTIVATE = true in hash mode", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, serviceWorker: { ...defaultConfig.features.serviceWorker, version: "hash", autoActivate: true } },
+      features: {
+        ...defaultConfig.features,
+        serviceWorker: {
+          ...defaultConfig.features.serviceWorker,
+          version: "hash",
+          autoActivate: true,
+        },
+      },
     });
     generateSwInjector(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw", "injector.js"), "utf8");
+    const content = readFileSync(
+      join(ctx.swoffDir, "sw", "injector.js"),
+      "utf8",
+    );
     expect(content).toContain("AUTO_ACTIVATE = true");
   });
 });
@@ -133,7 +185,10 @@ describe("generateClientInjector", () => {
       features: { ...defaultConfig.features },
     });
     generateClientInjector(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "client-injector.js"), "utf8");
+    const content = readFileSync(
+      join(ctx.swoffDir, "client-injector.js"),
+      "utf8",
+    );
     expect(content).toContain("initServiceWorker");
     expect(content).toContain("setupPwaInstall");
     expect(content).toContain("SW_PROGRESS");
@@ -142,10 +197,19 @@ describe("generateClientInjector", () => {
 
   it("includes TAG_INVALIDATED handler", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, tagInvalidation: { ...defaultConfig.features.tagInvalidation, crossTabSync: true } },
+      features: {
+        ...defaultConfig.features,
+        tagInvalidation: {
+          ...defaultConfig.features.tagInvalidation,
+          crossTabSync: true,
+        },
+      },
     });
     generateClientInjector(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "client-injector.js"), "utf8");
+    const content = readFileSync(
+      join(ctx.swoffDir, "client-injector.js"),
+      "utf8",
+    );
     expect(content).toContain("TAG_INVALIDATED");
     expect(content).toContain('"cache-invalidated"');
   });
@@ -155,17 +219,26 @@ describe("generateClientInjector", () => {
       features: { ...defaultConfig.features },
     });
     generateClientInjector(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "client-injector.js"), "utf8");
+    const content = readFileSync(
+      join(ctx.swoffDir, "client-injector.js"),
+      "utf8",
+    );
     expect(content).toContain("setupPwaInstall");
     expect(content).toContain("./pwa/injector");
   });
 
   it("always imports sw/injector", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features, pwa: { ...defaultConfig.features.pwa, enabled: true } },
+      features: {
+        ...defaultConfig.features,
+        pwa: { ...defaultConfig.features.pwa, enabled: true },
+      },
     });
     generateClientInjector(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "client-injector.js"), "utf8");
+    const content = readFileSync(
+      join(ctx.swoffDir, "client-injector.js"),
+      "utf8",
+    );
     expect(content).toContain("swInit");
     expect(content).toContain("./sw/injector");
     expect(content).toContain("setupPwaInstall");
@@ -177,7 +250,10 @@ describe("generateFetchWrapper", () => {
   it("exports fetchWithCache", () => {
     const ctx = makeContext();
     generateFetchWrapper(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "fetch", "core.js"), "utf8");
+    const content = readFileSync(
+      join(ctx.swoffDir, "fetch", "core.js"),
+      "utf8",
+    );
     expect(content).toContain("fetchWithCache");
   });
 });
@@ -186,7 +262,10 @@ describe("generateCache", () => {
   it("exports cache invalidation functions", () => {
     const ctx = makeContext();
     generateCache(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "cache", "index.js"), "utf8");
+    const content = readFileSync(
+      join(ctx.swoffDir, "cache", "index.js"),
+      "utf8",
+    );
     expect(content).toContain("invalidateByTag");
     expect(content).toContain("invalidateByTags");
     expect(content).toContain("INVALIDATE_TAG");
@@ -199,7 +278,10 @@ describe("generateMutationQueue", () => {
   it("contains mutation queue functions", () => {
     const ctx = makeContext();
     generateMutationQueue(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "offline", "queue.js"), "utf8");
+    const content = readFileSync(
+      join(ctx.swoffDir, "mutation", "queue.js"),
+      "utf8",
+    );
     expect(content).toContain("queueMutation");
     expect(content).toContain("processMutationQueue");
     expect(content).toContain("getPendingCount");
@@ -212,7 +294,10 @@ describe("generateBackgroundSync", () => {
   it("contains background sync utilities", () => {
     const ctx = makeContext();
     generateBackgroundSync(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "offline", "sync.js"), "utf8");
+    const content = readFileSync(
+      join(ctx.swoffDir, "mutation", "sync.js"),
+      "utf8",
+    );
     expect(content).toContain("syncWhenPossible");
     expect(content).toContain("retrySync");
     expect(content).toContain("SYNC_TAG");
@@ -225,7 +310,10 @@ describe("generateSwGeneratorBuild", () => {
   it("generates build script with correct imports", () => {
     const ctx = makeContext();
     generateSwGeneratorBuild(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw", "generator.js"), "utf8");
+    const content = readFileSync(
+      join(ctx.swoffDir, "sw", "generator.js"),
+      "utf8",
+    );
     expect(content).toContain("#!/usr/bin/env node");
     expect(content).toContain("readFileSync");
     expect(content).toContain("writeFileSync");

@@ -29,7 +29,7 @@ export function generateClientInjectorCode(
     : "";
 
   const mutationImport = mutationQueueEnabled
-    ? `import { processMutationQueue, clearQueue } from "./offline/queue.${ext}";
+    ? `import { processMutationQueue, clearQueue } from "./mutation/queue.${ext}";
 `
     : "";
 
@@ -38,24 +38,38 @@ export function generateClientInjectorCode(
 `
     : "";
 
-  const mutationOnlineListener = mutationQueueEnabled
-    ? `
-// --- Mutation Queue Online Listener ---
-if (typeof window !== "undefined") {
-  window.addEventListener("online", processMutationQueue);
-}
-`
-    : "";
-
-  const onlineRefetchListener = `
-// --- Online Refetch Listener ---
+  const onlineListener = `
+// --- Online Listener ---
 // When connectivity returns, the SW checks stale cache entries and refetches them.
-if (typeof window !== "undefined") {
-  window.addEventListener("online", () => {
-    if (navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({ type: "ONLINE" });
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', async () => {
+    const isOnline = await verifyAndNotify()
+    startHeartbeat()
+    if (isOnline) {
+      ${mutationQueueEnabled ? `processMutationQueue()` : ""}
     }
-  });
+  })
+
+  window.addEventListener('offline', () => {
+    stopHeartbeat()
+    dispatchState(false)
+  })
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      verifyAndNotify()
+      startHeartbeat()
+    } else {
+      stopHeartbeat()
+    }
+  })
+
+  if (navigator.onLine) {
+    verifyAndNotify()
+    startHeartbeat()
+  } else {
+    queueMicrotask(() => dispatchState(false))
+  }
 }
 `;
 
@@ -85,13 +99,15 @@ if (typeof document !== "undefined") {
   const swImport = `import { initServiceWorker as swInit } from "./sw/injector.${ext}";
 `;
 
-  const autoPrefetchImport = navMode === "ssr"
-    ? `import { prefetchCache } from "./fetch/core.${ext}";
+  const autoPrefetchImport =
+    navMode === "ssr"
+      ? `import { prefetchCache } from "./fetch/core.${ext}";
 `
-    : "";
+      : "";
 
-  const autoPrefetchCode = navMode === "ssr"
-    ? `
+  const autoPrefetchCode =
+    navMode === "ssr"
+      ? `
 // --- Auto-prefetch HTML on client-side navigation (SSR mode) ---
 // Intercepts history.pushState/replaceState to warm the SW cache with HTML
 // for routes the user navigates to via client-side routing.
@@ -112,7 +128,7 @@ if (typeof history !== "undefined") {
   };
 }
 `
-    : "";
+      : "";
 
   return `/**
  * Swoff Client Injector
@@ -142,7 +158,14 @@ if (typeof history !== "undefined") {
  *   sw-auth-state-change  - Login or logout (detail: { authenticated: boolean })
  */
 ${pwaImport}${mutationImport}${authImport}${swImport}${pushImport}${autoPrefetchImport}
-${pwaCall}${mutationOnlineListener}${pushCall}${onlineRefetchListener}${focusListener}${autoPrefetchCode}
+import {
+  dispatchState,
+  startHeartbeat,
+  stopHeartbeat,
+  verifyAndNotify,
+} from './connectivity-manager.${ext}'
+
+${pwaCall}${pushCall}${onlineListener}${focusListener}${autoPrefetchCode}
 // --- SW Message Listener ---
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (event) => {
@@ -226,7 +249,9 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
                 const keys = await cache.keys();
                 await Promise.all(keys.map((k) => cache.delete(k)));
               }
-            } catch {}
+            } catch {
+              // Handle cache deletion errors
+            }
             window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
           }
         } catch {

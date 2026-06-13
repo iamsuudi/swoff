@@ -16,5 +16,5 @@ export function generateMutationQueue(ctx: GeneratorContext): void {
     mqConfig.retry.backoffMs,
   );
 
-  writeFile(ctx, `offline/queue.${ext}`, code);
+  writeFile(ctx, `mutation/queue.${ext}`, code);
 }

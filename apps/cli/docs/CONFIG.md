@@ -96,7 +96,34 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | `framework` | `"react-spa"` \| `"nextjs"` \| `"remix"` \| `"tanstack-start-react"` \| `"astro"` \| `"nuxt"` \| `"sveltekit"` \| `"vue"` \| `"svelte"` \| `"vanilla"` | auto-detected | Your UI framework. Meta-frameworks auto-configure navigation mode, strategy defaults, and build paths via `swoff init`. |
 | `build.outputDir` | `string` | `"dist"` | Build tool output directory |
 | `build.swFilename` | `string` | `"sw"` | Service worker filename prefix (e.g. `sw-v1.2.3.js`) |
-| `build.precacheDirs` | `object` | `{}` | Additional directories to precache. Keys are filesystem paths (relative to project root), values are the URL prefix to serve them under. E.g. `{ "public/assets": "/assets" }` precaches all files from `public/assets/` served at `/assets/*`. When empty, only `outputDir` is scanned. |
+| `build.precacheDirs` | `object` | `{}` | Additional directories to precache. Keys are filesystem paths (relative to project root). Values are objects with `prefix` and optional filter/transform options. E.g. `{ "public/assets": { "prefix": "/assets" } }` precaches all files from `public/assets/` served at `/assets/*`. When empty, only `outputDir` is scanned. See [PrecacheDirConfig](#precachedirconfig) below. |
+
+---
+
+### PrecacheDirConfig
+
+Each `precacheDirs` value is an object with the following fields:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `prefix` | `string` | (required) | URL prefix to serve assets under |
+| `extensions` | `string[]` | — | Only include files with these extensions (e.g. `[".html", ".json"]`). Omit to include all files. |
+| `stripExtension` | `boolean` | `false` | Remove the file extension from the cached URL key. E.g. `about.html` → `/about` |
+| `stripSuffixes` | `string[]` | — | Strip these path segments before the extension (e.g. `["index", "page"]`). After extension stripping, each matching suffix is removed: `index.html` → `/`, `about/index.html` → `/about`, `blog/page.html` → `/blog`. Trailing slashes are then cleaned for consistent cache key matching (unless the result is `/`). |
+
+Example — precache NextJS static HTML pages without the `.html` extension and normalize `index` to root:
+
+```json
+{
+  ".next/static": { "prefix": "/_next/static" },
+  ".next/server/app": {
+    "prefix": "",
+    "extensions": [".html"],
+    "stripExtension": true,
+    "stripSuffixes": ["index"]
+  }
+}
+```
 
 ---
 

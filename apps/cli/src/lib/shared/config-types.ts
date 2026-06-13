@@ -70,6 +70,13 @@ export interface RealtimeConfig {
   };
 }
 
+export interface PrecacheDirConfig {
+  prefix: string;
+  extensions?: string[];
+  stripExtension?: boolean;
+  stripSuffixes?: string[];
+}
+
 export interface SwoffConfig {
   $schema?: string;
   framework?:
@@ -127,7 +134,7 @@ export interface SwoffConfig {
   build: {
     outputDir: string;
     swFilename: string;
-    precacheDirs?: Record<string, string>;
+    precacheDirs?: Record<string, PrecacheDirConfig>;
   };
 }
 

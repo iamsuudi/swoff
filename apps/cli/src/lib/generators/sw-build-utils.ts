@@ -1,6 +1,6 @@
 import { readdirSync, existsSync } from "fs";
-import { join, relative } from "path";
-import type { SwoffConfig } from "../shared/config-types.js";
+import { join, relative, extname } from "path";
+import type { PrecacheDirConfig, SwoffConfig } from "../shared/config-types.js";
 
 export function resolveVersion(
   versionField: string,
@@ -65,13 +65,28 @@ export function scanPrecacheAssets(
 ): string[] {
   const outputDir = config.build.outputDir;
   const dirsRaw = config.build.precacheDirs || {};
-  const dirs = Object.keys(dirsRaw).length > 0 ? dirsRaw : { [outputDir]: "/" };
+  const dirs = Object.keys(dirsRaw).length > 0 ? dirsRaw : { [outputDir]: { prefix: "/" } };
   const scanned: string[] = [];
-  for (const [dir, prefix] of Object.entries(dirs)) {
+  for (const [dir, raw] of Object.entries(dirs)) {
     const dirPath = join(projectRoot, dir);
-    const normPrefix = prefix.replace(/\/+$/, "");
+    const cfg = raw as PrecacheDirConfig;
+    const normPrefix = cfg.prefix.replace(/\/+$/, "");
     for (const a of collectAssets(dirPath, dirPath)) {
-      const urlPath = normPrefix + "/" + a.slice(1);
+      if (cfg.extensions && !cfg.extensions.includes(extname(a))) continue;
+      let urlPath = normPrefix + "/" + a.slice(1);
+      if (cfg.stripExtension) {
+        urlPath = urlPath.replace(/\.[^/.]+$/, "");
+      }
+      if (cfg.stripSuffixes) {
+        for (const suffix of cfg.stripSuffixes) {
+          if (urlPath.endsWith("/" + suffix)) {
+            urlPath = urlPath.slice(0, -suffix.length - 1) + "/";
+          }
+        }
+      }
+      if (urlPath !== "/" && urlPath.endsWith("/")) {
+        urlPath = urlPath.slice(0, -1);
+      }
       if (urlPath !== `/${swFile}` && urlPath !== "/version.json")
         scanned.push(urlPath);
     }

@@ -530,10 +530,34 @@
         },
         "precacheDirs": {
           "type": "object",
-          "description": "Additional directories to scan for precache assets. Keys are source glob paths from project root, values are URL prefixes to serve them at. Example: { \".next/static\": \"/_next/static\" }",
+          "description": "Additional directories to scan for precache assets. Keys are filesystem paths from project root. Values are objects with prefix and optional filter/transform options. Example: { \".next/static\": { \"prefix\": \"/_next/static\" }, \".next/server/app\": { \"prefix\": \"\", \"extensions\": [\".html\"], \"stripExtension\": true, \"stripSuffixes\": [\"index\"] } }",
           "default": {},
           "additionalProperties": {
-            "type": "string"
+            "type": "object",
+            "properties": {
+              "prefix": {
+                "type": "string",
+                "description": "URL prefix to serve assets under"
+              },
+              "extensions": {
+                "type": "array",
+                "description": "Only include files with these extensions (e.g. [\".html\", \".json\"])",
+                "items": { "type": "string" },
+                "uniqueItems": true
+              },
+              "stripExtension": {
+                "type": "boolean",
+                "description": "Remove the file extension from the cached URL key",
+                "default": false
+              },
+              "stripSuffixes": {
+                "type": "array",
+                "description": "Strip these path segments before the extension (e.g. [\"index\", \"page\"]). After extension stripping, each matching suffix is removed: /index → /, /about/index → /about/. Trailing slashes are then cleaned up for consistent cache key matching.",
+                "items": { "type": "string" },
+                "uniqueItems": true
+              }
+            },
+            "required": ["prefix"]
           }
         }
       },

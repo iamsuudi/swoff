@@ -4,7 +4,7 @@ import {
   trackMutation,
   resolveMutation,
   rejectMutation,
-} from "../offline/state.js";
+} from "../mutation/state.js";
 
 /**
  * Hook for mutations (POST, PUT, PATCH, DELETE) with auto-invalidation, offline queuing,
@@ -47,15 +47,15 @@ export function useMutation(url, options = {}) {
 
   const mutate = useCallback(async (body, callbacks) => {
     const key = optionsRef.current.mutationKey;
-    if (key && inFlightKeys.current.has(key))
-      return { status: "skipped" };
+    if (key && inFlightKeys.current.has(key)) return { status: "skipped" };
     if (key) inFlightKeys.current.add(key);
 
-    let retriesLeft = optionsRef.current.retry === true
-      ? Infinity
-      : typeof optionsRef.current.retry === "number"
-        ? optionsRef.current.retry
-        : 0;
+    let retriesLeft =
+      optionsRef.current.retry === true
+        ? Infinity
+        : typeof optionsRef.current.retry === "number"
+          ? optionsRef.current.retry
+          : 0;
 
     const mid = "mut-" + crypto.randomUUID();
     setMutationId(mid);
@@ -66,9 +66,20 @@ export function useMutation(url, options = {}) {
 
     const attempt = async () => {
       try {
-        const { mutationKey, onMutate, onSuccess, onError, onSettled, retry, ...fetchOnlyOptions } = optionsRef.current;
+        const {
+          mutationKey,
+          onMutate,
+          onSuccess,
+          onError,
+          onSettled,
+          retry,
+          ...fetchOnlyOptions
+        } = optionsRef.current;
         const fetchOptions = { ...fetchOnlyOptions, body };
-        const { response, queued } = await fetchWithCache(urlRef.current, fetchOptions);
+        const { response, queued } = await fetchWithCache(
+          urlRef.current,
+          fetchOptions,
+        );
         if (queued) {
           resolveMutation(mid, null);
           setIsLoading(false);
@@ -125,8 +136,8 @@ export function useMutation(url, options = {}) {
     isQueued: lastResult?.status === "queued",
     isSuccess: lastResult?.status === "success",
     isError: lastResult?.status === "error",
-    data: lastResult?.status === "success" ? lastResult.data ?? null : null,
-    error: lastResult?.status === "error" ? lastResult.error ?? null : null,
+    data: lastResult?.status === "success" ? (lastResult.data ?? null) : null,
+    error: lastResult?.status === "error" ? (lastResult.error ?? null) : null,
     lastResult,
     reset,
     mutationId,

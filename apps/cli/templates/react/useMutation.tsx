@@ -4,7 +4,7 @@ import {
   trackMutation,
   resolveMutation,
   rejectMutation,
-} from "../offline/state.ts";
+} from "../mutation/state.ts";
 import type { FetchWithCacheOptions } from "../fetch/core.ts";
 
 export interface MutateCallbacks<TData> {
@@ -64,7 +64,9 @@ export function useMutation<TData = unknown>(
   url: string,
   options: UseMutationOptions<TData> = {},
 ) {
-  const [lastResult, setLastResult] = useState<MutateResult<TData> | null>(null);
+  const [lastResult, setLastResult] = useState<MutateResult<TData> | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [mutationId, setMutationId] = useState<string | null>(null);
   const optionsRef = useRef(options);
@@ -79,15 +81,15 @@ export function useMutation<TData = unknown>(
       callbacks?: MutateCallbacks<TData>,
     ): Promise<MutateResult<TData>> => {
       const key = optionsRef.current.mutationKey;
-      if (key && inFlightKeys.current.has(key))
-        return { status: "skipped" };
+      if (key && inFlightKeys.current.has(key)) return { status: "skipped" };
       if (key) inFlightKeys.current.add(key);
 
-      let retriesLeft: number = optionsRef.current.retry === true
-        ? Infinity
-        : typeof optionsRef.current.retry === "number"
-          ? optionsRef.current.retry
-          : 0;
+      let retriesLeft: number =
+        optionsRef.current.retry === true
+          ? Infinity
+          : typeof optionsRef.current.retry === "number"
+            ? optionsRef.current.retry
+            : 0;
 
       const mid = "mut-" + crypto.randomUUID();
       setMutationId(mid);
@@ -98,9 +100,20 @@ export function useMutation<TData = unknown>(
 
       const attempt = async (): Promise<MutateResult<TData>> => {
         try {
-          const { mutationKey, onMutate, onSuccess, onError, onSettled, retry, ...fetchOnlyOptions } = optionsRef.current;
+          const {
+            mutationKey,
+            onMutate,
+            onSuccess,
+            onError,
+            onSettled,
+            retry,
+            ...fetchOnlyOptions
+          } = optionsRef.current;
           const fetchOptions = { ...fetchOnlyOptions, body };
-          const { response, queued } = await fetchWithCache<TData>(urlRef.current, fetchOptions as FetchWithCacheOptions);
+          const { response, queued } = await fetchWithCache<TData>(
+            urlRef.current,
+            fetchOptions as FetchWithCacheOptions,
+          );
           if (queued) {
             resolveMutation(mid, null);
             setIsLoading(false);
@@ -159,8 +172,8 @@ export function useMutation<TData = unknown>(
     isQueued: lastResult?.status === "queued",
     isSuccess: lastResult?.status === "success",
     isError: lastResult?.status === "error",
-    data: lastResult?.status === "success" ? lastResult.data ?? null : null,
-    error: lastResult?.status === "error" ? lastResult.error ?? null : null,
+    data: lastResult?.status === "success" ? (lastResult.data ?? null) : null,
+    error: lastResult?.status === "error" ? (lastResult.error ?? null) : null,
     lastResult,
     reset,
     mutationId,

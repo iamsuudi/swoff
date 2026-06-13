@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { getPendingCount, getQueueItems, processMutationQueue } from "../offline/queue.js";
+import {
+  getPendingCount,
+  getQueueItems,
+  processMutationQueue,
+} from "../mutation/queue.js";
 
 /**
  * Reactive mutation queue state: pending count, items, last sync info, and processing flag.

@@ -21,7 +21,7 @@ export function generateFetchWrapperCode(
       ? `import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, ensureValidAuth, AUTH_WITH_CREDENTIALS } from "../auth/store.${ext}";`
       : "",
     mutationQueue
-      ? `import { queueMutation } from "../offline/queue.${ext}";`
+      ? `import { queueMutation } from "../mutation/queue.${ext}";`
       : "",
     `import { incrementFetchCount, decrementFetchCount } from "../fetch/state.${ext}";`,
   ]

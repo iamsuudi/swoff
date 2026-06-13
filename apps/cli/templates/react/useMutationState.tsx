@@ -1,9 +1,6 @@
 import { useSyncExternalStore } from "react";
-import {
-  getMutationState,
-  onMutationStateChange,
-} from "../offline/state.ts";
-import type { MutationState } from "../offline/state.ts";
+import { getMutationState, onMutationStateChange } from "../mutation/state.ts";
+import type { MutationState } from "../mutation/state.ts";
 
 function subscribeToMutations(cb: () => void) {
   return onMutationStateChange(() => cb());
@@ -18,8 +15,7 @@ function subscribeToMutations(cb: () => void) {
  *   if (mutation?.status === "error") { ... }
  */
 export function useMutationState(id: string | null): MutationState | null {
-  return useSyncExternalStore(
-    subscribeToMutations,
-    () => (id ? getMutationState(id) ?? null : null),
+  return useSyncExternalStore(subscribeToMutations, () =>
+    id ? (getMutationState(id) ?? null) : null,
   );
 }

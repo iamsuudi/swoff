@@ -29,7 +29,7 @@ export function generateClientInjectorCode(
     : "";
 
   const mutationImport = mutationQueueEnabled
-    ? `import { processMutationQueue, clearQueue } from "./offline/queue.${ext}";
+    ? `import { processMutationQueue, clearQueue } from "./mutation/queue.${ext}";
 `
     : "";
 
@@ -85,13 +85,15 @@ if (typeof document !== "undefined") {
   const swImport = `import { initServiceWorker as swInit } from "./sw/injector.${ext}";
 `;
 
-  const autoPrefetchImport = navMode === "ssr"
-    ? `import { prefetchCache } from "./fetch/core.${ext}";
+  const autoPrefetchImport =
+    navMode === "ssr"
+      ? `import { prefetchCache } from "./fetch/core.${ext}";
 `
-    : "";
+      : "";
 
-  const autoPrefetchCode = navMode === "ssr"
-    ? `
+  const autoPrefetchCode =
+    navMode === "ssr"
+      ? `
 // --- Auto-prefetch HTML on client-side navigation (SSR mode) ---
 // Intercepts history.pushState/replaceState to warm the SW cache with HTML
 // for routes the user navigates to via client-side routing.
@@ -112,7 +114,7 @@ if (typeof history !== "undefined") {
   };
 }
 `
-    : "";
+      : "";
 
   return `/**
  * Swoff Client Injector

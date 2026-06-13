@@ -24,12 +24,10 @@ describe("config-types", () => {
         defaultConfig.features.serviceWorker.strategy.clearRuntimeOnUpdate,
       ).toBe(false);
       expect(defaultConfig.features.serviceWorker.navigation.mode).toBe("spa");
-      expect(defaultConfig.features.serviceWorker.navigation.fallback).toBe(
-        "",
-      );
+      expect(defaultConfig.features.serviceWorker.navigation.fallback).toBe("");
       expect(defaultConfig.features.serviceWorker.navigation.rules).toEqual([]);
       expect(defaultConfig.features.serviceWorker.navigation.mode).toBe("spa");
-      expect(defaultConfig.features.serviceWorker.version).toBe("package");
+      expect(defaultConfig.features.serviceWorker.version).toBe("hash");
       expect(defaultConfig.build.outputDir).toBe("dist");
       expect(defaultConfig.build.swFilename).toBe("sw");
       expect(defaultConfig.features.pwa.enabled).toBe(true);
@@ -44,7 +42,6 @@ describe("config-types", () => {
           feature === "realtime" ||
           feature === "mutationQueue" ||
           feature === "graphql" ||
-          feature === "tagInvalidation" ||
           feature === "refetchQueue"
         ) {
           expect(typeof defaultConfig.features[feature]).toBe("object");
@@ -90,7 +87,9 @@ describe("config-types", () => {
     it("has refetchQueue defaults", () => {
       expect(defaultConfig.features.refetchQueue.retry.maxRetries).toBe(3);
       expect(defaultConfig.features.refetchQueue.retry.backoffMs).toBe(1000);
-      expect(defaultConfig.features.refetchQueue.retry.maxBackoffMs).toBe(10000);
+      expect(defaultConfig.features.refetchQueue.retry.maxBackoffMs).toBe(
+        10000,
+      );
       expect(defaultConfig.features.refetchQueue.retry.jitterMs).toBe(100);
     });
 

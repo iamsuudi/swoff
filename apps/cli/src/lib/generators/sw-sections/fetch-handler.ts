@@ -859,7 +859,11 @@ async function handleMutation(event) {
     : ""
 }self.addEventListener("fetch", (event) => {
   const { request } = event;
-  swLog("fetch", "INCOMING", request.url, 0);${
+  swLog("fetch", "INCOMING", request.url, 0);
+  if (request.headers.get("X-SW-Strategy") === "network-only") {
+    swLog("fetch", "strategy=network-only", request.url, 0);
+    return;
+  }${
     mutationQueueEnabled
       ? `
   if (request.method !== "GET" && request.method !== "HEAD") {
@@ -878,6 +882,8 @@ async function handleMutation(event) {
   swLog("fetch", "strategy=" + cfg.strategy, request.url, 0);
   if (cfg.strategy === "reactive") {
     registerReactiveEntry(cacheKey(request), cfg);
+  } else if (cfg.strategy === "network-only") {
+    return;
   }
   applyStrategy(event, request, cfg);
 });`;

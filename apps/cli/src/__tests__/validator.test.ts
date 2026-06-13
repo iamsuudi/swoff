@@ -393,5 +393,116 @@ describe("validateConfig", () => {
       const errors = validateConfig(config);
       expect(errors).toContain("build.swFilename must be a non-empty string");
     });
+
+    describe("precacheDirs", () => {
+      it("rejects string values (must be objects)", () => {
+        const config = {
+          ...validConfig,
+          build: { ...validConfig.build, precacheDirs: { ".next/static": "/_next/static" } },
+        };
+        const errors = validateConfig(config);
+        expect(errors[0]).toContain('precacheDirs[".next/static"] must be an object');
+      });
+
+      it("accepts object config with prefix, extensions, stripExtension", () => {
+        const config = {
+          ...validConfig,
+          build: {
+            ...validConfig.build,
+            precacheDirs: {
+              ".next/static": { prefix: "/_next/static" },
+              ".next/server/app": {
+                prefix: "",
+                extensions: [".html"],
+                stripExtension: true,
+              },
+            },
+          },
+        };
+        expect(validateConfig(config)).toEqual([]);
+      });
+
+      it("accepts object config with only prefix (minimum)", () => {
+        const config = {
+          ...validConfig,
+          build: {
+            ...validConfig.build,
+            precacheDirs: { "some-dir": { prefix: "/prefix" } },
+          },
+        };
+        expect(validateConfig(config)).toEqual([]);
+      });
+
+      it("rejects object config without prefix field", () => {
+        const config = {
+          ...validConfig,
+          build: {
+            ...validConfig.build,
+            precacheDirs: { "some-dir": { extensions: [".html"] } },
+          },
+        };
+        const errors = validateConfig(config);
+        expect(errors[0]).toContain('precacheDirs["some-dir"].prefix must be a string');
+      });
+
+      it("rejects object config with non-array extensions", () => {
+        const config = {
+          ...validConfig,
+          build: {
+            ...validConfig.build,
+            precacheDirs: { "some-dir": { prefix: "", extensions: ".html" } },
+          },
+        };
+        const errors = validateConfig(config);
+        expect(errors[0]).toContain('precacheDirs["some-dir"].extensions must be an array of strings');
+      });
+
+      it("rejects object config with non-boolean stripExtension", () => {
+        const config = {
+          ...validConfig,
+          build: {
+            ...validConfig.build,
+            precacheDirs: { "some-dir": { prefix: "", stripExtension: "yes" } },
+          },
+        };
+        const errors = validateConfig(config);
+        expect(errors[0]).toContain('precacheDirs["some-dir"].stripExtension must be a boolean');
+      });
+
+      it("accepts object config with stripSuffixes", () => {
+        const config = {
+          ...validConfig,
+          build: {
+            ...validConfig.build,
+            precacheDirs: { "some-dir": { prefix: "", stripSuffixes: ["index", "page"] } },
+          },
+        };
+        expect(validateConfig(config)).toEqual([]);
+      });
+
+      it("rejects object config with non-array stripSuffixes", () => {
+        const config = {
+          ...validConfig,
+          build: {
+            ...validConfig.build,
+            precacheDirs: { "some-dir": { prefix: "", stripSuffixes: "index" } },
+          },
+        };
+        const errors = validateConfig(config);
+        expect(errors[0]).toContain('precacheDirs["some-dir"].stripSuffixes must be an array of strings');
+      });
+
+      it("rejects non-object value", () => {
+        const config = {
+          ...validConfig,
+          build: {
+            ...validConfig.build,
+            precacheDirs: { "some-dir": 123 },
+          },
+        };
+        const errors = validateConfig(config);
+        expect(errors[0]).toContain('precacheDirs["some-dir"] must be an object');
+      });
+    });
   });
 });

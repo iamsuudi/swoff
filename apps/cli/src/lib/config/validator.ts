@@ -349,14 +349,33 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     }
     if (build.precacheDirs !== undefined) {
       if (typeof build.precacheDirs !== "object" || build.precacheDirs === null || Array.isArray(build.precacheDirs)) {
-        errors.push("build.precacheDirs must be an object (Record<string, string>)");
+        errors.push("build.precacheDirs must be an object");
       } else {
-        for (const [dir, url] of Object.entries(build.precacheDirs as Record<string, unknown>)) {
+        for (const [dir, value] of Object.entries(build.precacheDirs as Record<string, unknown>)) {
           if (typeof dir !== "string" || !dir) {
             errors.push("build.precacheDirs keys must be non-empty strings");
+            continue;
           }
-          if (typeof url !== "string") {
-            errors.push(`build.precacheDirs["${dir}"] must be a string`);
+          if (typeof value !== "object" || value === null) {
+            errors.push(`build.precacheDirs["${dir}"] must be an object`);
+            continue;
+          }
+          const obj = value as Record<string, unknown>;
+          if (typeof obj.prefix !== "string") {
+            errors.push(`build.precacheDirs["${dir}"].prefix must be a string`);
+          }
+          if (obj.extensions !== undefined) {
+            if (!Array.isArray(obj.extensions) || !obj.extensions.every((e: unknown) => typeof e === "string")) {
+              errors.push(`build.precacheDirs["${dir}"].extensions must be an array of strings`);
+            }
+          }
+          if (obj.stripExtension !== undefined && typeof obj.stripExtension !== "boolean") {
+            errors.push(`build.precacheDirs["${dir}"].stripExtension must be a boolean`);
+          }
+          if (obj.stripSuffixes !== undefined) {
+            if (!Array.isArray(obj.stripSuffixes) || !obj.stripSuffixes.every((s: unknown) => typeof s === "string")) {
+              errors.push(`build.precacheDirs["${dir}"].stripSuffixes must be an array of strings`);
+            }
           }
         }
       }

@@ -11,7 +11,7 @@ export function generateSwGeneratorBuild(ctx: GeneratorContext): void {
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
-import { join, dirname, relative } from 'path';
+import { join, dirname, relative, extname } from 'path';
 import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
@@ -111,14 +111,31 @@ function generateCacheNameHash() {
 }
 
 const dirsRaw = config.build?.precacheDirs || {};
-const dirs = Object.keys(dirsRaw).length > 0 ? dirsRaw : { [outputDir]: "/" };
+const dirs = Object.keys(dirsRaw).length > 0 ? dirsRaw : { [outputDir]: { prefix: "/" } };
 const allAssets = [];
-for (const [dir, prefix] of Object.entries(dirs)) {
+for (const [dir, raw] of Object.entries(dirs)) {
   const dirPath = join(projectRoot, dir);
   if (existsSync(dirPath)) {
-    const normPrefix = prefix.replace(/\\/+$/, '');
+    const cfg = raw;
+    const normPrefix = cfg.prefix.replace(/\\/+$/, '');
+    const extensions = cfg.extensions;
+    const stripExt = cfg.stripExtension;
+    const stripSuffixes = cfg.stripSuffixes;
     for (const a of collectAssets(dirPath, dirPath)) {
-      allAssets.push(normPrefix + '/' + a.slice(1));
+      if (extensions && !extensions.includes(extname(a))) continue;
+      let url = normPrefix + '/' + a.slice(1);
+      if (stripExt) url = url.replace(/\\.[^/.]+$/, '');
+      if (stripSuffixes) {
+        for (const suffix of stripSuffixes) {
+          if (url.endsWith('/' + suffix)) {
+            url = url.slice(0, -suffix.length - 1) + '/';
+          }
+        }
+      }
+      if (url !== '/' && url.endsWith('/')) {
+        url = url.slice(0, -1);
+      }
+      allAssets.push(url);
     }
   }
 }

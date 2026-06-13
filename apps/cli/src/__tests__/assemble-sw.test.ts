@@ -34,7 +34,7 @@ describe("assembleSW", () => {
     expect(sw).toContain("networkFirst");
     expect(sw).toContain("staleWhileRevalidate");
     expect(sw).toContain("cacheOnly");
-    expect(sw).toContain("networkOnly");
+    expect(sw).toContain('"network-only"');
     expect(sw).toContain("reactiveStrategy");
   });
 

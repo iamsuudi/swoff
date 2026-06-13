@@ -43,6 +43,7 @@ import { generateOpenDB } from "./file-generators/open-db.js";
 import { generateFetchState } from "./file-generators/fetch-state.js";
 import { generateStorageNotify } from "./file-generators/storage-notify.js";
 import { generateSwVersion } from "./file-generators/sw-version-gen.js";
+import { generateConnectivityManager } from "./file-generators/connectivity-manager.js";
 interface Step {
   name: string;
   gen: () => void;
@@ -55,6 +56,11 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     { name: "sw-version", gen: () => generateSwVersion(ctx), enabled: true },
     { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
     { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: true },
+    {
+      name: "connectivity-manager",
+      gen: () => generateConnectivityManager(ctx),
+      enabled: true,
+    },
     {
       name: "client-injector",
       gen: () => generateClientInjector(ctx),

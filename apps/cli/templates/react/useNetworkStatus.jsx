@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { CONNECTIVITY_EVENT, forceRetry, getCurrentOnlineStatus } from "./connectivity-manager.js";
 
 /**
  * Reactive network information: online status, connection type, and bandwidth.
@@ -14,63 +15,72 @@ import { useState, useEffect, useRef } from "react";
  */
 export function useNetworkStatus() {
   const wasOfflineRef = useRef(false);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const [state, setState] = useState(() => {
-    const online = typeof navigator !== "undefined" ? navigator.onLine : true;
+    const online = getCurrentOnlineStatus();
     return {
       online,
       wasOffline: !online,
       lastChangedAt: null,
-      effectiveType: null,
-      downlink: null,
+      effectiveType:
+        (typeof navigator !== "undefined" &&
+          navigator.connection?.effectiveType) ||
+        null,
+      downlink:
+        (typeof navigator !== "undefined" && navigator.connection?.downlink) ||
+        null,
     };
   });
 
+  // Manual trigger wrapper that handles local loading state
+  const retry = async () => {
+    setIsRetrying(true);
+    await forceRetry();
+    setIsRetrying(false);
+  };
+
   useEffect(() => {
-    const wasOffline = !navigator.onLine;
-    if (wasOffline) wasOfflineRef.current = true;
+    const connection = navigator.connection;
 
-    const connection = navigator?.connection;
+    const handleConnectivityChange = (e) => {
+      const isTrulyOnline = e.detail.online;
 
-    const onOnline = () => {
-      setState((s) => ({ ...s, online: true, lastChangedAt: Date.now() }));
-    };
-    const onOffline = () => {
-      wasOfflineRef.current = true;
-      setState((s) => ({ ...s, online: false, lastChangedAt: Date.now(), wasOffline: true }));
+      if (!isTrulyOnline) {
+        wasOfflineRef.current = true;
+      } else {
+        wasOfflineRef.current = false;
+      }
+
+      setState((s) => ({
+        ...s,
+        online: isTrulyOnline,
+        wasOffline: wasOfflineRef.current,
+        lastChangedAt: Date.now(),
+      }));
     };
 
     const onTypeChange = () => {
       if (!connection) return;
-      setState((s) => ({ ...s, effectiveType: connection.effectiveType, downlink: connection.downlink }));
+      setState((s) => ({
+        ...s,
+        effectiveType: connection.effectiveType,
+        downlink: connection.downlink,
+      }));
     };
 
-    const onSWNotification = (event) => {
-      if (event.data?.type === "SW_NOTIFICATION" && event.data?.code === "FETCH_FAILED") {
-        onOffline();
-      }
-    };
-
-    window.addEventListener("online", onOnline);
-    window.addEventListener("offline", onOffline);
+    window.addEventListener(CONNECTIVITY_EVENT, handleConnectivityChange);
     if (connection) {
       connection.addEventListener("change", onTypeChange);
     }
-    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
-      navigator.serviceWorker.addEventListener("message", onSWNotification);
-    }
 
     return () => {
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", onOffline);
+      window.removeEventListener(CONNECTIVITY_EVENT, handleConnectivityChange);
       if (connection) {
         connection.removeEventListener("change", onTypeChange);
-      }
-      if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
-        navigator.serviceWorker.removeEventListener("message", onSWNotification);
       }
     };
   }, []);
 
-  return state;
+  return { ...state, isRetrying, retry };
 }

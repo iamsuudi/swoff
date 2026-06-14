@@ -6,10 +6,10 @@ export async function createMaskable(sourceBuffer: Buffer, size: number, bgColor
   const image = await Jimp.read(sourceBuffer);
   const canvas = new Jimp({ width: size, height: size, color: bgColor });
   const logoSize = Math.round(size * MASKABLE_SAFE_ZONE);
-  image.resize({ w: logoSize, h: logoSize });
   const scale = logoSize / Math.max(image.bitmap.width, image.bitmap.height);
   const newW = Math.round(image.bitmap.width * scale);
   const newH = Math.round(image.bitmap.height * scale);
+  image.resize({ w: newW, h: newH });
   canvas.composite(image, Math.round((size - newW) / 2), Math.round((size - newH) / 2));
   return canvas.getBuffer("image/png");
 }

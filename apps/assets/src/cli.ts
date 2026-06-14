@@ -5,6 +5,12 @@ import { fileURLToPath } from "url";
 import { generateAssets } from "./generate.js";
 import { printAssetGuide } from "./guide.js";
 import { loadConfigFile, type ConfigFile } from "./config-loader.js";
+import {
+  DEFAULT_OUTPUT_DIR,
+  DEFAULT_APP_NAME,
+  DEFAULT_THEME_COLOR,
+  DEFAULT_BG_COLOR,
+} from "./constants.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -19,34 +25,43 @@ function getVersion(): string {
   }
 }
 
+interface CliValues {
+  source?: string;
+  "output-dir"?: string;
+  "app-name"?: string;
+  "theme-color"?: string;
+  "bg-color"?: string;
+  "no-splash"?: boolean;
+  monochrome?: boolean;
+  "ms-tile-color"?: string;
+  "dark-mode-theme"?: string;
+  "dark-mode-bg"?: string;
+  config?: string;
+  version?: boolean;
+  help?: boolean;
+}
+
 function mergeConfig(
   config: ConfigFile,
-  values: Record<string, unknown>,
+  values: CliValues,
 ): ConfigFile {
   const result: ConfigFile = { ...config };
-  if (values.source) result.source = String(values.source);
-  if (values["output-dir"]) result.outputDir = String(values["output-dir"]);
-  if (values["app-name"]) result.appName = String(values["app-name"]);
-  if (values["theme-color"]) result.themeColor = String(values["theme-color"]);
-  if (values["bg-color"]) result.backgroundColor = String(values["bg-color"]);
+  if (values.source) result.source = values.source;
+  if (values["output-dir"]) result.outputDir = values["output-dir"];
+  if (values["app-name"]) result.appName = values["app-name"];
+  if (values["theme-color"]) result.themeColor = values["theme-color"];
+  if (values["bg-color"]) result.backgroundColor = values["bg-color"];
   if (values["no-splash"] === true) result.noSplash = true;
-  if (values["no-splash"] === false && config) result.noSplash = false;
   if (values.monochrome === true) result.monochrome = true;
   if (values["ms-tile-color"])
-    result.msTileColor = String(values["ms-tile-color"]);
+    result.msTileColor = values["ms-tile-color"];
   if (values["dark-mode-theme"]) {
-    result.darkMode = result.darkMode || {
-      themeColor: "",
-      backgroundColor: "#121212",
-    };
-    result.darkMode.themeColor = String(values["dark-mode-theme"]);
+    if (!result.darkMode) result.darkMode = { themeColor: "", backgroundColor: "" };
+    result.darkMode.themeColor = values["dark-mode-theme"];
   }
   if (values["dark-mode-bg"]) {
-    result.darkMode = result.darkMode || {
-      themeColor: "#ffffff",
-      backgroundColor: "",
-    };
-    result.darkMode.backgroundColor = String(values["dark-mode-bg"]);
+    if (!result.darkMode) result.darkMode = { themeColor: "", backgroundColor: "" };
+    result.darkMode.backgroundColor = values["dark-mode-bg"];
   }
   return result;
 }
@@ -82,7 +97,7 @@ export async function main(): Promise<void> {
     process.exit(0);
   }
 
-  const configFile = loadConfigFile(process.cwd());
+  const configFile = loadConfigFile(process.cwd(), values.config);
   const merged = mergeConfig(configFile, values);
 
   if (!merged.source) {
@@ -93,10 +108,10 @@ export async function main(): Promise<void> {
 
   const result = await generateAssets({
     source: merged.source,
-    outputDir: merged.outputDir || "public",
-    appName: merged.appName || "My App",
-    themeColor: merged.themeColor || "#000000",
-    bgColor: merged.backgroundColor || "#ffffff",
+    outputDir: merged.outputDir || DEFAULT_OUTPUT_DIR,
+    appName: merged.appName || DEFAULT_APP_NAME,
+    themeColor: merged.themeColor || DEFAULT_THEME_COLOR,
+    bgColor: merged.backgroundColor || DEFAULT_BG_COLOR,
     appleSplash: !merged.noSplash,
     monochrome: merged.monochrome,
     msTileColor: merged.msTileColor,
@@ -112,10 +127,10 @@ export async function main(): Promise<void> {
   }
 
   printAssetGuide({
-    appName: merged.appName || "My App",
-    themeColor: merged.themeColor || "#000000",
-    bgColor: merged.backgroundColor || "#ffffff",
-    outputDir: merged.outputDir || "public",
+    appName: merged.appName || DEFAULT_APP_NAME,
+    themeColor: merged.themeColor || DEFAULT_THEME_COLOR,
+    bgColor: merged.backgroundColor || DEFAULT_BG_COLOR,
+    outputDir: merged.outputDir || DEFAULT_OUTPUT_DIR,
     hasSplash: !merged.noSplash,
   });
 }

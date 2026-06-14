@@ -1,3 +1,7 @@
+const PNG_IHDR_OFFSET = 16;
+const PNG_WIDTH_OFFSET = PNG_IHDR_OFFSET;
+const PNG_HEIGHT_OFFSET = PNG_IHDR_OFFSET + 4;
+
 export function encodeIco(pngBuffers: Buffer[]): Buffer {
   const count = pngBuffers.length;
   const headerSize = 6;
@@ -12,8 +16,8 @@ export function encodeIco(pngBuffers: Buffer[]): Buffer {
   let offset = headerSize + count * dirEntrySize;
   for (let i = 0; i < count; i++) {
     const png = pngBuffers[i];
-    const w = png.readUInt32BE(16);
-    const h = png.readUInt32BE(20);
+    const w = png.readUInt32BE(PNG_WIDTH_OFFSET);
+    const h = png.readUInt32BE(PNG_HEIGHT_OFFSET);
     const pos = headerSize + i * dirEntrySize;
     buf.writeUInt8(w === 256 ? 0 : w, pos);
     buf.writeUInt8(h === 256 ? 0 : h, pos + 1);

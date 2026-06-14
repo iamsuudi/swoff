@@ -3,11 +3,12 @@ export interface GqlConfig {
   endpoints: string[];
 }
 
+export type AuthType = "cookie" | "bearer" | "custom" | "better-auth" | "next-auth" | "clerk" | "supabase";
+
 export interface AuthConfig {
   enabled: boolean;
-  type: "cookie" | "bearer" | "custom";
-  refreshPath: string;
-  userEndpoint: string;
+  type: AuthType;
+  routePaths: string[];
 }
 
 export interface RetryConfig {
@@ -171,8 +172,7 @@ export const API_PREFIXES = ["api", "v1", "v2", "v3", "rest", "graphql", "gql"];
 export const defaultAuth: AuthConfig = {
   enabled: false,
   type: "cookie",
-  refreshPath: "/api/refresh",
-  userEndpoint: "/api/me",
+  routePaths: ["/login", "/logout", "/register", "/api/login", "/api/logout", "/api/register", "/api/refresh", "/api/me"],
 };
 
 export const defaultGql: GqlConfig = {
@@ -287,7 +287,7 @@ export function mergeConfigs(
         ...defaultAuth,
         ...base.features.auth,
         ...override.features?.auth,
-      },
+      } as AuthConfig,
       graphql: {
         ...defaultGql,
         ...base.features.graphql,

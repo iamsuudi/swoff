@@ -31,7 +31,7 @@ import { generatePush } from "./file-generators/push.js";
 import { generateMutationState } from "./file-generators/mutation-state.js";
 import { generateServerPush } from "./file-generators/server-push.js";
 import { generateAuthStore } from "./file-generators/auth-store.js";
-import { generateAuthUser } from "./file-generators/auth-user.js";
+import { generateAuthAdapter } from "./file-generators/auth-adapter.js";
 import { generateAuthState } from "./file-generators/auth-state.js";
 import { generateSwGeneratorBuild } from "./file-generators/sw-generator-build.js";
 import { generateGqlWrapper } from "./file-generators/gql-wrapper.js";
@@ -87,13 +87,13 @@ export function generateFiles(ctx: GeneratorContext): string[] {
       enabled: shouldIncludeBackgroundSync(ctx.config),
     },
     {
-      name: "auth-store",
-      gen: () => generateAuthStore(ctx),
+      name: "auth/adapter",
+      gen: () => generateAuthAdapter(ctx),
       enabled: ctx.config.features.auth.enabled,
     },
     {
-      name: "auth-user",
-      gen: () => generateAuthUser(ctx),
+      name: "auth-store",
+      gen: () => generateAuthStore(ctx),
       enabled: ctx.config.features.auth.enabled,
     },
     {
@@ -205,39 +205,21 @@ if (
       if (config.features.auth.enabled) {
         const authType = config.features.auth.type;
         console.log(`\n--- Auth Setup ---`);
-        console.log(`  Auth type: ${authType}`);
-        console.log(`  1. Edit swoff/auth/user.ts to match your backend:`);
-        if (authType === "cookie") {
-          console.log(
-            `     - refreshSession(): adjust method, URL, or body if your refresh endpoint differs`,
-          );
-          console.log(
-            `     - fetchCurrentUser(): adjust method or URL for your /api/me endpoint`,
-          );
-          console.log(
-            `     Cookie auth uses credentials: "include" — no token management needed.`,
-          );
+        console.log(`  Auth adapter: ${authType}`);
+        console.log(`  1. Edit swoff/auth/adapter.ts to match your backend:`);
+        if (authType === "cookie" || authType === "bearer" || authType === "custom") {
+          console.log(`     - toAuthData(): map your login response to AuthData`);
+          console.log(`     - getHeaders(): return auth headers for fetch requests`);
+          console.log(`     - refresh(): implement token/session refresh`);
+          console.log(`     - fetchUser(): implement fetching current user`);
         } else {
-          console.log(
-            `     - refreshSession(): add token header or body logic for your server`,
-          );
-          console.log(
-            `     - fetchCurrentUser(): add the Authorization header using the user's token`,
-          );
-          console.log(`     Get the token from auth/store.ts via getAuth().`);
+          console.log(`     - Review the import path and defaults for your auth provider.`);
         }
         console.log(
-          `  2. Edit swoff/auth/store.ts to match your login response shape:`,
+          `  2. Use { auth: true } in fetchWithCache for authenticated requests`,
         );
         console.log(
-          `     - createAuthFromResponse(): map your backend's JSON fields to AuthData`,
-        );
-        console.log(
-          `  3. Edit swoff/fetch-wrapper.ts options per-request as needed:`,
-        );
-        console.log(`     - Use { auth: true } for authenticated requests`);
-        console.log(
-          `     - Use { invalidate: [...] } for custom cache invalidation`,
+          `  3. Use setAuth()/clearAuth() from auth/store.ts in login/logout handlers`,
         );
       }
     })

@@ -54,9 +54,9 @@ All files land in `swoff/`. See [API.md](./API.md) for the full reference.
 | `graphql/index.ts` | `features.graphql.enabled` | GraphQL wrapper with body-hash caching |
 | `realtime/notifications.ts` | `features.realtime.pushNotifications` | Push notification subscription management |
 | `offline/sync.ts` | `features.mutationQueue.backgroundSync` | Background Sync API registration |
-| `auth/store.ts` | `auth.enabled` | Token/user persistence + auth header helpers |
-| `auth/user.ts` | `auth.enabled` | User data caching |
-| `auth/state.ts` | `auth.enabled` | Online/offline × auth state detection |
+| `auth/adapter.ts` | `auth.enabled` | Auth provider adapter — generated template for your provider (cookie, bearer, better-auth, next-auth, clerk, supabase) |
+| `auth/store.ts` | `auth.enabled` | Token/user persistence + cascading clearAuth + cross-tab sync |
+| `auth/state.ts` | `auth.enabled` | Online/offline × auth state detection (connectivity manager) |
 | `pwa/index.ts` | `pwa.enabled` | Install prompt handling |
 | `adapters/*.tsx` | React-based framework (react-spa, nextjs, remix, tanstack-start-react, astro) | React hooks (see [API.md](./API.md#react-hooks)) |
 | `sw/template.js` | always | Service worker source — runs in SW scope |

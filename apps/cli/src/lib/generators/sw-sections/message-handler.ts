@@ -78,6 +78,15 @@ self.addEventListener("message", (event) => {
   }
 
   code += `
+  if (event.data.type === "AUTH_CLEARED") {
+    event.waitUntil(
+      self.clients.matchAll().then(function(clients) {
+        clients.forEach(function(client) {
+          client.postMessage({ type: "AUTH_CLEARED" });
+        });
+      }),
+    );
+  }
 });`;
   return code;
 }

@@ -64,6 +64,19 @@ export async function generateCommand(
     );
   }
 
+  if (config.features.auth.enabled) {
+    log.normal("");
+    log.help(`Auth (${config.features.auth.type})`);
+    log.normal("  Edit swoff/auth/adapter.ts to match your backend:");
+    log.normal("    - toAuthData(): map login response to AuthData");
+    log.normal("    - getHeaders(): return auth headers for fetch requests");
+    if (config.features.auth.type !== "cookie") {
+      log.normal("    - refresh(): implement token/session refresh");
+    }
+    log.normal("    - fetchUser(): implement fetching current user (/api/me)");
+    log.normal("  Use { auth: true } in fetchWithCache for authenticated requests");
+  }
+
   log.normal("");
   log.normal("1. Read swoff/GUIDE.md for documentation links");
   log.normal("2. After each build, run the SW generator:");

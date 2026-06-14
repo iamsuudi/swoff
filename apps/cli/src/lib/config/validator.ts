@@ -266,24 +266,24 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       if (backgroundSyncVal) {
         const authBg = features.auth as Record<string, unknown> | undefined;
         if (authBg?.enabled === true && authBg?.type !== "cookie") {
-          errors.push("features.mutationQueue.backgroundSync is not supported with auth type \"bearer\" or \"custom\" — tokens must not be stored in IndexedDB");
+          errors.push("features.mutationQueue.backgroundSync is only supported with auth type \"cookie\" — the service worker cannot access bearer tokens");
         }
       }
     }
 
+    const VALID_AUTH_TYPES = ["cookie", "bearer", "custom", "better-auth", "next-auth", "clerk", "supabase"];
     const auth = features.auth as Record<string, unknown> | undefined;
     if (auth && typeof auth === "object") {
       if (auth.enabled !== undefined && typeof auth.enabled !== "boolean") {
         errors.push("features.auth.enabled must be a boolean");
       }
-      if (auth.type !== undefined && !["cookie", "bearer", "custom"].includes(auth.type as string)) {
-        errors.push('features.auth.type must be "cookie", "bearer", or "custom"');
+      if (auth.type !== undefined && !VALID_AUTH_TYPES.includes(auth.type as string)) {
+        errors.push(`features.auth.type must be one of: ${VALID_AUTH_TYPES.join(", ")}`);
       }
-      if (auth.refreshPath !== undefined && typeof auth.refreshPath !== "string") {
-        errors.push("features.auth.refreshPath must be a string");
-      }
-      if (auth.userEndpoint !== undefined && typeof auth.userEndpoint !== "string") {
-        errors.push("features.auth.userEndpoint must be a string");
+      if (auth.routePaths !== undefined) {
+        if (!Array.isArray(auth.routePaths) || !(auth.routePaths as unknown[]).every((p) => typeof p === "string")) {
+          errors.push("features.auth.routePaths must be an array of strings");
+        }
       }
     }
 

@@ -43,8 +43,6 @@ describe("loadConfig", () => {
         auth: {
           enabled: false,
           type: "bearer",
-          refreshPath: "/api/refresh",
-          userEndpoint: "/api/me",
         },
         tagInvalidation: { crossTabSync: true },
       },

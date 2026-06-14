@@ -32,7 +32,7 @@ describe("validateConfig", () => {
         retryDelayMs: 1000,
       },
       mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
-      auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
+      auth: { enabled: false, type: "bearer" },
       tagInvalidation: { crossTabSync: true },
       graphql: { enabled: false, endpoints: ["/graphql"] },
     },
@@ -350,7 +350,7 @@ describe("validateConfig", () => {
     it("validates auth.enabled is boolean", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, auth: { enabled: "yes", type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" } },
+        features: { ...validConfig.features, auth: { enabled: "yes", type: "bearer" } },
       };
       const errors = validateConfig(config);
       expect(errors).toContain("features.auth.enabled must be a boolean");
@@ -359,19 +359,42 @@ describe("validateConfig", () => {
     it("validates auth.type is valid", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, auth: { enabled: true, type: "invalid", refreshPath: "/api/refresh", userEndpoint: "/api/me" } },
+        features: { ...validConfig.features, auth: { enabled: true, type: "invalid" } },
       };
       const errors = validateConfig(config);
-      expect(errors).toContain('features.auth.type must be "cookie", "bearer", or "custom"');
+      expect(errors[0]).toContain('features.auth.type must be one of');
     });
 
-    it("validates auth.refreshPath is string", () => {
+    it("accepts better-auth type", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, auth: { enabled: true, type: "bearer", refreshPath: 123, userEndpoint: "/api/me" } },
+        features: { ...validConfig.features, auth: { enabled: true, type: "better-auth" } },
       };
-      const errors = validateConfig(config);
-      expect(errors).toContain("features.auth.refreshPath must be a string");
+      expect(validateConfig(config)).toEqual([]);
+    });
+
+    it("accepts next-auth type", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, auth: { enabled: true, type: "next-auth" } },
+      };
+      expect(validateConfig(config)).toEqual([]);
+    });
+
+    it("accepts clerk type", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, auth: { enabled: true, type: "clerk" } },
+      };
+      expect(validateConfig(config)).toEqual([]);
+    });
+
+    it("accepts supabase type", () => {
+      const config = {
+        ...validConfig,
+        features: { ...validConfig.features, auth: { enabled: true, type: "supabase" } },
+      };
+      expect(validateConfig(config)).toEqual([]);
     });
   });
 

@@ -9,7 +9,9 @@ export function generateBackgroundSyncHandler(
   const DB_NAME = "swoff-queue";
   const STORE_NAME = "mutations";
 
-  const credentialsLine = authType === "cookie"
+  const COOKIE_AUTH_TYPES = ["cookie", "better-auth", "next-auth", "clerk"];
+  const isCookie = authType ? COOKIE_AUTH_TYPES.includes(authType) : false;
+  const credentialsLine = isCookie
     ? `          credentials: "same-origin",`
     : "";
 

@@ -337,26 +337,80 @@ When the SW receives an `invalidate` event, it calls `invalidateByTags(tags)` wh
 
 ---
 
-## Auth: memory-only tokens
+## Auth: adapter plugin system
+
+Auth is handled through a **adapter plugin system** — a thin port between your auth provider and Swoff. Swoff owns all infrastructure (cache cleanup, event dispatch, 401 handling, SW communication); the adapter reports state for Swoff to react.
+
+### Security: memory-only tokens
 
 Auth tokens are stored **in memory only** — never persisted to IndexedDB or localStorage. Only non-sensitive user data (`{ user, expiresAt }`) is stored in IndexedDB for offline user display.
 
 **Security rationale:**
 - A token in IndexedDB/localStorage persists on disk and can be extracted by any script running on the same origin
 - A token in memory is cleared on page refresh and cannot be accessed by other tabs
-- After page refresh, re-login (or token refresh via `refreshPath`) is required
+- After page refresh, re-login (or token refresh via adapter's `refresh()`) is required
 
-**Auth flow:**
-1. User logs in → server returns token + user data
-2. `createAuthFromResponse(response)` extracts the token (edit this to match your backend)
-3. Token held in memory; user data optionally cached in IndexedDB
-4. `fetchWithCache(url, { auth: true })` calls `getAuth()` → `withAuthHeaders(headers, auth)`
-5. On 401 (client-side): `clearAuth()` + dispatch `sw-auth-unauthorized` event. On 401 during SW background refetch: SW sends `AUTH_FAILURE` to client → client calls `ensureValidAuth()` → clears queue/caches on failure
+### Adapter types
 
-**Auth types:**
-- `bearer`: `Authorization: Bearer <token>`
-- `cookie`: sets `credentials: "include"`, no explicit header
-- `custom`: you edit the generated `withAuthHeaders` function
+| `features.auth.type` | Provider | Adapter behavior |
+|---|---|---|
+| `"cookie"` | Generic cookie/session auth | No-op headers; browser auto-sends httpOnly cookies |
+| `"bearer"` | Generic bearer token | `Authorization: Bearer <token>` header injection |
+| `"custom"` | Any custom header | Editable stub — implement `getHeaders()`, `refresh()`, `toAuthData()` |
+| `"better-auth"` | Better-Auth | Uses `authClient` from `@/lib/auth-client` |
+| `"next-auth"` | Auth.js / NextAuth.js | Uses `useSession` / `getSession` from `next-auth/react` |
+| `"clerk"` | Clerk | Uses `useAuth` from `@clerk/nextjs` |
+| `"supabase"` | Supabase | Uses `supabase` client from `@/lib/supabase` |
+
+The adapter exposes `type`, `toAuthData()`, `getAuth()`, `subscribe()`, `getHeaders()`, `refresh()`, and `fetchUser()`. The developer owns login/logout; Swoff provides `setAuth()` and `clearAuth()` as a facade. The adapter's `subscribe()` reports `AuthData | null` — Swoff's `useAuth` hook decides when to call `setAuth()`/`clearAuth()`.
+
+### Auth flow
+
+1. User logs in via developer's code → server returns token + user data
+2. Developer calls `setAuth(authData)` → stored in memory, persisted to `swoff-auth` IndexedDB, dispatches `sw-auth-state-change`
+3. `fetchWithCache(url, { auth: true })` → `getAuth()` → adapter's `getHeaders(headers, auth)` injects auth headers
+4. On 401: Swoff calls `clearAuth()` which cascades and broadcasts
+
+### `clearAuth()` cascade
+
+```
+clearAuth()
+  → null memoryAuth
+  → delete "session" from IndexedDB (swoff-auth DB)
+  → delete runtime caches by prefix (swoff-runtime*)
+  → dispatch sw-auth-state-change event
+  → postMessage({ type: "AUTH_CLEARED" }) to SW
+    → SW forwards to all clients via clients.matchAll()
+      → each client calls clearMemoryAuth()
+```
+
+Cache Storage is per-origin — one tab's cache deletion benefits all tabs. Other tabs only null memory (no redundant IDB/cache ops). The SW is a transparent forwarder only — it never inspects, clears, or manages auth data.
+
+### Cross-tab auth sync
+
+- **Initiating tab**: `clearAuth()` sends `AUTH_CLEARED` via `postMessage` to SW
+- **SW**: `message-handler.ts` forwards `AUTH_CLEARED` to all clients via `self.clients.matchAll()`
+- **Receiving tabs**: `client-injector.ts` handles incoming `AUTH_CLEARED` → calls `clearMemoryAuth()` (nulls memory only) + dispatches `sw-auth-state-change` for UI refresh
+
+### SW build-time auth bypass
+
+Auth endpoints must always reach the server — never cached. At build time, `features.auth.routePaths` is injected into the SW as an `AUTH_ROUTES` constant. The fetch event listener returns early for matching requests, before any strategy resolution, cache lookup, or tag invalidation:
+
+```
+fetch event
+  → request.url matches AUTH_ROUTES? → return (bypass all caching)
+  → normal strategy dispatch
+```
+
+This works for all HTTP methods and raw `fetch()` calls — no client-set headers needed.
+
+### Background sync consideration
+
+When the SW syncs queued mutations, cookie auth works transparently (SW sets `credentials: "same-origin"`). Bearer auth does **not** work in the SW (token is memory-only in the page). For bearer auth, call `flushMutations()` after re-login to drain the queue from the client context. The adapter's `type` field (`"cookie"` / `"bearer"`) determines whether background sync is enabled at build time.
+
+### Single IndexedDB database
+
+User data is stored in the same `swoff-auth` database as auth metadata — not a separate `swoff-auth-user` database. `fetchCurrentUser()` is in `auth/store.ts` and uses `persistUserData()` directly. `getAuthState()` reads `auth.user` from `getAuth()`, removing the need for `getCachedUser()` / `cacheUser()` / `clearCachedUser()`.
 
 ---
 

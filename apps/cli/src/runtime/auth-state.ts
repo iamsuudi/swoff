@@ -12,24 +12,26 @@ export function generateAuthStateCode(ctx: RuntimeContext): string {
  *   3. Offline + Authenticated  → Offline access (cached data)
  *   4. Offline + Unauthenticated → Strict offline (public content only)
  *
+ * getAuth() tries the adapter first, then falls back to IndexedDB user cache,
+ * so this works offline when the provider is unreachable.
+ *
  * Usage:
  *   import { getAuthState } from "./auth/state.${ext}";
  *   const { authenticated, user, online } = await getAuthState();
  */
 
+import { getCurrentOnlineStatus } from "../connectivity-manager.${ext}";
 import { getAuth, isAuthValid } from "./store.${ext}";
-import { getCachedUser } from "./user.${ext}";
 
 /** Detect current auth state across the 4-state matrix (online/offline × authenticated/not). */
 export async function getAuthState()${R(ts, "Promise<{ authenticated: boolean; user: Record<string, unknown> | null; online: boolean }>")}{
   const auth = await getAuth();
   const valid = isAuthValid(auth);
-  const user = valid ? await getCachedUser() : null;
 
   return {
     authenticated: valid,
-    user,
-    online: navigator.onLine,
+    user: auth?.user ?? null,
+    online: getCurrentOnlineStatus(),
   };
 }
 `;

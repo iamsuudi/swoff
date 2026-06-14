@@ -4,6 +4,7 @@ import { generateActivateHandler } from "./activate-handler.js";
 import { generateInstallHandler } from "./install-handler.js";
 import { generateMessageHandler } from "./message-handler.js";
 import { generateTagManagement } from "./tag-management.js";
+import { generateBatchRefreshQueue } from "./batch-refresh-queue.js";
 import { generateSwPushHandlers } from "./sw-push.js";
 import { generateServerPushHandler } from "./server-push-handler.js";
 import { generateBackgroundSyncHandler } from "./background-sync-handler.js";
@@ -63,6 +64,12 @@ export function applySwSections(
   );
 
   code = code.replace("// [[INSTALL_HANDLER]]", () => generateInstallHandler());
+  code = code.replace("// [[BATCH_REFRESH_QUEUE]]", () => generateBatchRefreshQueue(
+    refetchQueue.retry,
+    refetchQueue.batchSize,
+    refetchQueue.batchDelayMs,
+  ));
+
   code = code.replace("// [[MESSAGE_HANDLER]]", () => generateMessageHandler(true, features.tagInvalidation.debounceMs ?? 0));
   code = code.replace("// [[TAG_MANAGEMENT]]", () => generateTagManagement(maxCacheAge));
 

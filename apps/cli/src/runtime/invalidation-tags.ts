@@ -251,7 +251,9 @@ export async function getUrlsForTag(tag${T(ts, "string")})${R(ts, "Promise<{ url
   if (!controller) return [];
   return new Promise((resolve) => {
     const channel = new MessageChannel();
+    const timeout = setTimeout(() => { channel.port1.close(); resolve([]); }, 5000);
     channel.port1.onmessage = (event) => {
+      clearTimeout(timeout);
       resolve(event.data.urls || []);
     };
     controller.postMessage(
@@ -267,7 +269,9 @@ export async function getTagsForUrl(url${T(ts, "string")})${R(ts, "Promise<strin
   if (!controller) return [];
   return new Promise((resolve) => {
     const channel = new MessageChannel();
+    const timeout = setTimeout(() => { channel.port1.close(); resolve([]); }, 5000);
     channel.port1.onmessage = (event) => {
+      clearTimeout(timeout);
       resolve(event.data.tags || []);
     };
     controller.postMessage(

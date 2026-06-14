@@ -20,7 +20,7 @@ describe("loadConfig", () => {
     expect(result.config).toBeDefined();
     expect(result.configPath).toBeNull();
     expect(result.configSource).toBe("defaults");
-    expect(result.config.features.serviceWorker.version).toBe("hash");
+    expect(result.config.features.serviceWorker.version).toBe("package");
   });
 
   it("loads JSON config", () => {
@@ -95,7 +95,7 @@ describe("loadConfig", () => {
 
     const result = loadConfig(testDir);
     expect(result.configSource).toBe("defaults");
-    expect(result.config.features.serviceWorker.version).toBe("hash");
+    expect(result.config.features.serviceWorker.version).toBe("package");
   });
 
   it("skips JS config with sync loader", () => {

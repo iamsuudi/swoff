@@ -1,5 +1,5 @@
 import type { RuntimeContext } from "./utils.js";
-import { R } from "./utils.js";
+import { R, AS } from "./utils.js";
 
 export function generatePwaPromptCode(
   ctx: RuntimeContext & { preventDefaultInstall?: boolean },
@@ -27,7 +27,7 @@ export function generatePwaPromptCode(
 /** Set up beforeinstallprompt and appinstalled event listeners. Call once at app startup. */
 export function setupPwaInstall()${R(ts, "void")}{
   window.addEventListener("beforeinstallprompt", (e) => {
-    window.deferredInstallPrompt = e as BeforeInstallPromptEvent;
+    window.deferredInstallPrompt = e${AS(ts, " as BeforeInstallPromptEvent")};
     window.pwaInstallable = true;
 
 ${preventLine}

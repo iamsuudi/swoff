@@ -55,7 +55,7 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       }
       const strategy = sw.strategy as Record<string, unknown> | undefined;
       if (strategy && typeof strategy === "object") {
-        if (strategy.default && !VALID_STRATEGIES.includes(strategy.default as (typeof VALID_STRATEGIES)[number])) {
+        if (strategy.default !== undefined && !VALID_STRATEGIES.includes(strategy.default as (typeof VALID_STRATEGIES)[number])) {
           errors.push(
             `Invalid features.serviceWorker.strategy.default "${strategy.default}". Must be one of: ${VALID_STRATEGIES.join(", ")}`,
           );

@@ -27,6 +27,8 @@ export interface MutationQueueConfig {
 }
 
 export interface RefetchQueueConfig {
+  batchSize: number;
+  batchDelayMs: number;
   retry: RetryConfig;
 }
 
@@ -189,6 +191,8 @@ export const defaultMutationQueue: MutationQueueConfig = {
 };
 
 export const defaultRefetchQueue: RefetchQueueConfig = {
+  batchSize: 5,
+  batchDelayMs: 1000,
   retry: { maxRetries: 3, backoffMs: 1000, maxBackoffMs: 10000, jitterMs: 100 },
 };
 
@@ -325,7 +329,7 @@ export const defaultConfig: SwoffConfig = {
       preventDefaultInstall: false,
     },
     serviceWorker: {
-      version: "hash",
+      version: "package",
       autoActivate: false,
       strategy: {
         default: "cache-first",

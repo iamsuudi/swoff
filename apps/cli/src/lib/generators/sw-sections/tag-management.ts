@@ -97,7 +97,7 @@ async function invalidateByTag(tag) {
   for (const entry of entries) {
     await runtimeCache.delete(entry.url);
     await rscCache.delete(entry.url);
-    refetchEntry(entry.url);
+    queueRefresh(entry.actualUrl);
   }
 
   const clients = await self.clients.matchAll();

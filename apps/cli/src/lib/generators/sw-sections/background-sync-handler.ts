@@ -31,15 +31,6 @@ const SW_JITTER_MS = ${retryConfig.jitterMs};
 // Bump this when adding new indexes/stores for schema migration
 const SW_DB_VERSION = 1;
 
-function swSleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-function swBackoffDelay(attempt) {
-  const delay = Math.min(SW_RETRY_BACKOFF_MS * Math.pow(2, attempt), SW_MAX_BACKOFF_MS);
-  return delay + (SW_JITTER_MS > 0 ? Math.random() * SW_JITTER_MS : 0);
-}
-
 async function processMutationQueueInSW() {
   // If any client pages are open, skip entirely — the client always wins when open.
   // Only the SW processes the queue when all tabs are closed (background sync event).
@@ -106,6 +97,10 @@ async function processMutationQueueInSW() {
       // Stop processing if browser went offline during sync
       if (!self.navigator.onLine) break;
 
+      // Stop processing if a client tab opened during sync
+      const openClients = await self.clients.matchAll();
+      if (openClients.length > 0) break;
+
       // Reconstruct request body based on stored bodyType
       let replayBody = null;
       let contentType;
@@ -152,7 +147,7 @@ ${credentialsLine}        });
         if (item.retryCount >= SW_MAX_RETRIES) {
           toRemove.push(item.id);
         } else {
-          item.nextRetryAt = Date.now() + swBackoffDelay(item.retryCount - 1);
+          item.nextRetryAt = Date.now() + backoffDelay(item.retryCount - 1, { backoffMs: SW_RETRY_BACKOFF_MS, maxBackoffMs: SW_MAX_BACKOFF_MS, jitterMs: SW_JITTER_MS });
           toUpdate.push(item);
         }
         failed++;
@@ -160,7 +155,7 @@ ${credentialsLine}        });
 
       // Rate limiting delay between mutations
       if (SW_BATCH_DELAY_MS > 0 && succeeded + failed < total) {
-        await swSleep(SW_BATCH_DELAY_MS);
+        await sleep(SW_BATCH_DELAY_MS);
       }
 
       // Emit progress after every SW_BATCH_SIZE mutations

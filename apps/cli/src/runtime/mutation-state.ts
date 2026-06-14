@@ -1,5 +1,5 @@
 import type { RuntimeContext } from "./utils.js";
-import { T, R } from "./utils.js";
+import { T, R, G } from "./utils.js";
 
 export function generateMutationStateCode(ctx: RuntimeContext): string {
   const { ext, ts } = ctx;
@@ -33,10 +33,10 @@ export interface MutationState {
   timestamp${T(ts, "number")};
 }
 
-const mutations = new Map<string, MutationState>();
+const mutations = new Map${G(ts, "string, MutationState")}();
 
 let listenerId = 0;
-const listeners = new Map<number, (state: MutationState) => void>();
+const listeners = new Map${G(ts, "number, (state: MutationState) => void")}();
 
 /** Track a mutation with the given ID and initial status. */
 export function trackMutation(id${T(ts, "string")}, status${T(ts, "MutationStatus")} = "idle")${R(ts, "MutationState")}{

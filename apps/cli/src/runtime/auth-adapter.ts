@@ -185,31 +185,31 @@ export interface AuthData {
   expiresAt?: number;
 }
 ` : ""}
-import { authClient } from "@/lib/auth-client";
+import { getSession } from "@/lib/auth-client";
 
 export const adapter = {
   type: "cookie",
 
-  async getAuth() {
+  async getAuth()${R(ts, "Promise<AuthData | null>")}{
     try {
-      const session = await authClient.getSession();
-      return session ? { user: session.user } : null;
+      const { data } = await getSession();
+      return data ? { user: data.user } : null;
     } catch { return null; }
   },
 
-  getHeaders() { return {}; },
+  getHeaders(_auth${T(ts, "AuthData | null")})${R(ts, "Record<string, string>")}{ return {}; },
 
-  async refresh() {
+  async refresh()${R(ts, "Promise<AuthData | null>")}{
     try {
-      const session = await authClient.getSession();
-      return session ? { user: session.user } : null;
+      const { data } = await getSession();
+      return data ? { user: data.user } : null;
     } catch { return null; }
   },
 
-  async fetchUser() {
+  async fetchUser()${R(ts, "Promise<AuthData | null>")}{
     try {
-      const session = await authClient.getSession();
-      return session ? { user: session.user } : null;
+      const { data } = await getSession();
+      return data ? { user: data.user } : null;
     } catch { return null; }
   },
 };
@@ -246,7 +246,7 @@ export const adapter = {
     } catch { return null; }
   },
 
-  getHeaders() { return {}; },
+  getHeaders(_auth) { return {}; },
 
   async refresh() {
     try {
@@ -292,7 +292,7 @@ export const adapter = {
     return null;
   },
 
-  getHeaders() { return {}; },
+  getHeaders(_auth) { return {}; },
 
   async refresh() { return null; },
 

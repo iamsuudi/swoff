@@ -15,9 +15,8 @@ function generateCookieAdapter(ts: boolean, ext: string): string {
  *   import { adapter } from "./auth/adapter.${ext}";
  *   adapter.subscribe((authData) => { ... });
  *   const headers = adapter.getHeaders(auth);
- */
-
-import type { AuthData } from "./store.${ext}";
+ */${ts ? `
+import type { AuthData } from "./store.${ext}";` : ""}
 
 export const adapter${T(ts, "{ type: 'cookie'; toAuthData: (response: unknown) => AuthData; getAuth: () => Promise<AuthData | null>; subscribe: (onChange: (authData: AuthData | null) => void) => () => void; getHeaders: (auth: AuthData | null) => Record<string, string>; refresh: (auth: AuthData) => Promise<AuthData | null>; fetchUser: () => Promise<Record<string, unknown>> }")}= {
   type: "cookie",
@@ -72,9 +71,9 @@ function generateBearerAdapter(ts: boolean, ext: string): string {
  *   import { adapter } from "./auth/adapter.${ext}";
  *   const headers = adapter.getHeaders(auth);
  *   const refreshed = await adapter.refresh(auth);
- */
-
-import type { AuthData } from "./store.${ext}";
+ */${ts ? `
+import type { AuthData } from "./store.${ext}";` : ""}
+import { getAuth } from "./store.${ext}";
 
 export const adapter${T(ts, "{ type: 'bearer'; toAuthData: (response: unknown) => AuthData; getAuth: () => Promise<AuthData | null>; subscribe: (onChange: (authData: AuthData | null) => void) => () => void; getHeaders: (auth: AuthData | null) => Record<string, string>; refresh: (auth: AuthData) => Promise<AuthData | null>; fetchUser: () => Promise<Record<string, unknown>> }")}= {
   type: "bearer",
@@ -200,9 +199,8 @@ function generateBetterAuthAdapter(ts: boolean, ext: string): string {
  *   import { adapter } from "./auth/adapter.${ext}";
  *   adapter.subscribe((authData) => { ... });
  *   const session = await adapter.getAuth();
- */
-
-import type { AuthData } from "./store.${ext}";
+ */${ts ? `
+import type { AuthData } from "./store.${ext}";` : ""}
 import { authClient } from "@/lib/auth-client";
 
 export const adapter = {
@@ -253,9 +251,8 @@ function generateNextAuthAdapter(ts: boolean, ext: string): string {
  * Usage:
  *   import { adapter } from "./auth/adapter.${ext}";
  *   const session = await adapter.getAuth();
- */
-
-import type { AuthData } from "./store.${ext}";
+ */${ts ? `
+import type { AuthData } from "./store.${ext}";` : ""}
 import { getSession, signOut } from "next-auth/react";
 
 export const adapter = {
@@ -310,9 +307,8 @@ function generateClerkAdapter(ts: boolean, ext: string): string {
  * Usage:
  *   import { adapter } from "./auth/adapter.${ext}";
  *   const user = await adapter.getAuth();
- */
-
-import type { AuthData } from "./store.${ext}";
+ */${ts ? `
+import type { AuthData } from "./store.${ext}";` : ""}
 import { useAuth } from "@clerk/nextjs";
 
 export const adapter = {
@@ -364,9 +360,8 @@ function generateSupabaseAdapter(ts: boolean, ext: string): string {
  * Usage:
  *   import { adapter } from "./auth/adapter.${ext}";
  *   const session = await adapter.getAuth();
- */
-
-import type { AuthData } from "./store.${ext}";
+ */${ts ? `
+import type { AuthData } from "./store.${ext}";` : ""}
 import { supabase } from "@/lib/supabase";
 
 export const adapter = {

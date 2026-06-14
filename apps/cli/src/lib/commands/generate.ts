@@ -1,4 +1,5 @@
 import { loadConfigAsync } from "../config/loader.js";
+import { validateConfig } from "../config/validator.js";
 import { detectProjectLanguage } from "../utils/detect-language.js";
 import { generateFiles } from "../generators/swoff-files-generator.js";
 import type { GeneratorContext } from "../generators/file-generators/context.js";
@@ -21,6 +22,11 @@ export async function generateCommand(
   if (!configPath) {
     log.warn('No swoff.config.json found. Run "swoff init" first.');
     return;
+  }
+
+  const cfgErrors = validateConfig(config as unknown as Record<string, unknown>);
+  for (const err of cfgErrors) {
+    log.warn(`Config: ${err}`);
   }
 
   log.dim(`Config: ${configPath}`);

@@ -5,6 +5,7 @@
 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
+import { pathToFileURL } from "url";
 import { defaultConfig, mergeConfigs, type SwoffConfig } from "../shared/config-types.js";
 import { log } from "../cli/logger.js";
 
@@ -62,7 +63,7 @@ export async function loadConfigAsync(projectRoot: string, explicitPath?: string
   // Handle explicit JS path directly
   if (explicitPath && existsSync(explicitPath) && explicitPath.endsWith(".js")) {
     try {
-      const fileUrl = `file://${explicitPath}`;
+      const fileUrl = pathToFileURL(explicitPath).href;
       const mod = await import(fileUrl);
       const raw = (mod.default || mod) as Partial<SwoffConfig>;
       const config = mergeConfigs(defaultConfig, raw);
@@ -88,7 +89,7 @@ export async function loadConfigAsync(projectRoot: string, explicitPath?: string
   const jsPath = join(projectRoot, "swoff.config.js");
   if (existsSync(jsPath)) {
     try {
-      const fileUrl = `file://${jsPath}`;
+      const fileUrl = pathToFileURL(jsPath).href;
       const mod = await import(fileUrl);
       const raw = (mod.default || mod) as Partial<SwoffConfig>;
       const config = mergeConfigs(defaultConfig, raw);

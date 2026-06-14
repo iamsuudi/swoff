@@ -27,8 +27,15 @@ function openDB(dbName, version, onUpgrade) {
   });
 }
 
+// --- Shared Reactive Intervals ---
+
+var REACTIVE_ENTRIES = null;
+var REACTIVE_INTERVALS = null;
+var clearAllReactive = null;
+
 // [[INSTALL_HANDLER]]
 // [[ACTIVATE_HANDLER]]
+// [[BATCH_REFRESH_QUEUE]]
 // [[MESSAGE_HANDLER]]
 // [[FETCH_HANDLER]]
 // [[TAG_MANAGEMENT]]

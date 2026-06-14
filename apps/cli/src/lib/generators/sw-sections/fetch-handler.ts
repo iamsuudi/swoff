@@ -181,8 +181,6 @@ function matchRouteFallback(url) {
   }`
     : "";
 
-  const refetchRetryCode = JSON.stringify(refetchRetry);
-
   return `// --- Mode & Strategy Configuration ---
 
 const NAV_MODE = ${navModeCode};
@@ -191,7 +189,6 @@ const DEFAULT_STRATEGY = "${defaultStrategy}";
 const CUSTOM_STRATEGIES = ${JSON.stringify(strategies)};
 const REACTIVE_STALE_DEFAULT = ${globalStaleTime != null ? globalStaleTime : 0};
 const FETCH_TIMEOUT_MS = ${fetchTimeout * 1000};
-const REFETCH_RETRY = ${refetchRetryCode};
 const SW_DEBUG = ${debugMode};
 ${authRoutePaths.length > 0 ? `const AUTH_ROUTES = ${JSON.stringify(authRoutePaths)};` : ""}
 
@@ -445,44 +442,12 @@ function markFromCache(response) {
 }
 
 function isStale(response, staleTimeSeconds) {
-  if (staleTimeSeconds == null || staleTimeSeconds <= 0) return false;
+  if (staleTimeSeconds == null) return false;
+  if (staleTimeSeconds === 0) return true;
+  if (staleTimeSeconds < 0) return false;
   const cachedAt = response.headers.get("X-SW-Cached-At");
   if (!cachedAt) return false;
   return Date.now() - Number(cachedAt) > staleTimeSeconds * 1000;
-}
-
-// --- Backoff, Sleep & Retry Helpers ---
-
-function backoffDelay(attempt, config) {
-  const delay = Math.min(config.backoffMs * Math.pow(2, attempt), config.maxBackoffMs);
-  return delay + (config.jitterMs > 0 ? Math.random() * config.jitterMs : 0);
-}
-
-function sleep(ms) {
-  return new Promise(function(resolve) { setTimeout(resolve, ms); });
-}
-
-async function fetchWithRetry(request, retryConfig) {
-  swLog("fetchWithRetry", "ENTER", request.url, 3);
-  if (!retryConfig) return fetch(request);
-  for (var attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
-    try {
-      var controller = new AbortController();
-      var id = setTimeout(function() { controller.abort(); }, FETCH_TIMEOUT_MS);
-      var response = await fetch(request, { signal: controller.signal });
-      clearTimeout(id);
-      if (response.ok) {
-        swLog("fetchWithRetry", "SUCCESS attempt=" + attempt, request.url, 3);
-        return response;
-      }
-    } catch {}
-    swLog("fetchWithRetry", "RETRY attempt=" + attempt, request.url, 3);
-    if (attempt < retryConfig.maxRetries) {
-      await sleep(backoffDelay(attempt, retryConfig));
-    }
-  }
-  swLog("fetchWithRetry", "EXHAUSTED", request.url, 3);
-  return null;
 }
 
 // --- Fetch Helpers ---
@@ -532,7 +497,20 @@ async function fetchWithPreload(event, request, timeoutMs) {
 
 function determineCacheStrategy(request) {
   const override = request.headers.get("X-SW-Strategy");
-  if (override) return { strategy: override, timeoutMs: FETCH_TIMEOUT_MS };
+  if (override) {
+    if (override === "reactive") {
+      const staleTimeHeader = request.headers.get("X-SW-Stale-Time");
+      return {
+        strategy: "reactive",
+        timeoutMs: FETCH_TIMEOUT_MS,
+        staleTime: staleTimeHeader != null ? Number(staleTimeHeader) : REACTIVE_STALE_DEFAULT,
+        refetchInterval: Number(request.headers.get("X-SW-Refetch-Interval") || 0),
+        refetchOnFocus: request.headers.get("X-SW-Refetch-On-Focus") === "true",
+        refetchOnReconnect: request.headers.get("X-SW-Refetch-On-Reconnect") === "true",
+      };
+    }
+    return { strategy: override, timeoutMs: FETCH_TIMEOUT_MS };
+  }
 
   const path = new URL(request.url).pathname;
   for (const [pattern, entry] of Object.entries(CUSTOM_STRATEGIES)) {
@@ -568,16 +546,23 @@ function determineCacheStrategy(request) {
 
 // --- Reactive Entry Store ---
 
-var REACTIVE_ENTRIES = new Map();
-var REACTIVE_INTERVALS = new Map();
+REACTIVE_ENTRIES = new Map();
+REACTIVE_INTERVALS = new Map();
+clearAllReactive = function() {
+  REACTIVE_INTERVALS.forEach(function(id) { clearInterval(id); });
+  REACTIVE_INTERVALS.clear();
+  REACTIVE_ENTRIES.clear();
+  swLog("clearAllReactive", "done", "", 0);
+};
 
-function registerReactiveEntry(url, config) {
+function registerReactiveEntry(url, actualUrl, config) {
   swLog("registerReactiveEntry", "ENTER", url, 4);
   if (REACTIVE_ENTRIES.has(url)) {
     swLog("registerReactiveEntry", "SKIP already registered", url, 4);
     return;
   }
   REACTIVE_ENTRIES.set(url, {
+    actualUrl: actualUrl,
     refetchOnFocus: !!config.refetchOnFocus,
     refetchOnReconnect: !!config.refetchOnReconnect,
     refetchInterval: config.refetchInterval || 0,
@@ -594,7 +579,8 @@ function registerReactiveEntry(url, config) {
 async function refetchEntry(url) {
   swLog("refetchEntry", "ENTER", url, 4);
   var entry = REACTIVE_ENTRIES.get(url);
-  var req = new Request(url);
+  var fetchUrl = entry ? entry.actualUrl || url : url;
+  var req = new Request(fetchUrl);
   if (entry) {
     var cached = await serveFromCache(req);
     if (cached && !isStale(cached, entry.staleTime)) {
@@ -609,6 +595,18 @@ async function refetchEntry(url) {
       await cacheResponse(response.clone(), req);
       if (entry) entry.lastRefetch = Date.now();
       swLog("refetchEntry", "SUCCESS", url, 4);
+      self.clients.matchAll().then(function(clients) {
+        clients.forEach(function(client) {
+          client.postMessage({ type: "CACHE_UPDATED", url: fetchUrl });
+        });
+      });
+    } else if (response && response.status === 401) {
+      swLog("refetchEntry", "AUTH_FAILURE", url, 4);
+      self.clients.matchAll().then(function(clients) {
+        clients.forEach(function(client) {
+          client.postMessage({ type: "AUTH_FAILURE" });
+        });
+      });
     }
   } catch {}
 }
@@ -616,14 +614,14 @@ async function refetchEntry(url) {
 function handleFocusRefetch() {
   swLog("handleFocusRefetch", "ENTER entries=" + REACTIVE_ENTRIES.size, "", 0);
   REACTIVE_ENTRIES.forEach(function(config, url) {
-    if (config.refetchOnFocus) refetchEntry(url);
+    if (config.refetchOnFocus) queueRefresh(url);
   });
 }
 
 function handleOnlineRefetch() {
   swLog("handleOnlineRefetch", "ENTER entries=" + REACTIVE_ENTRIES.size, "", 0);
   REACTIVE_ENTRIES.forEach(function(config, url) {
-    if (config.refetchOnReconnect) refetchEntry(url);
+    if (config.refetchOnReconnect) queueRefresh(url);
   });
 }
 
@@ -643,6 +641,11 @@ async function reactiveStrategy(event, request, config) {
   const staleTime = config.staleTime != null ? config.staleTime : REACTIVE_STALE_DEFAULT;
   const cached = await serveFromCache(request);
   if (cached && !isStale(cached, staleTime)) return markFromCache(cached);
+
+  if (cached && isStale(cached, staleTime)) {
+    event.waitUntil(queueRefresh(cacheKey(request)));
+    return markFromCache(cached);
+  }
 
   try {
     const response = await _fetch(event, request, config.timeoutMs);
@@ -695,14 +698,7 @@ async function staleWhileRevalidateStrategy(event, request, config) {
   swLog("staleWhileRevalidateStrategy", "ENTER", request.url, 2);
   const cached = await serveFromCache(request);
 
-  event.waitUntil(
-    (async function() {
-      try {
-        var response = await fetchWithRetry(request, REFETCH_RETRY);
-        if (response && response.ok) await cacheResponse(response.clone(), request);
-      } catch {}
-    })(),
-  );
+  event.waitUntil(queueRefresh(request.url));
 
   if (cached) return markFromCache(cached);
   try {
@@ -800,11 +796,15 @@ async function storeMutationInSW(request) {
     nextRetryAt: 0,
     tags,
   });
-  await new Promise(function(resolve, reject) {
-    tx.oncomplete = function() { resolve(); };
-    tx.onerror = function() { reject(tx.error); };
-  });
-  swLog("storeMutationInSW", "STORED", request.url, 4);
+  try {
+    await new Promise(function(resolve, reject) {
+      tx.oncomplete = function() { resolve(); };
+      tx.onerror = function() { reject(tx.error); };
+    });
+    swLog("storeMutationInSW", "STORED", request.url, 4);
+  } finally {
+    db.close();
+  }
 }
 
 async function _fetchMutation(request) {
@@ -886,7 +886,7 @@ async function handleMutation(event) {
   const cfg = determineCacheStrategy(request);
   swLog("fetch", "strategy=" + cfg.strategy, request.url, 0);
   if (cfg.strategy === "reactive") {
-    registerReactiveEntry(cacheKey(request), cfg);
+    registerReactiveEntry(cacheKey(request), request.url, cfg);
   } else if (cfg.strategy === "network-only") {
     return;
   }

@@ -8,6 +8,8 @@ export function generateMutationQueueCode(
   batchDelayMs: number,
   maxRetries: number,
   retryBackoffMs: number,
+  retryMaxBackoffMs: number,
+  retryJitterMs: number,
 ): string {
   const { ext, ts } = ctx;
 
@@ -93,6 +95,8 @@ ${ts
  *   batchDelayMs: ${batchDelayMs} — delay between mutations (rate limiting)
  *   maxRetries: ${maxRetries}      — max retries before dropping
  *   retryBackoffMs: ${retryBackoffMs} — exponential backoff base
+ *   retryMaxBackoffMs: ${retryMaxBackoffMs} — max backoff cap
+ *   retryJitterMs: ${retryJitterMs} — jitter for randomization
  */
 
 ${authImports}${additionalImports}const DB_NAME = "swoff-queue";
@@ -101,6 +105,13 @@ const BATCH_SIZE = ${batchSize};
 const BATCH_DELAY_MS = ${batchDelayMs};
 const MAX_RETRIES = ${maxRetries};
 const RETRY_BACKOFF_MS = ${retryBackoffMs};
+const RETRY_MAX_BACKOFF_MS = ${retryMaxBackoffMs};
+const RETRY_JITTER_MS = ${retryJitterMs};
+
+function backoffDelay(attempt) {
+  var delay = Math.min(RETRY_BACKOFF_MS * Math.pow(2, attempt), RETRY_MAX_BACKOFF_MS);
+  return delay + (RETRY_JITTER_MS > 0 ? Math.random() * RETRY_JITTER_MS : 0);
+}
 
 function sleep(ms${T(ts, "number")})${R(ts, "Promise<void>")}{
   return new Promise((r) => setTimeout(r, ms));
@@ -204,7 +215,7 @@ ${auth401ReplayBlock}    if (!response.ok) throw new Error(\`HTTP \${response.st
     return true;
   } catch {
     item.retryCount++;
-    item.nextRetryAt = Date.now() + RETRY_BACKOFF_MS * Math.pow(2, item.retryCount - 1);
+    item.nextRetryAt = Date.now() + backoffDelay(item.retryCount - 1);
     await updateInQueue(item, db);
     return false;
   }

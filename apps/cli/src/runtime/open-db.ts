@@ -30,7 +30,7 @@ export function openDB${G(ts, "T")}(
       if (upgradeCallback) {
         upgradeCallback(db);
       } else if (!db.objectStoreNames.contains(storeName)) {
-        db.createObjectStore(storeName, { keyPath: keyPath as IDBObjectStoreParameters["keyPath"] });
+        db.createObjectStore(storeName, { keyPath: keyPath${AS(ts, " as IDBObjectStoreParameters[\"keyPath\"]")} });
       }
     };
     request.onsuccess = (e) => resolve((e.target${AS(ts, "IDBOpenDBRequest")}).result);

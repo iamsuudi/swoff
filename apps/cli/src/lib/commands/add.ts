@@ -28,11 +28,11 @@ const FEATURE_NAMES = [
 ] as const;
 
 const FEATURE_CONFIG_UPDATES: Record<string, Record<string, unknown>> = {
-  "mutation-queue": { mutationQueue: { enabled: true, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 } },
+  "mutation-queue": { mutationQueue: { enabled: true, batchSize: 1, batchDelayMs: 0, retry: { maxRetries: 5, backoffMs: 1000, maxBackoffMs: 30000, jitterMs: 250 } } },
   pwa: { pwa: { enabled: true } },
   "cross-tab": { tagInvalidation: { crossTabSync: true } },
   auth: { auth: { enabled: true, type: "bearer" } },
-  "background-sync": { mutationQueue: { backgroundSync: true } },
+  "background-sync": { mutationQueue: { enabled: true, backgroundSync: true } },
   graphql: { graphql: { enabled: true, endpoints: ["/graphql"] } },
   "push-notification": { realtime: { pushNotifications: true } },
   "server-push": { realtime: { serverPush: { enabled: true, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 } } },

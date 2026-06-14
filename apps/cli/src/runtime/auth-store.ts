@@ -62,35 +62,47 @@ let memoryAuth${T(ts, "AuthData | null")} = null;
 async function persistUserData(authData${T(ts, "AuthData | null")})${R(ts, "Promise<void>")}{
   const userData = { user: authData?.user, expiresAt: authData?.expiresAt };
   const db = await openDB(DB_NAME, STORE_NAME, "key");
-  return new Promise${PT(ts, "void")}((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.put({ key: "session", value: userData });
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject((request${AS(ts, "IDBRequest")}).error);
-  });
+  try {
+    await new Promise${PT(ts, "void")}((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.put({ key: "session", value: userData });
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject((request${AS(ts, "IDBRequest")}).error);
+    });
+  } finally {
+    db.close();
+  }
 }
 
 async function loadUserData()${R(ts, "Promise<{ user?: Record<string, unknown>; expiresAt?: number } | null>")}{
   const db = await openDB(DB_NAME, STORE_NAME, "key");
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readonly");
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.get("session");
-    request.onsuccess = () => resolve((request${AS(ts, "IDBRequest")}).result?.value ?? null);
-    request.onerror = () => reject((request${AS(ts, "IDBRequest")}).error);
-  });
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readonly");
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.get("session");
+      request.onsuccess = () => resolve((request${AS(ts, "IDBRequest")}).result?.value ?? null);
+      request.onerror = () => reject((request${AS(ts, "IDBRequest")}).error);
+    });
+  } finally {
+    db.close();
+  }
 }
 
 async function clearPersistedData()${R(ts, "Promise<void>")}{
   const db = await openDB(DB_NAME, STORE_NAME, "key");
-  return new Promise${PT(ts, "void")}((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.delete("session");
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject((request${AS(ts, "IDBRequest")}).error);
-  });
+  try {
+    await new Promise${PT(ts, "void")}((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.delete("session");
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject((request${AS(ts, "IDBRequest")}).error);
+    });
+  } finally {
+    db.close();
+  }
 }
 
 // ── Auth data operations ─────────────────────────────────────────────

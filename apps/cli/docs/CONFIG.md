@@ -222,8 +222,10 @@ When a strategy value is an object instead of a string:
 |-------|------|---------|-------------|
 | `batchSize` | `number` | `5` | Max stale cache entries to refetch per batch |
 | `batchDelayMs` | `number` | `1000` | Delay in ms between batch cycles (rate limiting) |
-| `maxRetries` | `number` | `3` | Max retries for background refetches (exponential backoff) |
-| `retryDelayMs` | `number` | `1000` | Base delay in ms for retry backoff (delay × 2^retryCount) |
+| `retry.maxRetries` | `number` | `3` | Max retries for background refetches (exponential backoff) |
+| `retry.backoffMs` | `number` | `1000` | Base delay in ms for retry backoff (delay × 2^retryCount) |
+| `retry.maxBackoffMs` | `number` | `10000` | Maximum delay cap for backoff (10s) |
+| `retry.jitterMs` | `number` | `100` | Random jitter in ms added to each backoff delay to prevent thundering herd |
 
 ---
 

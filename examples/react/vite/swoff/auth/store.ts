@@ -1,20 +1,28 @@
 /**
- * Auth Store — Token in memory only; user info in IndexedDB for offline access.
+ * Auth Store — Token in memory only; user info in IndexedDB for offline access. *
+ * Cookie auth: the server manages the session. setAuth() stores user info
+ * for offline display. The browser sends the session cookie automatically.
  *
- * Security:
- *   The Bearer token lives in JavaScript memory and is cleared on page refresh.
- *   Only { user, expiresAt } is persisted to IndexedDB so the app can display
- *   user info offline. After a page refresh, re-login is required.
+ * Public API (functions listed here):
+ *   setAuth, getAuth, clearAuth, clearMemoryAuth, isAuthValid,
+ *   ensureValidAuth, withAuthHeaders, createAuthFromResponse,
+ *   AUTH_WITH_CREDENTIALS, isAuthUrl
+ *
+ * Internal helpers (not exported — used by Swoff internally):
+ *   persistUserData, loadUserData, clearPersistedData
  *
  * Usage:
- *   import { setAuth, getAuth, clearAuth, isAuthValid } from "./auth/store.ts";
+ *   import { setAuth, getAuth, clearAuth, clearMemoryAuth, isAuthValid, ensureValidAuth, withAuthHeaders } from "./auth/store.ts";
  *
- *   await setAuth({ token, user, expiresAt });
+ *   await setAuth({ user });
  *   const auth = await getAuth();
  *   await clearAuth();
+ *   await clearMemoryAuth();
+ *   await ensureValidAuth();
  */
 
-import { refreshSession } from "./user.ts";
+import { adapter } from "./adapter.ts";
+import { openDB } from "../db.ts";
 
 export interface AuthData {
   token?: string;
@@ -23,7 +31,7 @@ export interface AuthData {
 }
 
 export interface AuthResponse extends Record<string, unknown> {
-  // Uncomment and type the fields your backend's login response returns:
+  // Your backend's login response fields:
   // token: string;
   // user: Record<string, unknown>;
   // expiresAt?: number;
@@ -31,71 +39,57 @@ export interface AuthResponse extends Record<string, unknown> {
 
 const DB_NAME = "swoff-auth";
 const STORE_NAME = "auth";
-// Bump this when adding new indexes/stores for schema migration
-const DB_VERSION = 1;
-
 let memoryAuth: AuthData | null = null;
 
-/** Extract AuthData from your backend's login response. Edit this function to match your backend's response shape. */
-export function createAuthFromResponse(response: AuthResponse): AuthData {
-  // --- EDIT THIS TO MATCH YOUR BACKEND ---
-  const data = response as Record<string, unknown>;
-  return {
-    token: data.token as string,
-    user: data.user as Record<string, unknown> | undefined,
-    expiresAt: data.expiresAt as number | undefined,
-  };
-  // --- END OF EDITABLE BLOCK ---
-}
-
-function openAuthDB(): Promise<IDBDatabase> {
-  return new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = (e) => {
-      const db = (e.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: "key" });
-      }
-    };
-    request.onsuccess = (e) => resolve((e.target as IDBOpenDBRequest).result);
-    request.onerror = (e) => reject((e.target as IDBRequest).error);
-  });
-}
+// ── Internal: persistence helpers ────────────────────────────────────
 
 async function persistUserData(authData: AuthData | null): Promise<void> {
-  // Only persist { user, expiresAt } — never the token
   const userData = { user: authData?.user, expiresAt: authData?.expiresAt };
-  const db = await openAuthDB();
-  return new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.put({ key: "session", value: userData });
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject((request as IDBRequest).error);
-  });
+  const db = await openDB(DB_NAME, STORE_NAME, "key");
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.put({ key: "session", value: userData });
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } finally {
+    db.close();
+  }
 }
 
 async function loadUserData(): Promise<{ user?: Record<string, unknown>; expiresAt?: number } | null> {
-  const db = await openAuthDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readonly");
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.get("session");
-    request.onsuccess = () => resolve((request as IDBRequest).result?.value ?? null);
-    request.onerror = () => reject((request as IDBRequest).error);
-  });
+  const db = await openDB(DB_NAME, STORE_NAME, "key");
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readonly");
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.get("session");
+      request.onsuccess = () => resolve(request.result?.value ?? null);
+      request.onerror = () => reject(request.error);
+    });
+  } finally {
+    db.close();
+  }
 }
 
 async function clearPersistedData(): Promise<void> {
-  const db = await openAuthDB();
-  return new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.delete("session");
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject((request as IDBRequest).error);
-  });
+  const db = await openDB(DB_NAME, STORE_NAME, "key");
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.delete("session");
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } finally {
+    db.close();
+  }
 }
+
+// ── Public API: auth data operations ─────────────────────────────────
 
 /** Store auth data in memory and persist user info to IndexedDB for offline access. */
 export async function setAuth(authData: AuthData): Promise<void> {
@@ -103,10 +97,23 @@ export async function setAuth(authData: AuthData): Promise<void> {
   await persistUserData(authData);
 }
 
-/** Get auth data from memory (or IndexedDB if memory is empty after page refresh). */
+/** Get auth data from memory, then adapter, then IndexedDB fallback (user info only). */
 export async function getAuth(): Promise<AuthData | null> {
   if (memoryAuth) return memoryAuth;
 
+  // Try adapter first (for provider-managed auth like Better Auth)
+  try {
+    const adapterAuth = await adapter.getAuth();
+    if (adapterAuth) {
+      memoryAuth = adapterAuth;
+      await persistUserData(adapterAuth);
+      return memoryAuth;
+    }
+  } catch {
+    // Adapter error — fall through to IndexedDB
+  }
+
+  // Fall back to IndexedDB user cache
   const userData = await loadUserData();
   if (userData) {
     memoryAuth = userData;
@@ -114,10 +121,27 @@ export async function getAuth(): Promise<AuthData | null> {
   return memoryAuth;
 }
 
-/** Clear auth from memory and IndexedDB. Call on logout or 401. */
-export async function clearAuth(): Promise<void> {
+/** Null memory auth only. Use for cross-tab sync — SW broadcasts AUTH_CLEARED, other tabs call this. */
+export function clearMemoryAuth(): void {
+  memoryAuth = null;
+}
+
+/** Clear auth from memory, IndexedDB, runtime caches, and dispatch event. Sends AUTH_CLEARED to SW so other tabs clear memory too. Call once on logout. */
+export async function clearAuth(options: { broadcast?: boolean } = {}): Promise<void> {
+  if (options.broadcast !== false) {
+    navigator.serviceWorker.controller?.postMessage({ type: "AUTH_CLEARED" });
+  }
   memoryAuth = null;
   await clearPersistedData();
+  try {
+    const cacheNames = await caches.keys();
+    await Promise.all(
+      cacheNames
+        .filter(name => name.startsWith("swoff-runtime"))
+        .map(name => caches.delete(name))
+    );
+  } catch { /* caches API unavailable */ }
+  window.dispatchEvent(new CustomEvent("sw-auth-state-change", { detail: { type: "clear" } }));
 }
 
 /** Check if auth exists and has not expired. Returns true if no expiresAt is set. */
@@ -127,85 +151,40 @@ export function isAuthValid(auth: AuthData | null): boolean {
   return Date.now() < auth.expiresAt;
 }
 
-export const AUTH_WITH_CREDENTIALS = true;
+// ── Public API: adapter-delegated ────────────────────────────────────
 
-/** Inject auth headers. For cookie auth, credentials are handled via AUTH_WITH_CREDENTIALS. */
-export function withAuthHeaders(headers: Headers, _auth: AuthData | null): Headers{
+/** Whether to use credentials: "include" for fetch requests. True for cookie-based auth. */
+export const AUTH_WITH_CREDENTIALS = adapter.type === "cookie";
+
+/** Map a login/register response to AuthData. Delegates to the auth adapter. */
+export function createAuthFromResponse(response: unknown): AuthData {
+  return adapter.toAuthData(response);
+}
+
+/** Inject auth headers into a Headers object. Delegates to the auth adapter. */
+export function withAuthHeaders(headers: Headers, auth: AuthData | null): Headers {
+  const adapterHeaders = adapter.getHeaders(auth);
+  for (const [key, value] of Object.entries(adapterHeaders)) {
+    headers.set(key, value);
+  }
   return headers;
 }
+
 /** Check if a URL is an auth endpoint that should bypass the SW cache. */
 export function isAuthUrl(url: string): boolean {
-  const authPaths = [
-    "/login",
-    "/logout",
-    "/register",
-    "/api/login",
-    "/api/logout",
-    "/api/register",
-    "/api/refresh",
-    "/api/me",
-  ];
-  return authPaths.some((path) => url.includes(path));
-}
-/** Try to restore the session after page refresh — delegates to refreshSession() in ./user.ts. */
-let restorePromise: Promise<AuthData | null> | null = null;
-
-async function tryRestoreSession(): Promise<AuthData | null> {
-  if (restorePromise) {
-    try { return await restorePromise; } finally { restorePromise = null; }
-  }
-  restorePromise = (async () => {
-    try {
-      const response = await refreshSession();
-      if (!response.ok) return null;
-      const data = await response.json();
-      const userData = await loadUserData();
-      const auth = { ...userData, token: data.token, expiresAt: data.expiresAt };
-      await setAuth(auth);
-      return auth;
-    } catch { return null; }
-  })();
-  try { return await restorePromise; } finally { restorePromise = null; }
+  return ["/login","/logout","/register","/api/login","/api/logout","/api/register","/api/refresh","/api/me"].some((path) => url.includes(path));
 }
 
-let refreshPromise: Promise<AuthData | null> | null = null;
+// ── Public API: session refresh ──────────────────────────────────────
 
+
+/**
+ * Cookie auth: the server manages the session. No token to restore or refresh.
+ * The browser sends the session cookie automatically.
+ * getAuth() + IndexedDB user cache provides offline access.
+ */
 export async function ensureValidAuth(): Promise<AuthData | null> {
-  const auth = await getAuth();
-  if (!auth) return null;
-
-  // Token missing after page refresh — try silent session restoration
-  if (!auth.token) {
-    return tryRestoreSession();
-  }
-
-  if (!auth.expiresAt || Date.now() < auth.expiresAt) return auth;
-
-  if (!refreshPromise) {
-    refreshPromise = (async () => {
-      try {
-          const response = await refreshSession();
-        if (!response.ok) {
-          await clearAuth();
-          window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
-          return null;
-        }
-
-        const data = await response.json();
-        const updated = { ...auth, token: data.token, expiresAt: data.expiresAt };
-        await setAuth(updated);
-        return updated;
-      } catch {
-        await clearAuth();
-        window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
-        return null;
-      }
-    })();
-  }
-
-  try {
-    return await refreshPromise;
-  } finally {
-    refreshPromise = null;
-  }
+  return getAuth();
 }
+
+

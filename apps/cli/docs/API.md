@@ -300,6 +300,8 @@ Generated when `features.graphql.enabled` is `true`.
 
 Generated when `features.auth.enabled` is `true`. Three files in `swoff/auth/`.
 
+> **Public vs internal convention:** The import examples in each section list only the **public API** functions you should call. Each generated file also includes internal helpers (not exported) used by Swoff internally — they are clearly marked with `Internal:` comments in the source and should not be called directly.
+
 ### `auth/adapter.ts`
 
 Auth provider adapter — a thin port between your auth provider and Swoff. One of 7 templates is generated based on `features.auth.type`. Edit this file to wire your provider's login flow, token storage, and user fetching into Swoff's system.
@@ -344,6 +346,7 @@ Each adapter exposes:
 Token and user persistence with cross-tab sync. Token is memory-only (never persisted to disk). Delegates provider-specific logic to the generated `auth/adapter.ts`.
 
 ```ts
+// Public API — these are the functions you should use:
 import {
   setAuth,
   getAuth,
@@ -385,6 +388,7 @@ clearAuth()
 Detects which of 4 states the app is in. Uses the connectivity manager (heartbeat-based) for online status instead of `navigator.onLine`.
 
 ```ts
+// Public API:
 import { getAuthState } from "swoff/auth/state";
 ```
 

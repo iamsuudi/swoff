@@ -1,7 +1,16 @@
 import type { RuntimeContext } from "./utils.js";
 import { T, R, PT, AS } from "./utils.js";
 
-const DEFAULT_AUTH_ROUTES = ["/login", "/logout", "/register", "/api/login", "/api/logout", "/api/register", "/api/refresh", "/api/me"];
+const DEFAULT_AUTH_ROUTES = [
+  "/login",
+  "/logout",
+  "/register",
+  "/api/login",
+  "/api/logout",
+  "/api/register",
+  "/api/refresh",
+  "/api/me",
+];
 
 export function generateAuthStoreCode(
   ctx: RuntimeContext,
@@ -9,7 +18,11 @@ export function generateAuthStoreCode(
   authRoutePaths: string[] = DEFAULT_AUTH_ROUTES,
 ): string {
   const { ext, ts } = ctx;
-  const isCookie = authType === "cookie" || authType === "better-auth" || authType === "next-auth" || authType === "clerk";
+  const isCookie =
+    authType === "cookie" ||
+    authType === "better-auth" ||
+    authType === "next-auth" ||
+    authType === "clerk";
 
   const authDataInterface = ts
     ? `export interface AuthData {
@@ -40,6 +53,14 @@ export interface AuthResponse extends Record<string, unknown> {
   return `/**
  * Auth Store — Token in memory only; user info in IndexedDB for offline access.${cookieAuthComment}
  *
+ * Public API (functions listed here):
+ *   setAuth, getAuth, clearAuth, clearMemoryAuth, isAuthValid,
+ *   ensureValidAuth, withAuthHeaders, createAuthFromResponse,
+ *   AUTH_WITH_CREDENTIALS, isAuthUrl
+ *
+ * Internal helpers (not exported — used by Swoff internally):
+ *   persistUserData, loadUserData, clearPersistedData
+ *
  * Usage:
  *   import { setAuth, getAuth, clearAuth, clearMemoryAuth, isAuthValid, ensureValidAuth, withAuthHeaders } from "./auth/store.${ext}";
  *
@@ -57,7 +78,7 @@ ${authDataInterface}const DB_NAME = "swoff-auth";
 const STORE_NAME = "auth";
 let memoryAuth${T(ts, "AuthData | null")} = null;
 
-// ── Persistence helpers ──────────────────────────────────────────────
+// ── Internal: persistence helpers ────────────────────────────────────
 
 async function persistUserData(authData${T(ts, "AuthData | null")})${R(ts, "Promise<void>")}{
   const userData = { user: authData?.user, expiresAt: authData?.expiresAt };
@@ -68,7 +89,7 @@ async function persistUserData(authData${T(ts, "AuthData | null")})${R(ts, "Prom
       const store = tx.objectStore(STORE_NAME);
       const request = store.put({ key: "session", value: userData });
       request.onsuccess = () => resolve();
-      request.onerror = () => reject((request${AS(ts, "IDBRequest")}).error);
+      request.onerror = () => reject(request.error);
     });
   } finally {
     db.close();
@@ -82,8 +103,8 @@ async function loadUserData()${R(ts, "Promise<{ user?: Record<string, unknown>; 
       const tx = db.transaction(STORE_NAME, "readonly");
       const store = tx.objectStore(STORE_NAME);
       const request = store.get("session");
-      request.onsuccess = () => resolve((request${AS(ts, "IDBRequest")}).result?.value ?? null);
-      request.onerror = () => reject((request${AS(ts, "IDBRequest")}).error);
+      request.onsuccess = () => resolve(request.result?.value ?? null);
+      request.onerror = () => reject(request.error);
     });
   } finally {
     db.close();
@@ -98,14 +119,14 @@ async function clearPersistedData()${R(ts, "Promise<void>")}{
       const store = tx.objectStore(STORE_NAME);
       const request = store.delete("session");
       request.onsuccess = () => resolve();
-      request.onerror = () => reject((request${AS(ts, "IDBRequest")}).error);
+      request.onerror = () => reject(request.error);
     });
   } finally {
     db.close();
   }
 }
 
-// ── Auth data operations ─────────────────────────────────────────────
+// ── Public API: auth data operations ─────────────────────────────────
 
 /** Store auth data in memory and persist user info to IndexedDB for offline access. */
 export async function setAuth(authData${T(ts, "AuthData")})${R(ts, "Promise<void>")}{
@@ -167,7 +188,7 @@ export function isAuthValid(auth${T(ts, "AuthData | null")})${R(ts, "boolean")}{
   return Date.now() < auth.expiresAt;
 }
 
-// ── Adapter-delegated functions ──────────────────────────────────────
+// ── Public API: adapter-delegated ────────────────────────────────────
 
 /** Whether to use credentials: "include" for fetch requests. True for cookie-based auth. */
 export const AUTH_WITH_CREDENTIALS = adapter.type === "cookie";
@@ -191,9 +212,11 @@ export function isAuthUrl(url${T(ts, "string")})${R(ts, "boolean")}{
   return ${JSON.stringify(authRoutePaths)}.some((path) => url.includes(path));
 }
 
-// ── Session refresh ──────────────────────────────────────────────────
+// ── Public API: session refresh ──────────────────────────────────────
 
-${isCookie ? `
+${
+  isCookie
+    ? `
 /**
  * Cookie auth: the server manages the session. No token to restore or refresh.
  * The browser sends the session cookie automatically.
@@ -202,7 +225,8 @@ ${isCookie ? `
 export async function ensureValidAuth()${R(ts, "Promise<AuthData | null>")}{
   return getAuth();
 }
-` : `
+`
+    : `
 /** Try to restore session after page refresh. Delegates to adapter.refresh(). */
 async function tryRestoreSession()${R(ts, "Promise<AuthData | null>")}{
   try {
@@ -260,26 +284,8 @@ export async function ensureValidAuth()${R(ts, "Promise<AuthData | null>")}{
 
   try { return await refreshPromise; } finally { refreshPromise = null; }
 }
-`}
-
-/** Fetch current user from the server and cache in IndexedDB. Uses adapter headers for auth. */
-export async function fetchCurrentUser()${R(ts, "Promise<Record<string, unknown>>")}{
-  const auth = await getAuth();
-  const headers${T(ts, "Record<string, string>")} = {};
-  const adapterHeaders = adapter.getHeaders(auth);
-  for (const [key, value] of Object.entries(adapterHeaders)) {
-    headers[key] = value;
-  }
-  const fetchOpts${T(ts, "RequestInit")} = { headers };
-  if (adapter.type === "cookie") {
-    fetchOpts.credentials = "include";
-  }
-  const response = await fetch("/api/me", fetchOpts);
-  if (!response.ok) throw new Error("Failed to fetch user");
-
-  const user = await response.json();
-  await persistUserData({ user, expiresAt: Date.now() + 3600000 });
-  return user;
+`
 }
+
 `;
 }

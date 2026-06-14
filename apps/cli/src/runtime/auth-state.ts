@@ -15,6 +15,12 @@ export function generateAuthStateCode(ctx: RuntimeContext): string {
  * getAuth() tries the adapter first, then falls back to IndexedDB user cache,
  * so this works offline when the provider is unreachable.
  *
+ * Public API:
+ *   getAuthState   — detect the 4-state matrix (online/offline × auth/unauthed)
+ *
+ * Internal imports (from ./store):
+ *   getAuth, isAuthValid — used internally, not re-exported
+ *
  * Usage:
  *   import { getAuthState } from "./auth/state.${ext}";
  *   const { authenticated, user, online } = await getAuthState();

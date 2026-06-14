@@ -34,7 +34,7 @@ export function generateClientInjectorCode(
     : "";
 
   const authImport = authEnabled
-    ? `import { ensureValidAuth } from "./auth/store.${ext}";
+    ? `import { ensureValidAuth, clearMemoryAuth } from "./auth/store.${ext}";
 `
     : "";
 
@@ -232,6 +232,11 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
     }
     if (event.data.type === "MUTATION_STORED" && typeof processMutationQueue !== "undefined") {
       processMutationQueue();
+    }
+    if (event.data.type === "AUTH_CLEARED") {
+      // Another tab cleared auth — clear memory only (IndexedDB + caches already cleaned by initiator)
+      clearMemoryAuth();
+      window.dispatchEvent(new CustomEvent("sw-auth-state-change", { detail: { type: "clear" } }));
     }
     if (event.data.type === "AUTH_FAILURE") {
       // SW detected 401 during background refetch — check if session is still valid

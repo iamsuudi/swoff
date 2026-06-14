@@ -48,7 +48,6 @@ const DEFAULT_OPTIONS: ResetSwoffOptions = {
 
 const KNOWN_DB_NAMES = [
   "swoff-auth",
-  "swoff-auth-user",
   "swoff-queue",
   "swoff-cache-tags",
   "swoff-push",

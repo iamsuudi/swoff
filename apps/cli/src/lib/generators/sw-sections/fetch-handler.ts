@@ -44,6 +44,7 @@ export function generateFetchHandler(
   },
   tagInvalidation: boolean,
   mutationQueueEnabled: boolean,
+  authRoutePaths: string[],
   debug?: boolean,
 ): string {
   const {
@@ -192,6 +193,7 @@ const REACTIVE_STALE_DEFAULT = ${globalStaleTime != null ? globalStaleTime : 0};
 const FETCH_TIMEOUT_MS = ${fetchTimeout * 1000};
 const REFETCH_RETRY = ${refetchRetryCode};
 const SW_DEBUG = ${debugMode};
+${authRoutePaths.length > 0 ? `const AUTH_ROUTES = ${JSON.stringify(authRoutePaths)};` : ""}
 
 ${navRulesCode}// --- Debug Logging ---
 
@@ -854,7 +856,15 @@ async function handleMutation(event) {
     : ""
 }self.addEventListener("fetch", (event) => {
   const { request } = event;
-  swLog("fetch", "INCOMING", request.url, 0);
+  swLog("fetch", "INCOMING", request.url, 0);${
+    authRoutePaths.length > 0
+      ? `
+  if (AUTH_ROUTES.some(function(route) { return request.url.includes(route); })) {
+    swLog("fetch", "auth-route-bypass", request.url, 0);
+    return;
+  }`
+      : ""
+  }
   if (request.headers.get("X-SW-Strategy") === "network-only") {
     swLog("fetch", "strategy=network-only", request.url, 0);
     return;

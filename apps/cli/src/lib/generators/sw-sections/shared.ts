@@ -8,12 +8,18 @@ import { generateSwPushHandlers } from "./sw-push.js";
 import { generateServerPushHandler } from "./server-push-handler.js";
 import { generateBackgroundSyncHandler } from "./background-sync-handler.js";
 
+const COOKIE_AUTH_TYPES = ["cookie", "better-auth", "next-auth", "clerk"];
+
+function isCookieAuth(authType: string): boolean {
+  return COOKIE_AUTH_TYPES.includes(authType);
+}
+
 export function shouldIncludeBackgroundSync(config: SwoffConfig): boolean {
   const { features } = config;
   return !!(
     features.mutationQueue.backgroundSync &&
     features.mutationQueue.enabled &&
-    (!features.auth.enabled || features.auth.type === "cookie")
+    (!features.auth.enabled || isCookieAuth(features.auth.type))
   );
 }
 
@@ -48,7 +54,7 @@ export function applySwSections(
 
   code = code.replace(
     "// [[FETCH_HANDLER]]",
-    () => generateFetchHandler({ strategy, navigation, refetchQueue }, true, features.mutationQueue.enabled, debug),
+    () => generateFetchHandler({ strategy, navigation, refetchQueue }, true, features.mutationQueue.enabled, features.auth.routePaths, debug),
   );
 
   code = code.replace(

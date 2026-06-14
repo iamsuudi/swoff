@@ -4,7 +4,6 @@ import { T, R, G, AS } from "./utils.js";
 export function generateFetchWrapperCode(
   ctx: RuntimeContext,
   authEnabled: boolean,
-  userEndpoint: string,
   mutationQueue: boolean,
   requestBatchWindowMs: number,
 ): string {
@@ -89,7 +88,7 @@ export interface FetchWithCacheOptions extends RequestInit {
   if (options.auth && response.status === 401) {
     // Check if the token is actually expired by probing the user endpoint
     try {
-      const authCheck = await fetch(API_BASE + "${userEndpoint}", {
+      const authCheck = await fetch(API_BASE + "/api/me", {
         headers: { "Authorization": headers.get("Authorization") } as HeadersInit,
         credentials: AUTH_WITH_CREDENTIALS ? "include" : undefined,
       });

@@ -92,7 +92,7 @@ export function generateGuide(ctx: GuideContext): string[] {
     if (config.features.auth.type === "bearer") {
       lines.push("");
       lines.push("  ⚠️ Bearer token is memory-only, it is never persisted to IndexedDB.");
-      lines.push("    Page refresh requires re-login. Use refreshPath to extend sessions.");
+      lines.push("    Page refresh requires re-login. Extend sessions via adapter.refresh().");
     }
     if (isReact) {
       lines.push("");

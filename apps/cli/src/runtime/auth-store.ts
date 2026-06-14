@@ -1,153 +1,15 @@
 import type { RuntimeContext } from "./utils.js";
 import { T, R, PT, AS } from "./utils.js";
 
-function generateWithAuthHeaders(
-  authType: string,
-  ts: boolean,
-): string {
-  const hd = T(ts, "Headers");
-  const a = T(ts, "AuthData | null");
-  switch (authType) {
-    case "cookie":
-      return `/** Inject auth headers. For cookie auth, credentials are handled via AUTH_WITH_CREDENTIALS. */
-export function withAuthHeaders(headers${hd}, _auth${a})${hd}{
-  return headers;
-}`;
-    case "bearer":
-      return `/** Inject Bearer token into request headers. */
-export function withAuthHeaders(headers${hd}, auth${a})${hd}{
-  if (auth?.token) {
-    headers.set("Authorization", \`Bearer \${auth.token}\`);
-  }
-  return headers;
-}`;
-    case "custom":
-      return `/** Inject custom auth headers. Edit this function to match your backend. */
-export function withAuthHeaders(headers${hd}, auth${a})${hd}{
-  // --- EDIT THIS BLOCK FOR YOUR BACKEND ---
-  // if (auth?.token) {
-  //   headers.set("X-Auth-Token", auth.token);
-  // }
-  // --- END OF EDITABLE BLOCK ---
-  return headers;
-}`;
-    default:
-      return `export function withAuthHeaders(headers${hd}, auth${a})${hd}{
-  if (auth?.token) {
-    headers.set("Authorization", \`Bearer \${auth.token}\`);
-  }
-  return headers;
-}`;
-  }
-}
-
-function generateIsAuthUrl(
-  refreshPath: string,
-  userEndpoint: string,
-  ts: boolean,
-): string {
-  return `/** Check if a URL is an auth endpoint that should bypass the SW cache. */
-export function isAuthUrl(url${T(ts, "string")})${R(ts, "boolean")}{
-  const authPaths = [
-    "/login",
-    "/logout",
-    "/register",
-    "/api/login",
-    "/api/logout",
-    "/api/register",
-    "${refreshPath}",
-    "${userEndpoint}",
-  ];
-  return authPaths.some((path) => url.includes(path));
-}`;
-}
-
-function generateEnsureValidAuth(
-  cookieAuth: boolean,
-  ts: boolean,
-  refreshPath: string,
-  ext: string,
-): string {
-  const cookieGuard = cookieAuth
-    ? `  // Cookie auth: server manages the session. No token to restore.
-  if (!auth.token) return auth;
-`
-    : `  // Token missing after page refresh — try silent session restoration
-  if (!auth.token) {
-    return tryRestoreSession();
-  }
-`;
-
-  const restoreFunc = cookieAuth
-    ? ""
-    : `
-let restorePromise${T(ts, "Promise<AuthData | null> | null")} = null;
-
-async function tryRestoreSession()${R(ts, "Promise<AuthData | null>")}{
-  if (restorePromise) {
-    try { return await restorePromise; } finally { restorePromise = null; }
-  }
-  restorePromise = (async () => {
-    try {
-      const response = await refreshSession();
-      if (!response.ok) return null;
-      const data = await response.json();
-      const userData = await loadUserData();
-      const auth = { ...userData, token: data.token, expiresAt: data.expiresAt };
-      await setAuth(auth);
-      return auth;
-    } catch { return null; }
-  })();
-  try { return await restorePromise; } finally { restorePromise = null; }
-}
-`;
-
-  const tokenArg = cookieAuth ? "" : "auth?.token";
-  return `/** Try to restore the session after page refresh — delegates to refreshSession() in ./user.${ext}. */${restoreFunc}
-let refreshPromise${T(ts, "Promise<AuthData | null> | null")} = null;
-
-export async function ensureValidAuth()${R(ts, "Promise<AuthData | null>")}{
-  const auth = await getAuth();
-  if (!auth) return null;
-
-${cookieGuard}
-  if (!auth.expiresAt || Date.now() < auth.expiresAt) return auth;
-
-  if (!refreshPromise) {
-    refreshPromise = (async () => {
-      try {
-          const response = await refreshSession(${tokenArg});
-        if (!response.ok) {
-          await clearAuth();
-          return null;
-        }
-
-        const data = await response.json();
-        const updated = { ...auth, token: data.token, expiresAt: data.expiresAt };
-        await setAuth(updated);
-        return updated;
-      } catch {
-        await clearAuth();
-        return null;
-      }
-    })();
-  }
-
-  try {
-    return await refreshPromise;
-  } finally {
-    refreshPromise = null;
-  }
-}`;
-}
+const DEFAULT_AUTH_ROUTES = ["/login", "/logout", "/register", "/api/login", "/api/logout", "/api/register", "/api/refresh", "/api/me"];
 
 export function generateAuthStoreCode(
   ctx: RuntimeContext,
   authType: string,
-  refreshPath: string,
-  userEndpoint: string,
+  authRoutePaths: string[] = DEFAULT_AUTH_ROUTES,
 ): string {
   const { ext, ts } = ctx;
+  const isCookie = authType === "cookie" || authType === "better-auth" || authType === "next-auth" || authType === "clerk";
 
   const authDataInterface = ts
     ? `export interface AuthData {
@@ -157,7 +19,7 @@ export function generateAuthStoreCode(
 }
 
 export interface AuthResponse extends Record<string, unknown> {
-  // Uncomment and type the fields your backend's login response returns:
+  // Your backend's login response fields:
   // token: string;
   // user: Record<string, unknown>;
   // expiresAt?: number;
@@ -166,59 +28,38 @@ export interface AuthResponse extends Record<string, unknown> {
 `
     : "";
 
-  const createAuthFromResponseBlock = ts
-    ? `/** Extract AuthData from your backend's login response. Edit this function to match your backend's response shape. */
-export function createAuthFromResponse(response: AuthResponse): AuthData {
-  // --- EDIT THIS TO MATCH YOUR BACKEND ---
-  const data = response as Record<string, unknown>;
-  return {
-    token: data.token as string,
-    user: data.user as Record<string, unknown> | undefined,
-    expiresAt: data.expiresAt as number | undefined,
-  };
-  // --- END OF EDITABLE BLOCK ---
-}
-`
-    : `/** Extract AuthData from your backend's login response. Edit this function to match your backend's response shape. */
-export function createAuthFromResponse(response) {
-  // --- EDIT THIS TO MATCH YOUR BACKEND ---
-  return {
-    token: response.token,
-    user: response.user,
-    expiresAt: response.expiresAt,
-  };
-  // --- END OF EDITABLE BLOCK ---
-}
-`;
+  const cookieAuthComment = isCookie
+    ? ` *
+ * Cookie auth: the server manages the session. setAuth() stores user info
+ * for offline display. The browser sends the session cookie automatically.`
+    : ` *
+ * Bearer auth: token lives in memory only — cleared on page refresh.
+ * ensureValidAuth() calls adapter.refresh() when the token expires.
+ * Only { user, expiresAt } persists to IndexedDB for offline display.`;
 
   return `/**
- * Auth Store — Token in memory only; user info in IndexedDB for offline access.
- *
- * Security:
- *   The Bearer token lives in JavaScript memory and is cleared on page refresh.
- *   Only { user, expiresAt } is persisted to IndexedDB so the app can display
- *   user info offline. After a page refresh, re-login is required.
+ * Auth Store — Token in memory only; user info in IndexedDB for offline access.${cookieAuthComment}
  *
  * Usage:
- *   import { setAuth, getAuth, clearAuth, isAuthValid } from "./auth/store.${ext}";
+ *   import { setAuth, getAuth, clearAuth, clearMemoryAuth, isAuthValid, ensureValidAuth, withAuthHeaders } from "./auth/store.${ext}";
  *
- *   await setAuth({ token, user, expiresAt });
+ *   await setAuth({ user });
  *   const auth = await getAuth();
  *   await clearAuth();
+ *   await clearMemoryAuth();
+ *   await ensureValidAuth();
  */
 
-import { refreshSession } from "./user.${ext}";
+import { adapter } from "./adapter.${ext}";
 import { openDB } from "../db.${ext}";
 
 ${authDataInterface}const DB_NAME = "swoff-auth";
 const STORE_NAME = "auth";
-
 let memoryAuth${T(ts, "AuthData | null")} = null;
 
-${createAuthFromResponseBlock}
+// ── Persistence helpers ──────────────────────────────────────────────
 
 async function persistUserData(authData${T(ts, "AuthData | null")})${R(ts, "Promise<void>")}{
-  // Only persist { user, expiresAt } — never the token
   const userData = { user: authData?.user, expiresAt: authData?.expiresAt };
   const db = await openDB(DB_NAME, STORE_NAME, "key");
   return new Promise${PT(ts, "void")}((resolve, reject) => {
@@ -252,16 +93,31 @@ async function clearPersistedData()${R(ts, "Promise<void>")}{
   });
 }
 
+// ── Auth data operations ─────────────────────────────────────────────
+
 /** Store auth data in memory and persist user info to IndexedDB for offline access. */
 export async function setAuth(authData${T(ts, "AuthData")})${R(ts, "Promise<void>")}{
   memoryAuth = authData;
   await persistUserData(authData);
 }
 
-/** Get auth data from memory (or IndexedDB if memory is empty after page refresh). */
+/** Get auth data from memory, then adapter, then IndexedDB fallback (user info only). */
 export async function getAuth()${R(ts, "Promise<AuthData | null>")}{
   if (memoryAuth) return memoryAuth;
 
+  // Try adapter first (for provider-managed auth like Better Auth)
+  try {
+    const adapterAuth = await adapter.getAuth();
+    if (adapterAuth) {
+      memoryAuth = adapterAuth;
+      await persistUserData(adapterAuth);
+      return memoryAuth;
+    }
+  } catch {
+    // Adapter error — fall through to IndexedDB
+  }
+
+  // Fall back to IndexedDB user cache
   const userData = await loadUserData();
   if (userData) {
     memoryAuth = userData;
@@ -269,12 +125,27 @@ export async function getAuth()${R(ts, "Promise<AuthData | null>")}{
   return memoryAuth;
 }
 
-/** Clear auth from memory and IndexedDB. Call on logout or 401.
- *  Does NOT cascade to queue/caches — the app decides when to clear those.
- *  The fetch-wrapper dispatches sw-auth-unauthorized when needed. */
-export async function clearAuth()${R(ts, "Promise<void>")}{
+/** Null memory auth only. Use for cross-tab sync — SW broadcasts AUTH_CLEARED, other tabs call this. */
+export function clearMemoryAuth()${R(ts, "void")}{
+  memoryAuth = null;
+}
+
+/** Clear auth from memory, IndexedDB, runtime caches, and dispatch event. Sends AUTH_CLEARED to SW so other tabs clear memory too. Call once on logout. */
+export async function clearAuth(options${T(ts, "{ broadcast?: boolean }")} = {})${R(ts, "Promise<void>")}{
+  if (options.broadcast !== false) {
+    navigator.serviceWorker.controller?.postMessage({ type: "AUTH_CLEARED" });
+  }
   memoryAuth = null;
   await clearPersistedData();
+  try {
+    const cacheNames = await caches.keys();
+    await Promise.all(
+      cacheNames
+        .filter(name => name.startsWith("swoff-runtime"))
+        .map(name => caches.delete(name))
+    );
+  } catch { /* caches API unavailable */ }
+  window.dispatchEvent(new CustomEvent("sw-auth-state-change", { detail: { type: "clear" } }));
 }
 
 /** Check if auth exists and has not expired. Returns true if no expiresAt is set. */
@@ -284,10 +155,119 @@ export function isAuthValid(auth${T(ts, "AuthData | null")})${R(ts, "boolean")}{
   return Date.now() < auth.expiresAt;
 }
 
-${authType === "cookie" ? `export const AUTH_WITH_CREDENTIALS = true;` : `export const AUTH_WITH_CREDENTIALS = false;`}
+// ── Adapter-delegated functions ──────────────────────────────────────
 
-${generateWithAuthHeaders(authType, ts)}
-${generateIsAuthUrl(refreshPath, userEndpoint, ts)}
-${generateEnsureValidAuth(authType === "cookie", ts, refreshPath, ext)}
+/** Whether to use credentials: "include" for fetch requests. True for cookie-based auth. */
+export const AUTH_WITH_CREDENTIALS = adapter.type === "cookie";
+
+/** Map a login/register response to AuthData. Delegates to the auth adapter. */
+export function createAuthFromResponse(response${T(ts, "unknown")})${R(ts, "AuthData")}{
+  return adapter.toAuthData(response);
+}
+
+/** Inject auth headers into a Headers object. Delegates to the auth adapter. */
+export function withAuthHeaders(headers${T(ts, "Headers")}, auth${T(ts, "AuthData | null")})${R(ts, "Headers")}{
+  const adapterHeaders = adapter.getHeaders(auth);
+  for (const [key, value] of Object.entries(adapterHeaders)) {
+    headers.set(key, value);
+  }
+  return headers;
+}
+
+/** Check if a URL is an auth endpoint that should bypass the SW cache. */
+export function isAuthUrl(url${T(ts, "string")})${R(ts, "boolean")}{
+  return ${JSON.stringify(authRoutePaths)}.some((path) => url.includes(path));
+}
+
+// ── Session refresh ──────────────────────────────────────────────────
+
+${isCookie ? `
+/**
+ * Cookie auth: the server manages the session. No token to restore or refresh.
+ * The browser sends the session cookie automatically.
+ * getAuth() + IndexedDB user cache provides offline access.
+ */
+export async function ensureValidAuth()${R(ts, "Promise<AuthData | null>")}{
+  return getAuth();
+}
+` : `
+/** Try to restore session after page refresh. Delegates to adapter.refresh(). */
+async function tryRestoreSession()${R(ts, "Promise<AuthData | null>")}{
+  try {
+    const auth = await getAuth();
+    if (!auth) return null;
+    const refreshed = await adapter.refresh(auth);
+    if (refreshed) {
+      await setAuth(refreshed);
+      return refreshed;
+    }
+    return null;
+  } catch { return null; }
+}
+
+let restorePromise${T(ts, "Promise<AuthData | null> | null")} = null;
+let refreshPromise${T(ts, "Promise<AuthData | null> | null")} = null;
+
+/**
+ * Bearer auth: token expires — try silent refresh via adapter.refresh().
+ * If refresh fails, auth is cleared and sw-auth-unauthorized is dispatched.
+ */
+export async function ensureValidAuth()${R(ts, "Promise<AuthData | null>")}{
+  const auth = await getAuth();
+  if (!auth) return null;
+
+  // No token after page refresh — try silent session restoration
+  if (!auth.token) {
+    if (restorePromise) {
+      try { return await restorePromise; } finally { restorePromise = null; }
+    }
+    restorePromise = tryRestoreSession();
+    try { return await restorePromise; } finally { restorePromise = null; }
+  }
+
+  // Not expired yet
+  if (!auth.expiresAt || Date.now() < auth.expiresAt) return auth;
+
+  // Token expired — try refresh via adapter
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      try {
+        const refreshed = await adapter.refresh(auth);
+        if (refreshed) {
+          await setAuth(refreshed);
+          return refreshed;
+        }
+        await clearAuth();
+        return null;
+      } catch {
+        await clearAuth();
+        return null;
+      }
+    })();
+  }
+
+  try { return await refreshPromise; } finally { refreshPromise = null; }
+}
+`}
+
+/** Fetch current user from the server and cache in IndexedDB. Uses adapter headers for auth. */
+export async function fetchCurrentUser()${R(ts, "Promise<Record<string, unknown>>")}{
+  const auth = await getAuth();
+  const headers${T(ts, "Record<string, string>")} = {};
+  const adapterHeaders = adapter.getHeaders(auth);
+  for (const [key, value] of Object.entries(adapterHeaders)) {
+    headers[key] = value;
+  }
+  const fetchOpts${T(ts, "RequestInit")} = { headers };
+  if (adapter.type === "cookie") {
+    fetchOpts.credentials = "include";
+  }
+  const response = await fetch("/api/me", fetchOpts);
+  if (!response.ok) throw new Error("Failed to fetch user");
+
+  const user = await response.json();
+  await persistUserData({ user, expiresAt: Date.now() + 3600000 });
+  return user;
+}
 `;
 }

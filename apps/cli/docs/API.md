@@ -298,15 +298,55 @@ Generated when `features.graphql.enabled` is `true`.
 
 Generated when `features.auth.enabled` is `true`. Three files in `swoff/auth/`.
 
+### `auth/adapter.ts`
+
+Auth provider adapter — a thin port between your auth provider and Swoff. One of 7 templates is generated based on `features.auth.type`. Edit this file to wire your provider's login flow, token storage, and user fetching into Swoff's system.
+
+```ts
+import type { AuthData } from "./store";
+```
+
+| Adapter type     | Generated template                        | What to edit                       |
+| ---------------- | ----------------------------------------- | ---------------------------------- |
+| `"cookie"`       | No-op adapter — browser handles cookies   | Nothing (unless CSRF needed)       |
+| `"bearer"`       | Manual token management                   | Token extraction in `toAuthData()` |
+| `"custom"`       | Editable stub                             | All methods                        |
+| `"better-auth"`  | Uses `authClient` from `@/lib/auth-client`| Import path in generated file      |
+| `"next-auth"`    | Uses `useSession` / `getSession` from `next-auth/react` | Import path           |
+| `"clerk"`        | Uses `useAuth` from `@clerk/nextjs`       | Import path                        |
+| `"supabase"`     | Uses `supabase` client from `@/lib/supabase` | Import path                       |
+
+Each adapter exposes:
+
+| Method                          | Returns                  | Description                                                |
+| ------------------------------- | ------------------------ | ---------------------------------------------------------- |
+| `type`                          | `string`                 | `"cookie"` or `"bearer"` — determines SW sync behavior     |
+| `toAuthData(response)`          | `AuthData`               | Extract token + user + expiresAt from backend login response |
+| `getAuth()`                     | `AuthData \| null`       | Get current auth from provider SDK (Clerk, NextAuth)       |
+| `subscribe(callback)`           | `() => void`             | Subscribe to provider auth state changes. Returns unsubscribe |
+| `getHeaders(auth)`              | `Record<string, string>` | Generate auth headers for fetch requests                   |
+| `refresh(auth)`                 | `AuthData \| null`       | Attempt token refresh. Returns null if refresh fails.      |
+| `fetchUser(auth)`               | `Promise<unknown>`       | Fetch current user profile from `/api/me` (or custom path) |
+
+**Well-known import paths** are used as defaults — edit the import after generation:
+
+| Provider      | Default import path    |
+| ------------- | ---------------------- |
+| Better-Auth   | `@/lib/auth-client`    |
+| NextAuth      | `next-auth/react`      |
+| Clerk         | `@clerk/nextjs`        |
+| Supabase      | `@/lib/supabase`       |
+
 ### `auth/store.ts`
 
-Token and user persistence. Token is memory-only (never persisted to disk).
+Token and user persistence with cross-tab sync. Token is memory-only (never persisted to disk). Delegates provider-specific logic to the generated `auth/adapter.ts`.
 
 ```ts
 import {
   setAuth,
   getAuth,
   clearAuth,
+  clearMemoryAuth,
   isAuthValid,
   createAuthFromResponse,
   ensureValidAuth,
@@ -316,37 +356,31 @@ import {
 
 | Function                           | Returns                     | Description                                                  |
 | ---------------------------------- | --------------------------- | ------------------------------------------------------------ |
-| `setAuth(authData)`                | `Promise<void>`             | Store auth in memory, persist user to IndexedDB              |
+| `setAuth(authData)`                | `Promise<void>`             | Store auth in memory, persist user to IndexedDB, dispatch `sw-auth-state-change` event |
 | `getAuth()`                        | `Promise<AuthData \| null>` | Get auth from memory (IndexedDB fallback after page refresh) |
-| `clearAuth()`                      | `Promise<void>`             | Clear memory + IndexedDB (no cascade — app decides queue/cache cleanup). Call on logout/401. |
+| `clearAuth(opts?)`                 | `Promise<void>`             | Cascading clear: memory → IndexedDB → runtime caches (`swoff-runtime*`) → dispatch `sw-auth-state-change` → broadcast `AUTH_CLEARED` to SW (forwards to all tabs). Call on logout/401. Pass `{ broadcast: false }` to skip SW broadcast. |
+| `clearMemoryAuth()`                | `void`                      | Memory-only clear (used by cross-tab sync — receiving tabs don't need redundant IDB/cache cleanup). |
 | `isAuthValid(auth)`                | `boolean`                   | Check existence + `expiresAt` expiry                         |
-| `createAuthFromResponse(response)` | `AuthData`                  | **Edit this** to match your backend's login response shape   |
-| `ensureValidAuth()`                | `Promise<AuthData \| null>` | Check expiry, refresh via `refreshPath` if needed            |
-| `withAuthHeaders(headers, auth)`   | `void`                      | Inject auth headers (bearer, cookie, or custom)              |
+| `createAuthFromResponse(response)` | `AuthData`                  | Delegates to adapter's `toAuthData()`. **Edit adapter, not this.** |
+| `ensureValidAuth()`                | `Promise<AuthData \| null>` | Check expiry, delegate refresh to adapter's `refresh()` if needed. Cookie auth types return as-is (server manages session). |
+| `withAuthHeaders(headers, auth)`   | `void`                      | Delegates to adapter's `getHeaders()`. Injects auth headers (bearer, cookie, or custom). |
 
-### `auth/user.ts`
+**clearAuth() cascade:**
 
-User data caching for offline display.
-
-```ts
-import {
-  fetchCurrentUser,
-  getCachedUser,
-  cacheUser,
-  clearCachedUser,
-} from "swoff/auth/user";
 ```
-
-| Function             | Description                                      |
-| -------------------- | ------------------------------------------------ |
-| `fetchCurrentUser()` | Fetch from `userEndpoint` and cache in IndexedDB |
-| `getCachedUser()`    | Load user from IndexedDB (available offline)     |
-| `cacheUser(user)`    | Manually persist user data                       |
-| `clearCachedUser()`  | Remove user from cache                           |
+clearAuth()
+  → null memoryAuth
+  → delete "session" from IndexedDB (swoff-auth)
+  → delete runtime caches by prefix (swoff-runtime*)
+  → dispatch sw-auth-state-change event
+  → postMessage({ type: "AUTH_CLEARED" }) to SW
+    → SW forwards to all clients via clients.matchAll()
+      → each client calls clearMemoryAuth()
+```
 
 ### `auth/state.ts`
 
-Detects which of 4 states the app is in.
+Detects which of 4 states the app is in. Uses the connectivity manager (heartbeat-based) for online status instead of `navigator.onLine`.
 
 ```ts
 import { getAuthState } from "swoff/auth/state";
@@ -354,7 +388,7 @@ import { getAuthState } from "swoff/auth/state";
 
 | Function         | Returns                                                                                       | Description                                                                |
 | ---------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `getAuthState()` | `Promise<{ authenticated: boolean, user: Record<string, unknown> \| null, online: boolean }>` | Detect state: online+auth, online+unauthed, offline+auth, offline+unauthed |
+| `getAuthState()` | `Promise<{ authenticated: boolean, user: Record<string, unknown> \| null, online: boolean }>` | Detect state: online+auth, online+unauthed, offline+auth, offline+unauthed. Reads `auth.user` directly from `getAuth()`. Online status via connectivity manager. |
 
 ---
 
@@ -702,12 +736,14 @@ const { authenticated, user, online, isLoading, error, setAuth, clearAuth, ensur
 |-------|------|-------------|
 | `authenticated` | `boolean` | Whether the user is authenticated |
 | `user` | `Record<string, unknown> \| null` | Current user data (from IndexedDB cache) |
-| `online` | `boolean` | Current online status |
+| `online` | `boolean` | Current online status (from connectivity manager) |
 | `isLoading` | `boolean` | `true` while checking auth state on mount |
 | `error` | `unknown` | Last auth error, or `null` |
 | `setAuth` | `(data: AuthData) => Promise<void>` | Manually set auth data |
-| `clearAuth` | `() => Promise<void>` | Clear auth data (logout) |
+| `clearAuth` | `() => Promise<void>` | Clear auth data (cascades: memory → IDB → caches → SW broadcast) |
 | `ensureValid` | `() => Promise<boolean>` | Check auth validity and refresh if needed. Returns `true` if valid. |
+
+Subscribes to auth state via the adapter's `subscribe()` method, with `sw-auth-state-change` event fallback for cross-tab sync.
 
 ### `useSWUpdate()`
 

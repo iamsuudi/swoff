@@ -7,6 +7,8 @@ import { GeneratorContext, writeFile } from "./context.js";
 export function generateGuide(ctx: GeneratorContext): void {
   const lines: string[] = [];
   const w = (s: string) => lines.push(s);
+  const ext = ctx.ext;
+  const auth = ctx.config.features.auth;
 
   w("# Swoff — Generated Files");
   w("");
@@ -14,6 +16,29 @@ export function generateGuide(ctx: GeneratorContext): void {
     "Your project was generated with Swoff. All generated files live in `swoff/`.",
   );
   w("");
+
+  if (auth.enabled) {
+    w(`## Auth (${auth.type})`);
+    w("");
+    w("Edit `swoff/auth/adapter.${ext}` to match your backend:");
+    w("");
+    w("- `toAuthData()`: map your login/register response to `AuthData`");
+    w("- `getHeaders()`: return auth headers for fetch requests");
+    w("- `fetchUser()`: implement fetching current user from `/api/me`");
+    if (auth.type !== "cookie") {
+      w("- `refresh()`: implement token/session refresh");
+    }
+    w("");
+    w("Use `{ auth: true }` in `fetchWithCache()` for authenticated requests:");
+    w("");
+    w("```ts");
+    w('import { fetchWithCache } from "./swoff/fetch/core.${ext}";');
+    w('const data = await fetchWithCache("/api/me", { auth: true }).then(r => r.json());');
+    w("```");
+    w("");
+    w("Call `clearAuth()` from `swoff/auth/store.${ext}` on logout: memory, IndexedDB, and runtime caches are cleaned. Cross-tab sync happens automatically via the service worker.");
+    w("");
+  }
 
   if (ctx.config.features.pwa.enabled) {
     w("## PWA Assets");

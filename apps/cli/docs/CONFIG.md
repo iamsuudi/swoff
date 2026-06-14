@@ -63,8 +63,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
     "auth": {
       "enabled": false,
       "type": "bearer",
-      "refreshPath": "/api/refresh",
-      "userEndpoint": "/api/me"
+      "routePaths": ["/login", "/logout", "/register", "/api/login", "/api/logout", "/api/register", "/api/refresh", "/api/me"]
     },
     "graphql": {
       "enabled": false,
@@ -262,9 +261,10 @@ Object-only feature (boolean shorthand not supported).
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `boolean` | `false` | Enable auth module |
-| `type` | `"bearer"` \| `"cookie"` \| `"custom"` | `"bearer"` | Auth strategy |
-| `refreshPath` | `string` | `"/api/refresh"` | Token refresh endpoint |
-| `userEndpoint` | `string` | `"/api/me"` | Current user fetch endpoint |
+| `type` | `"bearer"` \| `"cookie"` \| `"custom"` \| `"better-auth"` \| `"next-auth"` \| `"clerk"` \| `"supabase"` | `"bearer"` | Auth adapter type. Determines how Swoff communicates with your auth provider. See [auth/adapter.ts](#auth-adapterts) in API.md. |
+| `routePaths` | `string[]` | `["/login", "/logout", "/register", "/api/login", "/api/logout", "/api/register", "/api/refresh", "/api/me"]` | URL path prefixes that bypass SW caching at build time. Requests matching any of these paths return immediately in the SW fetch handler, before strategy resolution. Auth endpoints must always reach the server. |
+
+> **Note:** Token refresh path and user endpoint are now configured inside the generated `auth/adapter.ts` file, not in `swoff.config.json`. The adapter provides `refresh()` and `fetchUser()` methods with well-known defaults (`/api/refresh`, `/api/me`) that you can edit per provider.
 
 ---
 

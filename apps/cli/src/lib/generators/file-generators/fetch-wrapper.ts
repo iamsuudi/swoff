@@ -13,7 +13,6 @@ export function generateFetchWrapper(ctx: GeneratorContext): void {
   const code = generateFetchWrapperCode(
     { ts, ext },
     ctx.config.features.auth.enabled,
-    ctx.config.features.auth.userEndpoint,
     ctx.config.features.mutationQueue.enabled,
     ctx.config.features.requestBatchWindowMs,
   );

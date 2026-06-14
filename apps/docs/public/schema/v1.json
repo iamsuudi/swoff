@@ -375,19 +375,16 @@
             },
             "type": {
               "type": "string",
-              "description": "Auth type — determines how auth headers are attached",
+              "description": "Auth adapter type — determines how Swoff communicates with your auth provider",
               "default": "bearer",
-              "enum": ["cookie", "bearer", "custom"]
+              "enum": ["cookie", "bearer", "custom", "better-auth", "next-auth", "clerk", "supabase"]
             },
-            "refreshPath": {
-              "type": "string",
-              "description": "Token refresh endpoint path",
-              "example": "/api/refresh"
-            },
-            "userEndpoint": {
-              "type": "string",
-              "description": "Current user API endpoint",
-              "example": "/api/me"
+            "routePaths": {
+              "type": "array",
+              "description": "URL path prefixes that bypass SW caching at build time. Requests matching any of these paths return immediately in the fetch event listener, before any strategy resolution. Default: well-known auth routes.",
+              "items": { "type": "string" },
+              "default": ["/login", "/logout", "/register", "/api/login", "/api/logout", "/api/register", "/api/refresh", "/api/me"],
+              "uniqueItems": true
             }
           },
           "required": ["enabled", "type"]

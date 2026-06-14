@@ -89,7 +89,7 @@ export interface FetchWithCacheOptions extends RequestInit {
     // Check if the token is actually expired by probing the user endpoint
     try {
       const authCheck = await fetch(API_BASE + "/api/me", {
-        headers: { "Authorization": headers.get("Authorization") }${AS(ts, " as HeadersInit")},
+        headers: { "Authorization": headers.get("Authorization") }${AS(ts, "HeadersInit")},
         credentials: AUTH_WITH_CREDENTIALS ? "include" : undefined,
       });
       if (authCheck.status === 401) {

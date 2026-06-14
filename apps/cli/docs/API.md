@@ -57,7 +57,7 @@ All `RequestInit` fields are supported (`method`, `body`, `headers`, `credential
 - **Auto-invalidate**: after a successful mutation, matching cache tags are invalidated. Mutation success is determined by `response.ok` by default, or `validateSuccess` if provided. The auto-invalidation target URL can be overridden with `invalidateUrl` (useful when mutation URL differs from the cache tag URL).
 - **Auth**: when `auth: true`, attaches auth headers. Dispatches `sw-auth-unauthorized` on 401.
 - **StaleTime**: 3-tier resolution (per-request / route pattern / global default). Only affects `reactive` strategy. Controls the fresh window before a background refresh is triggered.
-- **Background refresh retry**: failed refetches are retried with exponential backoff up to `features.refetchQueue.maxRetries` times (base delay `features.refetchQueue.retryDelayMs`).
+- **Background refresh retry**: failed refetches are retried with exponential backoff via a shared `RetryConfig` (`features.refetchQueue.retry.maxRetries`, `features.refetchQueue.retry.backoffMs`, `features.refetchQueue.retry.maxBackoffMs`, `features.refetchQueue.retry.jitterMs`). The same retry helper (`backoffDelay`, `sleep`, `fetchWithRetry`) is used by both the refetch queue and mutation queue background sync.
 
 ### `prefetchCache(input, options?)`
 
@@ -91,7 +91,7 @@ import {
 | Function               | Signature                                              | Description                                                                                                                           |
 | ---------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `queueMutation`        | `(mutation: MutationQueueItem) => Promise<void>`       | Store a write for later sync                                                                                                          |
-| `processMutationQueue` | `() => Promise<{ succeeded: number, failed: number }>` | Replay all queued writes. Respects `batchSize`, `batchDelayMs`, `maxRetries`, `retryBackoffMs`. Runs automatically on `online` event. |
+| `processMutationQueue` | `() => Promise<{ succeeded: number, failed: number }>` | Replay all queued writes. Respects `batchSize`, `batchDelayMs`, and `retry` config (`maxRetries`, `backoffMs`, `maxBackoffMs`, `jitterMs`). Runs automatically on `online` event. |
 | `flushMutations`       | `() => Promise<void>`                                  | Same as `processMutationQueue`. Call after re-login (queued mutations may have stale auth).                                           |
 | `getPendingCount`      | `() => Promise<number>`                                | Number of mutations waiting to sync                                                                                                   |
 | `getQueuePosition`     | `(id: string) => Promise<number>`                      | 0-based position of a mutation in the queue. Returns -1 if not found.                                                                 |
@@ -215,6 +215,8 @@ import { invalidateByTag, invalidateByTags } from "swoff/cache/index";
 | `invalidateByTag`  | `(tag: string) => Promise<void>`    | Send `INVALIDATE_TAG` to the SW; the SW removes matching cache entries and confirms via `TAG_INVALIDATED` (client-injector dispatches `cache-invalidated` on the window). |
 | `invalidateByTags` | `(tags: string[]) => Promise<void>` | Invalidate multiple tags at once. Cascading is expanded by callers before calling this function. |
 
+After the SW successfully refetches an invalidated URL, it broadcasts `CACHE_UPDATED` to all clients with the `fetchUrl` payload. The client-injector uses this to trigger UI refetches for the specific URL.
+
 Always generated.
 
 ---
@@ -298,6 +300,8 @@ Generated when `features.graphql.enabled` is `true`.
 
 Generated when `features.auth.enabled` is `true`. Three files in `swoff/auth/`.
 
+> **Public vs internal convention:** The import examples in each section list only the **public API** functions you should call. Each generated file also includes internal helpers (not exported) used by Swoff internally — they are clearly marked with `Internal:` comments in the source and should not be called directly.
+
 ### `auth/adapter.ts`
 
 Auth provider adapter — a thin port between your auth provider and Swoff. One of 7 templates is generated based on `features.auth.type`. Edit this file to wire your provider's login flow, token storage, and user fetching into Swoff's system.
@@ -342,6 +346,7 @@ Each adapter exposes:
 Token and user persistence with cross-tab sync. Token is memory-only (never persisted to disk). Delegates provider-specific logic to the generated `auth/adapter.ts`.
 
 ```ts
+// Public API — these are the functions you should use:
 import {
   setAuth,
   getAuth,
@@ -358,7 +363,7 @@ import {
 | ---------------------------------- | --------------------------- | ------------------------------------------------------------ |
 | `setAuth(authData)`                | `Promise<void>`             | Store auth in memory, persist user to IndexedDB, dispatch `sw-auth-state-change` event |
 | `getAuth()`                        | `Promise<AuthData \| null>` | Get auth from memory (IndexedDB fallback after page refresh) |
-| `clearAuth(opts?)`                 | `Promise<void>`             | Cascading clear: memory → IndexedDB → runtime caches (`swoff-runtime*`) → dispatch `sw-auth-state-change` → broadcast `AUTH_CLEARED` to SW (forwards to all tabs). Call on logout/401. Pass `{ broadcast: false }` to skip SW broadcast. |
+| `clearAuth(opts?)`                 | `Promise<void>`             | Cascading clear: memory → IndexedDB → runtime caches (`swoff-runtime*`) → dispatch `sw-auth-state-change` → broadcast `AUTH_CLEARED` to SW (forwards to all tabs). Call on logout/401. Pass `{ broadcast: false }` to skip SW broadcast. All IndexedDB connections are closed in `finally` blocks — no leaked connections. |
 | `clearMemoryAuth()`                | `void`                      | Memory-only clear (used by cross-tab sync — receiving tabs don't need redundant IDB/cache cleanup). |
 | `isAuthValid(auth)`                | `boolean`                   | Check existence + `expiresAt` expiry                         |
 | `createAuthFromResponse(response)` | `AuthData`                  | Delegates to adapter's `toAuthData()`. **Edit adapter, not this.** |
@@ -383,12 +388,13 @@ clearAuth()
 Detects which of 4 states the app is in. Uses the connectivity manager (heartbeat-based) for online status instead of `navigator.onLine`.
 
 ```ts
+// Public API:
 import { getAuthState } from "swoff/auth/state";
 ```
 
 | Function         | Returns                                                                                       | Description                                                                |
 | ---------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `getAuthState()` | `Promise<{ authenticated: boolean, user: Record<string, unknown> \| null, online: boolean }>` | Detect state: online+auth, online+unauthed, offline+auth, offline+unauthed. Reads `auth.user` directly from `getAuth()`. Online status via connectivity manager. |
+| `getAuthState()` | `Promise<{ authenticated: boolean, auth: AuthData \| null, online: boolean }>` | Detect state: online+auth, online+unauthed, offline+auth, offline+unauthed. Returns the full `AuthData` (typed via the `AuthData` interface developer edits). Access user via `auth.user`. Online status via connectivity manager. |
 
 ---
 
@@ -512,6 +518,8 @@ The SW broadcasts these automatically on failure:
 | `PRECACHE_FAILED` | `warn` | Per-asset precache failure during install |
 | `BACKGROUND_SYNC_FAILED` | `error` | Background sync processing error |
 | `STORAGE_QUOTA_HIGH` | `warn` | Storage >80% capacity (from `checkStorage()`) |
+| `AUTH_FAILURE` (postMessage type) | — | Background refresh returned 401 — client handles via `ensureValidAuth()` → `clearAuth()` fallback |
+| `CACHE_UPDATED` (postMessage type) | — | Successful background refetch — sent with `fetchUrl` payload to trigger UI updates |
 
 Listen with:
 
@@ -729,13 +737,13 @@ const { online, wasOffline, lastChangedAt, effectiveType, downlink } = useNetwor
 ### `useAuth()`
 
 ```ts
-const { authenticated, user, online, isLoading, error, setAuth, clearAuth, ensureValid } = useAuth();
+const { authenticated, auth, online, isLoading, error, setAuth, clearAuth, ensureValid } = useAuth();
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `authenticated` | `boolean` | Whether the user is authenticated |
-| `user` | `Record<string, unknown> \| null` | Current user data (from IndexedDB cache) |
+| `auth` | `AuthData \| null` | Full auth data (typed via `AuthData` interface). Access user via `auth.user`. |
 | `online` | `boolean` | Current online status (from connectivity manager) |
 | `isLoading` | `boolean` | `true` while checking auth state on mount |
 | `error` | `unknown` | Last auth error, or `null` |

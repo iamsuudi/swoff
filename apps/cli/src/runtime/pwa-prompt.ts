@@ -5,7 +5,9 @@ export function generatePwaPromptCode(
   ctx: RuntimeContext & { preventDefaultInstall?: boolean },
 ): string {
   const { ext, ts } = ctx;
-  const preventLine = ctx.preventDefaultInstall ? "    e.preventDefault();\n" : "";
+  const preventLine = ctx.preventDefaultInstall
+    ? "    e.preventDefault();\n"
+    : "";
 
   return `/**
  * Swoff PWA Install Prompt
@@ -27,7 +29,7 @@ export function generatePwaPromptCode(
 /** Set up beforeinstallprompt and appinstalled event listeners. Call once at app startup. */
 export function setupPwaInstall()${R(ts, "void")}{
   window.addEventListener("beforeinstallprompt", (e) => {
-    window.deferredInstallPrompt = e${AS(ts, " as BeforeInstallPromptEvent")};
+    window.deferredInstallPrompt = e${AS(ts, "BeforeInstallPromptEvent")};
     window.pwaInstallable = true;
 
 ${preventLine}

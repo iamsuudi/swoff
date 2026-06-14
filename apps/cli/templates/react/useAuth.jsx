@@ -6,23 +6,26 @@ import { setAuth, clearAuth, ensureValidAuth } from "../auth/store.js";
  * Reactive auth state with actions: setAuth, clearAuth, ensureValid.
  *
  * Usage:
- *   const { authenticated, user, online, isLoading, error, setAuth, clearAuth, ensureValid } = useAuth();
+ *   const { authenticated, auth, online, isLoading, error, setAuth, clearAuth, ensureValid } = useAuth();
  *
  *   // Login — call setAuth with the response from your login endpoint:
  *   const res = await fetch("/api/login", { method: "POST", body });
  *   const data = await res.json();
  *   await setAuth({ token: data.token, user: data.user, expiresAt: data.expiresAt });
  *
+ *   // Access user data:
+ *   const userName = auth?.user?.name;
+ *
  *   // Logout:
  *   await clearAuth();
  *
  *   // Silent session restore:
- *   const auth = await ensureValid();
+ *   const authData = await ensureValid();
  */
 export function useAuth() {
   const [state, setState] = useState(() => ({
     authenticated: false,
-    user: null,
+    auth: null,
     online: typeof navigator !== "undefined" ? navigator.onLine : true,
     isLoading: false,
     error: null,
@@ -95,7 +98,7 @@ export function useAuth() {
 
   return {
     authenticated: state.authenticated,
-    user: state.user,
+    auth: state.auth,
     online: state.online,
     isLoading: state.isLoading,
     error: state.error,

@@ -4,9 +4,6 @@ export interface AssetGuideOptions {
   bgColor: string;
   outputDir: string;
   hasSplash: boolean;
-  hasMonochrome?: boolean;
-  hasMsTile?: boolean;
-  hasDarkMode?: boolean;
 }
 
 export function printAssetGuide(opts: AssetGuideOptions) {

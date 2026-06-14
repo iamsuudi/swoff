@@ -22,8 +22,8 @@ export interface ConfigFile {
   }>;
 }
 
-export function loadConfigFile(projectRoot: string): ConfigFile {
-  const configPath = join(projectRoot, "swoff-assets.json");
+export function loadConfigFile(projectRoot: string, configPathArg?: string): ConfigFile {
+  const configPath = configPathArg || join(projectRoot, "swoff-assets.json");
   if (!existsSync(configPath)) return {};
   try {
     return JSON.parse(readFileSync(configPath, "utf-8")) as ConfigFile;

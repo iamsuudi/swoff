@@ -43,6 +43,7 @@ export const OG_IMAGE: AssetSize = { name: "og-image", width: 1200, height: 630 
 
 export const MS_TILE_ICONS: AssetSize[] = [
   { name: "ms-tile-144", width: 144, height: 144 },
+  { name: "ms-tile-150x150", width: 150, height: 150 },
   { name: "ms-tile-310x150", width: 310, height: 150 },
   { name: "ms-tile-310x310", width: 310, height: 310 },
 ];

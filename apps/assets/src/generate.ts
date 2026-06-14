@@ -50,7 +50,9 @@ function writePng(filePath: string, buffer: Buffer): void {
   writeFileSync(filePath, buffer);
 }
 
-export async function generateAssets(options: GenerateOptions): Promise<GenerateResult> {
+export async function generateAssets(
+  options: GenerateOptions,
+): Promise<GenerateResult> {
   const {
     source,
     outputDir,
@@ -69,7 +71,6 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
 
   onProgress?.("Rasterizing source...");
 
-  const themeColorInt = hexToRgbaInt(options.themeColor);
   const bgColorInt = hexToRgbaInt(options.bgColor);
 
   const basePng = await rasterizeSource(source, 1024);
@@ -81,9 +82,19 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
     return resizePng(basePng, size, size);
   }
 
-  const allIconEntries: Array<{ src: string; sizes: string; type: string; purpose?: string }> = [];
+  const allIconEntries: Array<{
+    src: string;
+    sizes: string;
+    type: string;
+    purpose?: string;
+  }> = [];
 
-  function addIcon(name: string, width: number, height: number, purpose?: string) {
+  function addIcon(
+    name: string,
+    width: number,
+    height: number,
+    purpose?: string,
+  ) {
     allIconEntries.push({
       src: `/${name}.png`,
       sizes: `${width}x${height}`,
@@ -186,14 +197,22 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
   {
     const og = OG_IMAGE;
     const img = await Jimp.read(basePng);
-    const canvas = new Jimp({ width: og.width, height: og.height, color: bgColorInt });
+    const canvas = new Jimp({
+      width: og.width,
+      height: og.height,
+      color: bgColorInt,
+    });
     const maxW = og.width * 0.7;
     const maxH = og.height * 0.6;
     const scale = Math.min(maxW / img.bitmap.width, maxH / img.bitmap.height);
     const newW = Math.round(img.bitmap.width * scale);
     const newH = Math.round(img.bitmap.height * scale);
     img.resize({ w: newW, h: newH });
-    canvas.composite(img, Math.round((og.width - newW) / 2), Math.round((og.height - newH) / 2 + og.height * 0.05));
+    canvas.composite(
+      img,
+      Math.round((og.width - newW) / 2),
+      Math.round((og.height - newH) / 2 + og.height * 0.05),
+    );
     const path = join(outputDir, `${og.name}.png`);
     writePng(path, await canvas.getBuffer("image/png"));
     files.push(path);
@@ -203,13 +222,21 @@ export async function generateAssets(options: GenerateOptions): Promise<Generate
     onProgress?.("Splash screens...");
     for (const splash of APPLE_SPLASH_SCREENS) {
       const img = await Jimp.read(basePng);
-      const canvas = new Jimp({ width: splash.width, height: splash.height, color: bgColorInt });
+      const canvas = new Jimp({
+        width: splash.width,
+        height: splash.height,
+        color: bgColorInt,
+      });
       const maxLogoDim = Math.min(splash.width, splash.height) * 0.3;
       const scale = Math.min(maxLogoDim / baseW, maxLogoDim / baseH);
       const newW = Math.round(baseW * scale);
       const newH = Math.round(baseH * scale);
       img.resize({ w: newW, h: newH });
-      canvas.composite(img, Math.round((splash.width - newW) / 2), Math.round((splash.height - newH) / 2));
+      canvas.composite(
+        img,
+        Math.round((splash.width - newW) / 2),
+        Math.round((splash.height - newH) / 2),
+      );
       const path = join(outputDir, `${splash.name}.png`);
       writePng(path, await canvas.getBuffer("image/png"));
       files.push(path);
@@ -244,7 +271,13 @@ function writeManifest(
   opts: GenerateOptions,
   icons: Array<{ src: string; sizes: string; type: string; purpose?: string }>,
 ): void {
-  const screenshots: Array<{ src: string; sizes: string; type: string; form_factor: string; label: string }> = [];
+  const screenshots: Array<{
+    src: string;
+    sizes: string;
+    type: string;
+    form_factor: string;
+    label: string;
+  }> = [];
 
   screenshots.push({
     src: `/${OG_IMAGE.name}.png`,
@@ -293,7 +326,10 @@ function writeManifest(
     }));
   }
 
-  writeFileSync(join(outDir, "manifest.json"), JSON.stringify(manifest, null, 2));
+  writeFileSync(
+    join(outDir, "manifest.json"),
+    JSON.stringify(manifest, null, 2),
+  );
 }
 
 function writeBrowserConfig(outDir: string, tileColor: string): void {
@@ -301,7 +337,7 @@ function writeBrowserConfig(outDir: string, tileColor: string): void {
 <browserconfig>
   <msapplication>
     <tile>
-      <square150x150logo src="/ms-tile-310x310.png" />
+      <square150x150logo src="/ms-tile-150x150.png" />
       <wide310x150logo src="/ms-tile-310x150.png" />
       <square144x144logo src="/ms-tile-144.png" />
       <TileColor>${tileColor}</TileColor>
@@ -314,48 +350,72 @@ function writeBrowserConfig(outDir: string, tileColor: string): void {
 function writeHeadHtml(outDir: string, opts: GenerateOptions): void {
   const lines: string[] = [];
   lines.push("<!-- PWA assets generated by @swoff/assets -->");
-  lines.push(`<link rel="icon" type="image/x-icon" href="/favicon.ico">`);
-  if (outDir === "public") {
-    lines.push(`<link rel="icon" type="image/svg+xml" href="/favicon.svg">`);
-  } else {
-    lines.push(`<link rel="icon" type="image/svg+xml" href="${outDir}/favicon.svg">`);
-  }
-  lines.push(`<link rel="apple-touch-icon" href="/apple-touch-icon.png">`);
+  lines.push(`<link rel="icon" type="image/x-icon" href="/favicon.ico" />`);
+  lines.push(`<link rel="icon" type="image/svg+xml" href="/favicon.svg" />`);
+  lines.push(`<link rel="apple-touch-icon" href="/apple-touch-icon.png" />`);
   if (opts.darkMode) {
-    lines.push(`<link rel="apple-touch-icon" href="/dark-apple-touch-icon.png" media="(prefers-color-scheme: dark)">`);
+    lines.push(
+      `<link rel="apple-touch-icon" href="/dark-apple-touch-icon.png" media="(prefers-color-scheme: dark)" />`,
+    );
   }
-  lines.push(`<link rel="manifest" href="/manifest.json">`);
-  lines.push(`<meta name="theme-color" content="${opts.themeColor}">`);
+  lines.push(`<link rel="manifest" href="/manifest.json" />`);
+  lines.push(`<meta name="theme-color" content="${opts.themeColor}" />`);
   if (opts.darkMode) {
-    lines.push(`<meta name="theme-color" content="${opts.darkMode.themeColor}" media="(prefers-color-scheme: dark)">`);
+    lines.push(
+      `<meta name="theme-color" content="${opts.darkMode.themeColor}" media="(prefers-color-scheme: dark)" />`,
+    );
   }
-  lines.push(`<meta name="apple-mobile-web-app-capable" content="yes">`);
-  lines.push(`<meta property="og:image" content="/og-image.png">`);
-  lines.push(`<meta property="og:image:width" content="1200">`);
-  lines.push(`<meta property="og:image:height" content="630">`);
-  lines.push(`<meta name="twitter:card" content="summary_large_image">`);
+  lines.push(`<meta name="mobile-web-app-capable" content="yes" />`);
+  lines.push(`<meta property="og:image" content="/og-image.png" />`);
+  lines.push(`<meta property="og:image:width" content="1200" />`);
+  lines.push(`<meta property="og:image:height" content="630" />`);
+  lines.push(`<meta name="twitter:card" content="summary_large_image" />`);
 
   if (opts.appleSplash !== false) {
     lines.push(`<!-- Apple splash screens -->`);
-    lines.push(`<link rel="apple-touch-startup-image" href="/splash-2048x2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)">`);
-    lines.push(`<link rel="apple-touch-startup-image" href="/splash-1668x2224.png" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)">`);
-    lines.push(`<link rel="apple-touch-startup-image" href="/splash-1536x2048.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)">`);
-    lines.push(`<link rel="apple-touch-startup-image" href="/splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">`);
-    lines.push(`<link rel="apple-touch-startup-image" href="/splash-1242x2208.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)">`);
-    lines.push(`<link rel="apple-touch-startup-image" href="/splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">`);
-    lines.push(`<link rel="apple-touch-startup-image" href="/splash-640x1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)">`);
+    lines.push(
+      `<link rel="apple-touch-startup-image" href="/splash-2048x2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />`,
+    );
+    lines.push(
+      `<link rel="apple-touch-startup-image" href="/splash-1668x2224.png" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)" />`,
+    );
+    lines.push(
+      `<link rel="apple-touch-startup-image" href="/splash-1536x2048.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)" />`,
+    );
+    lines.push(
+      `<link rel="apple-touch-startup-image" href="/splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" />`,
+    );
+    lines.push(
+      `<link rel="apple-touch-startup-image" href="/splash-1242x2208.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)" />`,
+    );
+    lines.push(
+      `<link rel="apple-touch-startup-image" href="/splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" />`,
+    );
+    lines.push(
+      `<link rel="apple-touch-startup-image" href="/splash-640x1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)" />`,
+    );
   }
 
   if (opts.msTileColor) {
-    lines.push(`<meta name="msapplication-TileColor" content="${opts.msTileColor}">`);
-    lines.push(`<meta name="msapplication-TileImage" content="/ms-tile-144.png">`);
-    lines.push(`<meta name="msapplication-config" content="/browserconfig.xml">`);
+    lines.push(
+      `<meta name="msapplication-TileColor" content="${opts.msTileColor}" />`,
+    );
+    lines.push(
+      `<meta name="msapplication-TileImage" content="/ms-tile-144.png" />`,
+    );
+    lines.push(
+      `<meta name="msapplication-config" content="/browserconfig.xml" />`,
+    );
   }
 
   writeFileSync(join(outDir, "swoff-head-tags.html"), lines.join("\n") + "\n");
 }
 
-async function resizePng(sourceBuf: Buffer, w: number, h: number): Promise<Buffer> {
+async function resizePng(
+  sourceBuf: Buffer,
+  w: number,
+  h: number,
+): Promise<Buffer> {
   const img = await Jimp.read(sourceBuf);
   const scale = Math.min(w / img.bitmap.width, h / img.bitmap.height);
   const newW = Math.round(img.bitmap.width * scale);

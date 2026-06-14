@@ -6,7 +6,7 @@ Universal PWA asset generator. No framework lock-in, no config coupling, no CDN 
 npx @swoff/assets --source ./logo.svg
 ```
 
-Generates **28+ files** in one shot: standard + maskable + monochrome icons, Apple splash screens, favicon (ICO + SVG), OG image, Microsoft tiles, `manifest.json` with full integration, and `swoff-head-tags.html` ready to copy into your `<head>`.
+Generates **up to 31 files** in one shot: standard + maskable + monochrome icons, Apple splash screens, favicon (ICO + SVG), OG image, Microsoft tiles, `manifest.json` with full integration, and `swoff-head-tags.html` ready to copy into your `<head>`.
 
 ---
 
@@ -20,7 +20,7 @@ Opens `./logo.svg`, writes everything to `public/`.
 
 ### With options
 
-```bash
+```
 npx @swoff/assets \
   --source ./logo.svg \
   --app-name "My App" \
@@ -89,9 +89,9 @@ Usage: npx @swoff/assets --source <path> [options]
 
 ## Config File
 
-Create `swoff-assets.json` in your project root for repeatable builds. CLI flags override config values.
+Create `swoff-assets.json` in your project root for repeatable builds. Use `--config <path>` to load from a custom location. CLI flags override config values.
 
-```json
+```js
 {
   "source": "./logo.svg",
   "outputDir": "public",
@@ -129,7 +129,7 @@ Create `swoff-assets.json` in your project root for repeatable builds. CLI flags
 | **Apple touch**                           | `apple-touch-icon.png` (180×180)                                           | 1     |
 | **Monochrome** (if `--monochrome`)        | `monochrome-icon-192.png`, `monochrome-icon-512.png`                       | 2     |
 | **Dark mode** (if `--dark-mode-*`)        | `dark-icon-*.png`, `dark-maskable-icon-*.png`, `dark-apple-touch-icon.png` | 8     |
-| **MS tiles** (if `--ms-tile-color`)       | `ms-tile-144.png`, `ms-tile-310x150.png`, `ms-tile-310x310.png`            | 3     |
+| **MS tiles** (if `--ms-tile-color`)       | `ms-tile-144.png`, `ms-tile-150x150.png`, `ms-tile-310x150.png`, `ms-tile-310x310.png` | 4     |
 | **Favicon**                               | `favicon.ico` (16+32+48), `favicon.svg` (SVG source only)                  | 1–2   |
 | **OG image**                              | `og-image.png` (1200×630)                                                  | 1     |
 | **Splash screens** (7 Apple sizes)        | `splash-2048x2732.png` through `splash-640x1136.png`                       | 7     |
@@ -137,7 +137,7 @@ Create `swoff-assets.json` in your project root for repeatable builds. CLI flags
 | **Head tags**                             | `swoff-head-tags.html` — all `<link>` and `<meta>` tags                    | 1     |
 | **Browser config** (if `--ms-tile-color`) | `browserconfig.xml`                                                        | 1     |
 
-**Total: up to 30 files.**
+**Total: up to 31 files.**
 
 ### manifest.json integration
 
@@ -169,7 +169,7 @@ Generates a complete parallel set of icons using dark theme/background colors. T
 
 When `--ms-tile-color` is provided, generates:
 
-- `ms-tile-144.png`, `ms-tile-310x150.png`, `ms-tile-310x310.png`
+- `ms-tile-144.png`, `ms-tile-150x150.png`, `ms-tile-310x150.png`, `ms-tile-310x310.png`
 - `browserconfig.xml` with tile references
 - Meta tags in `swoff-head-tags.html`
 
@@ -185,7 +185,7 @@ Configurable in-app navigation shortcuts declared in `manifest.json`. Supported 
 
 ## Programmatic API
 
-```ts
+```js
 import { generateAssets } from "@swoff/assets";
 
 const result = await generateAssets({

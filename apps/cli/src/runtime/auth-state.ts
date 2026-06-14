@@ -29,7 +29,7 @@ export function generateAuthStateCode(ctx: RuntimeContext): string {
 
 import { getCurrentOnlineStatus } from "../connectivity-manager.${ext}";
 import { getAuth, isAuthValid } from "./store.${ext}";
-import type { AuthData } from "./store.${ext}";
+import type { AuthData } from "./adapter.${ext}";
 
 /** Detect current auth state across the 4-state matrix (online/offline × authenticated/not). */
 export async function getAuthState()${R(ts, "Promise<{ authenticated: boolean; auth: AuthData | null; online: boolean }>")}{

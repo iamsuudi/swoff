@@ -208,7 +208,6 @@ if (
         console.log(`  Auth adapter: ${authType}`);
         console.log(`  1. Edit swoff/auth/adapter.ts to match your backend:`);
         if (authType === "cookie" || authType === "bearer" || authType === "custom") {
-          console.log(`     - toAuthData(): map your login response to AuthData`);
           console.log(`     - getHeaders(): return auth headers for fetch requests`);
           console.log(`     - refresh(): implement token/session refresh`);
           console.log(`     - fetchUser(): implement fetching current user`);

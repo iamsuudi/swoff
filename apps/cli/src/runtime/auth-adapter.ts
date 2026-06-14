@@ -13,30 +13,23 @@ function generateCookieAdapter(ts: boolean, ext: string): string {
  *
  * Usage:
  *   import { adapter } from "./auth/adapter.${ext}";
- *   adapter.subscribe((authData) => { ... });
  *   const headers = adapter.getHeaders(auth);
  */${ts ? `
-import type { AuthData } from "./store.${ext}";` : ""}
+// ─── AuthData — single source of truth for auth shapes ───────────────
+// Edit the user type to match your backend's user object.
+export interface AuthData {
+  token?: string;
+  user?: unknown;
+  expiresAt?: number;
+}
+` : ""}
 
-export const adapter${T(ts, "{ type: 'cookie'; toAuthData: (response: unknown) => AuthData; getAuth: () => Promise<AuthData | null>; subscribe: (onChange: (authData: AuthData | null) => void) => () => void; getHeaders: (auth: AuthData | null) => Record<string, string>; refresh: (auth: AuthData) => Promise<AuthData | null>; fetchUser: () => Promise<Record<string, unknown>> }")}= {
+export const adapter${T(ts, "{ type: 'cookie'; getAuth: () => Promise<AuthData | null>; getHeaders: (auth: AuthData | null) => Record<string, string>; refresh: (auth: AuthData) => Promise<AuthData | null>; fetchUser: () => Promise<AuthData | null> }")}= {
   type: "cookie",
-
-  /** Map your backend login/register response to Swoff AuthData. */
-  toAuthData(response${T(ts, "unknown")})${R(ts, "AuthData")}{
-    const data = response as Record<string, unknown>;
-    return {
-      user: data.user as Record<string, unknown> | undefined,
-    };
-  },
 
   /** Get current auth state from your provider. Return null if not authenticated. */
   async getAuth()${R(ts, "Promise<AuthData | null>")}{
     return null;
-  },
-
-  /** Subscribe to auth state changes from your provider. Return unsubscribe. */
-  subscribe(_onChange${T(ts, "(authData: AuthData | null) => void")})${R(ts, "() => void")}{
-    return () => {};
   },
 
   /** Generate auth headers for fetch requests. Cookie auth returns empty — browser sends cookie. */
@@ -50,9 +43,9 @@ export const adapter${T(ts, "{ type: 'cookie'; toAuthData: (response: unknown) =
   },
 
   /** Fetch current user from the server. Uses credentials: include for cookie auth. */
-  async fetchUser()${R(ts, "Promise<Record<string, unknown>>")}{
+  async fetchUser()${R(ts, "Promise<AuthData | null>")}{
     const res = await fetch("/api/me", { credentials: "include" });
-    return res.ok ? res.json() : {};
+    return res.ok ? { user: await res.json() } : null;
   },
 };
 `;
@@ -72,30 +65,22 @@ function generateBearerAdapter(ts: boolean, ext: string): string {
  *   const headers = adapter.getHeaders(auth);
  *   const refreshed = await adapter.refresh(auth);
  */${ts ? `
-import type { AuthData } from "./store.${ext}";` : ""}
+// ─── AuthData — single source of truth for auth shapes ───────────────
+// Edit the user type to match your backend's user object.
+export interface AuthData {
+  token?: string;
+  user?: unknown;
+  expiresAt?: number;
+}
+` : ""}
 import { getAuth } from "./store.${ext}";
 
-export const adapter${T(ts, "{ type: 'bearer'; toAuthData: (response: unknown) => AuthData; getAuth: () => Promise<AuthData | null>; subscribe: (onChange: (authData: AuthData | null) => void) => () => void; getHeaders: (auth: AuthData | null) => Record<string, string>; refresh: (auth: AuthData) => Promise<AuthData | null>; fetchUser: () => Promise<Record<string, unknown>> }")}= {
+export const adapter${T(ts, "{ type: 'bearer'; getAuth: () => Promise<AuthData | null>; getHeaders: (auth: AuthData | null) => Record<string, string>; refresh: (auth: AuthData) => Promise<AuthData | null>; fetchUser: () => Promise<AuthData | null> }")}= {
   type: "bearer",
-
-  /** Map your backend login/register response to Swoff AuthData. */
-  toAuthData(response${T(ts, "unknown")})${R(ts, "AuthData")}{
-    const data = response as Record<string, unknown>;
-    return {
-      token: data.token as string,
-      user: data.user as Record<string, unknown> | undefined,
-      expiresAt: data.expiresAt as number | undefined,
-    };
-  },
 
   /** Get current auth state from your provider. Return null if not authenticated. */
   async getAuth()${R(ts, "Promise<AuthData | null>")}{
     return null;
-  },
-
-  /** Subscribe to auth state changes from your provider. Return unsubscribe. */
-  subscribe(onChange${T(ts, "(authData: AuthData | null) => void")})${R(ts, "() => void")}{
-    return () => {};
   },
 
   /** Generate auth headers. Injects Bearer token if available. */
@@ -116,12 +101,12 @@ export const adapter${T(ts, "{ type: 'bearer'; toAuthData: (response: unknown) =
   },
 
   /** Fetch current user from the server. Injects Bearer token if available. */
-  async fetchUser()${R(ts, "Promise<Record<string, unknown>>")}{
+  async fetchUser()${R(ts, "Promise<AuthData | null>")}{
     const auth = await getAuth();
     const headers${T(ts, "Record<string, string>")} = {};
     if (auth?.token) headers["Authorization"] = \`Bearer \${auth.token}\`;
     const res = await fetch("/api/me", { headers });
-    return res.ok ? res.json() : {};
+    return res.ok ? { user: await res.json() } : null;
   },
 };
 `;
@@ -135,30 +120,23 @@ function generateCustomAdapter(ts: boolean, ext: string): string {
  *
  * Usage:
  *   import { adapter } from "./auth/adapter.${ext}";
- *   adapter.subscribe((authData) => { ... });
  *   const headers = adapter.getHeaders(auth);
  */${ts ? `
-import type { AuthData } from "./store.${ext}";` : ""}
+// ─── AuthData — single source of truth for auth shapes ───────────────
+// Edit all fields to match your backend's auth shapes.
+export interface AuthData {
+  token?: string;
+  user?: unknown;
+  expiresAt?: number;
+}
+` : ""}
 
 export const adapter = {
   /** Set to "cookie" if your backend uses httpOnly cookies, "bearer" if it uses tokens. */
   type: "bearer",
 
-  /** Map your backend login/register response to Swoff AuthData. */
-  toAuthData(response) {
-    // --- EDIT THIS ---
-    return {
-      token: response.token,
-      user: response.user,
-      expiresAt: response.expiresAt,
-    };
-  },
-
   /** Get current auth state. Implement if your provider has a getSession() equivalent. */
   async getAuth() { return null; },
-
-  /** Subscribe to auth state changes. Implement for reactive updates. */
-  subscribe(onChange) { return () => {}; },
 
   /** Generate auth headers for fetch requests. */
   getHeaders(auth) {
@@ -180,10 +158,10 @@ export const adapter = {
     } catch { return null; }
   },
 
-  /** Fetch current user. */
+  /** Fetch current user. Return AuthData | null (e.g. { user: data }). */
   async fetchUser() {
     // --- EDIT THIS ---
-    return {};
+    return null;
   },
 };
 `;
@@ -197,30 +175,26 @@ function generateBetterAuthAdapter(ts: boolean, ext: string): string {
  *
  * Usage:
  *   import { adapter } from "./auth/adapter.${ext}";
- *   adapter.subscribe((authData) => { ... });
  *   const session = await adapter.getAuth();
  */${ts ? `
-import type { AuthData } from "./store.${ext}";` : ""}
+// ─── AuthData — single source of truth for auth shapes ───────────────
+// Edit the user type to match your backend's user object.
+export interface AuthData {
+  token?: string;
+  user?: unknown;
+  expiresAt?: number;
+}
+` : ""}
 import { authClient } from "@/lib/auth-client";
 
 export const adapter = {
   type: "cookie",
-
-  toAuthData(response) {
-    return { user: response?.user ?? response };
-  },
 
   async getAuth() {
     try {
       const session = await authClient.getSession();
       return session ? { user: session.user } : null;
     } catch { return null; }
-  },
-
-  subscribe(onChange) {
-    return authClient.$store.listen((session) => {
-      onChange(session ? { user: session.user } : null);
-    });
   },
 
   getHeaders() { return {}; },
@@ -235,8 +209,8 @@ export const adapter = {
   async fetchUser() {
     try {
       const session = await authClient.getSession();
-      return session?.user ?? {};
-    } catch { return {}; }
+      return session ? { user: session.user } : null;
+    } catch { return null; }
   },
 };
 `;
@@ -252,31 +226,24 @@ function generateNextAuthAdapter(ts: boolean, ext: string): string {
  *   import { adapter } from "./auth/adapter.${ext}";
  *   const session = await adapter.getAuth();
  */${ts ? `
-import type { AuthData } from "./store.${ext}";` : ""}
+// ─── AuthData — single source of truth for auth shapes ───────────────
+// Edit the user type to match your backend's user object.
+export interface AuthData {
+  token?: string;
+  user?: unknown;
+  expiresAt?: number;
+}
+` : ""}
 import { getSession, signOut } from "next-auth/react";
 
 export const adapter = {
   type: "cookie",
-
-  toAuthData(response) {
-    return { user: response?.user ?? response };
-  },
 
   async getAuth() {
     try {
       const session = await getSession();
       return session ? { user: session.user } : null;
     } catch { return null; }
-  },
-
-  subscribe(onChange) {
-    // NextAuth doesn't export a reactive store subscription.
-    // Poll every 30s or call refreshState() after signIn/signOut manually.
-    const interval = setInterval(async () => {
-      const session = await getSession();
-      onChange(session ? { user: session.user } : null);
-    }, 30000);
-    return () => clearInterval(interval);
   },
 
   getHeaders() { return {}; },
@@ -291,8 +258,8 @@ export const adapter = {
   async fetchUser() {
     try {
       const session = await getSession();
-      return session?.user ?? {};
-    } catch { return {}; }
+      return session ? { user: session.user } : null;
+    } catch { return null; }
   },
 };
 `;
@@ -308,32 +275,21 @@ function generateClerkAdapter(ts: boolean, ext: string): string {
  *   import { adapter } from "./auth/adapter.${ext}";
  *   const user = await adapter.getAuth();
  */${ts ? `
-import type { AuthData } from "./store.${ext}";` : ""}
+// ─── AuthData — single source of truth for auth shapes ───────────────
+// Edit the user type to match your backend's user object.
+export interface AuthData {
+  token?: string;
+  user?: unknown;
+  expiresAt?: number;
+}
+` : ""}
 import { useAuth } from "@clerk/nextjs";
 
 export const adapter = {
   type: "cookie",
 
-  toAuthData(response) {
-    return { user: response?.user ?? response };
-  },
-
   async getAuth() {
     return null;
-  },
-
-  subscribe(onChange) {
-    // Clerk's useAuth() is a React hook and cannot be used outside components.
-    // Use Clerk's useSession() or <SignedIn>/<SignedOut> for reactive UI.
-    // This interval polls as a fallback.
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch("/api/auth/session");
-        const session = res.ok ? await res.json() : null;
-        onChange(session ? { user: session.user } : null);
-      } catch { /* offline */ }
-    }, 60000);
-    return () => clearInterval(interval);
   },
 
   getHeaders() { return {}; },
@@ -344,8 +300,8 @@ export const adapter = {
     try {
       const res = await fetch("/api/auth/session");
       const session = res.ok ? await res.json() : null;
-      return session?.user ?? {};
-    } catch { return {}; }
+      return session ? { user: session.user } : null;
+    } catch { return null; }
   },
 };
 `;
@@ -361,20 +317,18 @@ function generateSupabaseAdapter(ts: boolean, ext: string): string {
  *   import { adapter } from "./auth/adapter.${ext}";
  *   const session = await adapter.getAuth();
  */${ts ? `
-import type { AuthData } from "./store.${ext}";` : ""}
+// ─── AuthData — single source of truth for auth shapes ───────────────
+// Edit the user type to match your backend's user object.
+export interface AuthData {
+  token?: string;
+  user?: unknown;
+  expiresAt?: number;
+}
+` : ""}
 import { supabase } from "@/lib/supabase";
 
 export const adapter = {
   type: "bearer",
-
-  toAuthData(response) {
-    const session = response?.session ?? response;
-    return {
-      token: session?.access_token,
-      user: session?.user,
-      expiresAt: session?.expires_at ? session.expires_at * 1000 : undefined,
-    };
-  },
 
   async getAuth() {
     try {
@@ -386,21 +340,6 @@ export const adapter = {
         expiresAt: data.session.expires_at ? data.session.expires_at * 1000 : undefined,
       };
     } catch { return null; }
-  },
-
-  subscribe(onChange) {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        onChange({
-          token: session.access_token,
-          user: session.user,
-          expiresAt: session.expires_at ? session.expires_at * 1000 : undefined,
-        });
-      } else {
-        onChange(null);
-      }
-    });
-    return () => subscription.unsubscribe();
   },
 
   getHeaders(auth) {
@@ -422,8 +361,8 @@ export const adapter = {
   async fetchUser() {
     try {
       const { data } = await supabase.auth.getSession();
-      return data.session?.user ?? {};
-    } catch { return {}; }
+      return data.session ? { user: data.session.user } : null;
+    } catch { return null; }
   },
 };
 `;

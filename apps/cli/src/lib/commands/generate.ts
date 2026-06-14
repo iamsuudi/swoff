@@ -74,7 +74,6 @@ export async function generateCommand(
     log.normal("");
     log.help(`Auth (${config.features.auth.type})`);
     log.normal("  Edit swoff/auth/adapter.ts to match your backend:");
-    log.normal("    - toAuthData(): map login response to AuthData");
     log.normal("    - getHeaders(): return auth headers for fetch requests");
     if (config.features.auth.type !== "cookie") {
       log.normal("    - refresh(): implement token/session refresh");

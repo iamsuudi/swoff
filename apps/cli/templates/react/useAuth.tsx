@@ -1,15 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { getAuthState } from "../auth/state.ts";
 import { setAuth, clearAuth, ensureValidAuth } from "../auth/store.ts";
-import type { AuthData } from "../auth/store.ts";
-import { adapter } from "../auth/adapter.ts";
+import type { AuthData } from "../auth/adapter.ts";
 
 /**
  * Reactive auth state with actions: setAuth, clearAuth, ensureValid.
  *
- * Automatically syncs with the auth adapter (Better Auth, NextAuth, etc.)
- * via adapter.subscribe(). Falls back to listening for sw-auth-state-change
- * for manual login/logout calls.
+ * Listens for sw-auth-state-change events (dispatched by clearAuth(),
+ * setAuth(), or the SW's AUTH_CLEARED broadcast).
  *
  * Usage:
  *   const { authenticated, auth, online, isLoading, error, setAuth, clearAuth, ensureValid } = useAuth();
@@ -51,15 +49,6 @@ export function useAuth() {
   useEffect(() => {
     refreshState();
 
-    // Subscribe to adapter for reactive updates (e.g., Better Auth session changes)
-    const unsubscribe = adapter.subscribe((authData) => {
-      if (authData) {
-        setAuth(authData).then(() => refreshState());
-      } else {
-        clearAuth().then(() => refreshState());
-      }
-    });
-
     const onOnline = () => setState((s) => ({ ...s, online: true }));
     const onOffline = () => setState((s) => ({ ...s, online: false }));
     const onAuthChange = () => refreshState();
@@ -69,7 +58,6 @@ export function useAuth() {
     window.addEventListener("sw-auth-state-change", onAuthChange);
 
     return () => {
-      unsubscribe();
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
       window.removeEventListener("sw-auth-state-change", onAuthChange);

@@ -64,7 +64,6 @@ declare global {
     swReady?: boolean;
     swError?: boolean;
     swAuthState?: "authenticated" | "unauthenticated" | "loading";
-    swCurrentUser?: Record<string, unknown> | null;
     SyncManager?: { new(): SyncManager };
   }
 

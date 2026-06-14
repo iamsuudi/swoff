@@ -19,10 +19,11 @@ export function generateMutationQueueCode(
     : "";
 
   const additionalImports = `import { invalidateByTags } from "../cache/index.${ext}";
-${ts
-  ? `import type { MutationQueueItem } from "../swoff.d.ts";
+${
+  ts
+    ? `import type { MutationQueueItem } from "../swoff.d.ts";
 `
-  : ""
+    : ""
 }`;
 
   const authReplayHeaders = authEnabled
@@ -67,7 +68,8 @@ ${ts
       await clearAuth();
       return false;
     }
-` : "";
+`
+    : "";
 
   const code = `/**
  * Swoff Mutation Queue
@@ -108,8 +110,8 @@ const RETRY_BACKOFF_MS = ${retryBackoffMs};
 const RETRY_MAX_BACKOFF_MS = ${retryMaxBackoffMs};
 const RETRY_JITTER_MS = ${retryJitterMs};
 
-function backoffDelay(attempt) {
-  var delay = Math.min(RETRY_BACKOFF_MS * Math.pow(2, attempt), RETRY_MAX_BACKOFF_MS);
+function backoffDelay(attempt${T(ts, "number")}) {
+  const delay = Math.min(RETRY_BACKOFF_MS * Math.pow(2, attempt), RETRY_MAX_BACKOFF_MS);
   return delay + (RETRY_JITTER_MS > 0 ? Math.random() * RETRY_JITTER_MS : 0);
 }
 

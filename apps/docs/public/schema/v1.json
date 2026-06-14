@@ -310,17 +310,35 @@
               "default": 1000,
               "minimum": 0
             },
-            "maxRetries": {
-              "type": "integer",
-              "description": "Max retries for background refetches (exponential backoff)",
-              "default": 3,
-              "minimum": 0
-            },
-            "retryDelayMs": {
-              "type": "integer",
-              "description": "Base delay in ms for retry backoff (delay × 2^retryCount)",
-              "default": 1000,
-              "minimum": 0
+            "retry": {
+              "type": "object",
+              "description": "Retry configuration for background refetches (exponential backoff)",
+              "properties": {
+                "maxRetries": {
+                  "type": "integer",
+                  "description": "Max retries for background refetches before dropping",
+                  "default": 3,
+                  "minimum": 0
+                },
+                "backoffMs": {
+                  "type": "integer",
+                  "description": "Base delay in ms for retry backoff (delay × 2^retryCount)",
+                  "default": 1000,
+                  "minimum": 0
+                },
+                "maxBackoffMs": {
+                  "type": "integer",
+                  "description": "Maximum delay cap for backoff in ms",
+                  "default": 10000,
+                  "minimum": 0
+                },
+                "jitterMs": {
+                  "type": "integer",
+                  "description": "Random jitter in ms added to each backoff delay to prevent thundering herd",
+                  "default": 100,
+                  "minimum": 0
+                }
+              }
             }
           }
         },
@@ -345,17 +363,35 @@
               "default": 0,
               "minimum": 0
             },
-            "maxRetries": {
-              "type": "integer",
-              "description": "Max retries before dropping",
-              "default": 5,
-              "minimum": 1
-            },
-            "retryBackoffMs": {
-              "type": "integer",
-              "description": "Exponential backoff base in ms",
-              "default": 1000,
-              "minimum": 0
+            "retry": {
+              "type": "object",
+              "description": "Retry configuration for mutation replay (exponential backoff)",
+              "properties": {
+                "maxRetries": {
+                  "type": "integer",
+                  "description": "Max retries before dropping a mutation",
+                  "default": 5,
+                  "minimum": 1
+                },
+                "backoffMs": {
+                  "type": "integer",
+                  "description": "Base delay in ms for retry backoff (delay × 2^retryCount)",
+                  "default": 1000,
+                  "minimum": 0
+                },
+                "maxBackoffMs": {
+                  "type": "integer",
+                  "description": "Maximum delay cap for backoff in ms",
+                  "default": 30000,
+                  "minimum": 0
+                },
+                "jitterMs": {
+                  "type": "integer",
+                  "description": "Random jitter in ms added to each backoff delay to prevent thundering herd",
+                  "default": 250,
+                  "minimum": 0
+                }
+              }
             },
             "backgroundSync": {
               "type": "boolean",

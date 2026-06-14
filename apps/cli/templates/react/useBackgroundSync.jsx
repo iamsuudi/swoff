@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { retrySync } from "../offline/sync.js";
+import { retrySync } from "../mutation/sync.js";
 
 export function useBackgroundSync() {
   const [state, setState] = useState(() => ({
-    supported: typeof window !== "undefined" && typeof navigator !== "undefined"
-      ? "serviceWorker" in navigator && "SyncManager" in window
-      : false,
+    supported:
+      typeof window !== "undefined" && typeof navigator !== "undefined"
+        ? "serviceWorker" in navigator && "SyncManager" in window
+        : false,
     registered: false,
     lastSync: null,
   }));

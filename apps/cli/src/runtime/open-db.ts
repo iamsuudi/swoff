@@ -17,7 +17,7 @@ export function generateOpenDBCode(ctx: RuntimeContext): string {
  *   });
  */
 
-export function openDB${G(ts, "T")}(
+export function openDB(
   name${T(ts, "string")},
   storeName${T(ts, "string")},
   keyPath${T(ts, "string | string[]")},
@@ -30,7 +30,7 @@ export function openDB${G(ts, "T")}(
       if (upgradeCallback) {
         upgradeCallback(db);
       } else if (!db.objectStoreNames.contains(storeName)) {
-        db.createObjectStore(storeName, { keyPath: keyPath${AS(ts, " as IDBObjectStoreParameters[\"keyPath\"]")} });
+        db.createObjectStore(storeName, { keyPath: keyPath${AS(ts, 'IDBObjectStoreParameters["keyPath"]')} });
       }
     };
     request.onsuccess = (e) => resolve((e.target${AS(ts, "IDBOpenDBRequest")}).result);

@@ -49,15 +49,13 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
     "refetchQueue": {
       "batchSize": 5,
       "batchDelayMs": 1000,
-      "maxRetries": 3,
-      "retryDelayMs": 1000
+      "retry": { "maxRetries": 3, "backoffMs": 1000, "maxBackoffMs": 10000, "jitterMs": 100 }
     },
     "mutationQueue": {
       "enabled": false,
       "batchSize": 1,
       "batchDelayMs": 0,
-      "maxRetries": 5,
-      "retryBackoffMs": 1000,
+      "retry": { "maxRetries": 5, "backoffMs": 1000, "maxBackoffMs": 30000, "jitterMs": 250 },
       "backgroundSync": false
     },
     "auth": {
@@ -222,7 +220,7 @@ When a strategy value is an object instead of a string:
 |-------|------|---------|-------------|
 | `batchSize` | `number` | `5` | Max stale cache entries to refetch per batch |
 | `batchDelayMs` | `number` | `1000` | Delay in ms between batch cycles (rate limiting) |
-| `retry.maxRetries` | `number` | `3` | Max retries for background refetches (exponential backoff) |
+| `retry.maxRetries` | `number` | `3` | Max retries for background refetches before dropping |
 | `retry.backoffMs` | `number` | `1000` | Base delay in ms for retry backoff (delay × 2^retryCount) |
 | `retry.maxBackoffMs` | `number` | `10000` | Maximum delay cap for backoff (10s) |
 | `retry.jitterMs` | `number` | `100` | Random jitter in ms added to each backoff delay to prevent thundering herd |
@@ -253,8 +251,10 @@ Object-only feature (boolean shorthand not supported).
 | `enabled` | `boolean` | `false` | Enable offline write queue |
 | `batchSize` | `number` | `1` | Mutations per progress event |
 | `batchDelayMs` | `number` | `0` | Delay between mutations (rate limiting) |
-| `maxRetries` | `number` | `5` | Max retries before dropping a mutation |
-| `retryBackoffMs` | `number` | `1000` | Exponential backoff base (nextRetry = backoff × 2^retryCount) |
+| `retry.maxRetries` | `number` | `5` | Max retries before dropping a mutation |
+| `retry.backoffMs` | `number` | `1000` | Base delay in ms for retry backoff (delay × 2^retryCount) |
+| `retry.maxBackoffMs` | `number` | `30000` | Maximum delay cap for backoff (30s) |
+| `retry.jitterMs` | `number` | `250` | Random jitter in ms added to each backoff delay |
 
 ---
 

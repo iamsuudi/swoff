@@ -74,10 +74,12 @@ Instead of fire-and-forget `event.waitUntil(refetch())` on every stale request, 
 
 **Retry with exponential backoff**: if a refresh fetch fails (network error, non-ok response), the entry is re-queued with an incremented `retryCount`. The retry delay = `min(backoffMs × 2^retryCount, maxBackoffMs) + jitter`. The `RetryConfig` is unified across all retry contexts: `{ maxRetries, backoffMs, maxBackoffMs, jitterMs }`. After `maxRetries` consecutive failures, the entry is dropped. A `setTimeout` schedules re-processing after the delay, ensuring the SW stays alive for retries.
 
+**`queueRefresh()` returns a Promise**: Each call to `queueRefresh(url)` returns a `Promise<void>` that resolves when the URL's refetch completes (or fails after `maxRetries`). `processRefreshQueue` stores resolve callbacks per URL and calls them after `await refetchEntry(url)`. This enables `event.waitUntil(queueRefresh(url))` to keep the SW alive through the entire deferred batch, not just the queue push.
+
 This prevents:
 - **Stampedes**: 50 stale resources from a page load all get queued, not fetched simultaneously
 - **Dedup waste**: Two requests for the same stale URL only produce one refetch
-- **SW termination**: The queue promise is shared across all `event.waitUntil()` calls, keeping the SW alive
+- **SW termination**: Each `event.waitUntil(queueRefresh(url))` keeps the SW alive through the deferred batch processing
 - **Transient failure loss**: a flaky network doesn't permanently lose the refresh — retries continue with backoff
 
 ## Online recovery
@@ -282,6 +284,8 @@ This avoids the complexity of shared locks and timestamps:
 - **Page is closed**: SW handles replay via Background Sync (no data loss)
 - **Both race**: only the client processes; the SW never interferes when clients exist
 
+**Per-batch client re-check**: The SW background sync handler re-checks `self.clients.matchAll()` before each mutation batch (not just once at start). If any client tab opened during processing, the SW stops processing and lets the client take over. This prevents a race where a user opens a tab while the SW is mid-batch.
+
 Mutations stored client-side go into the same IndexedDB store that the SW reads from (`swoff-queue`). When the SW stores a mutation offline (from `fetch-handler.ts`), it also writes to this store and notifies clients via `MUTATION_STORED` so they can attempt immediate replay.
 
 ## Online-status awareness during mutation replay
@@ -484,6 +488,19 @@ SPA:
 - Tags are recorded in IndexedDB for every cache write (runtime or precache)
 - `_fetchWithTimeout` is a pure fetch + timeout — all caching decisions happen at the strategy level via `event.waitUntil(cacheResponse(…))`
 
+### Reactive interval cleanup on activate
+
+When a new SW version activates, all reactive interval timers (`setInterval`) from the old version are still running. The activate handler calls `clearAllReactive()` which:
+1. Clears all active `setInterval` IDs from `REACTIVE_INTERVALS` via `clearInterval()`
+2. Clears the `REACTIVE_INTERVALS` and `REACTIVE_ENTRIES` Maps
+3. Re-registration occurs naturally as the new SW intercepts requests and populates its own reactive registry
+
+`REACTIVE_ENTRIES` and `REACTIVE_INTERVALS` are declared in the SW template header (before all section placeholders) so all sections — activate handler, fetch handler, message handler — can access them regardless of declaration order.
+
+### `MAX_RUNTIME_CACHE_AGE` sentinel
+
+`MAX_RUNTIME_CACHE_AGE` is always emitted as a constant in the generated SW (set to `Infinity` when the config value is `≤ 0` or undefined). This prevents `ReferenceError` in sections that reference it unconditionally — there is no conditional guard around its usage.
+
 ### Online recovery
 
 ```
@@ -497,10 +514,23 @@ On "online" event from window:
 ```
 On tag invalidation:
   → open tag DB → find all entries matching tag
-  → delete cache entries from runtime cache
-  → queueRefresh(url) for each (deduplicated via batch queue)
+  → delete cache entries from runtime cache (by cache key URL)
+  → queueRefresh(entry.actualUrl) for each (deduplicated via batch queue)
   → on successful refetch → CACHE_UPDATED to all clients
 ```
+
+The tag DB stores both `url` (cache key — e.g. `/__swc/...`) and `actualUrl` (the real request URL). `invalidateByTag` deletes cache by `url` but fetches the live endpoint by `actualUrl`, ensuring the server is hit correctly. `registerReactiveEntry` also stores `actualUrl`, and `refetchEntry` uses `entry.actualUrl || url` for the fetch Request.
+
+### AUTH_FAILURE broadcast
+
+When any background refresh returns a 401 response, `refetchEntry` broadcasts `{ type: "AUTH_FAILURE" }` to all clients via `self.clients.matchAll()`. This covers all background refresh paths:
+
+- Reactive interval timers
+- Tag invalidation refetches
+- Window focus / online recovery refetches
+- SWR background fetches
+
+The client-side `client-injector.ts` listens for `AUTH_FAILURE` and calls `ensureValidAuth()` which delegates to the adapter's `refresh()` method. If refresh fails, it falls back to `clearAuth()`. This ensures session expiry is detected silently without requiring a user-initiated request.
 
 ---
 
@@ -546,9 +576,12 @@ SW scope:
   _fetchWithTimeout() catch     → postMessage(SW_NOTIFICATION, level: "error", code: "FETCH_FAILED")
   precacheAssets()   → postMessage(SW_NOTIFICATION, level: "warn", code: "PRECACHE_FAILED")
   bg sync catch      → postMessage(SW_NOTIFICATION, level: "error", code: "BACKGROUND_SYNC_FAILED")
+  refetchEntry 401   → postMessage({ type: "AUTH_FAILURE" })
+  refetchEntry ok    → postMessage({ type: "CACHE_UPDATED", fetchUrl })
 
 client-injector.ts:
   message listener   → CustomEvent("swoff:notification", { detail: { level, code, message } })
+  AUTH_FAILURE       → ensureValidAuth() → clearAuth() fallback
 
 notification.ts:
   checkStorage()     → navigator.storage.estimate() >= 80% → CustomEvent("swoff:notification")

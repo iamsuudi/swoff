@@ -394,7 +394,7 @@ import { getAuthState } from "swoff/auth/state";
 
 | Function         | Returns                                                                                       | Description                                                                |
 | ---------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `getAuthState()` | `Promise<{ authenticated: boolean, user: Record<string, unknown> \| null, online: boolean }>` | Detect state: online+auth, online+unauthed, offline+auth, offline+unauthed. Reads `auth.user` directly from `getAuth()`. Online status via connectivity manager. |
+| `getAuthState()` | `Promise<{ authenticated: boolean, auth: AuthData \| null, online: boolean }>` | Detect state: online+auth, online+unauthed, offline+auth, offline+unauthed. Returns the full `AuthData` (typed via the `AuthData` interface developer edits). Access user via `auth.user`. Online status via connectivity manager. |
 
 ---
 
@@ -737,13 +737,13 @@ const { online, wasOffline, lastChangedAt, effectiveType, downlink } = useNetwor
 ### `useAuth()`
 
 ```ts
-const { authenticated, user, online, isLoading, error, setAuth, clearAuth, ensureValid } = useAuth();
+const { authenticated, auth, online, isLoading, error, setAuth, clearAuth, ensureValid } = useAuth();
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `authenticated` | `boolean` | Whether the user is authenticated |
-| `user` | `Record<string, unknown> \| null` | Current user data (from IndexedDB cache) |
+| `auth` | `AuthData \| null` | Full auth data (typed via `AuthData` interface). Access user via `auth.user`. |
 | `online` | `boolean` | Current online status (from connectivity manager) |
 | `isLoading` | `boolean` | `true` while checking auth state on mount |
 | `error` | `unknown` | Last auth error, or `null` |

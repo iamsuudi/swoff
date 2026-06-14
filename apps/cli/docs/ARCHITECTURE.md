@@ -414,7 +414,7 @@ When the SW syncs queued mutations, cookie auth works transparently (SW sets `cr
 
 ### Single IndexedDB database
 
-User data is stored in the same `swoff-auth` database as auth metadata — not a separate `swoff-auth-user` database. `persistUserData()` (internal helper) writes user info to IndexedDB. `getAuthState()` reads `auth.user` from `getAuth()`, removing the need for `getCachedUser()` / `cacheUser()` / `clearCachedUser()`.
+User data is stored in the same `swoff-auth` database as auth metadata — not a separate `swoff-auth-user` database. `persistUserData()` (internal helper) writes user info to IndexedDB. `getAuthState()` returns the full `AuthData` object from `getAuth()` (typed via the `AuthData` interface), removing the need for `getCachedUser()` / `cacheUser()` / `clearCachedUser()`.
 
 ---
 

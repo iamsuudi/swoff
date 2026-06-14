@@ -19,10 +19,10 @@ Swoff generates a client-side auth system with SW notifications for background 4
 
 **Offline user data:**
 - The user profile is cached in IndexedDB for offline display.
-- `getAuthState()` returns `{ authenticated, user, online }` — works offline.
+- `getAuthState()` returns `{ authenticated, auth, online }` — works offline. Access user data via `auth.user`.
 
 **Reactive hooks:**
-- `useAuth()` returns `{ authenticated, user, online, isLoading, error, setAuth, clearAuth, ensureValid }`.
+- `useAuth()` returns `{ authenticated, auth, online, isLoading, error, setAuth, clearAuth, ensureValid }`.
 - Listens for `sw-auth-state-change` events (dispatched by the SW after auth state changes).
 - Listens for `online`/`offline` events for connectivity-aware state.
 

@@ -18,20 +18,22 @@
  *
  * Usage:
  *   import { getAuthState } from "./auth/state.ts";
- *   const { authenticated, user, online } = await getAuthState();
+ *   const { authenticated, auth, online } = await getAuthState();
+ *   const userName = auth?.user?.name; // typed via AuthData
  */
 
 import { getCurrentOnlineStatus } from "../connectivity-manager.ts";
 import { getAuth, isAuthValid } from "./store.ts";
+import type { AuthData } from "./store.ts";
 
 /** Detect current auth state across the 4-state matrix (online/offline × authenticated/not). */
-export async function getAuthState(): Promise<{ authenticated: boolean; user: Record<string, unknown> | null; online: boolean }> {
+export async function getAuthState(): Promise<{ authenticated: boolean; auth: AuthData | null; online: boolean }> {
   const auth = await getAuth();
   const valid = isAuthValid(auth);
 
   return {
     authenticated: valid,
-    user: auth?.user ?? null,
+    auth,
     online: getCurrentOnlineStatus(),
   };
 }

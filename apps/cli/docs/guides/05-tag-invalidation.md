@@ -1,0 +1,175 @@
+# Tag-Based Cache Invalidation (replaces TanStack Query `invalidateQueries`)
+
+> **If you're coming from TanStack Query:** `invalidateByTag("notes")` is Swoff's equivalent of `queryClient.invalidateQueries({ queryKey: ["notes"] })`. The difference: Swoff auto-generates tags from URL patterns, supports glob matching, cascading invalidation, and works cross-tab — no query key management needed. See the [full comparison](../comparisons/invalidation.md).
+
+## Preconditions
+
+- Swoff initialized with `fetchWithCache` in use
+- Service worker controlling the page
+
+## Status
+
+**Already on by default.** Tag invalidation is enabled (`tagInvalidation.enabled: true`). Every `fetchWithCache` call auto-generates tags from the request URL.
+
+## Generated files
+
+| File                   | What it does                                                                                                                                   | Import in your code? |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| `swoff/cache/tags.ts`  | `generateTags()`, `invalidateUrl()`, `invalidateByMethod()`, `invalidateMatching()`, `getUrlsForTag()`, `getTagsForUrl()`, `expandCascading()` | Yes                  |
+| `swoff/cache/index.ts` | `invalidateByTag()`, `invalidateByTags()`                                                                                                      | Yes                  |
+
+## Usage — comprehensive examples
+
+### 1. Auto-tags from URL
+
+`fetchWithCache` auto-tags every request. Tags are derived from URL segments with prefix skipping:
+
+```
+GET /api/notes          → tags: ["notes"]
+GET /api/notes/123      → tags: ["notes", "note:123"]
+GET /api/users/456/posts → tags: ["users", "user:456", "posts"]
+```
+
+The SW stores these tags alongside the cached response. Invalidate with:
+
+```ts
+import { invalidateByTag } from "./swoff/cache/index";
+
+// After creating a new note, refresh the notes list
+await invalidateByTag("notes");
+
+// After updating a specific note
+await invalidateByTag("note:123");
+```
+
+### 2. Custom patterns
+
+Override auto-tag generation with URL pattern → tag mappings. Added to `features.tagInvalidation.patterns`:
+
+```json
+{
+  "tagInvalidation": {
+    "patterns": {
+      "/api/(posts|users)/:id": ["posts", "users"],
+      "/api/posts/:postId/comments": ["comments", "posts"]
+    }
+  }
+}
+```
+
+Now:
+
+```
+GET /api/posts/123       → tags: ["posts", "users"]
+GET /api/posts/456/comments → tags: ["comments", "posts"]
+```
+
+### 3. Cascading invalidation
+
+Invalidating one tag can cascade to dependent tags:
+
+```json
+{
+  "tagInvalidation": {
+    "cascading": {
+      "notes": ["dashboard", "stats"],
+      "users": ["dashboard", "permissions"]
+    }
+  }
+}
+```
+
+```ts
+await invalidateByTag("notes");
+// Invalidates: "notes", "dashboard", "stats"
+```
+
+### 4. Glob pattern matching
+
+Invalidate all cache entries whose URL matches a glob pattern. This operates on cached URLs, not tag names:
+
+```ts
+import { invalidateMatching } from "./swoff/cache/tags";
+
+// Invalidate all /api/notes/* cached responses
+await invalidateMatching("/api/notes/*");
+
+// Invalidate all cached responses under /api/**
+await invalidateMatching("/api/**");
+```
+
+### 5. Manual invalidation endpoint
+
+Wire up a backend endpoint to push invalidation. Your server sends a request to a route the SW intercepts:
+
+```ts
+import { invalidateByTags } from "./swoff/cache/index";
+
+// POST /api/revalidate — called by your backend
+app.post("/api/revalidate", async (req, res) => {
+  // req.body = { tags: ["notes", "users"] }
+  // Swoff's SW intercepts this and calls invalidateByTags
+  res.json({ ok: true });
+});
+
+// Or manually from browser code:
+await invalidateByTags(["notes", "users:*"]);
+```
+
+### 6. Cross-tab invalidation
+
+`invalidateByTag` works across all tabs — the SW receives the message and broadcasts a cache-invalidation event to all clients:
+
+```
+Tab A: calls invalidateByTag("notes")
+  → postsMessage to SW
+    → SW invalidates cache entries tagged "notes"
+    → SW broadcasts "cache-invalidated" to all tabs (A, B, C, ...)
+      → Tab B's next fetchWithCache("/api/notes") returns fresh data
+```
+
+No manual coordination needed. Works out of the box.
+
+### Introspection
+
+```ts
+import { getUrlsForTag, getTagsForUrl } from "./swoff/cache/tags";
+
+// Debug: what URLs are cached under a tag?
+const urls = await getUrlsForTag("notes");
+// [{ url: "/api/notes", actualUrl: "https://..." }]
+
+// Debug: what tags are associated with a URL?
+const tags = await getTagsForUrl("/api/notes/123");
+// ["notes", "note:123"]
+```
+
+## Config
+
+```json
+{
+  "features": {
+    "tagInvalidation": {
+      "enabled": true,
+      "debounceMs": 0,
+      "skipPrefixes": ["api", "v1", "v2", "v3", "rest", "graphql", "gql"],
+      "patterns": {},
+      "singularization": {},
+      "cascading": {}
+    }
+  }
+}
+```
+
+- `enabled` — set to `false` to disable tag generation entirely
+- `debounceMs` — coalesce rapid invalidations (e.g., 500ms debounce)
+- `skipPrefixes` — URL path segments to ignore during auto-tagging
+- `patterns` — URL pattern → tag mappings (regex path params)
+- `singularization` — custom plural → singular mapping (e.g. `"people" → "person"`)
+- `cascading` — tag → dependent tags map
+
+## Related
+
+- [Full comparison: Tag-based vs query-key invalidation](../comparisons/invalidation.md)
+- [Server push: real-time invalidation via SSE/WS](./09-server-push.md)
+- [Config reference: tagInvalidation](../CONFIG.md#featurestaginvalidations)

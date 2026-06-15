@@ -59,7 +59,21 @@ export function generateGuide(ctx: GeneratorContext): void {
     w("");
   }
 
-  w("For the full documentation, visit:");
+  w("## Integration Guides");
+  w("");
+  w("Walk through features step by step in [/docs/guides/](./docs/guides/README.md):");
+  w("");
+  w("- [PWA foundation](./docs/guides/01-pwa.md) — SW generation, install prompt, versioning");
+  w("- [Data fetching & caching](./docs/guides/02-data-fetching.md) — fetchWithCache, 6 strategies");
+  w("- [Navigation caching](./docs/guides/03-navigation-caching.md) — SPA/SSR navigation, preload, fallback");
+  w("- [Auth](./docs/guides/04-auth.md) — auth headers, 401 detection, token refresh");
+  w("- [Tag invalidation](./docs/guides/05-tag-invalidation.md) — auto-tags, glob, cascading, cross-tab");
+  w("- [GraphQL](./docs/guides/06-graphql.md) — body-hash caching, operation-name auto-tags");
+  w("- [Offline mutations](./docs/guides/07-offline-mutations.md) — queue writes offline, background sync");
+  w("- [Push notifications](./docs/guides/08-push.md) — subscribe, notify, unsubscribe");
+  w("- [Server push](./docs/guides/09-server-push.md) — SSE/WS from SW, live tag invalidation");
+  w("");
+  w("For the full reference documentation, visit:");
   w("");
   w("- **Documentation** — https://swoff.dev/docs");
   w("");

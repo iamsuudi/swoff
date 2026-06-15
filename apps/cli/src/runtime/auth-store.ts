@@ -140,6 +140,8 @@ export async function getAuth()${R(ts, "Promise<AuthData | null>")}{
   }
 
   // Last resort — try server fetch
+  if (getAuth._fetchingUser) return null;
+  getAuth._fetchingUser = true;
   try {
     const fetched = await adapter.fetchUser();
     if (fetched) {
@@ -149,6 +151,8 @@ export async function getAuth()${R(ts, "Promise<AuthData | null>")}{
     }
   } catch {
     // Server unreachable — no auth data available
+  } finally {
+    getAuth._fetchingUser = false;
   }
 
   return null;

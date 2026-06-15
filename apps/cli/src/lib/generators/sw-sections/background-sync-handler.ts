@@ -50,7 +50,11 @@ async function processMutationQueueInSW() {
       }
     });
 
-    const tx = db.transaction("${STORE_NAME}", "readwrite");
+    // Collect all mutations to update/remove in a single batch at the end
+    const toRemove = [];
+    const toUpdate = [];
+
+    const tx = db.transaction("${STORE_NAME}", "readonly");
     const store = tx.objectStore("${STORE_NAME}");
     const index = store.index("by-timestamp");${
       maxAge && maxAge > 0
@@ -64,7 +68,7 @@ async function processMutationQueueInSW() {
     });
     for (const item of allEntries) {
       if (item.retryCount >= SW_MAX_RETRIES || (item.timestamp && item.timestamp < cutoff)) {
-        store.delete(item.id);
+        toRemove.push(item.id);
       }
     }`
         : ""
@@ -79,7 +83,7 @@ async function processMutationQueueInSW() {
     const now = Date.now();
     for (const item of queue) {
       if (item.retryCount >= SW_MAX_RETRIES) {
-        store.delete(item.id);
+        toRemove.push(item.id);
         failed++;
       }
     }
@@ -88,10 +92,6 @@ async function processMutationQueueInSW() {
       return !item.nextRetryAt || now >= item.nextRetryAt;
     });
     const total = processable.length;
-
-    // Collect all mutations to update/remove in a single batch at the end
-    const toRemove = [];
-    const toUpdate = [];
 
     for (const item of processable) {
       // Stop processing if browser went offline during sync
@@ -134,10 +134,12 @@ ${credentialsLine}        });
         if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
 
         if (item.tags) {
-          item.tags.forEach((tag) => {
+          for (const tag of item.tags) {
             tagsToInvalidate.add(tag);
-            if (typeof invalidateByTag !== "undefined") invalidateByTag(tag);
-          });
+          }
+          if (typeof invalidateByTag !== "undefined") {
+            await Promise.all(item.tags.map((tag) => invalidateByTag(tag)));
+          }
         }
 
         toRemove.push(item.id);

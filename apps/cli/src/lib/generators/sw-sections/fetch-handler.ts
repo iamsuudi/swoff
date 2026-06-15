@@ -706,7 +706,11 @@ async function staleWhileRevalidateStrategy(event, request, config) {
   try {
     const response = await _fetch(event, request, config.timeoutMs);
     checkAuthFailure(response);
-    return response;
+    if (response.ok) {
+      event.waitUntil(cacheResponse(response.clone(), request));
+      return response;
+    }
+    return fallback(request);
   } catch {
     return fallback(request);
   }
@@ -769,25 +773,31 @@ async function storeMutationInSW(request) {
       const store = db.createObjectStore(MUTATION_STORE_NAME, { keyPath: "id" });
       store.createIndex("by-timestamp", "timestamp");
     }
-  });
-  const tx = db.transaction(MUTATION_STORE_NAME, "readwrite");
-  const store = tx.objectStore(MUTATION_STORE_NAME);${
+  });${
     maxCacheAge && maxCacheAge > 0
       ? `
-  // Prune entries past max age
+  // Prune expired entries in a separate transaction
+  const pruneTx = db.transaction(MUTATION_STORE_NAME, "readwrite");
+  const pruneStore = pruneTx.objectStore(MUTATION_STORE_NAME);
   const cutoff = Date.now() - MAX_RUNTIME_CACHE_AGE * 1000;
   const allEntries = await new Promise(function(resolve, reject) {
-    var req = store.getAll();
+    var req = pruneStore.getAll();
     req.onsuccess = function() { resolve(req.result); };
     req.onerror = function() { reject(req.error); };
   });
   for (const item of allEntries) {
     if (item.timestamp && item.timestamp < cutoff) {
-      store.delete(item.id);
+      pruneStore.delete(item.id);
     }
-  }`
+  }
+  await new Promise(function(resolve, reject) {
+    pruneTx.oncomplete = function() { resolve(); };
+    pruneTx.onerror = function() { reject(pruneTx.error); };
+  });`
       : ""
   }
+  const tx = db.transaction(MUTATION_STORE_NAME, "readwrite");
+  const store = tx.objectStore(MUTATION_STORE_NAME);
   store.add({
     id: crypto.randomUUID(),
     method: request.method,

@@ -68,13 +68,7 @@ export interface FetchWithCacheOptions extends RequestInit {
   }`
     : "";
 
-  const authUrlsBlock = authEnabled
-    ? `
-  // Auth endpoints bypass SW cache
-  if (options.auth && isAuthUrl(url) && !headers.has("X-SW-Cache-Strategy")) {
-    headers.set("X-SW-Cache-Strategy", "mutation");
-  }`
-    : "";
+  const authUrlsBlock = "";
 
   const authCredentialsBlock = authEnabled
     ? `

@@ -174,7 +174,7 @@ function matchRouteFallback(url) {
     const method = request.method;
     let body = null;
     let contentType = null;
-    if (method !== "GET" && method !== "HEAD") {
+    if (method !== "GET") {
       contentType = request.headers.get("Content-Type");
       try { body = await request.clone().text(); } catch {}
     }
@@ -881,7 +881,7 @@ async function handleMutation(event) {
   }${
     mutationQueueEnabled
       ? `
-  if (request.method !== "GET" && request.method !== "HEAD") {
+  if (request.method !== "GET") {
     if (request.headers.get("X-SW-Cache-Strategy") === "mutation") {
       event.respondWith(handleMutation(event));
       return;
@@ -889,7 +889,7 @@ async function handleMutation(event) {
     if (!request.headers.get("X-SW-Cache-Key")) { return; }
   }`
       : `
-  if (request.method !== "GET" && request.method !== "HEAD") {
+  if (request.method !== "GET") {
     if (!request.headers.get("X-SW-Cache-Key")) { return; }
   }`
   }

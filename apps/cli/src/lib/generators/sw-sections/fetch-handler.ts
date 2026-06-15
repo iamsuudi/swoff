@@ -271,7 +271,11 @@ async function fromRuntime(request) {
  *   Default:  same as SSR
  *
  * Non-navigation requests:
- *   runtime → precache → null
+ *   runtime → precache (content-type match only) → null
+ *
+ * Precache is content-type-gated for non-navigation requests to avoid
+ * serving HTML pages (stored with stripped extensions) for requests that
+ * expect a different content type (e.g. RSC payloads, JSON fetches).
  */
 async function serveFromCache(request) {
   swLog("serveFromCache", "ENTER", request.url, 3);
@@ -309,8 +313,13 @@ async function serveFromCache(request) {
   }
   const pc = await fromPrecache(request);
   if (pc) {
-    swLog("serveFromCache", "HIT precache (sub)", request.url, 3);
-    return pc;
+    const accept = request.headers.get("Accept") || "*/*";
+    const pcType = (pc.headers.get("Content-Type") || "").split(";")[0].trim();
+    if (accept.includes(pcType) || accept.includes("*/*") || !pcType) {
+      swLog("serveFromCache", "HIT precache (sub)", request.url, 3);
+      return pc;
+    }
+    swLog("serveFromCache", "SKIP precache (type mismatch)", request.url, 3);
   }
   swLog("serveFromCache", "MISS (subresource)", request.url, 3);
   return null;
@@ -369,11 +378,16 @@ async function cacheResponse(response, request) {
 
 /*
  * Fallback hierarchy for when a strategy cannot serve a response:
- *   SSR / Default:  per-route → global fallback → inline 503
+ *   SSR / Default:  precache → runtime-html → per-route → global → inline 503
  *   SPA:            per-route → inline 503
  */
 async function fallback(request) {
   swLog("fallback", "ENTER", request.url, 3);
+  const pc = await fromPrecache(request);
+  if (pc) {
+    swLog("fallback", "HIT precache", request.url, 3);
+    return pc;
+  }
   if (NAV_MODE !== "spa") {
     const htmlCache = await caches.open(CACHE_NAME_RUNTIME_HTML);
     const htmlMatch = await htmlCache.match(cacheKey(request));

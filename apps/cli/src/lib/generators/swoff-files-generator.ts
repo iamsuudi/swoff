@@ -44,6 +44,7 @@ import { generateFetchState } from "./file-generators/fetch-state.js";
 import { generateStorageNotify } from "./file-generators/storage-notify.js";
 import { generateSwVersion } from "./file-generators/sw-version-gen.js";
 import { generateConnectivityManager } from "./file-generators/connectivity-manager.js";
+import { generateAuthCheck } from "./file-generators/auth-check.js";
 interface Step {
   name: string;
   gen: () => void;
@@ -99,6 +100,11 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     {
       name: "auth-state",
       gen: () => generateAuthState(ctx),
+      enabled: ctx.config.features.auth.enabled,
+    },
+    {
+      name: "sw/auth-check",
+      gen: () => generateAuthCheck(ctx),
       enabled: ctx.config.features.auth.enabled,
     },
     {

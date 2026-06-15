@@ -13,6 +13,7 @@ import { generateMutationQueue } from "../lib/generators/file-generators/mutatio
 import { generateBackgroundSync } from "../lib/generators/file-generators/background-sync.js";
 import { generateSwGeneratorBuild } from "../lib/generators/file-generators/sw-generator-build.js";
 import { generateTypeDefinitions } from "../lib/generators/file-generators/type-definitions.js";
+import { generateAuthCheck } from "../lib/generators/file-generators/auth-check.js";
 
 const testDir = "/tmp/swoff-test-generators";
 
@@ -340,5 +341,24 @@ describe("generateTypeDefinitions", () => {
     const ctx = makeContext();
     generateTypeDefinitions(ctx);
     expect(ctx.generatedFiles).not.toContain("swoff/swoff.d.ts");
+  });
+});
+
+describe("generateAuthCheck", () => {
+  it("creates sw/auth-check.js with default isAuthFailureResponse", () => {
+    const ctx = makeContext();
+    generateAuthCheck(ctx);
+    const content = readFileSync(join(ctx.swoffDir, "sw", "auth-check.js"), "utf8");
+    expect(content).toContain("isAuthFailureResponse");
+    expect(content).toContain("return response.status === 401");
+  });
+
+  it("creates sw/auth-check.ts with type annotations when ext is ts", () => {
+    const ctx = makeContext();
+    ctx.ext = "ts";
+    generateAuthCheck(ctx);
+    const content = readFileSync(join(ctx.swoffDir, "sw", "auth-check.ts"), "utf8");
+    expect(content).toContain(": Response");
+    expect(content).toContain("Promise<boolean>");
   });
 });

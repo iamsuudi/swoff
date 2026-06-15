@@ -613,8 +613,12 @@ function handleOnlineRefetch() {
   });
 }
 
-function checkAuthFailure(response) {
-  if (response && response.status === 401) {
+async function isAuthFailureResponse(response) {
+  return response.status === 401;
+}
+
+async function checkAuthFailure(response) {
+  if (response && await isAuthFailureResponse(response)) {
     swLog("checkAuthFailure", "AUTH_FAILURE", response.url || "", 1);
     broadcastToClients("AUTH_FAILURE");
   }

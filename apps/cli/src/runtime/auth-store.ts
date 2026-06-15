@@ -57,6 +57,7 @@ import { openDB } from "../db.${ext}";
 const DB_NAME = "swoff-auth";
 const STORE_NAME = "auth";
 let memoryAuth${T(ts, "AuthData | null")} = null;
+let _fetchingUser = false;
 
 // ── Internal: persistence helpers ────────────────────────────────────
 
@@ -140,8 +141,8 @@ export async function getAuth()${R(ts, "Promise<AuthData | null>")}{
   }
 
   // Last resort — try server fetch
-  if (getAuth._fetchingUser) return null;
-  getAuth._fetchingUser = true;
+  if (_fetchingUser) return null;
+  _fetchingUser = true;
   try {
     const fetched = await adapter.fetchUser();
     if (fetched) {
@@ -152,7 +153,7 @@ export async function getAuth()${R(ts, "Promise<AuthData | null>")}{
   } catch {
     // Server unreachable — no auth data available
   } finally {
-    getAuth._fetchingUser = false;
+    _fetchingUser = false;
   }
 
   return null;

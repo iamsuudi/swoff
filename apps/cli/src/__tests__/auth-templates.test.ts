@@ -143,13 +143,13 @@ describe("fetch-handler", () => {
 
   it("generates isAuthFailureResponse with default 401 check", () => {
     const code = generateFetchHandler(baseSwConfig, true, false, ["/api/me"], false);
-    expect(code).toContain("async function isAuthFailureResponse");
+    expect(code).toContain("function isAuthFailureResponse");
     expect(code).toContain("return response.status === 401");
   });
 
   it("checkAuthFailure awaits isAuthFailureResponse", () => {
     const code = generateFetchHandler(baseSwConfig, true, false, ["/api/me"], false);
-    expect(code).toContain("await isAuthFailureResponse(response)");
+    expect(code).toContain("isAuthFailureResponse(response)");
   });
 });
 

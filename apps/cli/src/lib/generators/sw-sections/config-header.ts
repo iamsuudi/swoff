@@ -10,7 +10,7 @@ export function generateConfigHeader(config: SwoffConfig, resolvedVersion: strin
  * Generated from swoff.config.json
  * DO NOT EDIT MANUALLY
  * Version: ${resolvedVersion}
- * Features: version=${config.features.serviceWorker.version}, mutationQueue=${config.features.mutationQueue.enabled}, backgroundSync=${config.features.mutationQueue.backgroundSync}
+ * Features: auth=${config.features.auth.enabled}, authType=${config.features.auth.type}, mutationQueue=${config.features.mutationQueue.enabled}, backgroundSync=${config.features.mutationQueue.backgroundSync}, pwa=${config.features.pwa.enabled}, graphql=${config.features.graphql.enabled}, tagInvalidation=${config.features.tagInvalidation.enabled}, push=${config.features.realtime.pushNotifications}, serverPush=${config.features.realtime.serverPush?.enabled}
  * Default Strategy: ${config.features.serviceWorker.strategy.default}
  * See: https://swoff.netlify.app/docs
  */`;

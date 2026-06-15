@@ -41,7 +41,7 @@ async function connectPushEvents() {
 
 function scheduleReconnect() {
   if (pushReconnectTimer) clearTimeout(pushReconnectTimer);
-  pushReconnectTimer = setTimeout(connectPushEvents, ${reconnectDelayMs});
+    pushReconnectTimer = setTimeout(connectPushEvents, Math.max(1000, ${reconnectDelayMs}));
 }
 
 self.addEventListener("activate", () => {
@@ -113,11 +113,6 @@ async function connectPushEvents() {
   }
   notifyClientsSSE(false);
   scheduleReconnect();
-}
-
-function scheduleReconnect() {
-  if (pushReconnectTimer) clearTimeout(pushReconnectTimer);
-  pushReconnectTimer = setTimeout(connectPushEvents, ${reconnectDelayMs});
 }
 
 self.addEventListener("activate", () => {

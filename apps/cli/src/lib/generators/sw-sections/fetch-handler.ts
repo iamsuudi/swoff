@@ -568,9 +568,9 @@ function determineCacheStrategy(request) {
 
 // --- Reactive Entry Store ---
 
-REACTIVE_ENTRIES = new Map();
-REACTIVE_INTERVALS = new Map();
-clearAllReactive = function() {
+var REACTIVE_ENTRIES = new Map();
+var REACTIVE_INTERVALS = new Map();
+var clearAllReactive = function() {
   REACTIVE_INTERVALS.forEach(function(id) { clearInterval(id); });
   REACTIVE_INTERVALS.clear();
   REACTIVE_ENTRIES.clear();
@@ -630,12 +630,12 @@ function handleRefetch(prop) {
   });
 }
 
-async function isAuthFailureResponse(response) {
+function isAuthFailureResponse(response) {
   return response.status === 401;
 }
 
 async function checkAuthFailure(response) {
-  if (response && await isAuthFailureResponse(response)) {
+  if (response && isAuthFailureResponse(response)) {
     swLog("checkAuthFailure", "AUTH_FAILURE", response.url || "", 1);
     broadcastToClients("AUTH_FAILURE");
   }
@@ -761,6 +761,7 @@ async function _executeStrategy(event, request, config) {
   try {
     return await handler(event, request, config);
   } catch {
+    swLog("_executeStrategy", "ERROR strategy=" + config.strategy, request.url, 1);
     return fallback(request);
   }
 }

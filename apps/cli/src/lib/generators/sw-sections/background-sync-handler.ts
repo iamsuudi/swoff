@@ -9,8 +9,7 @@ export function generateBackgroundSyncHandler(
   const DB_NAME = "swoff-queue";
   const STORE_NAME = "mutations";
 
-  const COOKIE_AUTH_TYPES = ["cookie"];
-  const isCookie = authType ? COOKIE_AUTH_TYPES.includes(authType) : false;
+  const isCookie = authType ? authType === "cookie" : false;
   const credentialsLine = isCookie
     ? `          credentials: "same-origin",`
     : "";
@@ -56,29 +55,22 @@ async function processMutationQueueInSW() {
 
     const tx = db.transaction("${STORE_NAME}", "readonly");
     const store = tx.objectStore("${STORE_NAME}");
-    const index = store.index("by-timestamp");${
-      maxAge && maxAge > 0
-        ? `
-    // Prune entries past max age
-    const cutoff = Date.now() - MAX_RUNTIME_CACHE_AGE * 1000;
-    const allEntries = await new Promise(function(resolve, reject) {
+    const index = store.index("by-timestamp");
+    const queue = await new Promise(function(resolve, reject) {
       var req = index.getAll();
       req.onsuccess = function() { resolve(req.result); };
       req.onerror = function() { reject(req.error); };
-    });
-    for (const item of allEntries) {
+    });${
+      maxAge && maxAge > 0
+        ? `
+    const cutoff = Date.now() - MAX_RUNTIME_CACHE_AGE * 1000;
+    for (const item of queue) {
       if (item.retryCount >= SW_MAX_RETRIES || (item.timestamp && item.timestamp < cutoff)) {
         toRemove.push(item.id);
       }
     }`
         : ""
     }
-    const queue = await new Promise((resolve, reject) => {
-      const request = index.getAll();
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-
     // Pre-filter: remove permanently failed items first, then filter for processable ones
     const now = Date.now();
     for (const item of queue) {
@@ -162,7 +154,7 @@ ${credentialsLine}        });
 
       // Emit progress after every SW_BATCH_SIZE mutations
       if ((succeeded + failed) % SW_BATCH_SIZE === 0 || succeeded + failed === total) {
-        broadcastToClients("BACKGROUND_SYNC_PROGRESS", { detail: { succeeded, failed, total, current: succeeded + failed } });
+        await broadcastToClients("BACKGROUND_SYNC_PROGRESS", { detail: { succeeded, failed, total, current: succeeded + failed } });
       }
     }
 

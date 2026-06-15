@@ -225,10 +225,8 @@ export function deepMerge<T>(
     const baseVal = (base as Record<string, unknown>)[key];
     const overrideVal = (override as Record<string, unknown>)[key];
     if (
-      baseVal &&
-      overrideVal &&
-      typeof baseVal === "object" &&
-      typeof overrideVal === "object" &&
+      typeof baseVal === "object" && baseVal !== null &&
+      typeof overrideVal === "object" && overrideVal !== null &&
       !Array.isArray(baseVal) &&
       !Array.isArray(overrideVal)
     ) {

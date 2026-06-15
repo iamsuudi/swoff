@@ -86,7 +86,9 @@ async function processRefreshQueue() {
     batch.push(urls[i]);
     if (batch.length >= ${batchSize} || i === urls.length - 1) {
       await Promise.all(batch.map(async function(url) {
-        await refetchEntry(url);
+        try {
+          await refetchEntry(url);
+        } catch {}
         var resolvers = REFRESH_RESOLVERS.get(url);
         if (resolvers) {
           REFRESH_RESOLVERS.delete(url);

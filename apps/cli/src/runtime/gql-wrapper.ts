@@ -85,7 +85,7 @@ function tagsFromOpName(name${T(ts, "string | null")})${T(ts, "string[]")}{
   if (!name) return [];
   const stripped = name.replace(/^(get|fetch|list|all|query)/i, "").replace(/^(create|set|add|new|update|delete|remove)/i, "");
   if (!stripped) return [name.toLowerCase()];
-  const tag = stripped.charAt(0).toLowerCase() + stripped.slice(1);
+  const tag = stripped.toLowerCase();
   const plural = tag.replace(/s$/, "") + "s";
   return [plural, tag];
 }

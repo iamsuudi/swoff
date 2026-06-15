@@ -204,7 +204,8 @@ export function withAuthHeaders(headers${T(ts, "Headers")}, auth${T(ts, "AuthDat
 
 /** Check if a URL is an auth endpoint that should bypass the SW cache. */
 export function isAuthUrl(url${T(ts, "string")})${R(ts, "boolean")}{
-  return ${JSON.stringify(authRoutePaths)}.some((path) => url.includes(path));
+  var urlPath = url.indexOf("://") !== -1 ? new URL(url).pathname.replace(/\/$/, "") : url.replace(/\/$/, "");
+  return ${JSON.stringify(authRoutePaths)}.some(function(path) { return urlPath === path; });
 }
 
 // ── Public API: session refresh ──────────────────────────────────────

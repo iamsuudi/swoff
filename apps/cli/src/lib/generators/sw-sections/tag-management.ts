@@ -100,10 +100,7 @@ async function invalidateByTag(tag) {
     queueRefresh(entry.actualUrl);
   }
 
-  const clients = await self.clients.matchAll();
-  clients.forEach((client) => {
-    client.postMessage({ type: "TAG_INVALIDATED", tag });
-  });
+  broadcastToClients("TAG_INVALIDATED", { tag });
 }
 
 async function invalidateMatching(globPattern) {

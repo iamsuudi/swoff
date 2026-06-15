@@ -33,6 +33,16 @@ var REACTIVE_ENTRIES = null;
 var REACTIVE_INTERVALS = null;
 var clearAllReactive = null;
 
+// --- Broadcast Helper ---
+
+function broadcastToClients(type, payload) {
+  return self.clients.matchAll().then(function(clients) {
+    clients.forEach(function(client) {
+      client.postMessage(Object.assign({ type: type }, payload || {}));
+    });
+  });
+}
+
 // [[INSTALL_HANDLER]]
 // [[ACTIVATE_HANDLER]]
 // [[BATCH_REFRESH_QUEUE]]

@@ -160,13 +160,7 @@ ${credentialsLine}        });
 
       // Emit progress after every SW_BATCH_SIZE mutations
       if ((succeeded + failed) % SW_BATCH_SIZE === 0 || succeeded + failed === total) {
-        const clients = await self.clients.matchAll();
-        for (const client of clients) {
-          client.postMessage({
-            type: "BACKGROUND_SYNC_PROGRESS",
-            detail: { succeeded, failed, total, current: succeeded + failed },
-          });
-        }
+        broadcastToClients("BACKGROUND_SYNC_PROGRESS", { detail: { succeeded, failed, total, current: succeeded + failed } });
       }
     }
 
@@ -185,26 +179,12 @@ ${credentialsLine}        });
     });
   } catch (err) {
     console.error("Background sync failed:", err);
-    const syncClients = await self.clients.matchAll();
-    for (const c of syncClients) {
-      c.postMessage({
-        type: "SW_NOTIFICATION",
-        level: "error",
-        code: "BACKGROUND_SYNC_FAILED",
-        message: "Background sync processing failed",
-      });
-    }
+    broadcastToClients("SW_NOTIFICATION", { level: "error", code: "BACKGROUND_SYNC_FAILED", message: "Background sync processing failed" });
   } finally {
     if (db) db.close();
   }
 
-  const clients = await self.clients.matchAll();
-  for (const client of clients) {
-    client.postMessage({
-      type: "BACKGROUND_SYNC_COMPLETE",
-      detail: { succeeded, failed, tags: [...tagsToInvalidate] },
-    });
-  }
+  broadcastToClients("BACKGROUND_SYNC_COMPLETE", { detail: { succeeded, failed, tags: [...tagsToInvalidate] } });
 }
 `;
 }

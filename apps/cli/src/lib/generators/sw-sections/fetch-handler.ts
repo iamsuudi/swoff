@@ -404,13 +404,7 @@ async function fallback(request) {
       const match = await cache.match(routeFallbackPath);
       if (match) {
         swLog("fallback", "HIT per-route fallback", request.url, 3);
-        const clients = await self.clients.matchAll();
-        for (const client of clients) {
-          client.postMessage({
-            type: "OFFLINE_FALLBACK_ACTIVATED",
-            detail: { route: new URL(request.url).pathname, fallbackLevel: "route-fallback", timestamp: Date.now() },
-          });
-        }
+        broadcastToClients("OFFLINE_FALLBACK_ACTIVATED", { detail: { route: new URL(request.url).pathname, fallbackLevel: "route-fallback", timestamp: Date.now() } });
         return match;
       }
     }`
@@ -422,25 +416,13 @@ async function fallback(request) {
       const match = await cache.match(FALLBACK_PATH);
       if (match) {
         swLog("fallback", "HIT global fallback", request.url, 3);
-        const clients = await self.clients.matchAll();
-        for (const client of clients) {
-          client.postMessage({
-            type: "OFFLINE_FALLBACK_ACTIVATED",
-            detail: { route: new URL(request.url).pathname, fallbackLevel: "offline-page", timestamp: Date.now() },
-          });
-        }
+        broadcastToClients("OFFLINE_FALLBACK_ACTIVATED", { detail: { route: new URL(request.url).pathname, fallbackLevel: "offline-page", timestamp: Date.now() } });
         return match;
       }
     }
   }
   swLog("fallback", "HIT inline 503", request.url, 3);
-  const clients = await self.clients.matchAll();
-  for (const client of clients) {
-    client.postMessage({
-      type: "OFFLINE_FALLBACK_ACTIVATED",
-      detail: { route: new URL(request.url).pathname, fallbackLevel: "inline-503", timestamp: Date.now() },
-    });
-  }
+  broadcastToClients("OFFLINE_FALLBACK_ACTIVATED", { detail: { route: new URL(request.url).pathname, fallbackLevel: "inline-503", timestamp: Date.now() } });
   return inline503Response();
 }
 
@@ -611,18 +593,10 @@ async function refetchEntry(url) {
       await cacheResponse(response.clone(), req);
       if (entry) entry.lastRefetch = Date.now();
       swLog("refetchEntry", "SUCCESS", url, 4);
-      self.clients.matchAll().then(function(clients) {
-        clients.forEach(function(client) {
-          client.postMessage({ type: "CACHE_UPDATED", url: fetchUrl });
-        });
-      });
+      broadcastToClients("CACHE_UPDATED", { url: fetchUrl });
     } else if (response && response.status === 401) {
       swLog("refetchEntry", "AUTH_FAILURE", url, 4);
-      self.clients.matchAll().then(function(clients) {
-        clients.forEach(function(client) {
-          client.postMessage({ type: "AUTH_FAILURE" });
-        });
-      });
+      broadcastToClients("AUTH_FAILURE");
     }
   } catch {}
 }
@@ -644,11 +618,7 @@ function handleOnlineRefetch() {
 function checkAuthFailure(response) {
   if (response && response.status === 401) {
     swLog("checkAuthFailure", "AUTH_FAILURE", response.url || "", 1);
-    self.clients.matchAll().then(function(clients) {
-      clients.forEach(function(client) {
-        client.postMessage({ type: "AUTH_FAILURE" });
-      });
-    });
+    broadcastToClients("AUTH_FAILURE");
   }
 }
 
@@ -873,10 +843,7 @@ async function handleMutation(event) {
   } catch {
     swLog("handleMutation", "queuing mutation", request.url, 3);
     await storeMutationInSW(request);
-    const clients = await self.clients.matchAll();
-    clients.forEach(function(client) {
-      client.postMessage({ type: "MUTATION_STORED" });
-    });
+    broadcastToClients("MUTATION_STORED");
     const queuedBody = JSON.stringify({ queued: true });
     return new Response(queuedBody, {
       status: 202,

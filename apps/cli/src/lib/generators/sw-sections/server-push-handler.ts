@@ -55,11 +55,7 @@ self.addEventListener("activate", () => {
 // --- Server Push Events (SSE) ---
 
 function notifyClientsSSE(connected) {
-  self.clients.matchAll().then(function(clients) {
-    clients.forEach(function(client) {
-      client.postMessage({ type: "SSE_STATUS", connected: !!connected });
-    });
-  });
+  broadcastToClients("SSE_STATUS", { connected: !!connected });
 }
 
 let pushReconnectTimer = null;

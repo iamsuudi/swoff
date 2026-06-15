@@ -27,6 +27,7 @@
 - **S2** — Added var declarations to REACTIVE globals in fetch-handler
 - **S3** — Strategy errors logged via swLog
 - **S4** — COOKIE_AUTH_TYPES duplication removed from background-sync-handler (uses string comparison directly)
+- **S5** — scheduleReconnect missing from SSE branch (ReferenceError); now added
 - **S7** — Consistent optional chaining in message-handler
 - **S8** — Single self.clients.matchAll in install-handler (2×N → N)
 - **S9** — Promise.all in cache eviction wrapped in try-catch
@@ -60,4 +61,4 @@
 ---
 
 ## 🟢 Code Smells
-*(S1-S4, S7-S9, S11-S14, S17-S23 resolved. S5/S6/S10/S15/S16 skipped — low-impact or architectural.)*
+*(S1-S5, S7-S9, S11-S14, S17-S23 resolved. S6/S10/S15/S16 skipped — low-impact or architectural.)*

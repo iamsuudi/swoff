@@ -881,7 +881,7 @@ async function handleMutation(event) {
   swLog("fetch", "INCOMING", request.url, 0);${
     serverPushEndpoint
       ? `
-  if (SERVER_PUSH_ENDPOINT && request.url.includes(SERVER_PUSH_ENDPOINT)) {
+  if (SERVER_PUSH_ENDPOINT && new URL(request.url).pathname.includes(SERVER_PUSH_ENDPOINT)) {
     swLog("fetch", "server-push-bypass", request.url, 0);
     return;
   }`
@@ -889,7 +889,7 @@ async function handleMutation(event) {
   }${
     authRoutePaths.length > 0
       ? `
-  if (AUTH_ROUTES.some(function(route) { return request.url.includes(route); })) {
+  if (AUTH_ROUTES.some(function(route) { return new URL(request.url).pathname.includes(route); })) {
     swLog("fetch", "auth-route-bypass", request.url, 0);
     return;
   }`

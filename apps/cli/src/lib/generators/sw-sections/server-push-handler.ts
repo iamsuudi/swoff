@@ -19,7 +19,7 @@ let pushReconnectTimer = null;
 async function connectPushEvents() {
   try {
     pushWs = new WebSocket("${endpoint}");
-    pushWs.onmessage = (event) => {
+    pushWs.onmessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === "invalidate" && data.tags) {
@@ -41,7 +41,7 @@ async function connectPushEvents() {
 
 function scheduleReconnect() {
   if (pushReconnectTimer) clearTimeout(pushReconnectTimer);
-  pushReconnectTimer = setTimeout(connectPushEvents, ${reconnectDelayMs});
+    pushReconnectTimer = setTimeout(connectPushEvents, Math.max(1000, ${reconnectDelayMs}));
 }
 
 self.addEventListener("activate", () => {
@@ -117,7 +117,7 @@ async function connectPushEvents() {
 
 function scheduleReconnect() {
   if (pushReconnectTimer) clearTimeout(pushReconnectTimer);
-  pushReconnectTimer = setTimeout(connectPushEvents, ${reconnectDelayMs});
+  pushReconnectTimer = setTimeout(connectPushEvents, Math.max(1000, ${reconnectDelayMs}));
 }
 
 self.addEventListener("activate", () => {

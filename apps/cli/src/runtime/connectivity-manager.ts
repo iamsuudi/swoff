@@ -16,6 +16,13 @@ export function getCurrentOnlineStatus(): boolean {
   return _currentOnlineStatus
 }
 
+function createTimeoutSignal(ms) {
+  if (typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms);
+  var ctrl = new AbortController();
+  setTimeout(function() { ctrl.abort(); }, ms);
+  return ctrl.signal;
+}
+
 export async function verifyAndNotify() {
   if (typeof window === 'undefined') return false
 
@@ -28,7 +35,7 @@ export async function verifyAndNotify() {
     await fetch(\`/\${Date.now()}?hb=1\`, {
       method: 'HEAD',
       cache: 'no-cache',
-      signal: AbortSignal.timeout(5000),
+      signal: createTimeoutSignal(5000),
     })
 
     if (navigator.serviceWorker.controller) {

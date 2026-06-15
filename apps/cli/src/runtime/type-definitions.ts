@@ -54,6 +54,13 @@ declare global {
     "push-subscription-changed": CustomEvent<{ subscribed: boolean }>;
     "push-permission-changed": CustomEvent<{ permission: NotificationPermission }>;
     "swoff:notification": CustomEvent<{ level: "error" | "warn" | "info"; code: string; message: string }>;
+    "push-events-status": CustomEvent<{ connected: boolean }>;
+    "app-connectivity-change": CustomEvent<{ online: boolean }>;
+    "mutation-sync-progress": CustomEvent<{ succeeded: number; failed: number; total: number }>;
+    "swoff:cache-updated": CustomEvent<{ url: string }>;
+    "swoff:navigation-online": CustomEvent<{ url: string }>;
+    "swoff:offline-fallback": CustomEvent;
+    "sw-auth-unauthorized": CustomEvent;
   }
 
   interface Window {

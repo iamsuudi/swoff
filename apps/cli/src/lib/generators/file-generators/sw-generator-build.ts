@@ -82,7 +82,7 @@ const swoffVersionPath = join(swoffDir, 'sw-version.js');
 const swConfig = config.features?.serviceWorker || {};
 const versionField = swConfig.version;
 
-const versionEnabled = versionField !== false && versionField !== "hash";
+const versionEnabled = versionField !== "hash";
 let version;
 if (versionField === "package") {
   version = (pkg.version || '1.0.0');
@@ -109,6 +109,7 @@ if (!existsSync(outDir)) {
 }
 
 function collectAssets(dir, baseDir) {
+  if (!existsSync(dir)) return [];
   const entries = readdirSync(dir, { withFileTypes: true });
   const assets = [];
   for (const entry of entries) {

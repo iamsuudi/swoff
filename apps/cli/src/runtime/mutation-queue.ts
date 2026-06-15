@@ -170,8 +170,8 @@ export async function queueMutation(mutation${T(ts, "Partial<MutationQueueItem>"
   });
 
   await new Promise<void>((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
   });
 
   window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
@@ -229,8 +229,8 @@ export async function clearQueue()${R(ts, "Promise<void>")}{
   const tx = db.transaction(STORE_NAME, "readwrite");
   tx.objectStore(STORE_NAME).clear();
   await new Promise${PT(ts, "void")}((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
   });
   window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
 }
@@ -318,22 +318,24 @@ export async function flushMutations()${R(ts, "Promise<void>")}{
 }
 
 async function removeFromQueue(id${T(ts, "string")}, db${T(ts, "IDBDatabase | undefined")})${R(ts, "Promise<void>")}{
-  if (!db) db = await openQueueDB();
+  var ownDb = false;
+  if (!db) { db = await openQueueDB(); ownDb = true; }
   const tx = db.transaction(STORE_NAME, "readwrite");
   tx.objectStore(STORE_NAME).delete(id);
   await new Promise${PT(ts, "void")}((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.oncomplete = () => { if (ownDb) db.close(); resolve(); };
+    tx.onerror = () => { if (ownDb) db.close(); reject(tx.error); };
   });
 }
 
 async function updateInQueue(item${T(ts, "MutationQueueItem")}, db${T(ts, "IDBDatabase | undefined")})${R(ts, "Promise<void>")}{
-  if (!db) db = await openQueueDB();
+  var ownDb = false;
+  if (!db) { db = await openQueueDB(); ownDb = true; }
   const tx = db.transaction(STORE_NAME, "readwrite");
   tx.objectStore(STORE_NAME).put(item);
   await new Promise${PT(ts, "void")}((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.oncomplete = () => { if (ownDb) db.close(); resolve(); };
+    tx.onerror = () => { if (ownDb) db.close(); reject(tx.error); };
   });
 }
 

@@ -38,7 +38,7 @@ async function getUrlsForTag(tag) {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
-  await db.close();
+  tx.oncomplete = () => db.close();
   return entries.map((e) => ({ url: e.url, actualUrl: e.actualUrl }));
 }
 
@@ -51,7 +51,7 @@ async function getTagsForUrl(url) {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
-  await db.close();
+  tx.oncomplete = () => db.close();
   return entry ? entry.tags : [];
 }
 
@@ -100,7 +100,7 @@ async function invalidateMatching(globPattern) {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
-  await db.close();
+  tx.oncomplete = () => db.close();
 
   const matching = allEntries.filter((entry) => matchGlob(entry.actualUrl, globPattern));
   const tags = new Set();

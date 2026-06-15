@@ -10,6 +10,7 @@ async function precacheAssets() {
   const cache = await caches.open(CACHE_NAME);
   let downloaded = 0;
   let attempted = 0;
+  const allClients = await self.clients.matchAll({ includeUncontrolled: true });
   for (const asset of ASSETS_TO_CACHE) {
     attempted++;
     try {
@@ -18,8 +19,7 @@ async function precacheAssets() {
       downloaded++;
     } catch (err) {
       console.error(\`Failed to cache \${asset.url}:\`, err);
-      const clients = await self.clients.matchAll({ includeUncontrolled: true });
-      clients.forEach((client) => {
+      allClients.forEach((client) => {
         client.postMessage({
           type: "SW_NOTIFICATION",
           level: "warn",
@@ -29,8 +29,7 @@ async function precacheAssets() {
       });
     }
     const percent = Math.round((attempted / ASSETS_TO_CACHE.length) * 100);
-    const clients = await self.clients.matchAll({ includeUncontrolled: true });
-    clients.forEach((client) => {
+    allClients.forEach((client) => {
       client.postMessage({
         type: "SW_PROGRESS",
         percent,

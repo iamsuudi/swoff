@@ -62,13 +62,13 @@ self.addEventListener("message", (event) => {
   }
   if (event.data.type === "GET_URLS_FOR_TAG" && event.data.tag) {
     const urls = getUrlsForTag(event.data.tag);
-    if (event.ports && event.ports[0]) {
+    if (event.ports?.[0]) {
       event.ports[0].postMessage({ type: "URLS_FOR_TAG", urls });
     }
   }
   if (event.data.type === "GET_TAGS_FOR_URL" && event.data.url) {
     const tags = getTagsForUrl(event.data.url);
-    if (event.ports && event.ports[0]) {
+    if (event.ports?.[0]) {
       event.ports[0].postMessage({ type: "TAGS_FOR_URL", tags });
     }
   }

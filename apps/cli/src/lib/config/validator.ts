@@ -1,4 +1,7 @@
-import { KNOWN_FEATURES, OBJECT_FEATURES, VALID_STRATEGIES, REACTIVE_FIELDS } from "../shared/config-types.js";
+import { KNOWN_FEATURES, OBJECT_FEATURES, VALID_STRATEGIES, REACTIVE_FIELDS, type SwoffConfig } from "../shared/config-types.js";
+import { FEATURES } from "../shared/feature-registry.js";
+
+const VALID_VERSIONS = ["hash", "package", "manual"];
 
 export function validateConfig(config: Record<string, unknown>): string[] {
   const errors: string[] = [];
@@ -47,8 +50,12 @@ export function validateConfig(config: Record<string, unknown>): string[] {
 
     const sw = features.serviceWorker as Record<string, unknown> | undefined;
     if (sw) {
-      if (sw.version !== undefined && typeof sw.version !== "string") {
-        errors.push('features.serviceWorker.version must be a string');
+      if (sw.version !== undefined) {
+        if (typeof sw.version !== "string") {
+          errors.push('features.serviceWorker.version must be a string');
+        } else if (!VALID_VERSIONS.includes(sw.version as string)) {
+          errors.push(`features.serviceWorker.version must be one of: ${VALID_VERSIONS.join(", ")}`);
+        }
       }
       if (sw.autoActivate !== undefined && typeof sw.autoActivate !== "boolean") {
         errors.push("features.serviceWorker.autoActivate must be a boolean");
@@ -190,6 +197,12 @@ export function validateConfig(config: Record<string, unknown>): string[] {
 
     const refetchQueue = features.refetchQueue as Record<string, unknown> | undefined;
     if (refetchQueue && typeof refetchQueue === "object") {
+      if (refetchQueue.batchSize !== undefined && (typeof refetchQueue.batchSize !== "number" || refetchQueue.batchSize < 1 || !Number.isInteger(refetchQueue.batchSize))) {
+        errors.push("features.refetchQueue.batchSize must be a positive integer");
+      }
+      if (refetchQueue.batchDelayMs !== undefined && (typeof refetchQueue.batchDelayMs !== "number" || refetchQueue.batchDelayMs < 0 || !Number.isInteger(refetchQueue.batchDelayMs))) {
+        errors.push("features.refetchQueue.batchDelayMs must be a non-negative integer");
+      }
       const retry = refetchQueue.retry as Record<string, unknown> | undefined;
       if (retry !== undefined) {
         if (typeof retry !== "object" || retry === null) {
@@ -324,6 +337,12 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         if (sp.enabled && features.auth && typeof features.auth === "object" && (features.auth as Record<string, unknown>).enabled && (features.auth as Record<string, unknown>).type === "bearer") {
           errors.push(`features.realtime.serverPush is not supported with bearer auth — use cookie auth instead`);
         }
+        if (sp.enabled) {
+          const ti = features.tagInvalidation as Record<string, unknown> | undefined;
+          if (ti && typeof ti === "object" && ti.enabled === false) {
+            errors.push("features.realtime.serverPush requires features.tagInvalidation to be enabled");
+          }
+        }
         if (sp.type !== undefined && !["sse", "websocket"].includes(sp.type as string)) {
           errors.push('features.realtime.serverPush.type must be "sse" or "websocket"');
         }
@@ -343,8 +362,12 @@ export function validateConfig(config: Record<string, unknown>): string[] {
 
   const fw = config.framework;
   const VALID_FRAMEWORKS = ["nextjs", "remix", "tanstack-start-react", "astro", "nuxt", "sveltekit", "react-spa", "vue", "svelte", "vanilla"];
-  if (fw !== undefined && typeof fw === "string" && !VALID_FRAMEWORKS.includes(fw)) {
-    errors.push(`framework must be one of: ${VALID_FRAMEWORKS.join(", ")}`);
+  if (fw !== undefined) {
+    if (typeof fw !== "string") {
+      errors.push(`framework must be a string, got ${typeof fw}`);
+    } else if (!VALID_FRAMEWORKS.includes(fw)) {
+      errors.push(`framework must be one of: ${VALID_FRAMEWORKS.join(", ")}`);
+    }
   }
 
   if (config.build) {
@@ -390,6 +413,26 @@ export function validateConfig(config: Record<string, unknown>): string[] {
             }
           }
         }
+      }
+    }
+  }
+
+  const swoffConfig = config as unknown as SwoffConfig;
+  if (swoffConfig.features) {
+    const auth = swoffConfig.features.auth;
+    for (const [, feature] of Object.entries(FEATURES)) {
+      if (!feature.checkEnabled(swoffConfig)) continue;
+
+      const missing = feature.requires.filter((depId) => {
+        const dep = FEATURES[depId];
+        return dep && !dep.checkEnabled(swoffConfig);
+      });
+      for (const depId of missing) {
+        errors.push(`"${feature.label}" requires "${FEATURES[depId]?.label ?? depId}" to be enabled`);
+      }
+
+      if (auth?.enabled && feature.incompatibleAuthTypes.includes(auth.type)) {
+        errors.push(`"${feature.label}" is not compatible with auth type "${auth.type}" — use "cookie" instead`);
       }
     }
   }

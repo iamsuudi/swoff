@@ -25,8 +25,12 @@ export async function generateCommand(
   }
 
   const cfgErrors = validateConfig(config as unknown as Record<string, unknown>);
-  for (const err of cfgErrors) {
-    log.warn(`Config: ${err}`);
+  if (cfgErrors.length > 0) {
+    log.error("Configuration validation failed:");
+    for (const err of cfgErrors) {
+      log.error(`  - ${err}`);
+    }
+    return;
   }
 
   log.dim(`Config: ${configPath}`);

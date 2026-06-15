@@ -12,10 +12,6 @@ export function generateSwTemplate(ctx: GeneratorContext): void {
 
   let code = getDefaultTemplate();
 
-  code = code.replace("// [[CACHE_NAME]]", "// [[CACHE_NAME]]");
-  code = code.replace("// [[ASSETS_LIST]]", "// [[ASSETS_LIST]]");
-  code = code.replace("// [[AUTO_SKIP_WAITING]]", "// [[AUTO_SKIP_WAITING]]");
-
   code = applySwSections(code, config, true, debug);
 
   if (shouldIncludeBackgroundSync(config)) {

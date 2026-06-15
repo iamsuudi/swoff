@@ -2,6 +2,8 @@
 
 Swoff operates at the **browser infrastructure layer** — the Service Worker + `fetch` event — not the application layer. This means it works with any backend (PHP, Laravel, Django, Rails, Go, Java), any frontend (React, Vue, Svelte, HTMX, vanilla), and any rendering strategy (SSR, SSG, SPA, islands, HTML-over-wire). See [ECOSYSTEM.md](./ECOSYSTEM.md).
 
+> **Integration guides:** See [guides/](./guides/) for step-by-step walkthroughs — start with PWA, add data fetching, auth, tag invalidation, GraphQL, offline mutations, push, and server push incrementally.
+
 ## Libraries Compared
 
 | Library             | Category                  | Approach                           | Runtime size                             |

@@ -16,7 +16,6 @@ export function generateBackgroundSyncCode(ctx: RuntimeContext): string {
  *     url: "/api/todos",
  *     body: { title: "Grocery" },
  *     tags: ["todos"],
- *     tags: ["todos"],
  *   });
  */
 

@@ -509,7 +509,7 @@ async function fetchWithPreload(event, request, timeoutMs) {
     }
   } catch {}
   swLog("fetchWithPreload", "MISS preload, fallback to fetch", request.url, 3);
-  return _fetchWithTimeout(_, request, timeoutMs);
+  return _fetchWithTimeout(event, request, timeoutMs);
 }
 `
     : ""
@@ -568,9 +568,9 @@ function determineCacheStrategy(request) {
 
 // --- Reactive Entry Store ---
 
-REACTIVE_ENTRIES = new Map();
-REACTIVE_INTERVALS = new Map();
-clearAllReactive = function() {
+var REACTIVE_ENTRIES = new Map();
+var REACTIVE_INTERVALS = new Map();
+var clearAllReactive = function() {
   REACTIVE_INTERVALS.forEach(function(id) { clearInterval(id); });
   REACTIVE_INTERVALS.clear();
   REACTIVE_ENTRIES.clear();
@@ -630,12 +630,12 @@ function handleRefetch(prop) {
   });
 }
 
-async function isAuthFailureResponse(response) {
+function isAuthFailureResponse(response) {
   return response.status === 401;
 }
 
 async function checkAuthFailure(response) {
-  if (response && await isAuthFailureResponse(response)) {
+  if (response && isAuthFailureResponse(response)) {
     swLog("checkAuthFailure", "AUTH_FAILURE", response.url || "", 1);
     broadcastToClients("AUTH_FAILURE");
   }
@@ -717,7 +717,7 @@ async function staleWhileRevalidateStrategy(event, request, config) {
   swLog("staleWhileRevalidateStrategy", "ENTER", request.url, 2);
   const cached = await serveFromCache(request);
 
-  event.waitUntil(queueRefresh(request.url));
+  event.waitUntil(queueRefresh(cacheKey(request)));
 
   if (cached) return markFromCache(cached);
   try {
@@ -741,9 +741,15 @@ async function cacheOnlyStrategy(event, request, _config) {
   return new Response("Not in cache", { status: 404 });
 }
 
+async function networkOnlyStrategy(event, request, config) {
+  swLog("networkOnlyStrategy", "ENTER", request.url, 2);
+  return _fetch(event, request, config.timeout);
+}
+
 const STRATEGY_HANDLERS = {
   "reactive": reactiveStrategy,
   "network-first": networkFirstStrategy,
+  "network-only": networkOnlyStrategy,
   "cache-first": cacheFirstStrategy,
   "stale-while-revalidate": staleWhileRevalidateStrategy,
   "cache-only": cacheOnlyStrategy,
@@ -755,6 +761,7 @@ async function _executeStrategy(event, request, config) {
   try {
     return await handler(event, request, config);
   } catch {
+    swLog("_executeStrategy", "ERROR strategy=" + config.strategy, request.url, 1);
     return fallback(request);
   }
 }
@@ -875,7 +882,7 @@ async function handleMutation(event) {
   swLog("fetch", "INCOMING", request.url, 0);${
     serverPushEndpoint
       ? `
-  if (SERVER_PUSH_ENDPOINT && request.url.includes(SERVER_PUSH_ENDPOINT)) {
+  if (SERVER_PUSH_ENDPOINT && new URL(request.url).pathname.includes(SERVER_PUSH_ENDPOINT)) {
     swLog("fetch", "server-push-bypass", request.url, 0);
     return;
   }`
@@ -883,7 +890,7 @@ async function handleMutation(event) {
   }${
     authRoutePaths.length > 0
       ? `
-  if (AUTH_ROUTES.some(function(route) { return request.url.includes(route); })) {
+  if (AUTH_ROUTES.some(function(route) { return new URL(request.url).pathname.includes(route); })) {
     swLog("fetch", "auth-route-bypass", request.url, 0);
     return;
   }`
@@ -911,8 +918,6 @@ async function handleMutation(event) {
   swLog("fetch", "strategy=" + cfg.strategy, request.url, 0);
   if (cfg.strategy === "reactive") {
     registerReactiveEntry(cacheKey(request), request.url, cfg);
-  } else if (cfg.strategy === "network-only") {
-    return;
   }
   applyStrategy(event, request, cfg);
 });`;

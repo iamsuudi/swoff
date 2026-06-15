@@ -77,8 +77,8 @@ export async function subscribeToPush()${R(ts, "Promise<PushSubscription | null>
     subscribedAt: Date.now(),
   });
   await new Promise<void>((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
   });
 
   window.dispatchEvent(
@@ -99,8 +99,8 @@ export async function unsubscribeFromPush()${R(ts, "Promise<void>")}{
   const tx = db.transaction(SUBSCRIPTION_STORE, "readwrite");
   tx.objectStore(SUBSCRIPTION_STORE).delete("current");
   await new Promise<void>((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
   });
 
   window.dispatchEvent(

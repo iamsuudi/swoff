@@ -239,12 +239,13 @@ describe("validateConfig", () => {
       expect(validateConfig(config)).toEqual([]);
     });
 
-    it("accepts any string as version", () => {
+    it("rejects invalid version string", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: "anything" } },
+        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: "invalid" } },
       };
-      expect(validateConfig(config)).toEqual([]);
+      const errors = validateConfig(config);
+      expect(errors[0]).toContain("features.serviceWorker.version must be one of");
     });
 
     it("rejects version with wrong type", () => {

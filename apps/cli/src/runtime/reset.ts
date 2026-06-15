@@ -119,8 +119,13 @@ export async function resetSwoff(opts${T(ts, "ResetSwoffOptions")} = {})${R(ts, 
         if (registration.active) {
           await new Promise<void>((resolve) => {
             const channel = new MessageChannel();
+            const timer = setTimeout(() => {
+              channel.port1.close();
+              resolve();
+            }, 10000);
             channel.port1.onmessage = (event) => {
               if (event.data.type === "RESET_CACHE_COMPLETE") {
+                clearTimeout(timer);
                 resolve();
               }
             };

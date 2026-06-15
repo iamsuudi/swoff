@@ -17,7 +17,7 @@ export function generateFetchWrapperCode(
     `import { invalidateByTags } from "../cache/index.${ext}";`,
 
     authEnabled
-      ? `import { getAuth, withAuthHeaders, isAuthUrl, AUTH_WITH_CREDENTIALS } from "../auth/store.${ext}";`
+      ? `import { getAuth, withAuthHeaders, AUTH_WITH_CREDENTIALS } from "../auth/store.${ext}";`
       : "",
     mutationQueue
       ? `import { queueMutation } from "../mutation/queue.${ext}";`
@@ -67,8 +67,6 @@ export interface FetchWithCacheOptions extends RequestInit {
     withAuthHeaders(headers, auth);
   }`
     : "";
-
-  const authUrlsBlock = "";
 
   const authCredentialsBlock = authEnabled
     ? `
@@ -251,7 +249,7 @@ ${autoTagsBlock}
   if (options.refetchOnReconnect !== undefined) {
     headers.set("X-SW-Refetch-On-Reconnect", String(options.refetchOnReconnect));
   }
-${authBlock}${authUrlsBlock}
+${authBlock}
   // Forward no-queue option to SW
   if (options.queueOffline === false) {
     headers.set("X-SW-No-Queue", "true");

@@ -30,8 +30,9 @@ async function evictStaleRuntimeCache() {
         }
       })());
     }
-    await Promise.all(promises);
-  }
+    try {
+      await Promise.all(promises);
+    } catch {}
   // Clean orphaned tag DB records
     try {
       const db = await openDB("swoff-cache-tags", 1, function(db) {

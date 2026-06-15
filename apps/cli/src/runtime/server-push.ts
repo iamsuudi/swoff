@@ -141,7 +141,7 @@ export async function startPushEvents(){
   navigator.serviceWorker?.addEventListener("controllerchange", onControllerChange);
 
   active = true;
-  let delay = ${reconnectDelayMs};
+  let delay = Math.max(1000, ${reconnectDelayMs});
   while (active) {
     await connect();
     if (!active) break;

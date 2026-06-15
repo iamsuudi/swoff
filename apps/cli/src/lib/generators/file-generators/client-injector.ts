@@ -4,6 +4,7 @@
 
 import { GeneratorContext, writeFile } from "./context.js";
 import { generateClientInjectorCode } from "../../../runtime/client-injector.js";
+import { shouldIncludeServerPush } from "../sw-sections/shared.js";
 
 export function generateClientInjector(ctx: GeneratorContext): void {
   const ext = ctx.ext;
@@ -13,7 +14,7 @@ export function generateClientInjector(ctx: GeneratorContext): void {
     { ts, ext },
     ctx.config.features.pwa.enabled,
     ctx.config.features.mutationQueue.enabled,
-    ctx.config.features.realtime.serverPush?.enabled ?? false,
+    shouldIncludeServerPush(ctx.config),
     ctx.config.features.serviceWorker.navigation.mode,
     ctx.config.features.auth.enabled,
   );

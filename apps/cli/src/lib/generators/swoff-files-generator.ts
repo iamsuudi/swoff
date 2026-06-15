@@ -156,7 +156,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     {
       name: "storage-notify",
       gen: () => generateStorageNotify(ctx),
-      enabled: ctx.config.features.realtime.pushNotifications,
+      enabled: true,
     },
     { name: "GUIDE.md", gen: () => generateGuide(ctx), enabled: true },
   ];
@@ -184,6 +184,7 @@ if (
   const language = getArg("language") || "ts";
   const configPath =
     getArg("config-path") || join(projectRoot, "swoff.config.json");
+  const debug = getArg("debug") === "true";
 
   loadConfigAsync(projectRoot, configPath)
     .then(({ config }) => {
@@ -198,6 +199,7 @@ if (
         ext,
         generatedFiles,
         frameworkName: config.framework ?? "vanilla",
+        debug,
       };
 
       console.log(`Generating Swoff files (${language})...`);

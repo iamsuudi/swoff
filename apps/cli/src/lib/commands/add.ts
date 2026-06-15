@@ -8,7 +8,9 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { log } from "../cli/logger.js";
 import { loadConfigAsync } from "../config/loader.js";
-import { defaultInitConfig, deepMerge, type SwoffConfig } from "../shared/config-types.js";
+import { validateConfig } from "../config/validator.js";
+import { deepMerge, type SwoffConfig } from "../shared/config-types.js";
+import { FEATURES, getFeature, resolveDependencies, getAuthConflicts, buildConfigUpdate } from "../shared/feature-registry.js";
 import { generateCommand } from "./generate.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -20,23 +22,7 @@ const FEATURE_ALIASES: Record<string, string> = {
   pushnotification: "push-notification",
 };
 
-const FEATURE_NAMES = [
-  "mutation-queue", "pwa", "auth",
-  "background-sync", "graphql", "push-notification",
-  "server-push", "htmx", "php",
-] as const;
-
-const FEATURE_CONFIG_UPDATES: Record<string, Record<string, unknown>> = {
-  "mutation-queue": { mutationQueue: { enabled: true, batchSize: 1, batchDelayMs: 0, retry: { maxRetries: 5, backoffMs: 1000, maxBackoffMs: 30000, jitterMs: 250 } } },
-  pwa: { pwa: { enabled: true } },
-  auth: { auth: { enabled: true, type: "bearer" } },
-  "background-sync": { mutationQueue: { enabled: true, backgroundSync: true } },
-  graphql: { graphql: { enabled: true, endpoints: ["/graphql"] } },
-  "push-notification": { realtime: { pushNotifications: true } },
-  "server-push": { realtime: { serverPush: { enabled: true, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 } } },
-  htmx: {},
-  php: {},
-};
+const FEATURE_NAMES = Object.keys(FEATURES).concat(["htmx", "php"]);
 
 function normalizeFeature(name: string): string {
   const lower = name.toLowerCase().trim();
@@ -44,23 +30,36 @@ function normalizeFeature(name: string): string {
 }
 
 export async function addCommand(projectRoot: string, featureArg: string) {
-  const features = featureArg.split(",").map(normalizeFeature).filter(Boolean);
-  const invalid = features.filter((f) => !FEATURE_CONFIG_UPDATES[f]);
+  const rawFeatures = featureArg.split(",").map(normalizeFeature).filter(Boolean);
+  const ecosystemFeatures = rawFeatures.filter((f) => f === "htmx" || f === "php");
+  const coreFeatures = rawFeatures.filter((f) => f !== "htmx" && f !== "php");
 
+  const invalid = coreFeatures.filter((f) => !FEATURES[f]);
   if (invalid.length > 0) {
     log.error(`Unknown feature(s): ${invalid.join(", ")}`);
     log.info(`Available: ${FEATURE_NAMES.join(", ")}`);
     return;
   }
 
-  const label = features.length === 1 ? features[0] : `${features.length} features`;
+  const label = rawFeatures.length === 1 ? rawFeatures[0] : `${rawFeatures.length} features`;
   log.header(`Adding ${label}`);
-
-  const combinedUpdate = Object.assign({}, ...features.map((f) => FEATURE_CONFIG_UPDATES[f]));
 
   const loadResult = await loadConfigAsync(projectRoot);
   const configPath = loadResult.configPath;
-  let mergedConfig = deepMerge(loadResult.config as Partial<SwoffConfig>, { features: combinedUpdate }) as SwoffConfig;
+  const existingConfig = loadResult.config;
+
+  const deps = resolveDependencies(coreFeatures);
+
+  const authConflicts = getAuthConflicts(deps, existingConfig);
+  if (authConflicts.length > 0) {
+    log.error(`Cannot add ${authConflicts.join(", ")} with auth type "${existingConfig.features.auth.type}" — these features require cookie auth`);
+    log.info("Change auth type to \"cookie\" in swoff.config.json and try again, or run: swoff add auth");
+    return;
+  }
+
+  const combinedUpdate = buildConfigUpdate(coreFeatures);
+
+  let mergedConfig = deepMerge(existingConfig as Partial<SwoffConfig>, { features: combinedUpdate }) as SwoffConfig;
 
   const isJsConfig = configPath ? configPath.endsWith(".js") : false;
   const resolvedConfigPath = (!configPath || isJsConfig)
@@ -76,12 +75,10 @@ export async function addCommand(projectRoot: string, featureArg: string) {
   writeFileSync(resolvedConfigPath, JSON.stringify(mergedConfig, null, 2));
   log.success(`${!configPath ? "Created" : "Updated"} swoff.config.json with ${label}`);
 
-  const ecosystemFeatures = features.filter((f) => f === "htmx" || f === "php");
   for (const eco of ecosystemFeatures) {
     copyEcosystemFiles(projectRoot, eco);
   }
 
-  const coreFeatures = features.filter((f) => f !== "htmx" && f !== "php");
   if (coreFeatures.length > 0) {
     await generateCommand(projectRoot);
   }

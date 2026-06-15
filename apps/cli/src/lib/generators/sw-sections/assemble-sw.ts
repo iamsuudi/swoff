@@ -18,16 +18,16 @@ export function assembleSW(config: SwoffConfig, version: string, projectRoot?: s
 
   let sw = getDefaultTemplate();
 
+  sw = applySwSections(sw, config, true, debug);
+
   if (versionEnabled) {
     sw = sw.replace("// [[CACHE_NAME]]", () => `CACHE_NAME = 'sw-v${version}'`);
-    sw = applySwSections(sw, config, true, debug);
     sw = sw.replace("// [[ASSETS_LIST]]", () => `ASSETS_TO_CACHE = ${JSON.stringify(formattedAssets, null, 2)}`);
     sw = sw.replace("// [[AUTO_SKIP_WAITING]]", () => `const AUTO_SKIP_WAITING = ${serviceWorker.autoActivate};`);
     sw = `${generateConfigHeader(config, version)}\n\n${sw}`;
   } else {
     const sentinel = "SW_CACHE_SENTINEL";
     sw = sw.replace("// [[CACHE_NAME]]", () => `CACHE_NAME = '${sentinel}'`);
-    sw = applySwSections(sw, config, true, debug);
     sw = sw.replace("// [[ASSETS_LIST]]", () => `ASSETS_TO_CACHE = ${JSON.stringify(formattedAssets, null, 2)}`);
     sw = sw.replace("// [[AUTO_SKIP_WAITING]]", () => `const AUTO_SKIP_WAITING = ${serviceWorker.autoActivate};`);
     const cacheName = generateCacheNameFromHash();

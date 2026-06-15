@@ -33,33 +33,18 @@ async function evictStaleRuntimeCache() {
     await Promise.all(promises);
   }
   // Clean orphaned tag DB records
-  try {
-    const db = await openDB("swoff-cache-tags", 1, function(db) {
-      if (!db.objectStoreNames.contains("tags")) {
-        db.createObjectStore("tags", { keyPath: "url" });
-      }
-    });
     try {
-      const tx = db.transaction("tags", "readwrite");
-      const store = tx.objectStore("tags");
-      const allEntries = await new Promise(function(resolve, reject) {
-        var req = store.getAll();
-        req.onsuccess = function() { resolve(req.result); };
-        req.onerror = function() { reject(req.error); };
-      });
-      for (const entry of allEntries) {
-        if (!entry.timestamp || entry.timestamp < cutoff) {
-          store.delete(entry.url);
+      const db = await openDB("swoff-cache-tags", 1, function(db) {
+        if (!db.objectStoreNames.contains("tags")) {
+          db.createObjectStore("tags", { keyPath: "url" });
         }
-      }
-      await new Promise(function(resolve, reject) {
-        tx.oncomplete = function() { resolve(); };
-        tx.onerror = function() { reject(tx.error); };
       });
-    } finally {
-      db.close();
-    }
-  } catch {}
+      try {
+        await pruneStaleStore(db, "tags", cutoff);
+      } finally {
+        db.close();
+      }
+    } catch {}
 }
 ` : ""}`;
 

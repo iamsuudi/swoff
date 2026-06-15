@@ -54,7 +54,7 @@ All files land in `swoff/`. See [API.md](./API.md) for the full reference.
 | `graphql/index.ts` | `features.graphql.enabled` | GraphQL wrapper with body-hash caching |
 | `realtime/notifications.ts` | `features.realtime.pushNotifications` | Push notification subscription management |
 | `offline/sync.ts` | `features.mutationQueue.backgroundSync` | Background Sync API registration |
-| `auth/adapter.ts` | `auth.enabled` | Auth provider adapter — generated template for your provider (cookie, bearer, better-auth, next-auth, clerk, supabase) |
+| `auth/adapter.ts` | `auth.enabled` | Auth provider adapter — generated template (cookie, bearer, or custom) |
 | `auth/store.ts` | `auth.enabled` | Token/user persistence + cascading clearAuth + cross-tab sync |
 | `auth/state.ts` | `auth.enabled` | Online/offline × auth state detection (connectivity manager) |
 | `pwa/index.ts` | `pwa.enabled` | Install prompt handling |
@@ -112,7 +112,6 @@ swoff add pwa
 swoff add mutation-queue
 swoff add auth
 swoff add graphql
-swoff add cross-tab       # enables tagInvalidation.crossTabSync
 swoff add background-sync # enables mutationQueue.backgroundSync
 swoff add push-notification # enables realtime.pushNotifications
 ```

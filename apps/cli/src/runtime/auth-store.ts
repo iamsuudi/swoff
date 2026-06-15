@@ -18,11 +18,7 @@ export function generateAuthStoreCode(
   authRoutePaths: string[] = DEFAULT_AUTH_ROUTES,
 ): string {
   const { ext, ts } = ctx;
-  const isCookie =
-    authType === "cookie" ||
-    authType === "better-auth" ||
-    authType === "next-auth" ||
-    authType === "clerk";
+  const isCookie = authType === "cookie";
 
   const cookieAuthComment = isCookie
     ? ` *
@@ -130,11 +126,13 @@ export async function getAuth()${R(ts, "Promise<AuthData | null>")}{
       await persistUserData(adapterAuth);
       return memoryAuth;
     }
+    // Adapter confirmed no session — don't fall through to stale IDB
+    return null;
   } catch {
-    // Adapter error — fall through to IndexedDB
+    // Adapter error (network failure) — fall through to IndexedDB
   }
 
-  // Fall back to IndexedDB user cache
+  // Fall back to IndexedDB user cache (only reached on adapter error)
   const userData = await loadUserData();
   if (userData) {
     memoryAuth = userData;
@@ -142,6 +140,8 @@ export async function getAuth()${R(ts, "Promise<AuthData | null>")}{
   }
 
   // Last resort — try server fetch
+  if (getAuth._fetchingUser) return null;
+  getAuth._fetchingUser = true;
   try {
     const fetched = await adapter.fetchUser();
     if (fetched) {
@@ -151,6 +151,8 @@ export async function getAuth()${R(ts, "Promise<AuthData | null>")}{
     }
   } catch {
     // Server unreachable — no auth data available
+  } finally {
+    getAuth._fetchingUser = false;
   }
 
   return null;

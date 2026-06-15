@@ -238,9 +238,9 @@ export async function clearQueue()${R(ts, "Promise<void>")}{
 /** Process all queued mutations in order. Sends them to the server. Runs automatically when mutations are queued or on reconnection. Respects batchSize for progress reporting and batchDelayMs for rate limiting. */
 export async function processMutationQueue()${R(ts, "Promise<void>")}{
   if (isSyncing) return;
-  isSyncing = true;
 
   const db = await openQueueDB();
+  isSyncing = true;
   try {
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);

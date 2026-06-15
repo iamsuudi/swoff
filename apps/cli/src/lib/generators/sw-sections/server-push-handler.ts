@@ -23,7 +23,7 @@ async function connectPushEvents() {
       try {
         const data = JSON.parse(event.data);
         if (data.type === "invalidate" && data.tags) {
-          data.tags.forEach((tag) => invalidateByTag(tag));
+          await Promise.all(data.tags.map((tag) => invalidateByTag(tag)));
         }
       } catch {}
     };
@@ -55,11 +55,7 @@ self.addEventListener("activate", () => {
 // --- Server Push Events (SSE) ---
 
 function notifyClientsSSE(connected) {
-  self.clients.matchAll().then(function(clients) {
-    clients.forEach(function(client) {
-      client.postMessage({ type: "SSE_STATUS", connected: !!connected });
-    });
-  });
+  broadcastToClients("SSE_STATUS", { connected: !!connected });
 }
 
 let pushReconnectTimer = null;
@@ -103,7 +99,7 @@ async function connectPushEvents() {
             try {
               const parsed = JSON.parse(dataStr);
               if (parsed.tags) {
-                parsed.tags.forEach((tag) => invalidateByTag(tag));
+                await Promise.all(parsed.tags.map((tag) => invalidateByTag(tag)));
               }
             } catch {}
           }

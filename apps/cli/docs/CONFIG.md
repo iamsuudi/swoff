@@ -67,9 +67,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
       "enabled": false,
       "endpoints": ["/graphql"]
     },
-    "tagInvalidation": {
-      "crossTabSync": true
-    },
+    "tagInvalidation": {},
     "realtime": {
       "pushNotifications": false,
       "serverPush": {
@@ -263,7 +261,7 @@ Object-only feature (boolean shorthand not supported).
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `boolean` | `false` | Enable auth module |
-| `type` | `"bearer"` \| `"cookie"` \| `"custom"` \| `"better-auth"` \| `"next-auth"` \| `"clerk"` \| `"supabase"` | `"bearer"` | Auth adapter type. Determines how Swoff communicates with your auth provider. See [auth/adapter.ts](#auth-adapterts) in API.md. |
+| `type` | `"bearer"` \| `"cookie"` \| `"custom"` | `"bearer"` | Auth adapter type. Determines how Swoff communicates with your auth provider. See [auth/adapter.ts](#auth-adapterts) in API.md. |
 | `routePaths` | `string[]` | `["/login", "/logout", "/register", "/api/login", "/api/logout", "/api/register", "/api/refresh", "/api/me"]` | URL path prefixes that bypass SW caching at build time. Requests matching any of these paths return immediately in the SW fetch handler, before strategy resolution. Auth endpoints must always reach the server. |
 
 > **Note:** Token refresh path and user endpoint are now configured inside the generated `auth/adapter.ts` file, not in `swoff.config.json`. The adapter provides `refresh()` and `fetchUser()` methods with well-known defaults (`/api/refresh`, `/api/me`) that you can edit per provider.
@@ -309,7 +307,6 @@ Object-only feature (boolean shorthand not supported). Tag invalidation is alway
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `crossTabSync` | `boolean` | `true` | Cross-tab cache invalidation sync. When `true`, invalidation events broadcast to all open tabs. |
 | `debounceMs` | `number` | `0` | Debounce window (ms) for coalescing rapid invalidations. When > 0, repeated `INVALIDATE_TAG` messages within the window are batched and processed once, reducing redundant cache scans. |
 | `skipPrefixes` | `string[]` | `["api","v1","v2","v3","rest","graphql","gql"]` | URL path prefixes to skip during tag generation |
 | `patterns` | `object` | `{}` | Custom glob patterns for tag generation. Keys are URL patterns (`/api/:id`), values are tag template arrays (`["{id}"]`) |
@@ -325,7 +322,6 @@ These boolean flags nest under their parent object feature:
 | Feature | Config path | Default |
 |---------|-------------|---------|
 | Background Sync | `features.mutationQueue.backgroundSync` | `false` |
-| Cross-tab Sync | `features.tagInvalidation.crossTabSync` | `true` |
 | Push Notifications | `features.realtime.pushNotifications` | `false` |
 
 ---
@@ -337,7 +333,6 @@ Some features work best together:
 | Feature | Recommended combo | Why |
 |---------|------------------|-----|
 | `mutationQueue.backgroundSync` | + `mutationQueue` | Background Sync processes mutations even after tab close |
-| `tagInvalidation.crossTabSync` | + `tagInvalidation` | Invalidation events broadcast to all open tabs |
 | `realtime.serverPush` | + `tagInvalidation` | Server push triggers `invalidateByTag()` — requires tag invalidation to function |
 | `auth` + `mutationQueue` | — | `flushMutations()` after re-login replays mutations that failed with 401 |
 | `graphql` | + `mutationQueue` + `tagInvalidation` | Offline GQL mutations queue in IndexedDB; mutations auto-invalidate operation-name tags |

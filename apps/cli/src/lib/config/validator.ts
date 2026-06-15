@@ -63,6 +63,15 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         const patterns = strategy.patterns as Record<string, unknown> | undefined;
         if (patterns && typeof patterns === "object") {
           for (const [pattern, entry] of Object.entries(patterns)) {
+            if (typeof pattern !== "string" || pattern.trim() === "") {
+              errors.push("features.serviceWorker.strategy.patterns keys must be non-empty strings");
+              continue;
+            }
+            const opens = (pattern.match(/\{/g) || []).length;
+            const closes = (pattern.match(/\}/g) || []).length;
+            if (opens !== closes) {
+              errors.push(`features.serviceWorker.strategy.patterns["${pattern}"] has unbalanced braces`);
+            }
             if (typeof entry === "string") {
               if (!VALID_STRATEGIES.includes(entry as (typeof VALID_STRATEGIES)[number])) {
                 errors.push(
@@ -205,6 +214,9 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     const tagInvalidationVal = features.tagInvalidation as Record<string, unknown> | undefined;
     if (tagInvalidationVal && typeof tagInvalidationVal === "object") {
       const ti = tagInvalidationVal as Record<string, unknown>;
+      if (ti.enabled !== undefined && typeof ti.enabled !== "boolean") {
+        errors.push("features.tagInvalidation.enabled must be a boolean");
+      }
       if (ti.debounceMs !== undefined && (typeof ti.debounceMs !== "number" || ti.debounceMs < 0 || !Number.isInteger(ti.debounceMs))) {
         errors.push("features.tagInvalidation.debounceMs must be a non-negative integer");
       }
@@ -219,9 +231,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       }
       if (ti.cascading !== undefined && (typeof ti.cascading !== "object" || ti.cascading === null)) {
         errors.push("features.tagInvalidation.cascading must be an object");
-      }
-      if (ti.crossTabSync !== undefined && typeof ti.crossTabSync !== "boolean") {
-        errors.push("features.tagInvalidation.crossTabSync must be a boolean");
       }
     }
 
@@ -271,7 +280,7 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       }
     }
 
-    const VALID_AUTH_TYPES = ["cookie", "bearer", "custom", "better-auth", "next-auth", "clerk", "supabase"];
+    const VALID_AUTH_TYPES = ["cookie", "bearer", "custom"];
     const auth = features.auth as Record<string, unknown> | undefined;
     if (auth && typeof auth === "object") {
       if (auth.enabled !== undefined && typeof auth.enabled !== "boolean") {
@@ -311,6 +320,9 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       if (sp && typeof sp === "object") {
         if (sp.enabled !== undefined && typeof sp.enabled !== "boolean") {
           errors.push("features.realtime.serverPush.enabled must be a boolean");
+        }
+        if (sp.enabled && features.auth && typeof features.auth === "object" && (features.auth as Record<string, unknown>).enabled && (features.auth as Record<string, unknown>).type === "bearer") {
+          errors.push(`features.realtime.serverPush is not supported with bearer auth — use cookie auth instead`);
         }
         if (sp.type !== undefined && !["sse", "websocket"].includes(sp.type as string)) {
           errors.push('features.realtime.serverPush.type must be "sse" or "websocket"');

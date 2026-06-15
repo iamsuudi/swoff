@@ -92,7 +92,7 @@ npx @swoff/cli generate --files-only
 | File                         | Feature Flag                        | Description                       |
 | ---------------------------- | ----------------------------------- | --------------------------------- |
 | `swoff/sw-template.js`       | always                              | SW template with placeholders     |
-| `swoff/sw-injector.js`       | `clientRegistration`, `pwa`, `crossTabSync`                | Client-side SW registration       |
+| `swoff/sw-injector.js`       | `clientRegistration`, `pwa`                | Client-side SW registration       |
 | `swoff/fetch-wrapper.js`     | always                              | Fetch with cache strategy headers |
 | `swoff/cache.js`             | `tagInvalidation`              | Tag-based cache invalidation |
 | `swoff/invalidation-tags.js` | `tagInvalidation`                   | URL-to-tag generation helper      |
@@ -143,7 +143,6 @@ npx @swoff/cli validate
 - `pwa.enabled` and `preventDefaultInstall` are booleans
 - `auth` has `enabled` (boolean), `type` ("cookie"/"bearer"/"custom"), `refreshPath` and `userEndpoint` (strings)
 - `indexeddb` has `enabled` (boolean), `name` (alphanumeric), `stores` (string array)
-- `crossTabSync` requires `tagInvalidation` to be enabled
 - `backgroundSync` requires `mutationQueue` to be enabled
 - `version` is `"from-package"` or valid semver
 - `minSupportedVersion` is valid semver
@@ -158,7 +157,7 @@ Validating swoff.config.json...
 Config summary:
   Version: from-package
   Default strategy: cache-first
-  Features enabled: versionedSw, pwa, crossTabSync, tagInvalidation, clientRegistration
+  Features enabled: versionedSw, pwa, tagInvalidation, clientRegistration
 ```
 
 ---
@@ -177,7 +176,6 @@ npx @swoff/cli add <feature>
 | ------------------ | ----------------------- | --------------------------------------------------- |
 | `mutation-queue`   | `mutationqueue`         | `{ "mutationQueue": true }`                         |
 | `pwa`              | —                       | `{ "pwa": { "enabled": true } }`                    |
-| `cross-tab`        | `crosstab`              | `{ "crossTabSync": true, "tagInvalidation": true }` |
 | `auth`             | —                       | `{ "auth": { "enabled": true, "type": "bearer", "refreshPath": "/api/refresh", "userEndpoint": "/api/me" } }` |
 | `tag-invalidation` | `taginvalidation`       | `{ "tagInvalidation": true }`                       |
 | `background-sync`  | `backgroundsync`        | `{ "backgroundSync": true }`                        |
@@ -220,7 +218,6 @@ Auto Activate: false
 Features Enabled:
   versionedSw
   pwa
-  crossTabSync
   tagInvalidation
   clientRegistration
 

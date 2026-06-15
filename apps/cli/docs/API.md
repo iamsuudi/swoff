@@ -315,29 +315,16 @@ import type { AuthData } from "./store";
 | `"cookie"`      | No-op adapter — browser handles cookies                 | Nothing (unless CSRF needed)       |
 | `"bearer"`      | Manual token management                                 | Token extraction in `getHeaders()` |
 | `"custom"`      | Editable stub                                           | All methods                        |
-| `"better-auth"` | Uses `authClient` from `@/lib/auth-client`              | Import path in generated file      |
-| `"next-auth"`   | Uses `useSession` / `getSession` from `next-auth/react` | Import path                        |
-| `"clerk"`       | Uses `useAuth` from `@clerk/nextjs`                     | Import path                        |
-| `"supabase"`    | Uses `supabase` client from `@/lib/supabase`            | Import path                        |
 
 Each adapter exposes:
 
 | Method                 | Returns                     | Description                                                                                                                     |
 | ---------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `type`                 | `string`                    | `"cookie"` or `"bearer"` — determines SW sync behavior                                                                          |
-| `getAuth()`            | `AuthData \| null`          | Get current auth from provider SDK (Clerk, NextAuth)                                                                            |
+| `getAuth()`            | `AuthData \| null`          | Get current auth from your provider SDK                                                                                         |
 | `getHeaders(auth)`     | `Record<string, string>`    | Generate auth headers for fetch requests                                                                                        |
 | `refresh(auth)`        | `AuthData \| null`          | Attempt token refresh. Returns null if refresh fails.                                                                           |
 | `fetchUser()`          | `Promise<AuthData \| null>` | Fetch current user from the server. Returns `AuthData` (e.g. `{ user: data }`) or `null`. Called by `getAuth()` as last resort. |
-
-**Well-known import paths** are used as defaults — edit the import after generation:
-
-| Provider    | Default import path |
-| ----------- | ------------------- |
-| Better-Auth | `@/lib/auth-client` |
-| NextAuth    | `next-auth/react`   |
-| Clerk       | `@clerk/nextjs`     |
-| Supabase    | `@/lib/supabase`    |
 
 ### `auth/store.ts`
 

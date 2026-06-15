@@ -34,10 +34,10 @@ self.addEventListener("message", (event) => {
     self.skipWaiting();
   }
   if (event.data.type === "FOCUS") {
-    if (typeof handleFocusRefetch === "function") handleFocusRefetch();
+    if (typeof handleRefetch === "function") handleRefetch("refetchOnFocus");
   }
   if (event.data.type === "ONLINE") {
-    if (typeof handleOnlineRefetch === "function") handleOnlineRefetch();
+    if (typeof handleRefetch === "function") handleRefetch("refetchOnReconnect");
   }
   if (event.data.type === "RESET_CACHE") {
     event.waitUntil(
@@ -79,13 +79,7 @@ self.addEventListener("message", (event) => {
 
   code += `
   if (event.data.type === "AUTH_CLEARED") {
-    event.waitUntil(
-      self.clients.matchAll().then(function(clients) {
-        clients.forEach(function(client) {
-          client.postMessage({ type: "AUTH_CLEARED" });
-        });
-      }),
-    );
+    event.waitUntil(broadcastToClients("AUTH_CLEARED"));
   }
 });`;
   return code;

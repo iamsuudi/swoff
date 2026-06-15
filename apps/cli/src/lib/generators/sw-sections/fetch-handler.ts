@@ -353,8 +353,12 @@ async function cacheResponse(response, request) {
     if (!ct.startsWith("text/html")) {
       const pct = precached.headers.get("Content-Type") || "";
       if (pct.split(";")[0] === ct.split(";")[0]) {
-        await precache.put(url.href, response.clone());
-        swLog("cacheResponse", "updated precache", request.url, 3);
+        try {
+          await precache.put(url.href, response.clone());
+          swLog("cacheResponse", "updated precache", request.url, 3);
+        } catch (e) {
+          swLog("cacheResponse", "precache update failed", request.url, 3);
+        }
       }
     }
     skipRuntime = true;
@@ -365,12 +369,32 @@ async function cacheResponse(response, request) {
     const cache = await caches.open(cacheName);
     const headers = new Headers(response.headers);
     headers.set("X-SW-Cached-At", String(Date.now()));
-    await cache.put(key, new Response(response.body, {
+    const putResponse = new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
       headers,
-    }));
-    swLog("cacheResponse", "stored in " + cacheName, request.url, 3);
+    });
+    try {
+      await cache.put(key, putResponse);
+      swLog("cacheResponse", "stored in " + cacheName, request.url, 3);
+    } catch (e) {
+      swLog("cacheResponse", "quota error, evicting stale entries", request.url, 3);
+      try {
+        // Evict stale runtime entries and retry once
+        for (const name of [CACHE_NAME_RUNTIME, CACHE_NAME_RUNTIME_HTML]) {
+          const c = await caches.open(name);
+          const keys = await c.keys();
+          const now = Date.now();
+          for (const req of keys) {
+            const res = await c.match(req);
+            const cachedAt = res ? Number(res.headers.get("X-SW-Cached-At") || 0) : 0;
+            if (!cachedAt || now - cachedAt > 3600000) await c.delete(req);
+          }
+        }
+        await cache.put(key, putResponse.clone());
+        swLog("cacheResponse", "stored after eviction", request.url, 3);
+      } catch {}
+    }
   }${tagCode}
 }
 
@@ -404,13 +428,7 @@ async function fallback(request) {
       const match = await cache.match(routeFallbackPath);
       if (match) {
         swLog("fallback", "HIT per-route fallback", request.url, 3);
-        const clients = await self.clients.matchAll();
-        for (const client of clients) {
-          client.postMessage({
-            type: "OFFLINE_FALLBACK_ACTIVATED",
-            detail: { route: new URL(request.url).pathname, fallbackLevel: "route-fallback", timestamp: Date.now() },
-          });
-        }
+        broadcastToClients("OFFLINE_FALLBACK_ACTIVATED", { detail: { route: new URL(request.url).pathname, fallbackLevel: "route-fallback", timestamp: Date.now() } });
         return match;
       }
     }`
@@ -422,25 +440,13 @@ async function fallback(request) {
       const match = await cache.match(FALLBACK_PATH);
       if (match) {
         swLog("fallback", "HIT global fallback", request.url, 3);
-        const clients = await self.clients.matchAll();
-        for (const client of clients) {
-          client.postMessage({
-            type: "OFFLINE_FALLBACK_ACTIVATED",
-            detail: { route: new URL(request.url).pathname, fallbackLevel: "offline-page", timestamp: Date.now() },
-          });
-        }
+        broadcastToClients("OFFLINE_FALLBACK_ACTIVATED", { detail: { route: new URL(request.url).pathname, fallbackLevel: "offline-page", timestamp: Date.now() } });
         return match;
       }
     }
   }
   swLog("fallback", "HIT inline 503", request.url, 3);
-  const clients = await self.clients.matchAll();
-  for (const client of clients) {
-    client.postMessage({
-      type: "OFFLINE_FALLBACK_ACTIVATED",
-      detail: { route: new URL(request.url).pathname, fallbackLevel: "inline-503", timestamp: Date.now() },
-    });
-  }
+  broadcastToClients("OFFLINE_FALLBACK_ACTIVATED", { detail: { route: new URL(request.url).pathname, fallbackLevel: "inline-503", timestamp: Date.now() } });
   return inline503Response();
 }
 
@@ -611,44 +617,27 @@ async function refetchEntry(url) {
       await cacheResponse(response.clone(), req);
       if (entry) entry.lastRefetch = Date.now();
       swLog("refetchEntry", "SUCCESS", url, 4);
-      self.clients.matchAll().then(function(clients) {
-        clients.forEach(function(client) {
-          client.postMessage({ type: "CACHE_UPDATED", url: fetchUrl });
-        });
-      });
-    } else if (response && response.status === 401) {
-      swLog("refetchEntry", "AUTH_FAILURE", url, 4);
-      self.clients.matchAll().then(function(clients) {
-        clients.forEach(function(client) {
-          client.postMessage({ type: "AUTH_FAILURE" });
-        });
-      });
+      broadcastToClients("CACHE_UPDATED", { url: fetchUrl });
     }
+    checkAuthFailure(response);
   } catch {}
 }
 
-function handleFocusRefetch() {
-  swLog("handleFocusRefetch", "ENTER entries=" + REACTIVE_ENTRIES.size, "", 0);
+function handleRefetch(prop) {
+  swLog("handleRefetch", "ENTER prop=" + prop + " entries=" + REACTIVE_ENTRIES.size, "", 0);
   REACTIVE_ENTRIES.forEach(function(config, url) {
-    if (config.refetchOnFocus) queueRefresh(url);
+    if (config[prop]) queueRefresh(url);
   });
 }
 
-function handleOnlineRefetch() {
-  swLog("handleOnlineRefetch", "ENTER entries=" + REACTIVE_ENTRIES.size, "", 0);
-  REACTIVE_ENTRIES.forEach(function(config, url) {
-    if (config.refetchOnReconnect) queueRefresh(url);
-  });
+async function isAuthFailureResponse(response) {
+  return response.status === 401;
 }
 
-function checkAuthFailure(response) {
-  if (response && response.status === 401) {
+async function checkAuthFailure(response) {
+  if (response && await isAuthFailureResponse(response)) {
     swLog("checkAuthFailure", "AUTH_FAILURE", response.url || "", 1);
-    self.clients.matchAll().then(function(clients) {
-      clients.forEach(function(client) {
-        client.postMessage({ type: "AUTH_FAILURE" });
-      });
-    });
+    broadcastToClients("AUTH_FAILURE");
   }
 }
 
@@ -732,7 +721,13 @@ async function staleWhileRevalidateStrategy(event, request, config) {
 
   if (cached) return markFromCache(cached);
   try {
-    return await _fetch(event, request, config.timeoutMs);
+    const response = await _fetch(event, request, config.timeoutMs);
+    checkAuthFailure(response);
+    if (response.ok) {
+      event.waitUntil(cacheResponse(response.clone(), request));
+      return response;
+    }
+    return fallback(request);
   } catch {
     return fallback(request);
   }
@@ -795,25 +790,15 @@ async function storeMutationInSW(request) {
       const store = db.createObjectStore(MUTATION_STORE_NAME, { keyPath: "id" });
       store.createIndex("by-timestamp", "timestamp");
     }
-  });
-  const tx = db.transaction(MUTATION_STORE_NAME, "readwrite");
-  const store = tx.objectStore(MUTATION_STORE_NAME);${
+  });${
     maxCacheAge && maxCacheAge > 0
       ? `
-  // Prune entries past max age
-  const cutoff = Date.now() - MAX_RUNTIME_CACHE_AGE * 1000;
-  const allEntries = await new Promise(function(resolve, reject) {
-    var req = store.getAll();
-    req.onsuccess = function() { resolve(req.result); };
-    req.onerror = function() { reject(req.error); };
-  });
-  for (const item of allEntries) {
-    if (item.timestamp && item.timestamp < cutoff) {
-      store.delete(item.id);
-    }
-  }`
+  // Prune expired entries in a separate transaction
+  await pruneStaleStore(db, MUTATION_STORE_NAME, Date.now() - MAX_RUNTIME_CACHE_AGE * 1000, "id");`
       : ""
   }
+  const tx = db.transaction(MUTATION_STORE_NAME, "readwrite");
+  const store = tx.objectStore(MUTATION_STORE_NAME);
   store.add({
     id: crypto.randomUUID(),
     method: request.method,
@@ -873,10 +858,7 @@ async function handleMutation(event) {
   } catch {
     swLog("handleMutation", "queuing mutation", request.url, 3);
     await storeMutationInSW(request);
-    const clients = await self.clients.matchAll();
-    clients.forEach(function(client) {
-      client.postMessage({ type: "MUTATION_STORED" });
-    });
+    broadcastToClients("MUTATION_STORED");
     const queuedBody = JSON.stringify({ queued: true });
     return new Response(queuedBody, {
       status: 202,

@@ -17,7 +17,7 @@ export function generateFetchWrapperCode(
     `import { invalidateByTags } from "../cache/index.${ext}";`,
 
     authEnabled
-      ? `import { getAuth, clearAuth, withAuthHeaders, isAuthUrl, ensureValidAuth, AUTH_WITH_CREDENTIALS } from "../auth/store.${ext}";`
+      ? `import { getAuth, withAuthHeaders, isAuthUrl, AUTH_WITH_CREDENTIALS } from "../auth/store.${ext}";`
       : "",
     mutationQueue
       ? `import { queueMutation } from "../mutation/queue.${ext}";`
@@ -68,13 +68,7 @@ export interface FetchWithCacheOptions extends RequestInit {
   }`
     : "";
 
-  const authUrlsBlock = authEnabled
-    ? `
-  // Auth endpoints bypass SW cache
-  if (options.auth && isAuthUrl(url) && !headers.has("X-SW-Cache-Strategy")) {
-    headers.set("X-SW-Cache-Strategy", "mutation");
-  }`
-    : "";
+  const authUrlsBlock = "";
 
   const authCredentialsBlock = authEnabled
     ? `
@@ -83,35 +77,7 @@ export interface FetchWithCacheOptions extends RequestInit {
   }`
     : "";
 
-  const auth401Block = authEnabled
-    ? `
-  if (options.auth && response.status === 401) {
-    // Check if the token is actually expired by probing the user endpoint
-    try {
-      const authCheck = await fetch(API_BASE + "/api/me", {
-        headers: { "Authorization": headers.get("Authorization") }${AS(ts, "HeadersInit")},
-        credentials: AUTH_WITH_CREDENTIALS ? "include" : undefined,
-      });
-      if (authCheck.status === 401) {
-        // Token expired — try silent refresh
-        const refreshed = await ensureValidAuth();
-        if (refreshed?.token) {
-          // Retry original request with fresh token
-          const retryHeaders = new Headers(options.headers);
-          withAuthHeaders(retryHeaders, refreshed);
-          response = await fetch(resolvedInput, { ...fetchOptions, headers: retryHeaders });
-        } else {
-          await clearAuth();
-          window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
-        }
-      }
-      // authCheck 200: user IS authenticated but lacks permission — let original 401 propagate
-    } catch {
-      await clearAuth();
-      window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
-    }
-  }`
-    : "";
+
 
   const mutationTagsBlock = mutationQueue
     ? `  // Pre-compute invalidation tags for SW-side IDB storage
@@ -311,6 +277,12 @@ ${mutationTagsBlock}
   } else {
     const abortHandler = () => {
       inFlightRequests.delete(url);
+      if (pendingBatches.has(url)) {
+        const batch = pendingBatches.get(url)!;
+        clearTimeout(batch.timer);
+        pendingBatches.delete(url);
+        batch.rejectors.forEach((rej) => rej(new DOMException("The operation was aborted", "AbortError")));
+      }
     };
     if (options.signal) {
       options.signal.addEventListener("abort", abortHandler, { once: true });
@@ -339,7 +311,12 @@ ${mutationTagsBlock}
         batch.rejectors.push(reject);
       });
     } else {
-      responsePromise = fetch(resolvedInput, fetchOptions);
+      responsePromise = fetch(resolvedInput, fetchOptions).finally(() => {
+        inFlightRequests.delete(url);
+        if (options.signal) {
+          options.signal.removeEventListener("abort", abortHandler);
+        }
+      });
     }
   }
 
@@ -358,7 +335,7 @@ ${offlineWriteFallbackBlock}
     }
     throw err;
   }
-${autoInvalidateBlock}${auth401Block}
+${autoInvalidateBlock}
   const fromCache = response.headers.get("X-SW-From-Cache") === "true";
   const queued = response.headers.get("X-SW-Mutation-Queued") === "true";
   return { response, fromCache, queued };

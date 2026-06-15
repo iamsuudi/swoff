@@ -16,13 +16,12 @@ const templatesDir = join(__dirname, "../../../../templates");
 
 const FEATURE_ALIASES: Record<string, string> = {
   mutationqueue: "mutation-queue",
-  crosstab: "cross-tab",
   backgroundsync: "background-sync",
   pushnotification: "push-notification",
 };
 
 const FEATURE_NAMES = [
-  "mutation-queue", "pwa", "cross-tab", "auth",
+  "mutation-queue", "pwa", "auth",
   "background-sync", "graphql", "push-notification",
   "server-push", "htmx", "php",
 ] as const;
@@ -30,7 +29,6 @@ const FEATURE_NAMES = [
 const FEATURE_CONFIG_UPDATES: Record<string, Record<string, unknown>> = {
   "mutation-queue": { mutationQueue: { enabled: true, batchSize: 1, batchDelayMs: 0, retry: { maxRetries: 5, backoffMs: 1000, maxBackoffMs: 30000, jitterMs: 250 } } },
   pwa: { pwa: { enabled: true } },
-  "cross-tab": { tagInvalidation: { crossTabSync: true } },
   auth: { auth: { enabled: true, type: "bearer" } },
   "background-sync": { mutationQueue: { enabled: true, backgroundSync: true } },
   graphql: { graphql: { enabled: true, endpoints: ["/graphql"] } },

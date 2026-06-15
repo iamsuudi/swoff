@@ -34,6 +34,10 @@ async function fetchWithRetry(request, retryConfig) {
         swLog("fetchWithRetry", "SUCCESS attempt=" + attempt, request.url, 3);
         return response;
       }
+      if (response.status >= 400 && response.status < 500) {
+        swLog("fetchWithRetry", "4xx skip retry status=" + response.status, request.url, 3);
+        return response;
+      }
     } catch {}
     swLog("fetchWithRetry", "RETRY attempt=" + attempt, request.url, 3);
     if (attempt < retryConfig.maxRetries) {

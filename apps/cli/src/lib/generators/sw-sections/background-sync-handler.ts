@@ -9,7 +9,7 @@ export function generateBackgroundSyncHandler(
   const DB_NAME = "swoff-queue";
   const STORE_NAME = "mutations";
 
-  const COOKIE_AUTH_TYPES = ["cookie", "better-auth", "next-auth", "clerk"];
+  const COOKIE_AUTH_TYPES = ["cookie"];
   const isCookie = authType ? COOKIE_AUTH_TYPES.includes(authType) : false;
   const credentialsLine = isCookie
     ? `          credentials: "same-origin",`
@@ -50,7 +50,11 @@ async function processMutationQueueInSW() {
       }
     });
 
-    const tx = db.transaction("${STORE_NAME}", "readwrite");
+    // Collect all mutations to update/remove in a single batch at the end
+    const toRemove = [];
+    const toUpdate = [];
+
+    const tx = db.transaction("${STORE_NAME}", "readonly");
     const store = tx.objectStore("${STORE_NAME}");
     const index = store.index("by-timestamp");${
       maxAge && maxAge > 0
@@ -64,7 +68,7 @@ async function processMutationQueueInSW() {
     });
     for (const item of allEntries) {
       if (item.retryCount >= SW_MAX_RETRIES || (item.timestamp && item.timestamp < cutoff)) {
-        store.delete(item.id);
+        toRemove.push(item.id);
       }
     }`
         : ""
@@ -79,7 +83,7 @@ async function processMutationQueueInSW() {
     const now = Date.now();
     for (const item of queue) {
       if (item.retryCount >= SW_MAX_RETRIES) {
-        store.delete(item.id);
+        toRemove.push(item.id);
         failed++;
       }
     }
@@ -88,10 +92,6 @@ async function processMutationQueueInSW() {
       return !item.nextRetryAt || now >= item.nextRetryAt;
     });
     const total = processable.length;
-
-    // Collect all mutations to update/remove in a single batch at the end
-    const toRemove = [];
-    const toUpdate = [];
 
     for (const item of processable) {
       // Stop processing if browser went offline during sync
@@ -134,10 +134,12 @@ ${credentialsLine}        });
         if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
 
         if (item.tags) {
-          item.tags.forEach((tag) => {
+          for (const tag of item.tags) {
             tagsToInvalidate.add(tag);
-            if (typeof invalidateByTag !== "undefined") invalidateByTag(tag);
-          });
+          }
+          if (typeof invalidateByTag !== "undefined") {
+            await Promise.all(item.tags.map((tag) => invalidateByTag(tag)));
+          }
         }
 
         toRemove.push(item.id);
@@ -160,13 +162,7 @@ ${credentialsLine}        });
 
       // Emit progress after every SW_BATCH_SIZE mutations
       if ((succeeded + failed) % SW_BATCH_SIZE === 0 || succeeded + failed === total) {
-        const clients = await self.clients.matchAll();
-        for (const client of clients) {
-          client.postMessage({
-            type: "BACKGROUND_SYNC_PROGRESS",
-            detail: { succeeded, failed, total, current: succeeded + failed },
-          });
-        }
+        broadcastToClients("BACKGROUND_SYNC_PROGRESS", { detail: { succeeded, failed, total, current: succeeded + failed } });
       }
     }
 
@@ -185,26 +181,12 @@ ${credentialsLine}        });
     });
   } catch (err) {
     console.error("Background sync failed:", err);
-    const syncClients = await self.clients.matchAll();
-    for (const c of syncClients) {
-      c.postMessage({
-        type: "SW_NOTIFICATION",
-        level: "error",
-        code: "BACKGROUND_SYNC_FAILED",
-        message: "Background sync processing failed",
-      });
-    }
+    broadcastToClients("SW_NOTIFICATION", { level: "error", code: "BACKGROUND_SYNC_FAILED", message: "Background sync processing failed" });
   } finally {
     if (db) db.close();
   }
 
-  const clients = await self.clients.matchAll();
-  for (const client of clients) {
-    client.postMessage({
-      type: "BACKGROUND_SYNC_COMPLETE",
-      detail: { succeeded, failed, tags: [...tagsToInvalidate] },
-    });
-  }
+  broadcastToClients("BACKGROUND_SYNC_COMPLETE", { detail: { succeeded, failed, tags: [...tagsToInvalidate] } });
 }
 `;
 }

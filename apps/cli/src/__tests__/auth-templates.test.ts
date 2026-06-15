@@ -140,6 +140,17 @@ describe("fetch-handler", () => {
     expect(code).not.toContain("AUTH_ROUTES");
     expect(code).not.toContain("auth-route-bypass");
   });
+
+  it("generates isAuthFailureResponse with default 401 check", () => {
+    const code = generateFetchHandler(baseSwConfig, true, false, ["/api/me"], false);
+    expect(code).toContain("async function isAuthFailureResponse");
+    expect(code).toContain("return response.status === 401");
+  });
+
+  it("checkAuthFailure awaits isAuthFailureResponse", () => {
+    const code = generateFetchHandler(baseSwConfig, true, false, ["/api/me"], false);
+    expect(code).toContain("await isAuthFailureResponse(response)");
+  });
 });
 
 describe("client-injector", () => {

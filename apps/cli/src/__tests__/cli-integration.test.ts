@@ -42,7 +42,7 @@ describe("CLI commands integration", () => {
           refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
           mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000, backgroundSync: false },
           auth: { enabled: false, type: "bearer" },
-          tagInvalidation: { crossTabSync: true },
+          tagInvalidation: {},
         },
         build: { outputDir: "dist", swFilename: "sw" },
       };
@@ -166,7 +166,7 @@ describe("CLI commands integration", () => {
           refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
           mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000, backgroundSync: false },
           auth: { enabled: false, type: "bearer" as const },
-          tagInvalidation: { crossTabSync: true },
+          tagInvalidation: {},
           graphql: { enabled: false, endpoints: ["/graphql"] },
           realtime: { pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 } },
         },

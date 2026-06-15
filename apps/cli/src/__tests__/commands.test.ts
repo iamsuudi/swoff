@@ -198,11 +198,11 @@ describe("generateCommand", () => {
     warnSpy.mockRestore();
   });
 
-  it("feature-gates storage when push disabled", async () => {
+  it("generates storage-notify regardless of push config", async () => {
     writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
     writeDefaultConfig();
     await generateCommand(testDir);
-    expect(existsSync(join(testDir, "swoff/storage-notify.js"))).toBe(false);
+    expect(existsSync(join(testDir, "swoff/storage-notify.js"))).toBe(true);
   });
 
   it("generates storage when push enabled", async () => {

@@ -1,4 +1,5 @@
-import { KNOWN_FEATURES, OBJECT_FEATURES, VALID_STRATEGIES, REACTIVE_FIELDS } from "../shared/config-types.js";
+import { KNOWN_FEATURES, OBJECT_FEATURES, VALID_STRATEGIES, REACTIVE_FIELDS, type SwoffConfig } from "../shared/config-types.js";
+import { FEATURES, resolveDependencies } from "../shared/feature-registry.js";
 
 export function validateConfig(config: Record<string, unknown>): string[] {
   const errors: string[] = [];
@@ -390,6 +391,26 @@ export function validateConfig(config: Record<string, unknown>): string[] {
             }
           }
         }
+      }
+    }
+  }
+
+  const swoffConfig = config as unknown as SwoffConfig;
+  if (swoffConfig.features) {
+    const auth = swoffConfig.features.auth;
+    for (const [, feature] of Object.entries(FEATURES)) {
+      if (!feature.checkEnabled(swoffConfig)) continue;
+
+      const missing = feature.requires.filter((depId) => {
+        const dep = FEATURES[depId];
+        return dep && !dep.checkEnabled(swoffConfig);
+      });
+      for (const depId of missing) {
+        errors.push(`"${feature.label}" requires "${FEATURES[depId]?.label ?? depId}" to be enabled`);
+      }
+
+      if (auth?.enabled && feature.incompatibleAuthTypes.includes(auth.type)) {
+        errors.push(`"${feature.label}" is not compatible with auth type "${auth.type}" — use "cookie" instead`);
       }
     }
   }

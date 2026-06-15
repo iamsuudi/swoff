@@ -156,7 +156,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     {
       name: "storage-notify",
       gen: () => generateStorageNotify(ctx),
-      enabled: ctx.config.features.realtime.pushNotifications,
+      enabled: true,
     },
     { name: "GUIDE.md", gen: () => generateGuide(ctx), enabled: true },
   ];

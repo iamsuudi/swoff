@@ -360,13 +360,13 @@ Auth tokens are stored **in memory only** — never persisted to IndexedDB or lo
 |---|---|---|
 | `"cookie"` | Generic cookie/session auth | No-op headers; browser auto-sends httpOnly cookies |
 | `"bearer"` | Generic bearer token | `Authorization: Bearer <token>` header injection |
-| `"custom"` | Any custom header | Editable stub — implement `getHeaders()`, `refresh()`, `toAuthData()` |
+| `"custom"` | Any custom header | Editable stub — implement `getHeaders()`, `refresh()` |
 | `"better-auth"` | Better-Auth | Uses `authClient` from `@/lib/auth-client` |
 | `"next-auth"` | Auth.js / NextAuth.js | Uses `useSession` / `getSession` from `next-auth/react` |
 | `"clerk"` | Clerk | Uses `useAuth` from `@clerk/nextjs` |
 | `"supabase"` | Supabase | Uses `supabase` client from `@/lib/supabase` |
 
-The adapter exposes `type`, `toAuthData()`, `getAuth()`, `subscribe()`, `getHeaders()`, `refresh()`, and `fetchUser()`. The developer owns login/logout; Swoff provides `setAuth()` and `clearAuth()` as a facade. The adapter's `subscribe()` reports `AuthData | null` — Swoff's `useAuth` hook decides when to call `setAuth()`/`clearAuth()`.
+The adapter exposes `type`, `getAuth()`, `getHeaders()`, `refresh()`, and `fetchUser()`. The developer owns login/logout; Swoff provides `setAuth()` and `clearAuth()` as a facade.
 
 ### Auth flow
 

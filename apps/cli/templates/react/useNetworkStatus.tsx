@@ -28,13 +28,8 @@ export function useNetworkStatus() {
       online: true,
       wasOffline: false,
       lastChangedAt: null as number | null,
-      effectiveType:
-        (typeof navigator !== "undefined" &&
-          navigator.connection?.effectiveType) ||
-        null,
-      downlink:
-        (typeof navigator !== "undefined" && navigator.connection?.downlink) ||
-        null,
+      effectiveType: null as string | null,
+      downlink: null as number | null,
     };
   });
 

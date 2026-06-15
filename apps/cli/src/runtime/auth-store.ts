@@ -1,5 +1,5 @@
 import type { RuntimeContext } from "./utils.js";
-import { T, R, PT, AS } from "./utils.js";
+import { T, R, PT } from "./utils.js";
 
 const DEFAULT_AUTH_ROUTES = [
   "/login",
@@ -24,23 +24,6 @@ export function generateAuthStoreCode(
     authType === "next-auth" ||
     authType === "clerk";
 
-  const authDataInterface = ts
-    ? `export interface AuthData {
-  token?: string;
-  user?: Record<string, unknown>;
-  expiresAt?: number;
-}
-
-export interface AuthResponse extends Record<string, unknown> {
-  // Your backend's login response fields:
-  // token: string;
-  // user: Record<string, unknown>;
-  // expiresAt?: number;
-}
-
-`
-    : "";
-
   const cookieAuthComment = isCookie
     ? ` *
  * Cookie auth: the server manages the session. setAuth() stores user info
@@ -55,7 +38,7 @@ export interface AuthResponse extends Record<string, unknown> {
  *
  * Public API (functions listed here):
  *   setAuth, getAuth, clearAuth, clearMemoryAuth, isAuthValid,
- *   ensureValidAuth, withAuthHeaders, createAuthFromResponse,
+ *   ensureValidAuth, withAuthHeaders,
  *   AUTH_WITH_CREDENTIALS, isAuthUrl
  *
  * Internal helpers (not exported — used by Swoff internally):
@@ -72,9 +55,10 @@ export interface AuthResponse extends Record<string, unknown> {
  */
 
 import { adapter } from "./adapter.${ext}";
+${ts ? `import type { AuthData } from "./adapter.${ext}";` : ""}
 import { openDB } from "../db.${ext}";
 
-${authDataInterface}const DB_NAME = "swoff-auth";
+const DB_NAME = "swoff-auth";
 const STORE_NAME = "auth";
 let memoryAuth${T(ts, "AuthData | null")} = null;
 
@@ -96,7 +80,7 @@ async function persistUserData(authData${T(ts, "AuthData | null")})${R(ts, "Prom
   }
 }
 
-async function loadUserData()${R(ts, "Promise<{ user?: Record<string, unknown>; expiresAt?: number } | null>")}{
+async function loadUserData()${R(ts, "Promise<AuthData | null>")}{
   const db = await openDB(DB_NAME, STORE_NAME, "key");
   try {
     return await new Promise((resolve, reject) => {
@@ -154,8 +138,22 @@ export async function getAuth()${R(ts, "Promise<AuthData | null>")}{
   const userData = await loadUserData();
   if (userData) {
     memoryAuth = userData;
+    return memoryAuth;
   }
-  return memoryAuth;
+
+  // Last resort — try server fetch
+  try {
+    const fetched = await adapter.fetchUser();
+    if (fetched) {
+      memoryAuth = fetched;
+      await persistUserData(fetched);
+      return memoryAuth;
+    }
+  } catch {
+    // Server unreachable — no auth data available
+  }
+
+  return null;
 }
 
 /** Null memory auth only. Use for cross-tab sync — SW broadcasts AUTH_CLEARED, other tabs call this. */
@@ -192,11 +190,6 @@ export function isAuthValid(auth${T(ts, "AuthData | null")})${R(ts, "boolean")}{
 
 /** Whether to use credentials: "include" for fetch requests. True for cookie-based auth. */
 export const AUTH_WITH_CREDENTIALS = adapter.type === "cookie";
-
-/** Map a login/register response to AuthData. Delegates to the auth adapter. */
-export function createAuthFromResponse(response${T(ts, "unknown")})${R(ts, "AuthData")}{
-  return adapter.toAuthData(response);
-}
 
 /** Inject auth headers into a Headers object. Delegates to the auth adapter. */
 export function withAuthHeaders(headers${T(ts, "Headers")}, auth${T(ts, "AuthData | null")})${R(ts, "Headers")}{

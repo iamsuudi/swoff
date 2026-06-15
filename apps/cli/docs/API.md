@@ -31,18 +31,18 @@ import { fetchWithCache, prefetchCache } from "swoff/fetch/core";
 
 All `RequestInit` fields are supported (`method`, `body`, `headers`, `credentials`, `signal`, etc.) plus:
 
-| Option                 | Type                                                                                             | Default                 | Description                                              |
-| ---------------------- | ------------------------------------------------------------------------------------------------ | ----------------------- | -------------------------------------------------------- |
-| `tags`                 | `string[]`                                                                                       | auto-generated from URL | Cache invalidation tags for this request                 |
-| `auth`                 | `boolean`                                                                                        | `false`                 | Attach auth token via `withAuthHeaders()`                |
-| `queueOffline`         | `boolean`                                                                                        | `true`                  | When offline, queue writes to IndexedDB                  |
-| `invalidate`           | `'auto' \| string[] \| false`                                                                    | `'auto'`                | Auto-invalidate cache tags after successful mutation     |
-| `type`                 | `'read' \| 'mutation'`                                                                           | auto-detected           | Override read/mutation detection                         |
-| `strategy`             | `'cache-first' \| 'network-first' \| 'stale-while-revalidate' \| 'cache-only' \| 'network-only' \| 'reactive'` | —                       | Override caching strategy per-request (highest priority) |
-| `staleTime`            | `number`                                                                                         | —                       | Override stale time in seconds (reactive-only, per-request tier 1) |
-| `validateSuccess`      | `(response: Response) => boolean \| Promise<boolean>`                                            | `res.ok`                | Custom mutation success check (e.g. when API returns 200 with `{ success: false }`) |
-| `invalidateUrl`        | `string`                                                                                         | the request URL         | Override the URL used for auto-invalidation tags. Useful when mutation URL differs from cache tag URL. |
-| `signal`               | `AbortSignal`                                                                                    | —                       | AbortController signal for cancellation                  |
+| Option            | Type                                                                                                           | Default                 | Description                                                                                            |
+| ----------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| `tags`            | `string[]`                                                                                                     | auto-generated from URL | Cache invalidation tags for this request                                                               |
+| `auth`            | `boolean`                                                                                                      | `false`                 | Attach auth token via `withAuthHeaders()`                                                              |
+| `queueOffline`    | `boolean`                                                                                                      | `true`                  | When offline, queue writes to IndexedDB                                                                |
+| `invalidate`      | `'auto' \| string[] \| false`                                                                                  | `'auto'`                | Auto-invalidate cache tags after successful mutation                                                   |
+| `type`            | `'read' \| 'mutation'`                                                                                         | auto-detected           | Override read/mutation detection                                                                       |
+| `strategy`        | `'cache-first' \| 'network-first' \| 'stale-while-revalidate' \| 'cache-only' \| 'network-only' \| 'reactive'` | —                       | Override caching strategy per-request (highest priority)                                               |
+| `staleTime`       | `number`                                                                                                       | —                       | Override stale time in seconds (reactive-only, per-request tier 1)                                     |
+| `validateSuccess` | `(response: Response) => boolean \| Promise<boolean>`                                                          | `res.ok`                | Custom mutation success check (e.g. when API returns 200 with `{ success: false }`)                    |
+| `invalidateUrl`   | `string`                                                                                                       | the request URL         | Override the URL used for auto-invalidation tags. Useful when mutation URL differs from cache tag URL. |
+| `signal`          | `AbortSignal`                                                                                                  | —                       | AbortController signal for cancellation                                                                |
 
 ### Behavior
 
@@ -70,7 +70,7 @@ prefetchCache("/api/todos");
 
 ---
 
-## `offline/queue.ts`
+## `mutation/queue.ts`
 
 Offline write queue backed by IndexedDB. Writes performed while offline are stored and replayed
 automatically when the connection returns.
@@ -83,19 +83,19 @@ import {
   getPendingCount,
   getQueuePosition,
   getQueueItems,
-} from "swoff/offline/queue";
+} from "swoff/mutation/queue";
 ```
 
 ### Functions
 
-| Function               | Signature                                              | Description                                                                                                                           |
-| ---------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `queueMutation`        | `(mutation: MutationQueueItem) => Promise<void>`       | Store a write for later sync                                                                                                          |
+| Function               | Signature                                              | Description                                                                                                                                                                       |
+| ---------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `queueMutation`        | `(mutation: MutationQueueItem) => Promise<void>`       | Store a write for later sync                                                                                                                                                      |
 | `processMutationQueue` | `() => Promise<{ succeeded: number, failed: number }>` | Replay all queued writes. Respects `batchSize`, `batchDelayMs`, and `retry` config (`maxRetries`, `backoffMs`, `maxBackoffMs`, `jitterMs`). Runs automatically on `online` event. |
-| `flushMutations`       | `() => Promise<void>`                                  | Same as `processMutationQueue`. Call after re-login (queued mutations may have stale auth).                                           |
-| `getPendingCount`      | `() => Promise<number>`                                | Number of mutations waiting to sync                                                                                                   |
-| `getQueuePosition`     | `(id: string) => Promise<number>`                      | 0-based position of a mutation in the queue. Returns -1 if not found.                                                                 |
-| `getQueueItems`        | `() => Promise<MutationQueueItem[]>`                   | All pending queue items with their status, retry count, and metadata                                                                  |
+| `flushMutations`       | `() => Promise<void>`                                  | Same as `processMutationQueue`. Call after re-login (queued mutations may have stale auth).                                                                                       |
+| `getPendingCount`      | `() => Promise<number>`                                | Number of mutations waiting to sync                                                                                                                                               |
+| `getQueuePosition`     | `(id: string) => Promise<number>`                      | 0-based position of a mutation in the queue. Returns -1 if not found.                                                                                                             |
+| `getQueueItems`        | `() => Promise<MutationQueueItem[]>`                   | All pending queue items with their status, retry count, and metadata                                                                                                              |
 
 ### `MutationQueueItem`
 
@@ -210,10 +210,10 @@ import { invalidateByTag, invalidateByTags } from "swoff/cache/index";
 
 ### Functions
 
-| Function           | Signature                           | Description                                                                               |
-| ------------------ | ----------------------------------- | ----------------------------------------------------------------------------------------- |
+| Function           | Signature                           | Description                                                                                                                                                               |
+| ------------------ | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `invalidateByTag`  | `(tag: string) => Promise<void>`    | Send `INVALIDATE_TAG` to the SW; the SW removes matching cache entries and confirms via `TAG_INVALIDATED` (client-injector dispatches `cache-invalidated` on the window). |
-| `invalidateByTags` | `(tags: string[]) => Promise<void>` | Invalidate multiple tags at once. Cascading is expanded by callers before calling this function. |
+| `invalidateByTags` | `(tags: string[]) => Promise<void>` | Invalidate multiple tags at once. Cascading is expanded by callers before calling this function.                                                                          |
 
 After the SW successfully refetches an invalidated URL, it broadcasts `CACHE_UPDATED` to all clients with the `fetchUrl` payload. The client-injector uses this to trigger UI refetches for the specific URL.
 
@@ -284,13 +284,13 @@ import { fetchWithGql, queryGql, mutateGql } from "swoff/graphql";
 
 All `fetchWithCache` options are available, plus:
 
-| Option                 | Type                          | Default        | Description                                      |
-| ---------------------- | ----------------------------- | -------------- | ------------------------------------------------ |
-| `variables`            | `Record<string, unknown>`     | `undefined`    | GraphQL variables                                |
-| `tags`                 | `string[]`                    | auto-generated | Override invalidation tags                       |
-| `auth`                 | `boolean`                     | `false`        | Attach auth token                                |
-| `queueOffline`         | `boolean`                     | `true`         | Queue mutations when offline                     |
-| `invalidate`           | `'auto' \| string[] \| false` | `'auto'`       | Auto-invalidate after mutation                   |
+| Option         | Type                          | Default        | Description                    |
+| -------------- | ----------------------------- | -------------- | ------------------------------ |
+| `variables`    | `Record<string, unknown>`     | `undefined`    | GraphQL variables              |
+| `tags`         | `string[]`                    | auto-generated | Override invalidation tags     |
+| `auth`         | `boolean`                     | `false`        | Attach auth token              |
+| `queueOffline` | `boolean`                     | `true`         | Queue mutations when offline   |
+| `invalidate`   | `'auto' \| string[] \| false` | `'auto'`       | Auto-invalidate after mutation |
 
 Generated when `features.graphql.enabled` is `true`.
 
@@ -310,36 +310,34 @@ Auth provider adapter — a thin port between your auth provider and Swoff. One 
 import type { AuthData } from "./store";
 ```
 
-| Adapter type     | Generated template                        | What to edit                       |
-| ---------------- | ----------------------------------------- | ---------------------------------- |
-| `"cookie"`       | No-op adapter — browser handles cookies   | Nothing (unless CSRF needed)       |
-| `"bearer"`       | Manual token management                   | Token extraction in `toAuthData()` |
-| `"custom"`       | Editable stub                             | All methods                        |
-| `"better-auth"`  | Uses `authClient` from `@/lib/auth-client`| Import path in generated file      |
-| `"next-auth"`    | Uses `useSession` / `getSession` from `next-auth/react` | Import path           |
-| `"clerk"`        | Uses `useAuth` from `@clerk/nextjs`       | Import path                        |
-| `"supabase"`     | Uses `supabase` client from `@/lib/supabase` | Import path                       |
+| Adapter type    | Generated template                                      | What to edit                       |
+| --------------- | ------------------------------------------------------- | ---------------------------------- |
+| `"cookie"`      | No-op adapter — browser handles cookies                 | Nothing (unless CSRF needed)       |
+| `"bearer"`      | Manual token management                                 | Token extraction in `getHeaders()` |
+| `"custom"`      | Editable stub                                           | All methods                        |
+| `"better-auth"` | Uses `authClient` from `@/lib/auth-client`              | Import path in generated file      |
+| `"next-auth"`   | Uses `useSession` / `getSession` from `next-auth/react` | Import path                        |
+| `"clerk"`       | Uses `useAuth` from `@clerk/nextjs`                     | Import path                        |
+| `"supabase"`    | Uses `supabase` client from `@/lib/supabase`            | Import path                        |
 
 Each adapter exposes:
 
-| Method                          | Returns                  | Description                                                |
-| ------------------------------- | ------------------------ | ---------------------------------------------------------- |
-| `type`                          | `string`                 | `"cookie"` or `"bearer"` — determines SW sync behavior     |
-| `toAuthData(response)`          | `AuthData`               | Extract token + user + expiresAt from backend login response |
-| `getAuth()`                     | `AuthData \| null`       | Get current auth from provider SDK (Clerk, NextAuth)       |
-| `subscribe(callback)`           | `() => void`             | Subscribe to provider auth state changes. Returns unsubscribe |
-| `getHeaders(auth)`              | `Record<string, string>` | Generate auth headers for fetch requests                   |
-| `refresh(auth)`                 | `AuthData \| null`       | Attempt token refresh. Returns null if refresh fails.      |
-| `fetchUser(auth)`               | `Promise<unknown>`       | Fetch current user profile from `/api/me` (or custom path) |
+| Method                 | Returns                     | Description                                                                                                                     |
+| ---------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `type`                 | `string`                    | `"cookie"` or `"bearer"` — determines SW sync behavior                                                                          |
+| `getAuth()`            | `AuthData \| null`          | Get current auth from provider SDK (Clerk, NextAuth)                                                                            |
+| `getHeaders(auth)`     | `Record<string, string>`    | Generate auth headers for fetch requests                                                                                        |
+| `refresh(auth)`        | `AuthData \| null`          | Attempt token refresh. Returns null if refresh fails.                                                                           |
+| `fetchUser()`          | `Promise<AuthData \| null>` | Fetch current user from the server. Returns `AuthData` (e.g. `{ user: data }`) or `null`. Called by `getAuth()` as last resort. |
 
 **Well-known import paths** are used as defaults — edit the import after generation:
 
-| Provider      | Default import path    |
-| ------------- | ---------------------- |
-| Better-Auth   | `@/lib/auth-client`    |
-| NextAuth      | `next-auth/react`      |
-| Clerk         | `@clerk/nextjs`        |
-| Supabase      | `@/lib/supabase`       |
+| Provider    | Default import path |
+| ----------- | ------------------- |
+| Better-Auth | `@/lib/auth-client` |
+| NextAuth    | `next-auth/react`   |
+| Clerk       | `@clerk/nextjs`     |
+| Supabase    | `@/lib/supabase`    |
 
 ### `auth/store.ts`
 
@@ -353,22 +351,20 @@ import {
   clearAuth,
   clearMemoryAuth,
   isAuthValid,
-  createAuthFromResponse,
   ensureValidAuth,
   withAuthHeaders,
 } from "swoff/auth/store";
 ```
 
-| Function                           | Returns                     | Description                                                  |
-| ---------------------------------- | --------------------------- | ------------------------------------------------------------ |
-| `setAuth(authData)`                | `Promise<void>`             | Store auth in memory, persist user to IndexedDB, dispatch `sw-auth-state-change` event |
-| `getAuth()`                        | `Promise<AuthData \| null>` | Get auth from memory (IndexedDB fallback after page refresh) |
+| Function                           | Returns                     | Description                                                                                                                                                                                                                                                                                                                |
+| ---------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `setAuth(authData)`                | `Promise<void>`             | Store auth in memory, persist user to IndexedDB, dispatch `sw-auth-state-change` event                                                                                                                                                                                                                                     |
+| `getAuth()`                        | `Promise<AuthData \| null>` | Get auth from memory (IndexedDB fallback after page refresh)                                                                                                                                                                                                                                                               |
 | `clearAuth(opts?)`                 | `Promise<void>`             | Cascading clear: memory → IndexedDB → runtime caches (`swoff-runtime*`) → dispatch `sw-auth-state-change` → broadcast `AUTH_CLEARED` to SW (forwards to all tabs). Call on logout/401. Pass `{ broadcast: false }` to skip SW broadcast. All IndexedDB connections are closed in `finally` blocks — no leaked connections. |
-| `clearMemoryAuth()`                | `void`                      | Memory-only clear (used by cross-tab sync — receiving tabs don't need redundant IDB/cache cleanup). |
-| `isAuthValid(auth)`                | `boolean`                   | Check existence + `expiresAt` expiry                         |
-| `createAuthFromResponse(response)` | `AuthData`                  | Delegates to adapter's `toAuthData()`. **Edit adapter, not this.** |
-| `ensureValidAuth()`                | `Promise<AuthData \| null>` | Check expiry, delegate refresh to adapter's `refresh()` if needed. Cookie auth types return as-is (server manages session). |
-| `withAuthHeaders(headers, auth)`   | `void`                      | Delegates to adapter's `getHeaders()`. Injects auth headers (bearer, cookie, or custom). |
+| `clearMemoryAuth()`                | `void`                      | Memory-only clear (used by cross-tab sync — receiving tabs don't need redundant IDB/cache cleanup).                                                                                                                                                                                                                        |
+| `isAuthValid(auth)`                | `boolean`                   | Check existence + `expiresAt` expiry                                                                                                                                                                                                                                                                                       |
+| `ensureValidAuth()`                | `Promise<AuthData \| null>` | Check expiry, delegate refresh to adapter's `refresh()` if needed. Cookie auth types return as-is (server manages session).                                                                                                                                                                                                |
+| `withAuthHeaders(headers, auth)`   | `void`                      | Delegates to adapter's `getHeaders()`. Injects auth headers (bearer, cookie, or custom).                                                                                                                                                                                                                                   |
 
 **clearAuth() cascade:**
 
@@ -392,9 +388,9 @@ Detects which of 4 states the app is in. Uses the connectivity manager (heartbea
 import { getAuthState } from "swoff/auth/state";
 ```
 
-| Function         | Returns                                                                                       | Description                                                                |
-| ---------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `getAuthState()` | `Promise<{ authenticated: boolean, auth: AuthData \| null, online: boolean }>` | Detect state: online+auth, online+unauthed, offline+auth, offline+unauthed. Returns the full `AuthData` (typed via the `AuthData` interface developer edits). Access user via `auth.user`. Online status via connectivity manager. |
+| Function         | Returns                                                                        | Description                                                                                                                                                                                                                                                         |
+| ---------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getAuthState()` | `Promise<{ authenticated: boolean, auth: AuthData \| null, online: boolean }>` | Detect state: online+auth, online+unauthed, offline+auth, offline+unauthed. Returns the full `AuthData` object — developer edits the `AuthData` interface in `auth/adapter.ts` to type `user`. Access user via `auth.user`. Online status via connectivity manager. |
 
 ---
 
@@ -403,11 +399,7 @@ import { getAuthState } from "swoff/auth/state";
 PWA install prompt handling and event wiring. Re-exports from `pwa/injector` and `pwa/prompt`.
 
 ```ts
-import {
-  setupPwaInstall,
-  isInstallable,
-  promptInstall,
-} from "swoff/pwa/index";
+import { setupPwaInstall, isInstallable, promptInstall } from "swoff/pwa/index";
 ```
 
 | Function            | Description                                                                                             |
@@ -436,7 +428,7 @@ import {
 
 | Function                          | Description                                                                            |
 | --------------------------------- | -------------------------------------------------------------------------------------- |
-| `subscribeToPush()` | Request permission and subscribe. Returns `PushSubscription \| null` (null if denied). |
+| `subscribeToPush()`               | Request permission and subscribe. Returns `PushSubscription \| null` (null if denied). |
 | `unsubscribeFromPush()`           | Unsubscribe and clear stored subscription                                              |
 | `isSubscribed()`                  | Check subscription status (returns `Promise<boolean>`)                                 |
 | `getPushSubscription()`           | Get current subscription object (returns `Promise<PushSubscription \| null>`)          |
@@ -475,7 +467,7 @@ import { resetSwoff } from "swoff/reset";
 
 ### `resetSwoff(options?)`
 
-```ts
+````ts
 await resetSwoff({ clearStorage: true, unregisterSW: true });
 
 | Option | Type | Default | Description |
@@ -498,28 +490,28 @@ import {
   getStorageEstimate,
   formatBytes,
 } from "swoff/notification";
-```
+````
 
 ### Functions
 
-| Function | Returns | Description |
-|----------|---------|-------------|
-| `checkStorage()` | `Promise<{ usage: number, quota: number, percentUsed: number }>` | Calls `navigator.storage.estimate()`. Dispatches `swoff:notification` with level `"warn"` and code `"STORAGE_QUOTA_HIGH"` when >80% used. |
-| `getStorageEstimate()` | `Promise<{ usage: number, quota: number, percentUsed: number }>` | Raw storage estimate — no dispatch. Use when you want to render quota in your own UI without triggering a notification. |
-| `formatBytes(bytes)` | `string` | Format a byte count for display (e.g. `formatBytes(1572864)` → `"1.5 MB"`). |
+| Function               | Returns                                                          | Description                                                                                                                               |
+| ---------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `checkStorage()`       | `Promise<{ usage: number, quota: number, percentUsed: number }>` | Calls `navigator.storage.estimate()`. Dispatches `swoff:notification` with level `"warn"` and code `"STORAGE_QUOTA_HIGH"` when >80% used. |
+| `getStorageEstimate()` | `Promise<{ usage: number, quota: number, percentUsed: number }>` | Raw storage estimate — no dispatch. Use when you want to render quota in your own UI without triggering a notification.                   |
+| `formatBytes(bytes)`   | `string`                                                         | Format a byte count for display (e.g. `formatBytes(1572864)` → `"1.5 MB"`).                                                               |
 
 ### Window events
 
 The SW broadcasts these automatically on failure:
 
-| Code | Level | When |
-|------|-------|------|
-| `FETCH_FAILED` | `error` | Network request timed out or failed |
-| `PRECACHE_FAILED` | `warn` | Per-asset precache failure during install |
-| `BACKGROUND_SYNC_FAILED` | `error` | Background sync processing error |
-| `STORAGE_QUOTA_HIGH` | `warn` | Storage >80% capacity (from `checkStorage()`) |
-| `AUTH_FAILURE` (postMessage type) | — | Background refresh returned 401 — client handles via `ensureValidAuth()` → `clearAuth()` fallback |
-| `CACHE_UPDATED` (postMessage type) | — | Successful background refetch — sent with `fetchUrl` payload to trigger UI updates |
+| Code                               | Level   | When                                                                                              |
+| ---------------------------------- | ------- | ------------------------------------------------------------------------------------------------- |
+| `FETCH_FAILED`                     | `error` | Network request timed out or failed                                                               |
+| `PRECACHE_FAILED`                  | `warn`  | Per-asset precache failure during install                                                         |
+| `BACKGROUND_SYNC_FAILED`           | `error` | Background sync processing error                                                                  |
+| `STORAGE_QUOTA_HIGH`               | `warn`  | Storage >80% capacity (from `checkStorage()`)                                                     |
+| `AUTH_FAILURE` (postMessage type)  | —       | Background refresh returned 401 — client handles via `ensureValidAuth()` → `clearAuth()` fallback |
+| `CACHE_UPDATED` (postMessage type) | —       | Successful background refetch — sent with `fetchUrl` payload to trigger UI updates                |
 
 Listen with:
 
@@ -548,11 +540,11 @@ import {
 } from "swoff/fetch/state";
 ```
 
-| Function | Returns | Description |
-|---|---|---|
-| `incrementFetchCount` | `void` | Increments the global in-flight counter and dispatches a `fetch-count-changed` custom event |
-| `decrementFetchCount` | `void` | Decrements the global in-flight counter and dispatches a `fetch-count-changed` custom event |
-| `getFetchCount` | `number` | Returns the current number of in-flight requests |
+| Function              | Returns  | Description                                                                                 |
+| --------------------- | -------- | ------------------------------------------------------------------------------------------- |
+| `incrementFetchCount` | `void`   | Increments the global in-flight counter and dispatches a `fetch-count-changed` custom event |
+| `decrementFetchCount` | `void`   | Decrements the global in-flight counter and dispatches a `fetch-count-changed` custom event |
+| `getFetchCount`       | `number` | Returns the current number of in-flight requests                                            |
 
 The `fetchCount` is a module-level variable (not persisted). A `Set<string>` of in-flight cache keys is also maintained to prevent duplicate requests to the same URL. Both are reset on page reload.
 
@@ -581,27 +573,37 @@ Returns `{ data: T \| null, error: unknown, loading: boolean, refetch: () => voi
 
 #### Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `select` | `(data: T) => TSelected` | identity | Transform the response data. Uses `useRef` to skip re-renders when the selected value is equal (`Object.is`) to the previous one. |
-| `keepPreviousData` | `boolean` | `false` | When `true`, keeps the previous successful data during a background refetch instead of showing a loading state. The returned `data` is stable — it only updates when the new fetch completes. |
-| `placeholderData` | `T \| null` | `null` | Initial data to show while the first fetch is in-flight. Useful for skeleton UI. |
-| `onSuccess` | `(data: T) => void` | — | Callback fired when a fetch succeeds. Runs at the hook level (every successful fetch). |
-| `onError` | `(err: unknown) => void` | — | Callback fired when a fetch fails. Runs at the hook level (every failed fetch). |
-| `enabled` | `boolean` | `true` | When `false`, the fetch is skipped entirely. Useful for dependent queries. |
+| Option             | Type                     | Default  | Description                                                                                                                                                                                   |
+| ------------------ | ------------------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `select`           | `(data: T) => TSelected` | identity | Transform the response data. Uses `useRef` to skip re-renders when the selected value is equal (`Object.is`) to the previous one.                                                             |
+| `keepPreviousData` | `boolean`                | `false`  | When `true`, keeps the previous successful data during a background refetch instead of showing a loading state. The returned `data` is stable — it only updates when the new fetch completes. |
+| `placeholderData`  | `T \| null`              | `null`   | Initial data to show while the first fetch is in-flight. Useful for skeleton UI.                                                                                                              |
+| `onSuccess`        | `(data: T) => void`      | —        | Callback fired when a fetch succeeds. Runs at the hook level (every successful fetch).                                                                                                        |
+| `onError`          | `(err: unknown) => void` | —        | Callback fired when a fetch fails. Runs at the hook level (every failed fetch).                                                                                                               |
+| `enabled`          | `boolean`                | `true`   | When `false`, the fetch is skipped entirely. Useful for dependent queries.                                                                                                                    |
 
 ### `useMutation<TData>(url, options?)`
 
 ```ts
-const { mutate, isLoading, isError, isSuccess, data, error, reset, mutationId } =
-  useMutation<{ id: number }>("/api/todos", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    auth: true,
-    onSuccess: (data) => navigate(`/item/${data.id}`),
-    onError: (err) => console.error(err),
-    onMutate: () => { /* optimistic update */ },
-  });
+const {
+  mutate,
+  isLoading,
+  isError,
+  isSuccess,
+  data,
+  error,
+  reset,
+  mutationId,
+} = useMutation<{ id: number }>("/api/todos", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  auth: true,
+  onSuccess: (data) => navigate(`/item/${data.id}`),
+  onError: (err) => console.error(err),
+  onMutate: () => {
+    /* optimistic update */
+  },
+});
 mutate(JSON.stringify({ title: "New" }));
 ```
 
@@ -612,12 +614,12 @@ All calls to `mutate` share the same `isLoading`, `error`, `data`, and `isSucces
 
 `mutate()` returns a `MutateResult<T>` discriminated union:
 
-| Status | Meaning | `data` | `error` |
-|--------|---------|--------|---------|
-| `"success"` | Server responded with 2xx | `T` | — |
-| `"queued"` | Offline — stored in mutation queue | — | — |
-| `"error"` | Server/network error | — | `Error` |
-| `"skipped"` | Deduped — same `mutationKey` already in-flight | — | — |
+| Status      | Meaning                                        | `data` | `error` |
+| ----------- | ---------------------------------------------- | ------ | ------- |
+| `"success"` | Server responded with 2xx                      | `T`    | —       |
+| `"queued"`  | Offline — stored in mutation queue             | —      | —       |
+| `"error"`   | Server/network error                           | —      | `Error` |
+| `"skipped"` | Deduped — same `mutationKey` already in-flight | —      | —       |
 
 ```ts
 const result = await mutate(body);
@@ -631,18 +633,18 @@ from the same source as the return value — they stay in sync with the last mut
 
 #### Options
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `url` | `string` | Endpoint URL. Required — fixed at the hook level. |
-| `method` | `string` | HTTP method (POST, PUT, PATCH, DELETE, etc.). |
-| `headers` | `Record<string, string>` | Request headers. |
-| `auth` | `boolean` | Attach auth headers from the auth store. |
-| `onSuccess` | `(data: T) => void` | Hook-level success callback. Runs for every successful mutation. |
-| `onError` | `(error: Error) => void` | Hook-level error callback. Runs for every failed mutation. |
-| `onMutate` | `() => void` | Called before the mutation request fires. Use for optimistic updates — mutate your local state here, roll back in `onError`. |
-| `onSettled` | `() => void` | Runs after success or error, regardless of outcome. |
-| `mutationKey` | `string` | Deduplication key — if a mutation with the same key is already in-flight, the new call is skipped. |
-| `retry` | `number \| boolean` | Retry count on failure (default 0). `true` = Infinity. |
+| Option        | Type                     | Description                                                                                                                  |
+| ------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `url`         | `string`                 | Endpoint URL. Required — fixed at the hook level.                                                                            |
+| `method`      | `string`                 | HTTP method (POST, PUT, PATCH, DELETE, etc.).                                                                                |
+| `headers`     | `Record<string, string>` | Request headers.                                                                                                             |
+| `auth`        | `boolean`                | Attach auth headers from the auth store.                                                                                     |
+| `onSuccess`   | `(data: T) => void`      | Hook-level success callback. Runs for every successful mutation.                                                             |
+| `onError`     | `(error: Error) => void` | Hook-level error callback. Runs for every failed mutation.                                                                   |
+| `onMutate`    | `() => void`             | Called before the mutation request fires. Use for optimistic updates — mutate your local state here, roll back in `onError`. |
+| `onSettled`   | `() => void`             | Runs after success or error, regardless of outcome.                                                                          |
+| `mutationKey` | `string`                 | Deduplication key — if a mutation with the same key is already in-flight, the new call is skipped.                           |
+| `retry`       | `number \| boolean`      | Retry count on failure (default 0). `true` = Infinity.                                                                       |
 
 #### Per-call callbacks
 
@@ -688,11 +690,11 @@ Listens to `fetch-count-changed` custom events.
 const { reset, isResetting, error } = useSwoffReset();
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `reset` | `(options?) => Promise<void>` | Calls `resetSwoff()` with optional `{ clearStorage, unregisterSW }` |
-| `isResetting` | `boolean` | `true` while the reset is in progress |
-| `error` | `unknown` | Last error from a failed reset attempt, or `null` |
+| Field         | Type                          | Description                                                         |
+| ------------- | ----------------------------- | ------------------------------------------------------------------- |
+| `reset`       | `(options?) => Promise<void>` | Calls `resetSwoff()` with optional `{ clearStorage, unregisterSW }` |
+| `isResetting` | `boolean`                     | `true` while the reset is in progress                               |
+| `error`       | `unknown`                     | Last error from a failed reset attempt, or `null`                   |
 
 ### `useMutationState(id)`
 
@@ -712,55 +714,61 @@ Pass `null` or empty string to disable.
 const { pending, items, lastSync, isProcessing, retryAll } = useMutationQueue();
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `pending` | `number` | Count of mutations waiting to sync |
-| `items` | `MutationQueueItem[]` | All pending items with status, retry count, URL, method |
-| `lastSync` | `{ succeeded: number, failed: number } \| null` | Result of the last sync attempt |
-| `isProcessing` | `boolean` | `true` while the mutation queue is actively processing items (derived from `mutation-sync-complete` custom event) |
-| `retryAll` | `() => Promise<void>` | Manually trigger a full replay of all queued mutations |
+| Field          | Type                                            | Description                                                                                                       |
+| -------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `pending`      | `number`                                        | Count of mutations waiting to sync                                                                                |
+| `items`        | `MutationQueueItem[]`                           | All pending items with status, retry count, URL, method                                                           |
+| `lastSync`     | `{ succeeded: number, failed: number } \| null` | Result of the last sync attempt                                                                                   |
+| `isProcessing` | `boolean`                                       | `true` while the mutation queue is actively processing items (derived from `mutation-sync-complete` custom event) |
+| `retryAll`     | `() => Promise<void>`                           | Manually trigger a full replay of all queued mutations                                                            |
 
 ### `useNetworkStatus()`
 
 ```ts
-const { online, wasOffline, lastChangedAt, effectiveType, downlink } = useNetworkStatus();
+const { online, wasOffline, lastChangedAt, effectiveType, downlink } =
+  useNetworkStatus();
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `online` | `boolean` | Current online status |
-| `wasOffline` | `boolean` | `true` if the browser was offline at any point since the hook mounted |
-| `lastChangedAt` | `Date \| null` | Timestamp of the last online/offline transition |
-| `effectiveType` | `string` | Network effective type (`"slow-2g"`, `"2g"`, `"3g"`, `"4g"`) from `navigator.connection` |
-| `downlink` | `number` | Estimated downlink speed in Mb/s from `navigator.connection` |
+| Field           | Type           | Description                                                                              |
+| --------------- | -------------- | ---------------------------------------------------------------------------------------- |
+| `online`        | `boolean`      | Current online status                                                                    |
+| `wasOffline`    | `boolean`      | `true` if the browser was offline at any point since the hook mounted                    |
+| `lastChangedAt` | `Date \| null` | Timestamp of the last online/offline transition                                          |
+| `effectiveType` | `string`       | Network effective type (`"slow-2g"`, `"2g"`, `"3g"`, `"4g"`) from `navigator.connection` |
+| `downlink`      | `number`       | Estimated downlink speed in Mb/s from `navigator.connection`                             |
 
 ### `useAuth()`
 
 ```ts
-const { authenticated, auth, online, isLoading, error, setAuth, clearAuth, ensureValid } = useAuth();
+const {
+  authenticated,
+  auth,
+  online,
+  isLoading,
+  error,
+  setAuth,
+  clearAuth,
+  ensureValid,
+} = useAuth();
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `authenticated` | `boolean` | Whether the user is authenticated |
-| `auth` | `AuthData \| null` | Full auth data (typed via `AuthData` interface). Access user via `auth.user`. |
-| `online` | `boolean` | Current online status (from connectivity manager) |
-| `isLoading` | `boolean` | `true` while checking auth state on mount |
-| `error` | `unknown` | Last auth error, or `null` |
-| `setAuth` | `(data: AuthData) => Promise<void>` | Manually set auth data |
-| `clearAuth` | `() => Promise<void>` | Clear auth data (cascades: memory → IDB → caches → SW broadcast) |
-| `ensureValid` | `() => Promise<boolean>` | Check auth validity and refresh if needed. Returns `true` if valid. |
+| Field           | Type                                | Description                                                                   |
+| --------------- | ----------------------------------- | ----------------------------------------------------------------------------- |
+| `authenticated` | `boolean`                           | Whether the user is authenticated                                             |
+| `auth`          | `AuthData \| null`                  | Full auth data (typed via `AuthData` interface). Access user via `auth.user`. |
+| `online`        | `boolean`                           | Current online status (from connectivity manager)                             |
+| `isLoading`     | `boolean`                           | `true` while checking auth state on mount                                     |
+| `error`         | `unknown`                           | Last auth error, or `null`                                                    |
+| `setAuth`       | `(data: AuthData) => Promise<void>` | Manually set auth data                                                        |
+| `clearAuth`     | `() => Promise<void>`               | Clear auth data (cascades: memory → IDB → caches → SW broadcast)              |
+| `ensureValid`   | `() => Promise<boolean>`            | Check auth validity and refresh if needed. Returns `true` if valid.           |
 
-Subscribes to auth state via the adapter's `subscribe()` method, with `sw-auth-state-change` event fallback for cross-tab sync.
+Reacts to `sw-auth-state-change` events dispatched by `clearAuth()`, `setAuth()`, or the SW's AUTH_CLEARED broadcast for cross-tab sync.
 
 ### `useSWUpdate()`
 
 ```ts
-const {
-  status,
-  progress,
-  error,
-} = useSWUpdate();
+const { status, progress, error } = useSWUpdate();
 ```
 
 `status` follows a state machine: `"idle"` → `"installing"` → `"idle"`.
@@ -792,18 +800,19 @@ Generated when `features.mutationQueue.backgroundSync`.
 ### `useStorageEstimate()`
 
 ```ts
-const { usage, quota, percentUsed, formattedUsage, formattedQuota, loading } = useStorageEstimate();
+const { usage, quota, percentUsed, formattedUsage, formattedQuota, loading } =
+  useStorageEstimate();
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `usage` | `number` | Bytes used (from `navigator.storage.estimate()`) |
-| `quota` | `number` | Total quota in bytes |
-| `percentUsed` | `number` | Percentage of quota used (0–100) |
-| `formattedUsage` | `string` | Human-readable usage (e.g. `"1.5 MB"`) |
-| `formattedQuota` | `string` | Human-readable quota (e.g. `"100 MB"`) |
-| `loading` | `boolean` | `true` while the estimate is being fetched |
-| `error` | `string \| null` | Error message if the estimate failed |
+| Field            | Type             | Description                                      |
+| ---------------- | ---------------- | ------------------------------------------------ |
+| `usage`          | `number`         | Bytes used (from `navigator.storage.estimate()`) |
+| `quota`          | `number`         | Total quota in bytes                             |
+| `percentUsed`    | `number`         | Percentage of quota used (0–100)                 |
+| `formattedUsage` | `string`         | Human-readable usage (e.g. `"1.5 MB"`)           |
+| `formattedQuota` | `string`         | Human-readable quota (e.g. `"100 MB"`)           |
+| `loading`        | `boolean`        | `true` while the estimate is being fetched       |
+| `error`          | `string \| null` | Error message if the estimate failed             |
 
 By default, re-checks on every `visibilitychange` to `"visible"` (pass `false` to disable auto-refresh).
 

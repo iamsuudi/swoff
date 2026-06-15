@@ -45,6 +45,7 @@ export function generateFetchHandler(
   tagInvalidation: boolean,
   mutationQueueEnabled: boolean,
   authRoutePaths: string[],
+  serverPushEndpoint?: string,
   debug?: boolean,
 ): string {
   const {
@@ -173,7 +174,7 @@ function matchRouteFallback(url) {
     const method = request.method;
     let body = null;
     let contentType = null;
-    if (method !== "GET" && method !== "HEAD") {
+    if (method !== "GET") {
       contentType = request.headers.get("Content-Type");
       try { body = await request.clone().text(); } catch {}
     }
@@ -191,6 +192,7 @@ const REACTIVE_STALE_DEFAULT = ${globalStaleTime != null ? globalStaleTime : 0};
 const FETCH_TIMEOUT_MS = ${fetchTimeout * 1000};
 const SW_DEBUG = ${debugMode};
 ${authRoutePaths.length > 0 ? `const AUTH_ROUTES = ${JSON.stringify(authRoutePaths)};` : ""}
+${serverPushEndpoint ? `const SERVER_PUSH_ENDPOINT = "${serverPushEndpoint}";` : ""}
 
 ${navRulesCode}// --- Debug Logging ---
 
@@ -269,7 +271,11 @@ async function fromRuntime(request) {
  *   Default:  same as SSR
  *
  * Non-navigation requests:
- *   runtime → precache → null
+ *   runtime → precache (content-type match only) → null
+ *
+ * Precache is content-type-gated for non-navigation requests to avoid
+ * serving HTML pages (stored with stripped extensions) for requests that
+ * expect a different content type (e.g. RSC payloads, JSON fetches).
  */
 async function serveFromCache(request) {
   swLog("serveFromCache", "ENTER", request.url, 3);
@@ -307,8 +313,13 @@ async function serveFromCache(request) {
   }
   const pc = await fromPrecache(request);
   if (pc) {
-    swLog("serveFromCache", "HIT precache (sub)", request.url, 3);
-    return pc;
+    const accept = request.headers.get("Accept") || "*/*";
+    const pcType = (pc.headers.get("Content-Type") || "").split(";")[0].trim();
+    if (accept.includes(pcType) || accept.includes("*/*") || !pcType) {
+      swLog("serveFromCache", "HIT precache (sub)", request.url, 3);
+      return pc;
+    }
+    swLog("serveFromCache", "SKIP precache (type mismatch)", request.url, 3);
   }
   swLog("serveFromCache", "MISS (subresource)", request.url, 3);
   return null;
@@ -367,11 +378,16 @@ async function cacheResponse(response, request) {
 
 /*
  * Fallback hierarchy for when a strategy cannot serve a response:
- *   SSR / Default:  per-route → global fallback → inline 503
+ *   SSR / Default:  precache → runtime-html → per-route → global → inline 503
  *   SPA:            per-route → inline 503
  */
 async function fallback(request) {
   swLog("fallback", "ENTER", request.url, 3);
+  const pc = await fromPrecache(request);
+  if (pc) {
+    swLog("fallback", "HIT precache", request.url, 3);
+    return pc;
+  }
   if (NAV_MODE !== "spa") {
     const htmlCache = await caches.open(CACHE_NAME_RUNTIME_HTML);
     const htmlMatch = await htmlCache.match(cacheKey(request));
@@ -625,6 +641,17 @@ function handleOnlineRefetch() {
   });
 }
 
+function checkAuthFailure(response) {
+  if (response && response.status === 401) {
+    swLog("checkAuthFailure", "AUTH_FAILURE", response.url || "", 1);
+    self.clients.matchAll().then(function(clients) {
+      clients.forEach(function(client) {
+        client.postMessage({ type: "AUTH_FAILURE" });
+      });
+    });
+  }
+}
+
 // --- Strategies ---
 
 /*
@@ -649,6 +676,7 @@ async function reactiveStrategy(event, request, config) {
 
   try {
     const response = await _fetch(event, request, config.timeoutMs);
+    checkAuthFailure(response);
     if (response.ok) {
       event.waitUntil(cacheResponse(response.clone(), request));
       return response;
@@ -663,6 +691,7 @@ async function networkFirstStrategy(event, request, config) {
   swLog("networkFirstStrategy", "ENTER", request.url, 2);
   try {
     const response = await _fetch(event, request, config.timeoutMs);
+    checkAuthFailure(response);
     if (response.ok) {
       event.waitUntil(cacheResponse(response.clone(), request));
       return response;
@@ -684,6 +713,7 @@ async function cacheFirstStrategy(event, request, config) {
 
   try {
     const response = await _fetch(event, request, config.timeoutMs);
+    checkAuthFailure(response);
     if (response.ok) {
       event.waitUntil(cacheResponse(response.clone(), request));
       return response;
@@ -829,13 +859,17 @@ async function handleMutation(event) {
   if (request.headers.get("X-SW-No-Queue") === "true") {
     swLog("handleMutation", "no-queue mode", request.url, 3);
     try {
-      return await _fetchMutation(request.clone());
+      const response = await _fetchMutation(request.clone());
+      checkAuthFailure(response);
+      return response;
     } catch {
       throw new Error("Mutation failed (no-queue mode)");
     }
   }
   try {
-    return await _fetchMutation(request.clone());
+    const response = await _fetchMutation(request.clone());
+    checkAuthFailure(response);
+    return response;
   } catch {
     swLog("handleMutation", "queuing mutation", request.url, 3);
     await storeMutationInSW(request);
@@ -857,6 +891,14 @@ async function handleMutation(event) {
 }self.addEventListener("fetch", (event) => {
   const { request } = event;
   swLog("fetch", "INCOMING", request.url, 0);${
+    serverPushEndpoint
+      ? `
+  if (SERVER_PUSH_ENDPOINT && request.url.includes(SERVER_PUSH_ENDPOINT)) {
+    swLog("fetch", "server-push-bypass", request.url, 0);
+    return;
+  }`
+      : ""
+  }${
     authRoutePaths.length > 0
       ? `
   if (AUTH_ROUTES.some(function(route) { return request.url.includes(route); })) {
@@ -871,7 +913,7 @@ async function handleMutation(event) {
   }${
     mutationQueueEnabled
       ? `
-  if (request.method !== "GET" && request.method !== "HEAD") {
+  if (request.method !== "GET") {
     if (request.headers.get("X-SW-Cache-Strategy") === "mutation") {
       event.respondWith(handleMutation(event));
       return;
@@ -879,7 +921,7 @@ async function handleMutation(event) {
     if (!request.headers.get("X-SW-Cache-Key")) { return; }
   }`
       : `
-  if (request.method !== "GET" && request.method !== "HEAD") {
+  if (request.method !== "GET") {
     if (!request.headers.get("X-SW-Cache-Key")) { return; }
   }`
   }

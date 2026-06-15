@@ -22,7 +22,6 @@ export function generateGuide(ctx: GeneratorContext): void {
     w("");
     w("Edit `swoff/auth/adapter.${ext}` to match your backend:");
     w("");
-    w("- `toAuthData()`: map your login/register response to `AuthData`");
     w("- `getHeaders()`: return auth headers for fetch requests");
     w("- `fetchUser()`: implement fetching current user from `/api/me`");
     if (auth.type !== "cookie") {

@@ -44,11 +44,11 @@ function scheduleReconnect() {
   pushReconnectTimer = setTimeout(connectPushEvents, ${reconnectDelayMs});
 }
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(connectPushEvents());
+self.addEventListener("activate", () => {
+  connectPushEvents();
 });
 `;
-  }
+}
 
   // SSE: fetch + ReadableStream reader
   return `
@@ -124,8 +124,8 @@ function scheduleReconnect() {
   pushReconnectTimer = setTimeout(connectPushEvents, ${reconnectDelayMs});
 }
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(connectPushEvents());
+self.addEventListener("activate", () => {
+  connectPushEvents();
 });
 `;
 }

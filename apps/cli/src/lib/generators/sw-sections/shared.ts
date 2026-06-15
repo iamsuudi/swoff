@@ -55,7 +55,7 @@ export function applySwSections(
 
   code = code.replace(
     "// [[FETCH_HANDLER]]",
-    () => generateFetchHandler({ strategy, navigation, refetchQueue }, true, features.mutationQueue.enabled, features.auth.routePaths, debug),
+    () => generateFetchHandler({ strategy, navigation, refetchQueue }, true, features.mutationQueue.enabled, features.auth.routePaths, features.realtime.serverPush?.enabled ? features.realtime.serverPush.endpoint : undefined, debug),
   );
 
   code = code.replace(

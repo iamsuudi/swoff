@@ -46,6 +46,10 @@ export async function syncWhenPossible(mutation${T(ts, "object")})${R(ts, "Promi
 
 /** Re-register a background sync if mutations are still pending. Called automatically after each sync cycle. */
 export async function retrySync()${R(ts, "Promise<void>")}{
+  // Re-register self-cleaning listener for next cycle
+  if (typeof window !== "undefined") {
+    window.addEventListener("mutation-sync-complete", retrySync, { once: true });
+  }
   if (!("serviceWorker" in navigator) || !("SyncManager" in window)) return;
   const count = await getPendingCount();
   if (count > 0) {
@@ -54,7 +58,7 @@ export async function retrySync()${R(ts, "Promise<void>")}{
 }
 
 if (typeof window !== "undefined") {
-  window.addEventListener("mutation-sync-complete", retrySync);
+  window.addEventListener("mutation-sync-complete", retrySync, { once: true });
 }
 `;
 }

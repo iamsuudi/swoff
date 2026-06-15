@@ -63,6 +63,15 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         const patterns = strategy.patterns as Record<string, unknown> | undefined;
         if (patterns && typeof patterns === "object") {
           for (const [pattern, entry] of Object.entries(patterns)) {
+            if (typeof pattern !== "string" || pattern.trim() === "") {
+              errors.push("features.serviceWorker.strategy.patterns keys must be non-empty strings");
+              continue;
+            }
+            const opens = (pattern.match(/\{/g) || []).length;
+            const closes = (pattern.match(/\}/g) || []).length;
+            if (opens !== closes) {
+              errors.push(`features.serviceWorker.strategy.patterns["${pattern}"] has unbalanced braces`);
+            }
             if (typeof entry === "string") {
               if (!VALID_STRATEGIES.includes(entry as (typeof VALID_STRATEGIES)[number])) {
                 errors.push(
@@ -205,6 +214,9 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     const tagInvalidationVal = features.tagInvalidation as Record<string, unknown> | undefined;
     if (tagInvalidationVal && typeof tagInvalidationVal === "object") {
       const ti = tagInvalidationVal as Record<string, unknown>;
+      if (ti.enabled !== undefined && typeof ti.enabled !== "boolean") {
+        errors.push("features.tagInvalidation.enabled must be a boolean");
+      }
       if (ti.debounceMs !== undefined && (typeof ti.debounceMs !== "number" || ti.debounceMs < 0 || !Number.isInteger(ti.debounceMs))) {
         errors.push("features.tagInvalidation.debounceMs must be a non-negative integer");
       }

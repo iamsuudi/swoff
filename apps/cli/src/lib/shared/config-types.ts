@@ -54,6 +54,7 @@ export interface NavigationRule {
 }
 
 export interface TagInvalidationConfig {
+  enabled: boolean;
   debounceMs?: number;
   skipPrefixes?: string[];
   patterns?: Record<string, string[]>;
@@ -98,10 +99,10 @@ export interface SwoffConfig {
       preventDefaultInstall: boolean;
     };
     serviceWorker: {
-      version: string;
+      version: "hash" | "package" | "manual";
       autoActivate: boolean;
       strategy: {
-        default: string;
+        default: "cache-first" | "network-first" | "stale-while-revalidate" | "cache-only" | "network-only" | "reactive";
         patterns: Record<string, string | StrategyEntry>;
         reactive: {
           defaults: {
@@ -207,6 +208,7 @@ export const defaultRealtimeConfig: RealtimeConfig = {
 };
 
 export const defaultTagInvalidation: TagInvalidationConfig = {
+  enabled: true,
   debounceMs: 0,
   skipPrefixes: [...API_PREFIXES],
   patterns: {},

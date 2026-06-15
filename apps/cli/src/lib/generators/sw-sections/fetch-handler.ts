@@ -623,17 +623,10 @@ async function refetchEntry(url) {
   } catch {}
 }
 
-function handleFocusRefetch() {
-  swLog("handleFocusRefetch", "ENTER entries=" + REACTIVE_ENTRIES.size, "", 0);
+function handleRefetch(prop) {
+  swLog("handleRefetch", "ENTER prop=" + prop + " entries=" + REACTIVE_ENTRIES.size, "", 0);
   REACTIVE_ENTRIES.forEach(function(config, url) {
-    if (config.refetchOnFocus) queueRefresh(url);
-  });
-}
-
-function handleOnlineRefetch() {
-  swLog("handleOnlineRefetch", "ENTER entries=" + REACTIVE_ENTRIES.size, "", 0);
-  REACTIVE_ENTRIES.forEach(function(config, url) {
-    if (config.refetchOnReconnect) queueRefresh(url);
+    if (config[prop]) queueRefresh(url);
   });
 }
 
@@ -801,23 +794,7 @@ async function storeMutationInSW(request) {
     maxCacheAge && maxCacheAge > 0
       ? `
   // Prune expired entries in a separate transaction
-  const pruneTx = db.transaction(MUTATION_STORE_NAME, "readwrite");
-  const pruneStore = pruneTx.objectStore(MUTATION_STORE_NAME);
-  const cutoff = Date.now() - MAX_RUNTIME_CACHE_AGE * 1000;
-  const allEntries = await new Promise(function(resolve, reject) {
-    var req = pruneStore.getAll();
-    req.onsuccess = function() { resolve(req.result); };
-    req.onerror = function() { reject(req.error); };
-  });
-  for (const item of allEntries) {
-    if (item.timestamp && item.timestamp < cutoff) {
-      pruneStore.delete(item.id);
-    }
-  }
-  await new Promise(function(resolve, reject) {
-    pruneTx.oncomplete = function() { resolve(); };
-    pruneTx.onerror = function() { reject(pruneTx.error); };
-  });`
+  await pruneStaleStore(db, MUTATION_STORE_NAME, Date.now() - MAX_RUNTIME_CACHE_AGE * 1000, "id");`
       : ""
   }
   const tx = db.transaction(MUTATION_STORE_NAME, "readwrite");

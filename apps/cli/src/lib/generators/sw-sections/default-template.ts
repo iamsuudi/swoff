@@ -41,6 +41,27 @@ var REACTIVE_ENTRIES = null;
 var REACTIVE_INTERVALS = null;
 var clearAllReactive = null;
 
+// --- IDB Pruning Helper ---
+
+function pruneStaleStore(db, storeName, cutoff, keyField) {
+  return new Promise(function(resolve, reject) {
+    var tx = db.transaction(storeName, "readwrite");
+    var store = tx.objectStore(storeName);
+    var req = store.getAll();
+    req.onsuccess = function() {
+      var entries = req.result;
+      for (var i = 0; i < entries.length; i++) {
+        if (entries[i].timestamp && entries[i].timestamp < cutoff) {
+          store.delete(entries[i][keyField || "url"]);
+        }
+      }
+    };
+    req.onerror = function() { reject(req.error); };
+    tx.oncomplete = function() { resolve(); };
+    tx.onerror = function() { reject(tx.error); };
+  });
+}
+
 // --- Broadcast Helper ---
 
 function broadcastToClients(type, payload) {

@@ -14,25 +14,13 @@ async function cacheTagUrl(url, actualUrl, tags, method, body, contentType) {
       store.createIndex("by-tag", "tags", { multiEntry: true });
     }
   });
-  const tx = db.transaction(TAG_STORE_NAME, "readwrite");
-  const store = tx.objectStore(TAG_STORE_NAME);${
+  ${
     evict
-      ? `
-  // Prune entries older than MAX_RUNTIME_CACHE_AGE
-  const cutoff = Date.now() - MAX_RUNTIME_CACHE_AGE * 1000;
-  const index = store.index("by-tag");
-  const allEntries = await new Promise(function(resolve, reject) {
-    var req = index.getAll();
-    req.onsuccess = function() { resolve(req.result); };
-    req.onerror = function() { reject(req.error); };
-  });
-  for (const entry of allEntries) {
-    if (entry.timestamp && entry.timestamp < cutoff) {
-      store.delete(entry.url);
-    }
-  }`
+      ? `await pruneStaleStore(db, TAG_STORE_NAME, Date.now() - MAX_RUNTIME_CACHE_AGE * 1000);
+  `
       : ""
-  }
+  }const tx = db.transaction(TAG_STORE_NAME, "readwrite");
+  const store = tx.objectStore(TAG_STORE_NAME);
   store.put({ url, actualUrl, tags, method: method || "GET", body: body || null, contentType: contentType || null, timestamp: Date.now() });
   await new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();

@@ -55,7 +55,7 @@ export function applySwSections(
 
   code = code.replace(
     "// [[FETCH_HANDLER]]",
-    () => generateFetchHandler({ strategy, navigation, refetchQueue }, true, features.mutationQueue.enabled, features.auth.routePaths, features.realtime.serverPush?.enabled ? features.realtime.serverPush.endpoint : undefined, debug),
+    () => generateFetchHandler({ strategy, navigation, refetchQueue }, features.tagInvalidation.enabled, features.mutationQueue.enabled, features.auth.routePaths, features.realtime.serverPush?.enabled ? features.realtime.serverPush.endpoint : undefined, debug),
   );
 
   code = code.replace(
@@ -70,7 +70,7 @@ export function applySwSections(
     refetchQueue.batchDelayMs,
   ));
 
-  code = code.replace("// [[MESSAGE_HANDLER]]", () => generateMessageHandler(true, features.tagInvalidation.debounceMs ?? 0));
+  code = code.replace("// [[MESSAGE_HANDLER]]", () => generateMessageHandler(features.tagInvalidation.enabled, features.tagInvalidation.debounceMs ?? 0));
   code = code.replace("// [[TAG_MANAGEMENT]]", () => generateTagManagement(maxCacheAge));
 
   const endpoint = useApiBasePlaceholder

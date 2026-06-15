@@ -53,6 +53,7 @@ export async function initServiceWorker()${R(ts, "Promise<void>")}{
   try {
     const registration = await navigator.serviceWorker.register(${swUrl});
 
+    var swReadyDispatched = false;
     if (registration.installing) {
       const installingWorker = registration.installing;
       installingWorker.addEventListener("statechange", () => {
@@ -60,13 +61,16 @@ export async function initServiceWorker()${R(ts, "Promise<void>")}{
           if (AUTO_ACTIVATE) {
             registration.waiting?.postMessage({ type: "SKIP_WAITING" });
           }
+          swReadyDispatched = true;
           window.dispatchEvent(new CustomEvent("sw-ready"));
         }
       });
     }
 
     await waitForController();
-    window.dispatchEvent(new CustomEvent("sw-ready"));
+    if (!swReadyDispatched) {
+      window.dispatchEvent(new CustomEvent("sw-ready"));
+    }
   } catch (error) {
     console.error("Service Worker registration failed:", error);
     window.swError = true;

@@ -45,6 +45,7 @@ export function generateFetchHandler(
   tagInvalidation: boolean,
   mutationQueueEnabled: boolean,
   authRoutePaths: string[],
+  serverPushEndpoint?: string,
   debug?: boolean,
 ): string {
   const {
@@ -191,6 +192,7 @@ const REACTIVE_STALE_DEFAULT = ${globalStaleTime != null ? globalStaleTime : 0};
 const FETCH_TIMEOUT_MS = ${fetchTimeout * 1000};
 const SW_DEBUG = ${debugMode};
 ${authRoutePaths.length > 0 ? `const AUTH_ROUTES = ${JSON.stringify(authRoutePaths)};` : ""}
+${serverPushEndpoint ? `const SERVER_PUSH_ENDPOINT = "${serverPushEndpoint}";` : ""}
 
 ${navRulesCode}// --- Debug Logging ---
 
@@ -857,6 +859,14 @@ async function handleMutation(event) {
 }self.addEventListener("fetch", (event) => {
   const { request } = event;
   swLog("fetch", "INCOMING", request.url, 0);${
+    serverPushEndpoint
+      ? `
+  if (SERVER_PUSH_ENDPOINT && request.url.includes(SERVER_PUSH_ENDPOINT)) {
+    swLog("fetch", "server-push-bypass", request.url, 0);
+    return;
+  }`
+      : ""
+  }${
     authRoutePaths.length > 0
       ? `
   if (AUTH_ROUTES.some(function(route) { return request.url.includes(route); })) {

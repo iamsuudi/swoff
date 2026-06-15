@@ -23,7 +23,7 @@ import { generateClientInjector } from "./file-generators/client-injector.js";
 import { generateFetchWrapper } from "./file-generators/fetch-wrapper.js";
 import { generateCache } from "./file-generators/cache.js";
 import { generateMutationQueue } from "./file-generators/mutation-queue.js";
-import { shouldIncludeBackgroundSync } from "./sw-sections/shared.js";
+import { shouldIncludeBackgroundSync, shouldIncludeServerPush } from "./sw-sections/shared.js";
 import { generateBackgroundSync } from "./file-generators/background-sync.js";
 import { generatePwaInstall } from "./file-generators/pwa-install.js";
 import { generateInvalidationTags } from "./file-generators/invalidation-tags.js";
@@ -140,7 +140,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     {
       name: "realtime/server-push",
       gen: () => generateServerPush(ctx),
-      enabled: ctx.config.features.realtime.serverPush.enabled,
+      enabled: shouldIncludeServerPush(ctx.config),
     },
     {
       name: "framework-adapters",

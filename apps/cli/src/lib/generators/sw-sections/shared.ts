@@ -24,6 +24,14 @@ export function shouldIncludeBackgroundSync(config: SwoffConfig): boolean {
   );
 }
 
+export function shouldIncludeServerPush(config: SwoffConfig): boolean {
+  const { features } = config;
+  return !!(
+    features.realtime.serverPush?.enabled &&
+    (!features.auth.enabled || isCookieAuth(features.auth.type))
+  );
+}
+
 export function generateBackgroundSyncCode(config: SwoffConfig): string {
   const { features } = config;
   const authType = features.auth.enabled ? features.auth.type : undefined;
@@ -52,10 +60,12 @@ export function applySwSections(
   const { strategy, navigation } = serviceWorker;
   const { refetchQueue } = features;
   const maxCacheAge = strategy.maxRuntimeCacheAge;
+  const spEnabled = shouldIncludeServerPush(config);
+  const spEndpoint = features.realtime.serverPush?.endpoint ?? "";
 
   code = code.replace(
     "// [[FETCH_HANDLER]]",
-    () => generateFetchHandler({ strategy, navigation, refetchQueue }, features.tagInvalidation.enabled, features.mutationQueue.enabled, features.auth.routePaths, features.realtime.serverPush?.enabled ? features.realtime.serverPush.endpoint : undefined, debug),
+    () => generateFetchHandler({ strategy, navigation, refetchQueue }, features.tagInvalidation.enabled, features.mutationQueue.enabled, features.auth.routePaths, spEnabled ? spEndpoint : undefined, debug),
   );
 
   code = code.replace(
@@ -74,14 +84,14 @@ export function applySwSections(
   code = code.replace("// [[TAG_MANAGEMENT]]", () => generateTagManagement(maxCacheAge));
 
   const endpoint = useApiBasePlaceholder
-    ? "SWOFF_API_BASE" + (features.realtime.serverPush?.endpoint ?? "")
-    : features.realtime.serverPush?.endpoint ?? "";
+    ? "SWOFF_API_BASE" + spEndpoint
+    : spEndpoint;
 
   code = features.realtime.pushNotifications
     ? code.replace("// [[PUSH_HANDLERS]]", () => generateSwPushHandlers())
     : code.replace("// [[PUSH_HANDLERS]]", "");
 
-  code = features.realtime.serverPush?.enabled
+  code = spEnabled
     ? code.replace(
         "// [[SERVER_PUSH_HANDLER]]",
         () => generateServerPushHandler(

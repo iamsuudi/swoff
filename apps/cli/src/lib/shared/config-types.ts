@@ -3,7 +3,7 @@ export interface GqlConfig {
   endpoints: string[];
 }
 
-export type AuthType = "cookie" | "bearer" | "custom" | "better-auth" | "next-auth" | "clerk" | "supabase";
+export type AuthType = "cookie" | "bearer" | "custom";
 
 export interface AuthConfig {
   enabled: boolean;

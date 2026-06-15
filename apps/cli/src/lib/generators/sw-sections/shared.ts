@@ -9,7 +9,7 @@ import { generateSwPushHandlers } from "./sw-push.js";
 import { generateServerPushHandler } from "./server-push-handler.js";
 import { generateBackgroundSyncHandler } from "./background-sync-handler.js";
 
-const COOKIE_AUTH_TYPES = ["cookie", "better-auth", "next-auth", "clerk"];
+const COOKIE_AUTH_TYPES = ["cookie"];
 
 function isCookieAuth(authType: string): boolean {
   return COOKIE_AUTH_TYPES.includes(authType);

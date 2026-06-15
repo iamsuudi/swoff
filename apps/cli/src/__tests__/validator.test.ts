@@ -365,37 +365,7 @@ describe("validateConfig", () => {
       expect(errors[0]).toContain('features.auth.type must be one of');
     });
 
-    it("accepts better-auth type", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, auth: { enabled: true, type: "better-auth" } },
-      };
-      expect(validateConfig(config)).toEqual([]);
-    });
 
-    it("accepts next-auth type", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, auth: { enabled: true, type: "next-auth" } },
-      };
-      expect(validateConfig(config)).toEqual([]);
-    });
-
-    it("accepts clerk type", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, auth: { enabled: true, type: "clerk" } },
-      };
-      expect(validateConfig(config)).toEqual([]);
-    });
-
-    it("accepts supabase type", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, auth: { enabled: true, type: "supabase" } },
-      };
-      expect(validateConfig(config)).toEqual([]);
-    });
   });
 
   describe("build validation", () => {

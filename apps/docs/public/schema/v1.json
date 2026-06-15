@@ -14,7 +14,17 @@
       "type": "string",
       "description": "Detected frontend framework. Used to generate framework-specific hooks and adapters. Set automatically by `swoff init`. When a meta-framework is detected (nextjs, remix, etc.), navigation.mode and strategy defaults are auto-configured.",
       "default": "vanilla",
-      "enum": ["react", "vue", "svelte", "vanilla", "nextjs", "remix", "astro", "nuxt", "sveltekit"]
+      "enum": [
+        "react",
+        "vue",
+        "svelte",
+        "vanilla",
+        "nextjs",
+        "remix",
+        "astro",
+        "nuxt",
+        "sveltekit"
+      ]
     },
     "features": {
       "type": "object",
@@ -216,9 +226,9 @@
               "properties": {
                 "mode": {
                   "type": "string",
-                  "description": "Navigation mode. 'spa': serve SPA fallback for unmatched navigations. 'default': passthrough (no special handling). 'network-first': try network, fall back to cache/offline. 'stale-while-revalidate': serve cached HTML instantly, refresh in background.",
+                  "description": "Navigation mode.",
                   "default": "spa",
-                  "enum": ["spa", "default", "network-first", "stale-while-revalidate"]
+                  "enum": ["spa", "default", "ssr"]
                 },
                 "preload": {
                   "type": "boolean",
@@ -255,7 +265,12 @@
                         "type": "string",
                         "description": "Navigation policy for matching routes. 'cache-first': serve from precache immediately (never fetches). 'network-first': try network, fall back to cache/offline. 'network-only': always fetch (never cache). 'stale-while-revalidate': serve cached HTML instantly, refresh in background.",
                         "default": "network-first",
-                        "enum": ["cache-first", "network-first", "network-only", "stale-while-revalidate"]
+                        "enum": [
+                          "cache-first",
+                          "network-first",
+                          "network-only",
+                          "stale-while-revalidate"
+                        ]
                       },
                       "offlineFallback": {
                         "type": "string",
@@ -413,13 +428,22 @@
               "type": "string",
               "description": "Auth adapter type — determines how Swoff communicates with your auth provider",
               "default": "bearer",
-              "enum": ["cookie", "bearer", "custom", "better-auth", "next-auth", "clerk", "supabase"]
+              "enum": ["cookie", "bearer", "custom"]
             },
             "routePaths": {
               "type": "array",
               "description": "URL path prefixes that bypass SW caching at build time. Requests matching any of these paths return immediately in the fetch event listener, before any strategy resolution. Default: well-known auth routes.",
               "items": { "type": "string" },
-              "default": ["/login", "/logout", "/register", "/api/login", "/api/logout", "/api/register", "/api/refresh", "/api/me"],
+              "default": [
+                "/login",
+                "/logout",
+                "/register",
+                "/api/login",
+                "/api/logout",
+                "/api/register",
+                "/api/refresh",
+                "/api/me"
+              ],
               "uniqueItems": true
             }
           },

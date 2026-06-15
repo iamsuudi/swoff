@@ -271,7 +271,7 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       }
     }
 
-    const VALID_AUTH_TYPES = ["cookie", "bearer", "custom", "better-auth", "next-auth", "clerk", "supabase"];
+    const VALID_AUTH_TYPES = ["cookie", "bearer", "custom"];
     const auth = features.auth as Record<string, unknown> | undefined;
     if (auth && typeof auth === "object") {
       if (auth.enabled !== undefined && typeof auth.enabled !== "boolean") {

@@ -1,4 +1,5 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { writeFileSync, existsSync, mkdirSync } from "fs";
+import { readFile } from "fs/promises";
 import { join } from "path";
 import { fileURLToPath } from "url";
 import { loadConfigAsync } from "../config/loader.js";
@@ -20,7 +21,7 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ vers
 
   if (existsSync(pkgPath)) {
     try {
-      pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+      pkg = JSON.parse(await readFile(pkgPath, "utf8"));
     } catch {
       console.log("Could not read package.json, using default version");
     }
@@ -43,7 +44,7 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ vers
   } else {
     const configTsPath = join(optProjectRoot, "swoff", "config.ts");
     if (existsSync(configTsPath)) {
-      const content = readFileSync(configTsPath, "utf8");
+      const content = await readFile(configTsPath, "utf8");
       const match = content.match(/export\s+const\s+API_BASE\s*=\s*"([^"]+)"/);
       apiBase = match ? match[1] : "";
     }

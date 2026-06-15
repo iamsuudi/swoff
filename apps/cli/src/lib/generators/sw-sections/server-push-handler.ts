@@ -115,6 +115,11 @@ async function connectPushEvents() {
   scheduleReconnect();
 }
 
+function scheduleReconnect() {
+  if (pushReconnectTimer) clearTimeout(pushReconnectTimer);
+  pushReconnectTimer = setTimeout(connectPushEvents, Math.max(1000, ${reconnectDelayMs}));
+}
+
 self.addEventListener("activate", () => {
   connectPushEvents();
 });

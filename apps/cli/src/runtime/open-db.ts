@@ -21,10 +21,11 @@ export function openDB(
   name${T(ts, "string")},
   storeName${T(ts, "string")},
   keyPath${T(ts, "string | string[]")},
-  upgradeCallback${O(ts, "(db: IDBDatabase) => void")}
+  upgradeCallback${O(ts, "(db: IDBDatabase) => void")},
+  version${O(ts, "number")}
 )${R(ts, "Promise<IDBDatabase>")}{
   return new Promise${PT(ts, "IDBDatabase")}((resolve, reject) => {
-    const request = indexedDB.open(name, 1);
+    const request = indexedDB.open(name, version ?? 1);
     request.onupgradeneeded = (e) => {
       const db = (e.target${AS(ts, "IDBOpenDBRequest")}).result;
       if (upgradeCallback) {

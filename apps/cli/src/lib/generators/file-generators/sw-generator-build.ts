@@ -109,6 +109,7 @@ if (!existsSync(outDir)) {
 }
 
 function collectAssets(dir, baseDir) {
+  if (!existsSync(dir)) return [];
   const entries = readdirSync(dir, { withFileTypes: true });
   const assets = [];
   for (const entry of entries) {

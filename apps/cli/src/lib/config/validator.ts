@@ -337,6 +337,12 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         if (sp.enabled && features.auth && typeof features.auth === "object" && (features.auth as Record<string, unknown>).enabled && (features.auth as Record<string, unknown>).type === "bearer") {
           errors.push(`features.realtime.serverPush is not supported with bearer auth — use cookie auth instead`);
         }
+        if (sp.enabled) {
+          const ti = features.tagInvalidation as Record<string, unknown> | undefined;
+          if (ti && typeof ti === "object" && ti.enabled === false) {
+            errors.push("features.realtime.serverPush requires features.tagInvalidation to be enabled");
+          }
+        }
         if (sp.type !== undefined && !["sse", "websocket"].includes(sp.type as string)) {
           errors.push('features.realtime.serverPush.type must be "sse" or "websocket"');
         }

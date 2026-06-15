@@ -594,10 +594,8 @@ async function refetchEntry(url) {
       if (entry) entry.lastRefetch = Date.now();
       swLog("refetchEntry", "SUCCESS", url, 4);
       broadcastToClients("CACHE_UPDATED", { url: fetchUrl });
-    } else if (response && response.status === 401) {
-      swLog("refetchEntry", "AUTH_FAILURE", url, 4);
-      broadcastToClients("AUTH_FAILURE");
     }
+    checkAuthFailure(response);
   } catch {}
 }
 
@@ -702,7 +700,9 @@ async function staleWhileRevalidateStrategy(event, request, config) {
 
   if (cached) return markFromCache(cached);
   try {
-    return await _fetch(event, request, config.timeoutMs);
+    const response = await _fetch(event, request, config.timeoutMs);
+    checkAuthFailure(response);
+    return response;
   } catch {
     return fallback(request);
   }

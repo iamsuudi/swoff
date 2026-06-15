@@ -90,7 +90,7 @@ describe("addCommand", () => {
   });
 
   it("updates existing config with feature", async () => {
-    const base = { features: { auth: { enabled: false, type: "bearer" }, mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 }, serviceWorker: { version: "package",  autoActivate: false, strategy: { default: "cache-first", mode: "all", clearRuntimeOnUpdate: false, patterns: {}, reactive: { defaults: {} } }, navigation: { mode: "spa", fallback: "/index.html" } }, pwa: { enabled: false, preventDefaultInstall: false }, tagInvalidation: { crossTabSync: false }, graphql: { enabled: false, endpoints: ["/graphql"] }, realtime: { pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 } }, refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 } }, build: { outputDir: "dist", swFilename: "sw" } };
+    const base = { features: { auth: { enabled: false, type: "bearer" }, mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 }, serviceWorker: { version: "package",  autoActivate: false, strategy: { default: "cache-first", mode: "all", clearRuntimeOnUpdate: false, patterns: {}, reactive: { defaults: {} } }, navigation: { mode: "spa", fallback: "/index.html" } }, pwa: { enabled: false, preventDefaultInstall: false }, tagInvalidation: {}, graphql: { enabled: false, endpoints: ["/graphql"] }, realtime: { pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 } }, refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 } }, build: { outputDir: "dist", swFilename: "sw" } };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(base));
     await addCommand(testDir, "auth");
     const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
@@ -165,7 +165,7 @@ describe("generateCommand", () => {
         refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
         mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000, backgroundSync: false },
         auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
-        tagInvalidation: { crossTabSync: false },
+        tagInvalidation: {},
         realtime: { pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 } },
       },
       build: { outputDir: "dist", swFilename: "sw" },
@@ -238,7 +238,7 @@ describe("validateCommand", () => {
         refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
         mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000, backgroundSync: false },
         auth: { enabled: false, type: "bearer" },
-        tagInvalidation: { crossTabSync: false },
+        tagInvalidation: {},
         graphql: { enabled: false, endpoints: ["/graphql"] },
         realtime: { pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 } },
       },

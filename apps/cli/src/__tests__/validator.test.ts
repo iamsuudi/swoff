@@ -33,7 +33,7 @@ describe("validateConfig", () => {
       },
       mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },
       auth: { enabled: false, type: "bearer" },
-      tagInvalidation: { crossTabSync: true },
+      tagInvalidation: {},
       graphql: { enabled: false, endpoints: ["/graphql"] },
     },
     build: { outputDir: "dist", swFilename: "sw" },

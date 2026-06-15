@@ -353,8 +353,12 @@ async function cacheResponse(response, request) {
     if (!ct.startsWith("text/html")) {
       const pct = precached.headers.get("Content-Type") || "";
       if (pct.split(";")[0] === ct.split(";")[0]) {
-        await precache.put(url.href, response.clone());
-        swLog("cacheResponse", "updated precache", request.url, 3);
+        try {
+          await precache.put(url.href, response.clone());
+          swLog("cacheResponse", "updated precache", request.url, 3);
+        } catch (e) {
+          swLog("cacheResponse", "precache update failed", request.url, 3);
+        }
       }
     }
     skipRuntime = true;
@@ -365,12 +369,32 @@ async function cacheResponse(response, request) {
     const cache = await caches.open(cacheName);
     const headers = new Headers(response.headers);
     headers.set("X-SW-Cached-At", String(Date.now()));
-    await cache.put(key, new Response(response.body, {
+    const putResponse = new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
       headers,
-    }));
-    swLog("cacheResponse", "stored in " + cacheName, request.url, 3);
+    });
+    try {
+      await cache.put(key, putResponse);
+      swLog("cacheResponse", "stored in " + cacheName, request.url, 3);
+    } catch (e) {
+      swLog("cacheResponse", "quota error, evicting stale entries", request.url, 3);
+      try {
+        // Evict stale runtime entries and retry once
+        for (const name of [CACHE_NAME_RUNTIME, CACHE_NAME_RUNTIME_HTML]) {
+          const c = await caches.open(name);
+          const keys = await c.keys();
+          const now = Date.now();
+          for (const req of keys) {
+            const res = await c.match(req);
+            const cachedAt = res ? Number(res.headers.get("X-SW-Cached-At") || 0) : 0;
+            if (!cachedAt || now - cachedAt > 3600000) await c.delete(req);
+          }
+        }
+        await cache.put(key, putResponse.clone());
+        swLog("cacheResponse", "stored after eviction", request.url, 3);
+      } catch {}
+    }
   }${tagCode}
 }
 

@@ -453,11 +453,7 @@
           "type": "object",
           "description": "Tag-based cache invalidation configuration. Object-only (boolean shorthand not supported).",
           "properties": {
-            "crossTabSync": {
-              "type": "boolean",
-              "description": "Cross-tab cache invalidation sync. When true, invalidation events broadcast to all open tabs.",
-              "default": true
-            },
+
             "debounceMs": {
               "type": "integer",
               "description": "Debounce window (ms) for coalescing rapid invalidations. When > 0, repeated INVALIDATE_TAG messages within the window are batched and processed once, reducing redundant cache scans.",

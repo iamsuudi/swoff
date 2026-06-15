@@ -59,7 +59,6 @@ export interface TagInvalidationConfig {
   patterns?: Record<string, string[]>;
   singularization?: Record<string, string>;
   cascading?: Record<string, string[]>;
-  crossTabSync: boolean;
 }
 
 export interface RealtimeConfig {
@@ -213,7 +212,6 @@ export const defaultTagInvalidation: TagInvalidationConfig = {
   patterns: {},
   singularization: {},
   cascading: {},
-  crossTabSync: true,
 };
 
 export function deepMerge<T>(

@@ -220,9 +220,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       if (ti.cascading !== undefined && (typeof ti.cascading !== "object" || ti.cascading === null)) {
         errors.push("features.tagInvalidation.cascading must be an object");
       }
-      if (ti.crossTabSync !== undefined && typeof ti.crossTabSync !== "boolean") {
-        errors.push("features.tagInvalidation.crossTabSync must be a boolean");
-      }
     }
 
     const mutationQueueVal = features.mutationQueue as Record<string, unknown> | undefined;

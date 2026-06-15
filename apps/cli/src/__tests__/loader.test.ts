@@ -44,7 +44,7 @@ describe("loadConfig", () => {
           enabled: false,
           type: "bearer",
         },
-        tagInvalidation: { crossTabSync: true },
+        tagInvalidation: {},
       },
       build: { outputDir: "build", swFilename: "service-worker" },
     };

@@ -63,7 +63,6 @@ All features are nested under the `features` key.
 | `versionedSw` | boolean | `true` | Versioned SW lifecycle (install, activate, skipWaiting) |
 | `mutationQueue` | boolean | `false` | Queue offline writes, sync on reconnect |
 | `backgroundSync` | boolean | `false` | Background Sync API (Chrome/Edge only). Requires `mutationQueue: true` |
-| `crossTabSync` | boolean | `true` | Cross-tab cache invalidation via postMessage. Requires `tagInvalidation: true` |
 | `tagInvalidation` | boolean | `true` | URL-based cache tag generation |
 | `clientRegistration` | boolean | `true` | Generate `sw-injector.js` with version checking and update consent |
 
@@ -142,7 +141,6 @@ The generated manifest includes full PWA fields (name, short_name, icons, start_
     "backgroundSync": false,
     "pwa": { "enabled": true, "preventDefaultInstall": false },
     "auth": { "enabled": false, "type": "bearer", "refreshPath": "/api/refresh", "userEndpoint": "/api/me" },
-    "crossTabSync": true,
     "tagInvalidation": true,
     "clientRegistration": true,
     "indexeddb": { "enabled": false, "name": "app-db", "stores": [] }

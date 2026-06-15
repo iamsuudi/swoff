@@ -277,6 +277,12 @@ ${mutationTagsBlock}
   } else {
     const abortHandler = () => {
       inFlightRequests.delete(url);
+      if (pendingBatches.has(url)) {
+        const batch = pendingBatches.get(url)!;
+        clearTimeout(batch.timer);
+        pendingBatches.delete(url);
+        batch.rejectors.forEach((rej) => rej(new DOMException("The operation was aborted", "AbortError")));
+      }
     };
     if (options.signal) {
       options.signal.addEventListener("abort", abortHandler, { once: true });
@@ -305,7 +311,12 @@ ${mutationTagsBlock}
         batch.rejectors.push(reject);
       });
     } else {
-      responsePromise = fetch(resolvedInput, fetchOptions);
+      responsePromise = fetch(resolvedInput, fetchOptions).finally(() => {
+        inFlightRequests.delete(url);
+        if (options.signal) {
+          options.signal.removeEventListener("abort", abortHandler);
+        }
+      });
     }
   }
 

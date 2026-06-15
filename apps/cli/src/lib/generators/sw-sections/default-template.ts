@@ -18,12 +18,20 @@ const CACHE_NAME_RUNTIME_HTML = "swoff-runtime-html";
 
 function openDB(dbName, version, onUpgrade) {
   return new Promise(function(resolve, reject) {
-    var request = indexedDB.open(dbName, version);
-    request.onupgradeneeded = function(e) {
-      if (onUpgrade) onUpgrade(e.target.result);
-    };
-    request.onsuccess = function(e) { resolve(e.target.result); };
-    request.onerror = function(e) { reject(e.target.error); };
+    if (typeof indexedDB === "undefined") {
+      reject(new Error("IndexedDB is not available (private browsing mode?)"));
+      return;
+    }
+    try {
+      var request = indexedDB.open(dbName, version);
+      request.onupgradeneeded = function(e) {
+        if (onUpgrade) onUpgrade(e.target.result);
+      };
+      request.onsuccess = function(e) { resolve(e.target.result); };
+      request.onerror = function(e) { reject(e.target.error); };
+    } catch (e) {
+      reject(e);
+    }
   });
 }
 

@@ -241,26 +241,23 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
     if (event.data.type === "AUTH_FAILURE") {
       // SW detected 401 during background refetch — check if session is still valid
       (async () => {
-        try {
-          const refreshed = await ensureValidAuth();
-          if (!refreshed) {
-            // Session expired — clear queue and runtime caches
-            if (typeof clearQueue !== "undefined") {
-              await clearQueue();
-            }
-            try {
-              for (const name of ["swoff-runtime", "swoff-runtime-html"]) {
-                const cache = await caches.open(name);
-                const keys = await cache.keys();
-                await Promise.all(keys.map((k) => cache.delete(k)));
-              }
-            } catch {
-              // Handle cache deletion errors
-            }
-            window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
+        if (typeof ensureValidAuth === "undefined") return;
+        const refreshed = await ensureValidAuth();
+        if (!refreshed) {
+          // Session expired — clear queue and runtime caches
+          if (typeof clearQueue !== "undefined") {
+            await clearQueue();
           }
-        } catch {
-          // ensureValidAuth not imported (auth disabled) — no-op
+          try {
+            for (const name of ["swoff-runtime", "swoff-runtime-html"]) {
+              const cache = await caches.open(name);
+              const keys = await cache.keys();
+              await Promise.all(keys.map((k) => cache.delete(k)));
+            }
+          } catch {
+            // Handle cache deletion errors
+          }
+          window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
         }
       })();
     }${invalidationHandler}  });

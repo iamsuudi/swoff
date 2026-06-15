@@ -202,7 +202,6 @@ describe("generateClientInjector", () => {
         ...defaultConfig.features,
         tagInvalidation: {
           ...defaultConfig.features.tagInvalidation,
-          crossTabSync: true,
         },
       },
     });

@@ -112,7 +112,6 @@ swoff add pwa
 swoff add mutation-queue
 swoff add auth
 swoff add graphql
-swoff add cross-tab       # enables tagInvalidation.crossTabSync
 swoff add background-sync # enables mutationQueue.backgroundSync
 swoff add push-notification # enables realtime.pushNotifications
 ```

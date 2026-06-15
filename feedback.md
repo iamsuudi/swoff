@@ -28,13 +28,16 @@
 - **S3** — Strategy errors logged via swLog
 - **S4** — COOKIE_AUTH_TYPES duplication removed from background-sync-handler (uses string comparison directly)
 - **S5** — scheduleReconnect missing from SSE branch (ReferenceError); now added
+- **S6** — Consistent IDB close pattern in tag-management (all use tx.oncomplete callback)
 - **S7** — Consistent optional chaining in message-handler
 - **S8** — Single self.clients.matchAll in install-handler (2×N → N)
 - **S9** — Promise.all in cache eviction wrapped in try-catch
+- **S10** — applySwSections hoisted outside if/else in assemble-sw.ts
 - **S11** — Double index.getAll() merged into single call
 - **S12** — _fetchingUser changed to module-level let
 - **S13** — Duplicate tags key removed from JSDoc
 - **S14** — No-op .replace() calls removed from sw-template
+- **S15** — readFileSync replaced with readFile (fs/promises) in async sw-generator.ts
 - **S17** — Minimum reconnect delay enforced in server-push handler
 - **S18** — Dead `!== false` check removed
 - **S19** — Config header expanded with all feature flags
@@ -61,4 +64,4 @@
 ---
 
 ## 🟢 Code Smells
-*(S1-S5, S7-S9, S11-S14, S17-S23 resolved. S6/S10/S15/S16 skipped — low-impact or architectural.)*
+*(S1-S15, S17-S23 resolved. S16 skipped — architectural.)*

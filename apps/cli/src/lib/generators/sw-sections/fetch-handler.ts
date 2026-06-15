@@ -641,6 +641,17 @@ function handleOnlineRefetch() {
   });
 }
 
+function checkAuthFailure(response) {
+  if (response && response.status === 401) {
+    swLog("checkAuthFailure", "AUTH_FAILURE", response.url || "", 1);
+    self.clients.matchAll().then(function(clients) {
+      clients.forEach(function(client) {
+        client.postMessage({ type: "AUTH_FAILURE" });
+      });
+    });
+  }
+}
+
 // --- Strategies ---
 
 /*
@@ -665,6 +676,7 @@ async function reactiveStrategy(event, request, config) {
 
   try {
     const response = await _fetch(event, request, config.timeoutMs);
+    checkAuthFailure(response);
     if (response.ok) {
       event.waitUntil(cacheResponse(response.clone(), request));
       return response;
@@ -679,6 +691,7 @@ async function networkFirstStrategy(event, request, config) {
   swLog("networkFirstStrategy", "ENTER", request.url, 2);
   try {
     const response = await _fetch(event, request, config.timeoutMs);
+    checkAuthFailure(response);
     if (response.ok) {
       event.waitUntil(cacheResponse(response.clone(), request));
       return response;
@@ -700,6 +713,7 @@ async function cacheFirstStrategy(event, request, config) {
 
   try {
     const response = await _fetch(event, request, config.timeoutMs);
+    checkAuthFailure(response);
     if (response.ok) {
       event.waitUntil(cacheResponse(response.clone(), request));
       return response;
@@ -845,13 +859,17 @@ async function handleMutation(event) {
   if (request.headers.get("X-SW-No-Queue") === "true") {
     swLog("handleMutation", "no-queue mode", request.url, 3);
     try {
-      return await _fetchMutation(request.clone());
+      const response = await _fetchMutation(request.clone());
+      checkAuthFailure(response);
+      return response;
     } catch {
       throw new Error("Mutation failed (no-queue mode)");
     }
   }
   try {
-    return await _fetchMutation(request.clone());
+    const response = await _fetchMutation(request.clone());
+    checkAuthFailure(response);
+    return response;
   } catch {
     swLog("handleMutation", "queuing mutation", request.url, 3);
     await storeMutationInSW(request);

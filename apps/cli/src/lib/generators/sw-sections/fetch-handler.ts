@@ -741,15 +741,9 @@ async function cacheOnlyStrategy(event, request, _config) {
   return new Response("Not in cache", { status: 404 });
 }
 
-async function networkOnlyStrategy(event, request, config) {
-  swLog("networkOnlyStrategy", "ENTER", request.url, 2);
-  return _fetch(event, request, config.timeout);
-}
-
 const STRATEGY_HANDLERS = {
   "reactive": reactiveStrategy,
   "network-first": networkFirstStrategy,
-  "network-only": networkOnlyStrategy,
   "cache-first": cacheFirstStrategy,
   "stale-while-revalidate": staleWhileRevalidateStrategy,
   "cache-only": cacheOnlyStrategy,

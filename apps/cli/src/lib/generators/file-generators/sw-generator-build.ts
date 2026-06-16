@@ -170,7 +170,6 @@ if (nav.precacheRoutes) {
 if (nav.rules) {
   for (const rule of nav.rules) {
     if (rule.fallback && !fallback.includes(rule.fallback)) fallback.push(rule.fallback);
-    if (rule.policy === "cache-first" && rule.match && !fallback.includes(rule.match)) fallback.push(rule.match);
   }
 }
 const combined = [...new Set([...fallback, ...filtered])];

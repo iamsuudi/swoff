@@ -41,9 +41,9 @@ import { generateGuide } from "./file-generators/guide-generator.js";
 import { generateReset } from "./file-generators/reset.js";
 import { generateOpenDB } from "./file-generators/open-db.js";
 import { generateFetchState } from "./file-generators/fetch-state.js";
-import { generateStorageNotify } from "./file-generators/storage-notify.js";
+import { generateStorage } from "./file-generators/storage.js";
 import { generateSwVersion } from "./file-generators/sw-version-gen.js";
-import { generateConnectivityManager } from "./file-generators/connectivity-manager.js";
+import { generateConnectivity } from "./file-generators/connectivity.js";
 import { generateAuthCheck } from "./file-generators/auth-check.js";
 interface Step {
   name: string;
@@ -58,8 +58,8 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
     { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: true },
     {
-      name: "connectivity-manager",
-      gen: () => generateConnectivityManager(ctx),
+      name: "connectivity",
+      gen: () => generateConnectivity(ctx),
       enabled: true,
     },
     {
@@ -154,8 +154,8 @@ export function generateFiles(ctx: GeneratorContext): string[] {
       ].includes(ctx.frameworkName),
     },
     {
-      name: "storage-notify",
-      gen: () => generateStorageNotify(ctx),
+      name: "storage",
+      gen: () => generateStorage(ctx),
       enabled: true,
     },
     { name: "GUIDE.md", gen: () => generateGuide(ctx), enabled: true },

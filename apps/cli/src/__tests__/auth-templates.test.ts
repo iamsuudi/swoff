@@ -108,12 +108,12 @@ describe("auth-store", () => {
 });
 
 describe("auth-state", () => {
-  it("uses connectivity-manager for online status", () => {
+  it("uses connectivity for online status", () => {
     const ctx = makeContext({ features: { ...defaultConfig.features, auth: authConfig("cookie") } });
     generateAuthState(ctx);
     const content = readFileSync(join(ctx.swoffDir, "auth", "state.js"), "utf8");
     expect(content).toContain("getCurrentOnlineStatus");
-    expect(content).toContain("../connectivity-manager");
+    expect(content).toContain("../connectivity");
   });
 });
 

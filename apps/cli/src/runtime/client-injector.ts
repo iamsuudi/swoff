@@ -38,6 +38,9 @@ export function generateClientInjectorCode(
 `
     : "";
 
+  const storageImport = `import { getStorageEstimate, formatBytes } from "./storage.${ext}";
+`;
+
   const onlineListener = `
 // --- Online Listener ---
 // When connectivity returns, the SW checks stale cache entries and refetches them.
@@ -157,13 +160,13 @@ if (typeof history !== "undefined") {
  *   sw-auth-unauthorized  - 401 response received
  *   sw-auth-state-change  - Login or logout (detail: { authenticated: boolean })
  */
-${pwaImport}${mutationImport}${authImport}${swImport}${pushImport}${autoPrefetchImport}
+${pwaImport}${mutationImport}${authImport}${swImport}${storageImport}${pushImport}${autoPrefetchImport}
 import {
   dispatchState,
   startHeartbeat,
   stopHeartbeat,
   verifyAndNotify,
-} from './connectivity-manager.${ext}'
+} from './connectivity.${ext}'
 
 ${pwaCall}${pushCall}${onlineListener}${focusListener}${autoPrefetchCode}
 // --- SW Message Listener ---
@@ -266,6 +269,18 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 /** Initialize SW registration and all client-side features (PWA install, mutation queue, cross-tab sync). Call once at app startup. */
 export async function initServiceWorker()${ts ? ": Promise<void>" : " "}{
   await swInit();
+  const storage = await getStorageEstimate();
+  if (storage.percentUsed > 80) {
+    window.dispatchEvent(
+      new CustomEvent("swoff:notification", {
+        detail: {
+          level: "warn",
+          code: "STORAGE_QUOTA_HIGH",
+          message: \`Storage at \${storage.percentUsed}% capacity (\${formatBytes(storage.usage)} / \${formatBytes(storage.quota)})\`,
+        },
+      }),
+    );
+  }
 }
 `;
 }

@@ -55,7 +55,7 @@ if (existsSync(authCheckPath)) {
 template = authFailureFn + '\\n\\n' + template;
 
 // Resolve API_BASE for server push endpoint
-if (config.features?.realtime?.serverPush?.enabled) {
+if (config.features?.serverPush?.enabled) {
   let apiBase = '';
   const configJsPath = join(swoffDir, 'config.js');
   if (existsSync(configJsPath)) {

@@ -10,7 +10,7 @@ import { generateServerPushCode } from "../../../runtime/server-push.js";
 export function generateServerPush(ctx: GeneratorContext): void {
   const ext = ctx.ext;
   const ts = ext === "ts";
-  const sp = ctx.config.features.realtime.serverPush;
+  const sp = ctx.config.features.serverPush;
 
   const code = generateServerPushCode(
     { ts, ext },
@@ -19,5 +19,5 @@ export function generateServerPush(ctx: GeneratorContext): void {
     sp.reconnectDelayMs,
   );
 
-  writeFile(ctx, `realtime/server-push.${ext}`, code);
+  writeFile(ctx, `server-push/client.${ext}`, code);
 }

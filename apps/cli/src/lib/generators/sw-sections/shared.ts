@@ -27,7 +27,7 @@ export function shouldIncludeBackgroundSync(config: SwoffConfig): boolean {
 export function shouldIncludeServerPush(config: SwoffConfig): boolean {
   const { features } = config;
   return !!(
-    features.realtime.serverPush?.enabled &&
+    features.serverPush?.enabled &&
     (!features.auth.enabled || isCookieAuth(features.auth.type))
   );
 }
@@ -61,7 +61,7 @@ export function applySwSections(
   const { refetchQueue } = features;
   const maxCacheAge = strategy.maxRuntimeCacheAge;
   const spEnabled = shouldIncludeServerPush(config);
-  const spEndpoint = features.realtime.serverPush?.endpoint ?? "";
+  const spEndpoint = features.serverPush?.endpoint ?? "";
 
   code = code.replace(
     "// [[FETCH_HANDLER]]",
@@ -87,7 +87,7 @@ export function applySwSections(
     ? "SWOFF_API_BASE" + spEndpoint
     : spEndpoint;
 
-  code = features.realtime.pushNotifications
+  code = features.pushNotifications
     ? code.replace("// [[PUSH_HANDLERS]]", () => generateSwPushHandlers())
     : code.replace("// [[PUSH_HANDLERS]]", "");
 
@@ -95,9 +95,9 @@ export function applySwSections(
     ? code.replace(
         "// [[SERVER_PUSH_HANDLER]]",
         () => generateServerPushHandler(
-          features.realtime.serverPush.type,
+          features.serverPush.type,
           endpoint,
-          features.realtime.serverPush.reconnectDelayMs,
+          features.serverPush.reconnectDelayMs,
         ),
       )
     : code.replace("// [[SERVER_PUSH_HANDLER]]", "");

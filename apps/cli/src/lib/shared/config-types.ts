@@ -62,15 +62,11 @@ export interface TagInvalidationConfig {
   cascading?: Record<string, string[]>;
 }
 
-export interface RealtimeConfig {
-  pushNotifications: boolean;
-  vapidPublicKey?: string;
-  serverPush: {
-    enabled: boolean;
-    type: "sse" | "websocket";
-    endpoint: string;
-    reconnectDelayMs: number;
-  };
+export interface ServerPushConfig {
+  enabled: boolean;
+  type: "sse" | "websocket";
+  endpoint: string;
+  reconnectDelayMs: number;
 }
 
 export interface PrecacheDirConfig {
@@ -132,7 +128,9 @@ export interface SwoffConfig {
     auth: AuthConfig;
     tagInvalidation: TagInvalidationConfig;
     graphql: GqlConfig;
-    realtime: RealtimeConfig;
+    pushNotifications: boolean;
+    vapidPublicKey: string;
+    serverPush: ServerPushConfig;
   };
   build: {
     outputDir: string;
@@ -146,7 +144,7 @@ export const KNOWN_FEATURES = [
   "mutationQueue",
   "auth",
   "graphql",
-  "realtime",
+  "pushNotifications",
 ] as const;
 
 export const OBJECT_FEATURES = [
@@ -154,10 +152,10 @@ export const OBJECT_FEATURES = [
   "serviceWorker",
   "auth",
   "graphql",
-  "realtime",
   "tagInvalidation",
   "mutationQueue",
   "refetchQueue",
+  "serverPush",
 ] as const;
 
 export const VALID_STRATEGIES = [
@@ -196,15 +194,11 @@ export const defaultRefetchQueue: RefetchQueueConfig = {
   retry: { maxRetries: 3, backoffMs: 1000, maxBackoffMs: 10000, jitterMs: 100 },
 };
 
-export const defaultRealtimeConfig: RealtimeConfig = {
-  pushNotifications: false,
-  vapidPublicKey: "",
-  serverPush: {
-    enabled: false,
-    type: "sse",
-    endpoint: "/api/events",
-    reconnectDelayMs: 5000,
-  },
+export const defaultServerPushConfig: ServerPushConfig = {
+  enabled: false,
+  type: "sse",
+  endpoint: "/api/events",
+  reconnectDelayMs: 5000,
 };
 
 export const defaultTagInvalidation: TagInvalidationConfig = {
@@ -300,15 +294,16 @@ export function mergeConfigs(
         ...base.features.tagInvalidation,
         ...override.features?.tagInvalidation,
       },
-      realtime: {
-        ...defaultRealtimeConfig,
-        ...base.features.realtime,
-        ...override.features?.realtime,
-        serverPush: {
-          ...defaultRealtimeConfig.serverPush,
-          ...base.features.realtime?.serverPush,
-          ...override.features?.realtime?.serverPush,
-        },
+      pushNotifications:
+        override.features?.pushNotifications ??
+        base.features.pushNotifications,
+      vapidPublicKey:
+        override.features?.vapidPublicKey ??
+        base.features.vapidPublicKey,
+      serverPush: {
+        ...defaultServerPushConfig,
+        ...base.features.serverPush,
+        ...override.features?.serverPush,
       },
     },
   };
@@ -359,10 +354,9 @@ export const defaultConfig: SwoffConfig = {
     auth: { ...defaultAuth },
     tagInvalidation: { ...defaultTagInvalidation },
     graphql: { ...defaultGql },
-    realtime: {
-      ...defaultRealtimeConfig,
-      serverPush: { ...defaultRealtimeConfig.serverPush },
-    },
+    pushNotifications: false,
+    vapidPublicKey: "",
+    serverPush: { ...defaultServerPushConfig },
   },
 };
 
@@ -410,10 +404,9 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
     auth: { ...defaultAuth },
     tagInvalidation: { ...defaultTagInvalidation },
     graphql: { ...defaultGql },
-    realtime: {
-      ...defaultRealtimeConfig,
-      serverPush: { ...defaultRealtimeConfig.serverPush },
-    },
+    pushNotifications: false,
+    vapidPublicKey: "",
+    serverPush: { ...defaultServerPushConfig },
   },
   build: { outputDir: "dist", swFilename: "sw", precacheDirs: {} },
 };

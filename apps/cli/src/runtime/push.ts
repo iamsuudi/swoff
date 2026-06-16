@@ -9,7 +9,7 @@ export function generatePushCode(ctx: RuntimeContext & { vapidKey: string }): st
  * Push subscription management with IndexedDB persistence.
  *
  * Usage:
- *   import { subscribeToPush, unsubscribeFromPush, isSubscribed } from './swoff/realtime/notifications.${ext}';
+ *   import { subscribeToPush, unsubscribeFromPush, isSubscribed } from './swoff/push-notification/index.${ext}';
  *
  *   // Enable (triggers permission prompt)
  *   const subscription = await subscribeToPush();

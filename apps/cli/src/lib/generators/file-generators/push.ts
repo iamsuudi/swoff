@@ -4,11 +4,11 @@ import { generatePushCode } from "../../../runtime/push.js";
 export function generatePush(ctx: GeneratorContext): void {
   writeFile(
     ctx,
-    `realtime/notifications.${ctx.ext}`,
+    `push-notification/index.${ctx.ext}`,
     generatePushCode({
       ts: ctx.ext === "ts",
       ext: ctx.ext,
-      vapidKey: ctx.config.features.realtime.vapidPublicKey ?? "",
+      vapidKey: ctx.config.features.vapidPublicKey ?? "",
     }),
   );
 }

@@ -20,7 +20,7 @@ export function generateClientInjectorCode(
     : "";
 
   const pushImport = serverPushEnabled
-    ? `import { startPushEvents } from "./realtime/server-push.${ext}";
+    ? `import { startPushEvents } from "./server-push/client.${ext}";
 `
     : "";
 

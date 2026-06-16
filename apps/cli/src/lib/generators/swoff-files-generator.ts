@@ -133,12 +133,12 @@ export function generateFiles(ctx: GeneratorContext): string[] {
       enabled: ctx.config.features.graphql.enabled,
     },
     {
-      name: "realtime/notifications",
+      name: "push-notification/index",
       gen: () => generatePush(ctx),
-      enabled: ctx.config.features.realtime.pushNotifications,
+      enabled: ctx.config.features.pushNotifications,
     },
     {
-      name: "realtime/server-push",
+      name: "server-push/client",
       gen: () => generateServerPush(ctx),
       enabled: shouldIncludeServerPush(ctx.config),
     },

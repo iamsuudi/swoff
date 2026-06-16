@@ -263,11 +263,17 @@ describe("generateCache", () => {
     const ctx = makeContext();
     generateCache(ctx);
     const content = readFileSync(
-      join(ctx.swoffDir, "cache", "index.js"),
+      join(ctx.swoffDir, "cache", "invalidate.js"),
       "utf8",
     );
     expect(content).toContain("invalidateByTag");
     expect(content).toContain("invalidateByTags");
+    expect(content).toContain("invalidateUrl");
+    expect(content).toContain("invalidateByMethod");
+    expect(content).toContain("invalidateMatching");
+    expect(content).toContain("expandCascading");
+    expect(content).toContain("getUrlsForTag");
+    expect(content).toContain("getTagsForUrl");
     expect(content).toContain("INVALIDATE_TAG");
     expect(content).not.toContain("initCrossTabSync");
     expect(content).not.toContain("TAG_INVALIDATED");

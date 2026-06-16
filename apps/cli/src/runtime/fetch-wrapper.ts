@@ -12,9 +12,9 @@ export function generateFetchWrapperCode(
   const importLines = [
     `import { API_BASE } from "../config.${ext}";`,
 
-    `import { generateTags, invalidateUrl${mutationQueue ? ", expandCascading" : ""} } from "../cache/tags.${ext}";`,
+    `import { generateTags${mutationQueue ? ", expandCascading" : ""} } from "../cache/tags.${ext}";`,
 
-    `import { invalidateByTags } from "../cache/index.${ext}";`,
+    `import { invalidateByTags, invalidateUrl } from "../cache/invalidate.${ext}";`,
 
     authEnabled
       ? `import { getAuth, withAuthHeaders, AUTH_WITH_CREDENTIALS } from "../auth/store.${ext}";`

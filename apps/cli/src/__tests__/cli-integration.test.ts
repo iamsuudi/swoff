@@ -215,7 +215,7 @@ describe("CLI commands integration", () => {
         "swoff/client-injector.js",
         "swoff/fetch/core.js",
         "swoff/cache/tags.js",
-        "swoff/cache/index.js",
+        "swoff/cache/invalidate.js",
         "swoff/pwa/prompt.js",
         "swoff/sw/generator.js",
       ];

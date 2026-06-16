@@ -2,5 +2,6 @@ import { GeneratorContext, writeFile } from "./context.js";
 import { generateCacheCode } from "../../../runtime/cache.js";
 
 export function generateCache(ctx: GeneratorContext): void {
-  writeFile(ctx, `cache/index.${ctx.ext}`, generateCacheCode({ ts: ctx.ext === "ts", ext: ctx.ext }));
+  const cascading = ctx.config.features.tagInvalidation.cascading ?? {};
+  writeFile(ctx, `cache/invalidate.${ctx.ext}`, generateCacheCode({ ts: ctx.ext === "ts", ext: ctx.ext }, cascading));
 }

@@ -179,7 +179,7 @@ describe("generateCommand", () => {
     await generateCommand(testDir);
     expect(existsSync(join(testDir, "swoff"))).toBe(true);
     expect(existsSync(join(testDir, "swoff/config.js"))).toBe(true);
-    expect(existsSync(join(testDir, "swoff/cache/index.js"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/cache/invalidate.js"))).toBe(true);
   });
 
   it("generates files in TypeScript when project uses TS", async () => {

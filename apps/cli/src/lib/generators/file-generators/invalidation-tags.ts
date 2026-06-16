@@ -23,14 +23,12 @@ export function generateInvalidationTags(ctx: GeneratorContext): void {
   ];
   const patterns = tiConfig.patterns ?? {};
   const singularization = tiConfig.singularization ?? {};
-  const cascading = tiConfig.cascading ?? {};
 
   const code = generateInvalidationTagsCode(
     { ts, ext },
     prefixes,
     patterns,
     singularization,
-    cascading,
   );
 
   writeFile(ctx, `cache/tags.${ext}`, code);

@@ -68,7 +68,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
       enabled: true,
     },
     { name: "fetch/core", gen: () => generateFetchWrapper(ctx), enabled: true },
-    { name: "cache/index", gen: () => generateCache(ctx), enabled: true },
+    { name: "cache/invalidate", gen: () => generateCache(ctx), enabled: true },
     { name: "fetch/state", gen: () => generateFetchState(ctx), enabled: true },
     { name: "reset", gen: () => generateReset(ctx), enabled: true },
     { name: "db", gen: () => generateOpenDB(ctx), enabled: true },

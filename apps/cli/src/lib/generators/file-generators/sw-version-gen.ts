@@ -28,7 +28,7 @@ export function generateSwVersion(ctx: GeneratorContext): void {
 
   writeFile(
     ctx,
-    `sw-version.${ctx.ext}`,
+    `sw/version.${ctx.ext}`,
     generateSwVersionCode({ ts: ctx.ext === "ts", ext: ctx.ext, version }),
   );
 }

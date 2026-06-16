@@ -75,7 +75,7 @@ if (config.features?.realtime?.serverPush?.enabled) {
   template = template.replace(/SWOFF_API_BASE/g, apiBase);
 }
 
-const swoffVersionPath = join(swoffDir, 'sw-version.js');
+const swoffVersionPath = join(swoffDir, 'sw', 'version.js');
 
 const swConfig = config.features?.serviceWorker || {};
 const versionField = swConfig.version;
@@ -87,7 +87,7 @@ if (versionField === "package") {
 } else if (versionField === "hash") {
   version = "0.0.0";
 } else if (versionField === "manual") {
-  // Read version from the user-editable swoff/sw-version.js
+  // Read version from the user-editable swoff/sw/version.js
   if (existsSync(swoffVersionPath)) {
     const versionContent = readFileSync(swoffVersionPath, 'utf8');
     const match = versionContent.match(/SW_VERSION\s*=\s*["']([^"']+)["']/);

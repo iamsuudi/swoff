@@ -8,7 +8,7 @@ export function resolveVersion(
 ): string {
   if (versionField === "hash") return "0.0.0";
   if (versionField === "package") return pkgVersion || "1.0.0";
-  if (versionField === "manual") return "0.0.0"; // resolved at build time from sw-version.ts
+  if (versionField === "manual") return "0.0.0"; // resolved at build time from sw/version.ts
   return versionField;
 }
 

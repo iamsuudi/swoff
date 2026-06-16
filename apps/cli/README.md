@@ -2,19 +2,19 @@
 
 CLI for [Swoff](https://swoff.netlify.app) — offline-first web apps made easy.
 
-Swoff generates a **service worker** and **client-side utilities** that give your web app
-server-state reactivity (stale-while-revalidate, auto-refetch, mutation tracking, dedup),
-offline support, and PWA features — **zero runtime dependencies**, all generated and auditable.
+Swoff generates a **service worker** and **client utilities** from a config file — zero runtime
+dependencies, no Workbox, all auditable code. Server-state reactivity, offline queues, PWA install,
+push notifications, auth, and cross-tab sync — out of the box.
 
 ```bash
 npx @swoff/cli init          # create swoff.config.json
-npx @swoff/cli generate      # generate service worker + client files
+npx @swoff/cli generate      # generate swoff/ files
 ```
 
-Then import the single entry point:
+Then wire it up:
 
 ```js
-import { initServiceWorker } from "swoff/client-injector.js";
+import { initServiceWorker } from "./swoff/client-injector";
 initServiceWorker();
 ```
 
@@ -54,30 +54,17 @@ For PWA asset generation (icons, splash screens, favicons, manifest.json), use t
 npx @swoff/assets --source ./logo.svg
 ```
 
-## Configuration
+## Documentation
 
-Create `swoff.config.json` with `swoff init`, then tweak as needed.
-Full schema reference in [docs/CONFIG.md](./docs/CONFIG.md).
-
-## API Reference
-
-Read the [API reference](./docs/API.md) for detailed information on each API.
-
-## CLI Reference
-
-Read the [CLI reference](./docs/CLI.md) for detailed information on each command.
-
-## Architecture
-
-Read the [architecture](./docs/ARCHITECTURE.md) for detailed information on the project's architecture.
-
-## Comparison With Other Popular Tools
-
-Read the [comparison](./docs/COMPARISON.md) for a comprehensive comparison with popular tools.
-
-## Ecosystem
-
-Read the [ecosystem](./docs/ECOSYSTEM.md) to see how swoff integrates with any web framework you can work with.
+| Guide                   | Description                                        |
+| ----------------------- | -------------------------------------------------- |
+| [Config](./docs/CONFIG.md)           | Full config schema and feature reference |
+| [API](./docs/API.md)                 | Client API reference (auth, cache, mutations) |
+| [CLI](./docs/CLI.md)                 | CLI commands and options |
+| [Guides](./docs/guides)              | Step-by-step guides for each feature |
+| [Architecture](./docs/ARCHITECTURE.md) | Design decisions and rationale |
+| [Comparison](./docs/COMPARISON.md)    | Swoff vs Workbox / Serwist / SWR / TanStack Query |
+| [Ecosystem](./docs/ECOSYSTEM.md)      | Framework integration guides |
 
 ---
 

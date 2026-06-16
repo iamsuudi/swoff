@@ -46,28 +46,31 @@ All files land in `swoff/`. See [API.md](./API.md) for the full reference.
 |------|-----------|---------|
 | `client-injector.ts` | always | Single entry point — wires SW registration, PWA install, mutation queue, cross-tab sync |
 | `fetch/core.ts` | always | Unified fetch with caching, auth, offline queue, auto-invalidation |
-| `offline/queue.ts` | `mutationQueue.enabled` | Offline write queue in IndexedDB |
-| `offline/state.ts` | `mutationQueue.enabled` | Per-mutation status tracking |
-| `realtime/server-push.ts` | `features.realtime.serverPush.enabled` | Client-side SSE/WebSocket connection manager |
-| `cache/index.ts` | always | Low-level `invalidateByTag()` / `invalidateByTags()` |
+| `mutation/queue.ts` | `mutationQueue.enabled` | Offline write queue in IndexedDB |
+| `mutation/state.ts` | `mutationQueue.enabled` | Per-mutation status tracking |
+| `mutation/sync.ts` | `mutationQueue.backgroundSync` | Background Sync API registration |
+| `server-push/client.ts` | `serverPush.enabled` | SSE/WebSocket connection manager (runs in SW) |
+| `cache/invalidate.ts` | always | `invalidateByTag()` / `invalidateByTags()` |
 | `cache/tags.ts` | always | Tag generation helpers from URL paths |
-| `graphql/index.ts` | `features.graphql.enabled` | GraphQL wrapper with body-hash caching |
-| `realtime/notifications.ts` | `features.realtime.pushNotifications` | Push notification subscription management |
-| `offline/sync.ts` | `features.mutationQueue.backgroundSync` | Background Sync API registration |
+| `graphql/index.ts` | `graphql.enabled` | GraphQL wrapper with body-hash caching |
+| `push-notification/index.ts` | `pushNotifications` | Push notification subscription management |
 | `auth/adapter.ts` | `auth.enabled` | Auth provider adapter — generated template (cookie, bearer, or custom) |
 | `auth/store.ts` | `auth.enabled` | Token/user persistence + cascading clearAuth + cross-tab sync |
 | `auth/state.ts` | `auth.enabled` | Online/offline × auth state detection (connectivity manager) |
-| `pwa/index.ts` | `pwa.enabled` | Install prompt handling |
+| `auth/check.ts` | `auth.enabled` | Custom auth failure response detection |
+| `pwa/prompt.ts` | `pwa.enabled` | Install prompt handling (`isInstallable`, `promptInstall`) |
+| `connectivity.ts` | always | Online/offline detection with HEAD heartbeat |
 | `adapters/*.tsx` | React-based framework (react-spa, nextjs, remix, tanstack-start-react, astro) | React hooks (see [API.md](./API.md#react-hooks)) |
 | `sw/template.js` | always | Service worker source — runs in SW scope |
 | `sw/injector.ts` | always | SW registration logic |
 | `sw/generator.js` | always | Build-time script — embeds asset hashes |
-| `swoff.d.ts` | always | TypeScript declarations |
+| `sw/version.ts` | always | `SW_VERSION` constant for cache busting |
+| `swoff.d.ts` | TypeScript | TypeScript declarations |
 | `GUIDE.md` | always | Documentation links and quick-start info |
 | `manifest.json` | `pwa.enabled` | Web app manifest |
-| `reset.ts` | always | `resetSwoff()` — wipes caches, IndexedDB databases, localStorage, unregisters SW, re-registers via `initServiceWorker` |
-| `fetch/state.ts` | always | Global fetch counter (`incrementFetchCount`/`decrementFetchCount`/`getFetchCount`) with `fetch-count-changed` custom events |
-| `storage.ts` | always | Storage estimation (`checkStorage`/`getStorageEstimate`) and `swoff:notification` event relay for SW errors and warnings |
+| `reset.ts` | always | `resetSwoff()` — wipes caches, IndexedDB databases, localStorage, unregisters SW |
+| `fetch/state.ts` | always | Global fetch counter (`getFetchCount`) |
+| `storage.ts` | always | Storage estimation (`getStorageEstimate` / `formatBytes`) |
 
 ### PWA assets
 
@@ -113,7 +116,7 @@ swoff add mutation-queue
 swoff add auth
 swoff add graphql
 swoff add background-sync # enables mutationQueue.backgroundSync
-swoff add push-notification # enables realtime.pushNotifications
+swoff add push-notification # enables pushNotifications
 ```
 
 Each feature maps to a config path — run `swoff add` with the feature name, then

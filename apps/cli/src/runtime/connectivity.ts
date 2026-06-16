@@ -1,7 +1,7 @@
 import type { RuntimeContext } from "./utils.js";
 import { T } from "./utils.js";
 
-export function generateConnectivityManagerCode(ctx: RuntimeContext): string {
+export function generateConnectivityCode(ctx: RuntimeContext): string {
   const { ts } = ctx;
   return `/**
   **/

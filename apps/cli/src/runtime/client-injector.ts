@@ -11,7 +11,7 @@ export function generateClientInjectorCode(
   const { ext, ts } = ctx;
 
   const pwaImport = pwaEnabled
-    ? `import { setupPwaInstall } from "./pwa/injector.${ext}";
+    ? `import { setupPwaInstall } from "./pwa/prompt.${ext}";
 `
     : "";
 
@@ -20,7 +20,7 @@ export function generateClientInjectorCode(
     : "";
 
   const pushImport = serverPushEnabled
-    ? `import { startPushEvents } from "./realtime/server-push.${ext}";
+    ? `import { startPushEvents } from "./server-push/client.${ext}";
 `
     : "";
 
@@ -37,6 +37,9 @@ export function generateClientInjectorCode(
     ? `import { ensureValidAuth, clearMemoryAuth } from "./auth/store.${ext}";
 `
     : "";
+
+  const storageImport = `import { getStorageEstimate, formatBytes } from "./storage.${ext}";
+`;
 
   const onlineListener = `
 // --- Online Listener ---
@@ -157,13 +160,13 @@ if (typeof history !== "undefined") {
  *   sw-auth-unauthorized  - 401 response received
  *   sw-auth-state-change  - Login or logout (detail: { authenticated: boolean })
  */
-${pwaImport}${mutationImport}${authImport}${swImport}${pushImport}${autoPrefetchImport}
+${pwaImport}${mutationImport}${authImport}${swImport}${storageImport}${pushImport}${autoPrefetchImport}
 import {
   dispatchState,
   startHeartbeat,
   stopHeartbeat,
   verifyAndNotify,
-} from './connectivity-manager.${ext}'
+} from './connectivity.${ext}'
 
 ${pwaCall}${pushCall}${onlineListener}${focusListener}${autoPrefetchCode}
 // --- SW Message Listener ---
@@ -266,6 +269,18 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 /** Initialize SW registration and all client-side features (PWA install, mutation queue, cross-tab sync). Call once at app startup. */
 export async function initServiceWorker()${ts ? ": Promise<void>" : " "}{
   await swInit();
+  const storage = await getStorageEstimate();
+  if (storage.percentUsed > 80) {
+    window.dispatchEvent(
+      new CustomEvent("swoff:notification", {
+        detail: {
+          level: "warn",
+          code: "STORAGE_QUOTA_HIGH",
+          message: \`Storage at \${storage.percentUsed}% capacity (\${formatBytes(storage.usage)} / \${formatBytes(storage.quota)})\`,
+        },
+      }),
+    );
+  }
 }
 `;
 }

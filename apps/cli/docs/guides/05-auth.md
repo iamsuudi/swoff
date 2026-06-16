@@ -29,7 +29,7 @@ Or set `features.auth.enabled: true` and `features.auth.type` in `swoff.config.j
 | `swoff/auth/adapter.ts`  | Maps Swoff auth to your provider                                                                                                           | Yes — import `adapter` for type reference |
 | `swoff/auth/store.ts`    | `setAuth()`, `getAuth()`, `clearAuth()`, `ensureValidAuth()`, `isAuthValid()`, `withAuthHeaders()`, `isAuthUrl()`, `AUTH_WITH_CREDENTIALS` | Yes — main auth API                       |
 | `swoff/auth/state.ts`    | `getAuthState()` — 4-state matrix (online/offline × authed/unauthed)                                                                       | Yes                                       |
-| `swoff/sw/auth-check.ts` | `isAuthFailureResponse()` — customize what the SW treats as auth failure                                                                   | Yes — edit this file                      |
+| `swoff/auth/check.ts`    | `isAuthFailureResponse()` — customize what both the SW and client treat as auth failure                                                  | Yes — edit this file                      |
 
 ## Usage
 
@@ -57,7 +57,7 @@ const { response } = await fetchWithCache("/api/protected", { auth: true });
 const { authenticated, auth, online } = await getAuthState();
 // States: online+authed, online+unauthed, offline+authed, offline+unauthed
 
-// On logout — clears memory, IDB, runtime caches, and broadcasts to other tabs
+// On logout — clears memory, IDB, runtime caches, mutation queue, and broadcasts to other tabs
 await clearAuth();
 ```
 
@@ -88,7 +88,7 @@ adapter.fetchUser(); // return { user: data } or null
 
 The `AuthData` interface is also in this file — edit the `user` type to match your backend's user shape.
 
-### `swoff/sw/auth-check.ts` — customize auth failure detection
+### `swoff/auth/check.ts` — customize auth failure detection
 
 Default: `response.status === 401`. Override if your backend uses a different signal:
 
@@ -127,6 +127,39 @@ export async function isAuthFailureResponse(response) {
 - `auth.type` — `"cookie"` (httpOnly session cookie), `"bearer"` (token), or `"custom"`
 - `auth.routePaths` — URL paths that bypass SW cache (auth endpoints must not be cached)
 
+## React adapters
+
+Swoff generates a reactive auth hook (import from `./swoff/adapters`):
+
+```tsx
+import { useAuth } from "./swoff/adapters/useAuth";
+
+function Profile() {
+  const { authenticated, auth, online, isLoading, error, setAuth, clearAuth } =
+    useAuth();
+
+  if (isLoading) return <Spinner />;
+  if (error) return <Error />;
+
+  return (
+    <div>
+      {authenticated ? (
+        <div>
+          <p>Welcome, {auth.user.name}</p>
+          <button onClick={clearAuth}>Logout</button>
+        </div>
+      ) : (
+        <button disabled={!online} onClick={() => setAuth(user)}>
+          Login
+        </button>
+      )}
+    </div>
+  );
+}
+```
+
+The hook listens for `sw-auth-state-change` events and stays in sync across tabs.
+
 ### Auth type vs feature compatibility
 
 | Auth type | PWA | Mutation queue | Background sync | Server push | GraphQL |
@@ -140,5 +173,6 @@ Background sync and server push require cookie auth because they run in the SW s
 ## Related
 
 - [Full comparison: Auth in Swoff vs none](../comparisons/auth.md)
-- [Tag invalidation: invalidateByTag after auth state changes](./05-tag-invalidation.md)
+- [Tag invalidation: invalidateByTag after auth state changes](./06-tag-invalidation.md)
+- [Offline mutations: queue writes, background sync](./08-offline-mutations.md)
 - [Config reference: auth](../CONFIG.md#featuresauth)

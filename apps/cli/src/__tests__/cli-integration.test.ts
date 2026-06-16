@@ -168,7 +168,7 @@ describe("CLI commands integration", () => {
           auth: { enabled: false, type: "bearer" as const },
           tagInvalidation: {},
           graphql: { enabled: false, endpoints: ["/graphql"] },
-          realtime: { pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 } },
+          pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
         },
         build: { outputDir: "dist", swFilename: "sw" },
         ...overrides,
@@ -215,7 +215,7 @@ describe("CLI commands integration", () => {
         "swoff/client-injector.js",
         "swoff/fetch/core.js",
         "swoff/cache/tags.js",
-        "swoff/cache/index.js",
+        "swoff/cache/invalidate.js",
         "swoff/pwa/prompt.js",
         "swoff/sw/generator.js",
       ];

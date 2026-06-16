@@ -18,7 +18,7 @@ export function generateMutationQueueCode(
 `
     : "";
 
-  const additionalImports = `import { invalidateByTags } from "../cache/index.${ext}";
+  const additionalImports = `import { invalidateByTags } from "../cache/invalidate.${ext}";
 ${
   ts
     ? `import type { MutationQueueItem } from "../swoff.d.ts";

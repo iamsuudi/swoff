@@ -105,8 +105,8 @@ export const FEATURES: Record<string, FeatureDef> = {
     description: "Web Push API notifications with SW push event handling",
     requires: [],
     incompatibleAuthTypes: [],
-    checkEnabled: buildCheck("features.realtime.pushNotifications"),
-    configUpdate: { realtime: { pushNotifications: true } },
+    checkEnabled: buildCheck("features.pushNotifications"),
+    configUpdate: { pushNotifications: true },
     isCore: true,
   },
   "server-push": {
@@ -116,19 +116,17 @@ export const FEATURES: Record<string, FeatureDef> = {
     requires: [],
     incompatibleAuthTypes: AUTH_INCOMPATIBLE,
     checkEnabled: (config) => {
-      const rt = config.features.realtime;
-      if (!rt || !rt.serverPush?.enabled) return false;
+      const sp = config.features.serverPush;
+      if (!sp || !sp.enabled) return false;
       const a = config.features.auth;
       return !a || !a.enabled || a.type === "cookie";
     },
     configUpdate: {
-      realtime: {
-        serverPush: {
-          enabled: true,
-          type: "sse",
-          endpoint: "/api/events",
-          reconnectDelayMs: 5000,
-        },
+      serverPush: {
+        enabled: true,
+        type: "sse",
+        endpoint: "/api/events",
+        reconnectDelayMs: 5000,
       },
     },
     isCore: false,

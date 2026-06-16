@@ -28,10 +28,9 @@ swoff/
   auth/store.ts               — Auth token management
   auth/state.ts               — Reactive auth state
   auth/user.ts                — User endpoint helpers
-  pwa/index.ts                — PWA install prompt
-  pwa/injector.ts             — PWA event wiring
-  realtime/server-push.ts     — SSE push connection
-  realtime/notifications.ts   — Push notification subscription
+  pwa/prompt.ts               — PWA install prompt
+  server-push/client.ts       — SSE push connection
+  push-notification/index.ts  — Push notification subscription
   graphql/index.ts            — GraphQL fetch wrapper
   sw/template.js              — Service Worker (generated)
   sw/injector.ts              — SW registration

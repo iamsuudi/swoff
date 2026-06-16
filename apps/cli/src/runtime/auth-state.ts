@@ -27,7 +27,7 @@ export function generateAuthStateCode(ctx: RuntimeContext): string {
  *   const userName = auth?.user?.name; // typed via AuthData
  */
 
-import { getCurrentOnlineStatus } from "../connectivity-manager.${ext}";
+import { getCurrentOnlineStatus } from "../connectivity.${ext}";
 import { getAuth, isAuthValid } from "./store.${ext}";
 import type { AuthData } from "./adapter.${ext}";
 

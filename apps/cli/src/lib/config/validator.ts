@@ -321,40 +321,34 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       }
     }
 
-    const realtime = features.realtime as Record<string, unknown> | undefined;
-    if (realtime && typeof realtime === "object") {
-      if (realtime.pushNotifications !== undefined && typeof realtime.pushNotifications !== "boolean") {
-        errors.push("features.realtime.pushNotifications must be a boolean");
+    if (features.pushNotifications !== undefined && typeof features.pushNotifications !== "boolean") {
+      errors.push("features.pushNotifications must be a boolean");
+    }
+    const sp = features.serverPush as Record<string, unknown> | undefined;
+    if (sp && typeof sp === "object") {
+      if (sp.enabled !== undefined && typeof sp.enabled !== "boolean") {
+        errors.push("features.serverPush.enabled must be a boolean");
       }
-      if (realtime.vapidPublicKey !== undefined && typeof realtime.vapidPublicKey !== "string") {
-        errors.push("features.realtime.vapidPublicKey must be a string");
+      if (sp.enabled && features.auth && typeof features.auth === "object" && (features.auth as Record<string, unknown>).enabled && (features.auth as Record<string, unknown>).type === "bearer") {
+        errors.push("features.serverPush is not supported with bearer auth — use cookie auth instead");
       }
-      const sp = realtime.serverPush as Record<string, unknown> | undefined;
-      if (sp && typeof sp === "object") {
-        if (sp.enabled !== undefined && typeof sp.enabled !== "boolean") {
-          errors.push("features.realtime.serverPush.enabled must be a boolean");
+      if (sp.enabled) {
+        const ti = features.tagInvalidation as Record<string, unknown> | undefined;
+        if (ti && typeof ti === "object" && ti.enabled === false) {
+          errors.push("features.serverPush requires features.tagInvalidation to be enabled");
         }
-        if (sp.enabled && features.auth && typeof features.auth === "object" && (features.auth as Record<string, unknown>).enabled && (features.auth as Record<string, unknown>).type === "bearer") {
-          errors.push(`features.realtime.serverPush is not supported with bearer auth — use cookie auth instead`);
-        }
-        if (sp.enabled) {
-          const ti = features.tagInvalidation as Record<string, unknown> | undefined;
-          if (ti && typeof ti === "object" && ti.enabled === false) {
-            errors.push("features.realtime.serverPush requires features.tagInvalidation to be enabled");
-          }
-        }
-        if (sp.type !== undefined && !["sse", "websocket"].includes(sp.type as string)) {
-          errors.push('features.realtime.serverPush.type must be "sse" or "websocket"');
-        }
-        if (sp.endpoint !== undefined && typeof sp.endpoint !== "string") {
-          errors.push("features.realtime.serverPush.endpoint must be a string");
-        }
-        if (sp.reconnectDelayMs !== undefined && (typeof sp.reconnectDelayMs !== "number" || sp.reconnectDelayMs < 0 || !Number.isInteger(sp.reconnectDelayMs))) {
-          errors.push("features.realtime.serverPush.reconnectDelayMs must be a non-negative integer (capped at 30000ms)");
-        }
-        if (sp.reconnectDelayMs !== undefined && typeof sp.reconnectDelayMs === "number" && sp.reconnectDelayMs > 30000) {
-          errors.push("features.realtime.serverPush.reconnectDelayMs is capped at 30000ms (30s)");
-        }
+      }
+      if (sp.type !== undefined && !["sse", "websocket"].includes(sp.type as string)) {
+        errors.push('features.serverPush.type must be "sse" or "websocket"');
+      }
+      if (sp.endpoint !== undefined && typeof sp.endpoint !== "string") {
+        errors.push("features.serverPush.endpoint must be a string");
+      }
+      if (sp.reconnectDelayMs !== undefined && (typeof sp.reconnectDelayMs !== "number" || sp.reconnectDelayMs < 0 || !Number.isInteger(sp.reconnectDelayMs))) {
+        errors.push("features.serverPush.reconnectDelayMs must be a non-negative integer (capped at 30000ms)");
+      }
+      if (sp.reconnectDelayMs !== undefined && typeof sp.reconnectDelayMs === "number" && sp.reconnectDelayMs > 30000) {
+        errors.push("features.serverPush.reconnectDelayMs is capped at 30000ms (30s)");
       }
     }
 

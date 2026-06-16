@@ -57,9 +57,8 @@ import {
   getPendingCount,
   getQueueItems,
   clearQueue,
+  flushMutations,
 } from "./swoff/mutation/queue";
-import { flushMutations } from "./swoff/mutation/queue";
-
 // Queue a write — works offline, replays when online
 const { response, queued } = await fetchWithCache("/api/notes", {
   method: "POST",
@@ -79,10 +78,10 @@ if (count > 0) {
 const items = await getQueueItems();
 // items = [{ id, method, url, body, retryCount, status, ... }]
 
-// Clear all queued mutations (e.g., on logout)
+// Clear all queued mutations (e.g., on logout — note: clearAuth() also calls clearQueue automatically)
 await clearQueue();
 
-// Force sync immediately (e.g., after re-login when previous mutations failed due to auth)
+// Force sync all pending mutations now (e.g., user clicks "Sync Now")
 await flushMutations();
 ```
 
@@ -102,6 +101,56 @@ await syncWhenPossible({
 });
 
 // In unsupported browsers, falls back to `online` event listener
+```
+
+## React adapters
+
+Swoff generates these hooks for offline mutations (import from `./swoff/adapters`):
+
+```tsx
+import { useMutation } from "./swoff/adapters/useMutation";
+import { useMutationQueue } from "./swoff/adapters/useMutationQueue";
+import { useBackgroundSync } from "./swoff/adapters/useBackgroundSync";
+import { useMutationState } from "./swoff/adapters/useMutationState";
+
+function CreateNote() {
+  const {
+    mutate,
+    isLoading,
+    isQueued,
+    isSuccess,
+    isError,
+    error,
+    mutationId,
+  } = useMutation({
+    url: "/api/notes",
+    method: "POST",
+    mutationKey: "create-note",
+    optimisticUpdate: (oldData) => [...oldData, { id: "temp", title: "…" }],
+    onSuccess: () => toast("Saved!"),
+    onError: (err) => toast(`Failed: ${err.message}`),
+  });
+
+  const { pending, items, isProcessing, retryAll } = useMutationQueue();
+  const { supported, registered, triggerSync } = useBackgroundSync();
+  const mutationState = useMutationState(mutationId);
+
+  return (
+    <div>
+      <button onClick={() => mutate({ title })} disabled={isLoading}>
+        {isQueued ? "Queued (offline)" : "Create"}
+      </button>
+      {pending > 0 && (
+        <div>
+          <span>{pending} pending</span>
+          <button onClick={retryAll} disabled={isProcessing}>
+            Retry All
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 ```
 
 ### Mutation state tracking (for UI)
@@ -163,5 +212,6 @@ Background sync runs from the SW with no DOM access — bearer tokens can't be r
 ## Related
 
 - [Full comparison: Offline queue](../comparisons/offline-queue.md)
-- [Auth guide: cookie vs bearer](./04-auth.md)
+- [Auth guide: cookie vs bearer](./05-auth.md)
+- [GraphQL: mutation auto-invalidation](./07-graphql.md)
 - [Config reference: mutationQueue](../CONFIG.md#featuresmutationqueue)

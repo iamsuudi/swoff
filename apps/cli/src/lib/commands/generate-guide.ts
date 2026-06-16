@@ -38,9 +38,8 @@ export function generateGuide(ctx: GuideContext): string[] {
   if (config.features.pwa.enabled) {
     lines.push("");
     lines.push("  ── PWA ──");
-    lines.push(`  Import in app entry:`);
-    lines.push(`    import { setupPwaInstall, isInstallable, promptInstall } from "./swoff/pwa/index.${ext}";`);
-    lines.push("    setupPwaInstall();");
+    lines.push(`  Import in app entry (install prompt is wired automatically by client-injector):`);
+    lines.push(`    import { isInstallable, promptInstall } from "./swoff/pwa/prompt.${ext}";`);
     lines.push("");
     lines.push(`  Link manifest in index.html <head>:`);
     lines.push(`    <link rel="manifest" href="/manifest.json">`);
@@ -63,7 +62,7 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push("");
     lines.push("  ── Mutation Queue ──");
     lines.push(`  Import in mutation handlers:`);
-    lines.push(`    import { queueMutation, processMutationQueue, getPendingCount } from "./swoff/offline/queue.${ext}";`);
+    lines.push(`    import { queueMutation, processMutationQueue, getPendingCount } from "./swoff/mutation/queue.${ext}";`);
     if (isReact) {
       lines.push("");
       lines.push("  React hook generated in swoff/adapters/useMutationQueue.tsx:");
@@ -106,10 +105,7 @@ export function generateGuide(ctx: GuideContext): string[] {
       lines.push("    }");
       if (config.features.mutationQueue.enabled) {
         lines.push("");
-        lines.push("  ⚠️ After auth re-login, drain queued mutations:");
-        lines.push(`    import { flushMutations } from "../swoff/offline/queue.${ext}";`);
-        lines.push("    await setAuth({ token });");
-        lines.push("    await flushMutations();");
+        lines.push("  ℹ️ clearAuth() also clears the mutation queue automatically — no manual clearQueue needed on logout.");
       }
     }
   }

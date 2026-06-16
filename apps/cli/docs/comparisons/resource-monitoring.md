@@ -33,13 +33,12 @@ This timeout applies uniformly across all 6 caching strategies and both `_fetch`
 
 ### Storage quota awareness
 
-`notification.ts` exports three utilities:
+`storage.ts` exports two utilities; the storage threshold check runs in `client-injector.ts`:
 
-| Function               | Purpose                                                                                                        |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `getStorageEstimate()` | Wraps `navigator.storage.estimate()` — returns raw `{ usage, quota, percentUsed }` for custom UI               |
-| `checkStorage()`       | Same as above, but dispatches `swoff:notification` at >80% usage (code: `STORAGE_QUOTA_HIGH`, level: `"warn"`) |
-| `formatBytes(n)`       | Formats byte counts for display (`1572864` → `"1.5 MB"`)                                                       |
+| Function               | Purpose                                                                          |
+| ---------------------- | -------------------------------------------------------------------------------- |
+| `getStorageEstimate()` | Wraps `navigator.storage.estimate()` — returns raw `{ usage, quota, percentUsed }` |
+| `formatBytes(n)`       | Formats byte counts for display (`1572864` → `"1.5 MB"`)                        |
 
 The React adapter `useStorageEstimate()` ties these together as a reactive hook that refreshes on visibility change.
 

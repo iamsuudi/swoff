@@ -13,7 +13,7 @@ export function generateSwInjectorCode(
   return `${
     isHash
       ? ""
-      : `import { SW_VERSION } from "../sw-version.${ext}";\n`
+      : `import { SW_VERSION } from "./version.${ext}";\n`
   }/**
  * Swoff SW Injector
  * Registers the service worker and tracks installation progress.

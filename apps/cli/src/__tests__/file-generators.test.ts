@@ -224,7 +224,7 @@ describe("generateClientInjector", () => {
       "utf8",
     );
     expect(content).toContain("setupPwaInstall");
-    expect(content).toContain("./pwa/injector");
+    expect(content).toContain("./pwa/prompt");
   });
 
   it("always imports sw/injector", () => {
@@ -263,11 +263,17 @@ describe("generateCache", () => {
     const ctx = makeContext();
     generateCache(ctx);
     const content = readFileSync(
-      join(ctx.swoffDir, "cache", "index.js"),
+      join(ctx.swoffDir, "cache", "invalidate.js"),
       "utf8",
     );
     expect(content).toContain("invalidateByTag");
     expect(content).toContain("invalidateByTags");
+    expect(content).toContain("invalidateUrl");
+    expect(content).toContain("invalidateByMethod");
+    expect(content).toContain("invalidateMatching");
+    expect(content).toContain("expandCascading");
+    expect(content).toContain("getUrlsForTag");
+    expect(content).toContain("getTagsForUrl");
     expect(content).toContain("INVALIDATE_TAG");
     expect(content).not.toContain("initCrossTabSync");
     expect(content).not.toContain("TAG_INVALIDATED");
@@ -344,19 +350,19 @@ describe("generateTypeDefinitions", () => {
 });
 
 describe("generateAuthCheck", () => {
-  it("creates sw/auth-check.js with default isAuthFailureResponse", () => {
+  it("creates auth/check.js with default isAuthFailureResponse", () => {
     const ctx = makeContext();
     generateAuthCheck(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw", "auth-check.js"), "utf8");
+    const content = readFileSync(join(ctx.swoffDir, "auth", "check.js"), "utf8");
     expect(content).toContain("isAuthFailureResponse");
     expect(content).toContain("return response.status === 401");
   });
 
-  it("creates sw/auth-check.ts with type annotations when ext is ts", () => {
+  it("creates auth/check.ts with type annotations when ext is ts", () => {
     const ctx = makeContext();
     ctx.ext = "ts";
     generateAuthCheck(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw", "auth-check.ts"), "utf8");
+    const content = readFileSync(join(ctx.swoffDir, "auth", "check.ts"), "utf8");
     expect(content).toContain(": Response");
     expect(content).toContain("Promise<boolean>");
   });

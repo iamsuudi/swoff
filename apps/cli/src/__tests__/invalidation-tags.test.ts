@@ -310,22 +310,17 @@ describe("generated output", () => {
     // We test what the generator produces by reading it indirectly
     // through the file-generators test which invokes the generator
     const code = `
-import { invalidateByTags } from "./cache.js";
 const TAG_PATTERNS = [];
 const SKIP_PREFIXES = ["api","v1","v2","v3","rest","graphql","gql"];
 const SINGULARIZATION = null;
-const CASCADING = null;
 export function generateTags(url) {}
 export function generateTagsFromMethod(method, url) {}
-export async function invalidateUrl(url) {}
-export async function invalidateByMethod(method, url) {}
-function expandCascading(tags) {}
 `;
     expect(code).toContain("generateTags");
-    expect(code).toContain("invalidateUrl");
-    expect(code).toContain("invalidateByMethod");
-    expect(code).toContain("CASCADING");
-    expect(code).toContain("expandCascading");
+    expect(code).toContain("generateTagsFromMethod");
+    expect(code).not.toContain("invalidateUrl");
+    expect(code).not.toContain("CASCADING");
+    expect(code).not.toContain("expandCascading");
   });
 
   it("generated code with patterns includes compiled entries", () => {

@@ -40,24 +40,22 @@ let template = readFileSync(templatePath, 'utf8');
 
 const swoffDir = join(projectRoot, 'swoff');
 
-// Replace isAuthFailureResponse body with user's custom auth check
-const authCheckTsPath = join(swoffDir, 'sw', 'auth-check.ts');
-const authCheckJsPath = join(swoffDir, 'sw', 'auth-check.js');
+// Prepend isAuthFailureResponse from user's auth/check, or use default fallback
+const authCheckTsPath = join(swoffDir, 'auth', 'check.ts');
+const authCheckJsPath = join(swoffDir, 'auth', 'check.js');
 const authCheckPath = existsSync(authCheckTsPath) ? authCheckTsPath : authCheckJsPath;
+let authFailureFn = 'async function isAuthFailureResponse(response) {\\n  return response.status === 401;\\n}';
 if (existsSync(authCheckPath)) {
   const authContent = readFileSync(authCheckPath, 'utf8');
-  const bodyMatch = authContent.match(/export\\s+async\\s+function\\s+isAuthFailureResponse[\\s\\S]*?\\{([\\s\\S]*)\\n\\}/);
-  if (bodyMatch) {
-    const userBody = bodyMatch[1].trim();
-    template = template.replace(
-      /async function isAuthFailureResponse\\(response\\) \\{\\n  return response\\.status === 401;\\n\\}/,
-      'async function isAuthFailureResponse(response) {\\n' + userBody + '\\n}',
-    );
+  const fnMatch = authContent.match(/export\\s+async\\s+function\\s+isAuthFailureResponse[\\s\\S]*?\\n\\}/);
+  if (fnMatch) {
+    authFailureFn = fnMatch[0].replace(/^export\\s+/, '');
   }
 }
+template = authFailureFn + '\\n\\n' + template;
 
 // Resolve API_BASE for server push endpoint
-if (config.features?.realtime?.serverPush?.enabled) {
+if (config.features?.serverPush?.enabled) {
   let apiBase = '';
   const configJsPath = join(swoffDir, 'config.js');
   if (existsSync(configJsPath)) {
@@ -77,7 +75,7 @@ if (config.features?.realtime?.serverPush?.enabled) {
   template = template.replace(/SWOFF_API_BASE/g, apiBase);
 }
 
-const swoffVersionPath = join(swoffDir, 'sw-version.js');
+const swoffVersionPath = join(swoffDir, 'sw', 'version.js');
 
 const swConfig = config.features?.serviceWorker || {};
 const versionField = swConfig.version;
@@ -89,7 +87,7 @@ if (versionField === "package") {
 } else if (versionField === "hash") {
   version = "0.0.0";
 } else if (versionField === "manual") {
-  // Read version from the user-editable swoff/sw-version.js
+  // Read version from the user-editable swoff/sw/version.js
   if (existsSync(swoffVersionPath)) {
     const versionContent = readFileSync(swoffVersionPath, 'utf8');
     const match = versionContent.match(/SW_VERSION\s*=\s*["']([^"']+)["']/);
@@ -170,7 +168,6 @@ if (nav.precacheRoutes) {
 if (nav.rules) {
   for (const rule of nav.rules) {
     if (rule.fallback && !fallback.includes(rule.fallback)) fallback.push(rule.fallback);
-    if (rule.policy === "cache-first" && rule.match && !fallback.includes(rule.match)) fallback.push(rule.match);
   }
 }
 const combined = [...new Set([...fallback, ...filtered])];

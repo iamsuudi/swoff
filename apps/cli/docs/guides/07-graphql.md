@@ -85,6 +85,29 @@ const { data } = await queryGql(
 );
 ```
 
+## React adapters
+
+You can use `useCachedFetch` with GraphQL endpoints — the SW caches by body hash when the request has a `query` field:
+
+```tsx
+import { useCachedFetch } from "./swoff/adapters/useCachedFetch";
+
+function Notes() {
+  const { data } = useCachedFetch("/graphql", {
+    method: "POST",
+    body: JSON.stringify({
+      query: `query GetNotes { notes { id title } }`,
+    }),
+    strategy: "stale-while-revalidate",
+    staleTime: 30,
+  });
+
+  return <div>{data?.notes.map(n => <p key={n.id}>{n.title}</p>)}</div>;
+}
+```
+
+For a dedicated GraphQL API with operation-name auto-tags, use the generated `queryGql`/`mutateGql` functions instead.
+
 ### Multiple endpoints
 
 ```ts
@@ -117,5 +140,6 @@ No generated files to edit. The wrapper lives at `swoff/graphql/index.ts` and is
 ## Related
 
 - [Full comparison: Swoff vs Apollo Client](../comparisons/graphql.md)
-- [Tag invalidation: auto-tags from operation names](./05-tag-invalidation.md)
+- [Tag invalidation: auto-tags from operation names](./06-tag-invalidation.md)
+- [Offline mutations: queue mutations offline](./08-offline-mutations.md)
 - [Config reference: graphql](../CONFIG.md#featuresgraphql)

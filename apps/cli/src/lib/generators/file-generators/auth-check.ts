@@ -1,6 +1,7 @@
 /**
- * Generates swoff/sw/auth-check.{ts|js} — user-editable auth failure predicate.
- * The SW generator reads this file and inlines the function body into the final SW.
+ * Generates swoff/auth/check.{ts|js} — user-editable auth failure predicate.
+ * Used by the SW (at build time) and client (at runtime) as the single
+ * source of truth for detecting auth failures.
  */
 
 import { GeneratorContext, writeFile } from "./context.js";
@@ -12,13 +13,15 @@ export function generateAuthCheck(ctx: GeneratorContext): void {
   const returnType = ts ? ": Promise<boolean>" : "";
 
   const code = `/**
- * Custom auth failure check for the Service Worker.
+ * Auth failure check — single source of truth for both SW and client.
  *
- * The SW calls this for every network response. Return true when the
- * response indicates the user's session is no longer valid (e.g.
- * status 401, or a custom error body on 200).
+ * Return true when the response indicates the user's session is no longer
+ * valid (e.g. status 401, or a custom error body on 200).
  *
- * Runs inside the service worker — no DOM, no IndexedDB, no fetch.
+ * Used by:
+ *   - Service Worker: called for every network response to detect session expiry
+ *   - Client store: validates refresh() and fetchUser() adapter responses
+ *
  * Must clone response before reading the body if body is needed.
  *
  * Examples:
@@ -37,5 +40,5 @@ export async function isAuthFailureResponse(response${typeAnnotations})${returnT
 }
 `;
 
-  writeFile(ctx, `sw/auth-check.${ctx.ext}`, code);
+  writeFile(ctx, `auth/check.${ctx.ext}`, code);
 }

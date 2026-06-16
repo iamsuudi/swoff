@@ -33,15 +33,13 @@ Swoff generates the full PWA surface from a single config:
 
 **Generated files:**
 - `manifest.json` — Web app manifest with icons, display, theme color, orientation.
-- `pwa/index.ts` — Barrel export for `isInstallable()` and `promptInstall()`.
 - `pwa/prompt.ts` — Install prompt management with `beforeinstallprompt` event capture.
-- `pwa/injector.ts` — PWA setup wired into the client-injector.
 - `sw/template.js` — Push event listeners (push, notificationclick) in the SW.
 - App icons — Generated via the `swoff assets` command (`jimp` + `resvg-wasm`).
 
 **Reactive hook:**
 ```tsx
-import { isInstallable, promptInstall } from "../../swoff/pwa/index";
+import { isInstallable, promptInstall } from "../../swoff/pwa/prompt";
 
 function InstallButton() {
   const [installable, setInstallable] = useState(() => isInstallable());

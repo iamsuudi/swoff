@@ -96,32 +96,24 @@ function generateSingularizationCode(
   return JSON.stringify(singularization);
 }
 
-function generateCascadingCode(cascading: Record<string, string[]>): string {
-  if (!cascading || Object.keys(cascading).length === 0) return "null";
-  return JSON.stringify(cascading);
-}
-
 export function generateInvalidationTagsCode(
   ctx: RuntimeContext,
   prefixes: string[],
   patterns: Record<string, string[]>,
   singularization: Record<string, string>,
-  cascading: Record<string, string[]>,
 ): string {
   const { ext, ts } = ctx;
 
   const patternCode = generatePatternCode(patterns);
   const singularizationCode = generateSingularizationCode(singularization);
-  const cascadingCode = generateCascadingCode(cascading);
   const prefixesCode = JSON.stringify(prefixes);
 
   return `/**
  * Swoff Invalidation Tags Helper
- * Pattern-based tag generation from URLs with configurable glob patterns,
- * prefix skipping, singularization, and cascading invalidation.
+ * Segment- and pattern-based tag generation from URLs.
  *
  * Usage:
- *   import { generateTags, invalidateUrl } from './swoff/cache/tags.${ext}';
+ *   import { generateTags } from './swoff/cache/tags.${ext}';
  *
  *   // Generate tags from URL
  *   generateTags("/api/todos");          // ["todos"]
@@ -132,11 +124,9 @@ export function generateInvalidationTagsCode(
  *     tags: generateTags("/api/todos"),
  *   });
  *
- *   // Invalidate after mutation
- *   await invalidateUrl("/api/todos/42");
+ *   // Generate method-prefixed tags for mutations
+ *   generateTagsFromMethod("POST", "/api/todos");  // ["post-todos"]
  */
-
-import { invalidateByTags } from "./index.${ext}";
 ${ts ? `
 interface TagPattern {
   re: RegExp;
@@ -152,9 +142,6 @@ const SKIP_PREFIXES = ${prefixesCode};
 
 // Custom singularization map (plural → singular)
 const SINGULARIZATION${T(ts, "Record<string, string> | null")} = ${singularizationCode};
-
-// Cascading invalidation map (tag → dependent tags)
-const CASCADING${T(ts, "Record<string, string[]> | null")} = ${cascadingCode};
 
 /** Generate cache invalidation tags from a URL path. Tries configured patterns first, falls back to segment-based generation. */
 export function generateTags(url${T(ts, "string | URL")})${R(ts, "string[]")}{
@@ -219,81 +206,6 @@ export function generateTagsFromMethod(method${T(ts, "string")}, url${T(ts, "str
   const tags = generateTags(url);
   if (method === "GET" || method === "HEAD") return tags;
   return tags.map((tag) => \`\${method.toLowerCase()}-\${tag}\`);
-}
-
-/** Invalidate cached responses related to a URL, including cascading dependencies. */
-export async function invalidateUrl(url${T(ts, "string | URL")})${R(ts, "Promise<void>")}{
-  const tags = generateTags(url);
-  const allTags = CASCADING ? expandCascading(tags) : tags;
-  await invalidateByTags(allTags);
-}
-
-/** Invalidate cached responses tagged with method-prefixed tags, including cascading dependencies. */
-export async function invalidateByMethod(method${T(ts, "string")}, url${T(ts, "string | URL")})${R(ts, "Promise<void>")}{
-  const tags = generateTagsFromMethod(method, url);
-  const allTags = CASCADING ? expandCascading(tags) : tags;
-  await invalidateByTags(allTags);
-}
-
-/** Expand tags with their cascading dependencies, deduplicated. */
-export function expandCascading(tags${T(ts, "string[]")})${R(ts, "string[]")}{
-  if (!CASCADING) return [...tags];
-  const result = new Set(tags);
-  for (const tag of tags) {
-    const deps = CASCADING[tag];
-    if (deps) {
-      for (const dep of deps) {
-        result.add(dep);
-      }
-    }
-  }
-  return [...result];
-}
-
-/** Introspect: get all URLs cached under a given tag. */
-export async function getUrlsForTag(tag${T(ts, "string")})${R(ts, "Promise<{ url: string; actualUrl: string }[]>")}{
-  const controller = navigator.serviceWorker?.controller;
-  if (!controller) return [];
-  return new Promise((resolve) => {
-    const channel = new MessageChannel();
-    const timeout = setTimeout(() => { channel.port1.close(); resolve([]); }, 5000);
-    channel.port1.onmessage = (event) => {
-      clearTimeout(timeout);
-      resolve(event.data.urls || []);
-    };
-    controller.postMessage(
-      { type: "GET_URLS_FOR_TAG", tag },
-      [channel.port2],
-    );
-  });
-}
-
-/** Introspect: get all tags associated with a given URL. */
-export async function getTagsForUrl(url${T(ts, "string")})${R(ts, "Promise<string[]>")}{
-  const controller = navigator.serviceWorker?.controller;
-  if (!controller) return [];
-  return new Promise((resolve) => {
-    const channel = new MessageChannel();
-    const timeout = setTimeout(() => { channel.port1.close(); resolve([]); }, 5000);
-    channel.port1.onmessage = (event) => {
-      clearTimeout(timeout);
-      resolve(event.data.tags || []);
-    };
-    controller.postMessage(
-      { type: "GET_TAGS_FOR_URL", url },
-      [channel.port2],
-    );
-  });
-}
-
-/** Invalidate all cached responses whose URL matches the given glob pattern. */
-export async function invalidateMatching(glob${T(ts, "string")})${R(ts, "Promise<void>")}{
-  const controller = navigator.serviceWorker?.controller;
-  if (!controller) return;
-  controller.postMessage({
-    type: "INVALIDATE_MATCHING",
-    glob,
-  });
 }
 `;
 }

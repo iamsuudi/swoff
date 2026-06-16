@@ -41,9 +41,9 @@ import { generateGuide } from "./file-generators/guide-generator.js";
 import { generateReset } from "./file-generators/reset.js";
 import { generateOpenDB } from "./file-generators/open-db.js";
 import { generateFetchState } from "./file-generators/fetch-state.js";
-import { generateStorageNotify } from "./file-generators/storage-notify.js";
+import { generateStorage } from "./file-generators/storage.js";
 import { generateSwVersion } from "./file-generators/sw-version-gen.js";
-import { generateConnectivityManager } from "./file-generators/connectivity-manager.js";
+import { generateConnectivity } from "./file-generators/connectivity.js";
 import { generateAuthCheck } from "./file-generators/auth-check.js";
 interface Step {
   name: string;
@@ -58,8 +58,8 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
     { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: true },
     {
-      name: "connectivity-manager",
-      gen: () => generateConnectivityManager(ctx),
+      name: "connectivity",
+      gen: () => generateConnectivity(ctx),
       enabled: true,
     },
     {
@@ -68,7 +68,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
       enabled: true,
     },
     { name: "fetch/core", gen: () => generateFetchWrapper(ctx), enabled: true },
-    { name: "cache/index", gen: () => generateCache(ctx), enabled: true },
+    { name: "cache/invalidate", gen: () => generateCache(ctx), enabled: true },
     { name: "fetch/state", gen: () => generateFetchState(ctx), enabled: true },
     { name: "reset", gen: () => generateReset(ctx), enabled: true },
     { name: "db", gen: () => generateOpenDB(ctx), enabled: true },
@@ -103,7 +103,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
       enabled: ctx.config.features.auth.enabled,
     },
     {
-      name: "sw/auth-check",
+      name: "auth/check",
       gen: () => generateAuthCheck(ctx),
       enabled: ctx.config.features.auth.enabled,
     },
@@ -118,7 +118,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
       enabled: ctx.ext === "ts",
     },
     {
-      name: "pwa/injector",
+      name: "pwa/prompt",
       gen: () => generatePwaInstall(ctx),
       enabled: ctx.config.features.pwa.enabled,
     },
@@ -133,12 +133,12 @@ export function generateFiles(ctx: GeneratorContext): string[] {
       enabled: ctx.config.features.graphql.enabled,
     },
     {
-      name: "realtime/notifications",
+      name: "push-notification/index",
       gen: () => generatePush(ctx),
-      enabled: ctx.config.features.realtime.pushNotifications,
+      enabled: ctx.config.features.pushNotifications,
     },
     {
-      name: "realtime/server-push",
+      name: "server-push/client",
       gen: () => generateServerPush(ctx),
       enabled: shouldIncludeServerPush(ctx.config),
     },
@@ -154,8 +154,8 @@ export function generateFiles(ctx: GeneratorContext): string[] {
       ].includes(ctx.frameworkName),
     },
     {
-      name: "storage-notify",
-      gen: () => generateStorageNotify(ctx),
+      name: "storage",
+      gen: () => generateStorage(ctx),
       enabled: true,
     },
     { name: "GUIDE.md", gen: () => generateGuide(ctx), enabled: true },

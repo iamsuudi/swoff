@@ -84,7 +84,7 @@ export function generateServerPushCode(
  * This client-side helper provides status tracking and a manual start/stop API.
  *
  * Usage:
- *   import { startPushEvents, stopPushEvents, isPushConnected } from "./realtime/server-push.${ext}";
+ *   import { startPushEvents, stopPushEvents, isPushConnected } from "./server-push/client.${ext}";
  *   startPushEvents();
  *
  * Server sends:

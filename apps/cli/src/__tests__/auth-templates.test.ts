@@ -108,12 +108,12 @@ describe("auth-store", () => {
 });
 
 describe("auth-state", () => {
-  it("uses connectivity-manager for online status", () => {
+  it("uses connectivity for online status", () => {
     const ctx = makeContext({ features: { ...defaultConfig.features, auth: authConfig("cookie") } });
     generateAuthState(ctx);
     const content = readFileSync(join(ctx.swoffDir, "auth", "state.js"), "utf8");
     expect(content).toContain("getCurrentOnlineStatus");
-    expect(content).toContain("../connectivity-manager");
+    expect(content).toContain("../connectivity");
   });
 });
 
@@ -141,10 +141,10 @@ describe("fetch-handler", () => {
     expect(code).not.toContain("auth-route-bypass");
   });
 
-  it("generates isAuthFailureResponse with default 401 check", () => {
+  it("checkAuthFailure calls isAuthFailureResponse", () => {
     const code = generateFetchHandler(baseSwConfig, true, false, ["/api/me"], false);
-    expect(code).toContain("function isAuthFailureResponse");
-    expect(code).toContain("return response.status === 401");
+    expect(code).toContain("isAuthFailureResponse(response)");
+    expect(code).not.toContain("function isAuthFailureResponse");
   });
 
   it("checkAuthFailure awaits isAuthFailureResponse", () => {

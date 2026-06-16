@@ -92,7 +92,7 @@ import {
 | ---------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `queueMutation`        | `(mutation: MutationQueueItem) => Promise<void>`       | Store a write for later sync                                                                                                                                                      |
 | `processMutationQueue` | `() => Promise<{ succeeded: number, failed: number }>` | Replay all queued writes. Respects `batchSize`, `batchDelayMs`, and `retry` config (`maxRetries`, `backoffMs`, `maxBackoffMs`, `jitterMs`). Runs automatically on `online` event. |
-| `flushMutations`       | `() => Promise<void>`                                  | Same as `processMutationQueue`. Call after re-login (queued mutations may have stale auth).                                                                                       |
+| `flushMutations`       | `() => Promise<void>`                                  | Same as `processMutationQueue`. Manually force-replay all pending mutations (e.g. user clicks "Sync Now").                                                                        |
 | `getPendingCount`      | `() => Promise<number>`                                | Number of mutations waiting to sync                                                                                                                                               |
 | `getQueuePosition`     | `(id: string) => Promise<number>`                      | 0-based position of a mutation in the queue. Returns -1 if not found.                                                                                                             |
 | `getQueueItems`        | `() => Promise<MutationQueueItem[]>`                   | All pending queue items with their status, retry count, and metadata                                                                                                              |
@@ -117,7 +117,7 @@ Generated when `features.mutationQueue.enabled` is `true`.
 
 ---
 
-## `offline/state.ts`
+## `mutation/state.ts`
 
 Per-mutation state tracking. Each mutation operation gets an ID that can be used to track its
 status (loading, success, error) across the app.
@@ -129,7 +129,7 @@ import {
   getMutationState,
   clearMutationState,
   onMutationStateChange,
-} from "swoff/offline/state";
+} from "swoff/mutation/state";
 ```
 
 ### Functions
@@ -149,18 +149,14 @@ The `useMutation` React hook wraps `startMutation` + `trackMutation` and exposes
 
 ---
 
-## `realtime/server-push.ts`
+## `server-push/client.ts`
 
-Client-side connection manager for real-time cache invalidation via SSE or WebSocket.
-The service worker maintains the primary connection; this module provides a fallback and
-status events for the UI.
+SSE/WebSocket connection manager for real-time cache invalidation.
+The service worker maintains the connection directly; this module is auto-managed and requires no page-side imports.
 
 ```ts
-import {
-  startPushEvents,
-  stopPushEvents,
-  isPushConnected,
-} from "swoff/realtime/server-push";
+// No page-side imports needed — connection is managed by the SW.
+// Events are dispatched to the window automatically:
 ```
 
 ### Functions
@@ -194,18 +190,18 @@ data: {"tags": ["todos", "categories"]}
 { "event": "invalidate", "tags": ["todos", "categories"] }
 ```
 
-Generated when `features.realtime.serverPush.enabled` is `true`.
+Generated when `features.serverPush.enabled` is `true`.
 
 ---
 
-## `cache/index.ts`
+## `cache/invalidate.ts`
 
 Low-level cache invalidation. Sends invalidation messages to the SW; the SW
 removes matching entries from the runtime cache and confirms back to the
 client-injector, which dispatches `cache-invalidated` on the window.
 
 ```ts
-import { invalidateByTag, invalidateByTags } from "swoff/cache/index";
+import { invalidateByTag, invalidateByTags } from "swoff/cache/invalidate";
 ```
 
 ### Functions
@@ -347,7 +343,7 @@ import {
 | ---------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `setAuth(authData)`                | `Promise<void>`             | Store auth in memory, persist user to IndexedDB, dispatch `sw-auth-state-change` event                                                                                                                                                                                                                                     |
 | `getAuth()`                        | `Promise<AuthData \| null>` | Get auth from memory (IndexedDB fallback after page refresh)                                                                                                                                                                                                                                                               |
-| `clearAuth(opts?)`                 | `Promise<void>`             | Cascading clear: memory → IndexedDB → runtime caches (`swoff-runtime*`) → dispatch `sw-auth-state-change` → broadcast `AUTH_CLEARED` to SW (forwards to all tabs). Call on logout/401. Pass `{ broadcast: false }` to skip SW broadcast. All IndexedDB connections are closed in `finally` blocks — no leaked connections. |
+| `clearAuth(opts?)`                 | `Promise<void>`             | Cascading clear: memory → IndexedDB → runtime caches → mutation queue → dispatch `sw-auth-state-change` → broadcast `AUTH_CLEARED` to SW (forwards to all tabs). Call on logout/401. Pass `{ broadcast: false }` to skip SW broadcast. All IndexedDB connections are closed in `finally` blocks — no leaked connections. |
 | `clearMemoryAuth()`                | `void`                      | Memory-only clear (used by cross-tab sync — receiving tabs don't need redundant IDB/cache cleanup).                                                                                                                                                                                                                        |
 | `isAuthValid(auth)`                | `boolean`                   | Check existence + `expiresAt` expiry                                                                                                                                                                                                                                                                                       |
 | `ensureValidAuth()`                | `Promise<AuthData \| null>` | Check expiry, delegate refresh to adapter's `refresh()` if needed. Cookie auth types return as-is (server manages session).                                                                                                                                                                                                |
@@ -360,6 +356,7 @@ clearAuth()
   → null memoryAuth
   → delete "session" from IndexedDB (swoff-auth)
   → delete runtime caches by prefix (swoff-runtime*)
+  → clear mutation queue (if mutationQueue enabled)
   → dispatch sw-auth-state-change event
   → postMessage({ type: "AUTH_CLEARED" }) to SW
     → SW forwards to all clients via clients.matchAll()
@@ -368,7 +365,7 @@ clearAuth()
 
 ### `auth/state.ts`
 
-Detects which of 4 states the app is in. Uses the connectivity manager (heartbeat-based) for online status instead of `navigator.onLine`.
+Detects which of 4 states the app is in. Uses the connectivity module (heartbeat-based) for online status instead of `navigator.onLine`.
 
 ```ts
 // Public API:
@@ -381,17 +378,16 @@ import { getAuthState } from "swoff/auth/state";
 
 ---
 
-## `pwa/index.ts`
+## `pwa/prompt.ts`
 
-PWA install prompt handling and event wiring. Re-exports from `pwa/injector` and `pwa/prompt`.
+PWA install prompt handling and event wiring. `setupPwaInstall()` is called automatically by `client-injector.ts` — you only need to import `isInstallable` and `promptInstall` for your install button UI.
 
 ```ts
-import { setupPwaInstall, isInstallable, promptInstall } from "swoff/pwa/index";
+import { isInstallable, promptInstall } from "swoff/pwa/prompt";
 ```
 
 | Function            | Description                                                                                             |
 | ------------------- | ------------------------------------------------------------------------------------------------------- |
-| `setupPwaInstall()` | Listen for `beforeinstallprompt` / `appinstalled` events. Called automatically by `client-injector.ts`. |
 | `isInstallable()`   | Check if install prompt is available (returns `boolean`)                                                |
 | `promptInstall()`   | Show the native install prompt. Returns `{ outcome: string }`.                                          |
 
@@ -399,7 +395,7 @@ Generated when `features.pwa.enabled` is `true`.
 
 ---
 
-## `realtime/notifications.ts`
+## `push-notification/index.ts`
 
 Push notification subscription management with IndexedDB persistence.
 
@@ -410,7 +406,7 @@ import {
   isSubscribed,
   getPushSubscription,
   requestNotificationPermission,
-} from "swoff/realtime/notifications";
+} from "swoff/push-notification";
 ```
 
 | Function                          | Description                                                                            |
@@ -421,16 +417,16 @@ import {
 | `getPushSubscription()`           | Get current subscription object (returns `Promise<PushSubscription \| null>`)          |
 | `requestNotificationPermission()` | Request permission only. Returns `Promise<boolean>`.                                   |
 
-Generated when `features.realtime.pushNotifications` is `true`.
+Generated when `features.pushNotifications` is `true`.
 
 ---
 
-## `offline/sync.ts`
+## `mutation/sync.ts`
 
 Background Sync API registration for processing mutations even after tab close.
 
 ```ts
-import { syncWhenPossible, retrySync } from "swoff/offline/sync";
+import { syncWhenPossible, retrySync } from "swoff/mutation/sync";
 ```
 
 | Function                     | Description                                                            |
@@ -466,26 +462,20 @@ Always generated.
 
 ---
 
-## `notification.ts`
+## `storage.ts`
 
-Storage estimation and notification dispatch. Helps you monitor browser resource usage
-(storage quota) and react to SW events (fetch failures, precache failures, background sync errors).
+Storage estimation utilities. The storage check (`checkStorage()`) is called automatically by `client-injector.ts` after `initServiceWorker()` — it dispatches `STORAGE_QUOTA_HIGH` when usage exceeds 80%.
 
 ```ts
-import {
-  checkStorage,
-  getStorageEstimate,
-  formatBytes,
-} from "swoff/notification";
-````
+import { getStorageEstimate, formatBytes } from "swoff/storage";
+```
 
 ### Functions
 
-| Function               | Returns                                                          | Description                                                                                                                               |
-| ---------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `checkStorage()`       | `Promise<{ usage: number, quota: number, percentUsed: number }>` | Calls `navigator.storage.estimate()`. Dispatches `swoff:notification` with level `"warn"` and code `"STORAGE_QUOTA_HIGH"` when >80% used. |
-| `getStorageEstimate()` | `Promise<{ usage: number, quota: number, percentUsed: number }>` | Raw storage estimate — no dispatch. Use when you want to render quota in your own UI without triggering a notification.                   |
-| `formatBytes(bytes)`   | `string`                                                         | Format a byte count for display (e.g. `formatBytes(1572864)` → `"1.5 MB"`).                                                               |
+| Function               | Returns                                                          | Description                                                                  |
+| ---------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `getStorageEstimate()` | `Promise<{ usage: number, quota: number, percentUsed: number }>` | Raw storage estimate — no dispatch. Use when you want to render quota in UI. |
+| `formatBytes(bytes)`   | `string`                                                         | Format a byte count for display (e.g. `formatBytes(1572864)` → `"1.5 MB"`). |
 
 ### Window events
 
@@ -496,7 +486,7 @@ The SW broadcasts these automatically on failure:
 | `FETCH_FAILED`                     | `error` | Network request timed out or failed                                                               |
 | `PRECACHE_FAILED`                  | `warn`  | Per-asset precache failure during install                                                         |
 | `BACKGROUND_SYNC_FAILED`           | `error` | Background sync processing error                                                                  |
-| `STORAGE_QUOTA_HIGH`               | `warn`  | Storage >80% capacity (from `checkStorage()`)                                                     |
+| `STORAGE_QUOTA_HIGH`               | `warn`  | Storage >80% capacity (from `checkStorage()`, auto-called by client-injector)                     |
 | `AUTH_FAILURE` (postMessage type)  | —       | Background refresh returned 401 — client handles via `ensureValidAuth()` → `clearAuth()` fallback |
 | `CACHE_UPDATED` (postMessage type) | —       | Successful background refetch — sent with `fetchUrl` payload to trigger UI updates                |
 
@@ -774,7 +764,7 @@ const {
 } = usePushSubscription();
 ```
 
-Generated when `features.realtime.pushNotifications`.
+Generated when `features.pushNotifications` is `true`.
 
 ### `useBackgroundSync()`
 

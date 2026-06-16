@@ -106,7 +106,7 @@ export const FEATURES: Record<string, FeatureDef> = {
     requires: [],
     incompatibleAuthTypes: [],
     checkEnabled: buildCheck("features.pushNotifications"),
-    configUpdate: { pushNotifications: true, vapidPublicKey: "" },
+    configUpdate: { pushNotifications: true },
     isCore: true,
   },
   "server-push": {

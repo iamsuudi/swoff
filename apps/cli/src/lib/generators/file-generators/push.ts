@@ -8,7 +8,6 @@ export function generatePush(ctx: GeneratorContext): void {
     generatePushCode({
       ts: ctx.ext === "ts",
       ext: ctx.ext,
-      vapidKey: ctx.config.features.vapidPublicKey ?? "",
     }),
   );
 }

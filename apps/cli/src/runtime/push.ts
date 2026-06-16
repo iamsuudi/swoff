@@ -1,15 +1,17 @@
 import type { RuntimeContext } from "./utils.js";
 import { T, R, PT, AS } from "./utils.js";
 
-export function generatePushCode(ctx: RuntimeContext & { vapidKey: string }): string {
+export function generatePushCode(ctx: RuntimeContext): string {
   const { ext, ts } = ctx;
-  const vapidKey = ctx.vapidKey;
   return `/**
  * Swoff Push Notifications
  * Push subscription management with IndexedDB persistence.
  *
  * Usage:
  *   import { subscribeToPush, unsubscribeFromPush, isSubscribed } from './swoff/push-notification/index.${ext}';
+ *
+ *   // Replace with your VAPID public key:
+ *   const VAPID_PUBLIC_KEY = "YOUR_VAPID_PUBLIC_KEY_HERE";
  *
  *   // Enable (triggers permission prompt)
  *   const subscription = await subscribeToPush();
@@ -30,7 +32,7 @@ import { openDB } from "../db.${ext}";
 
 const SUBSCRIPTION_DB = "swoff-push";
 const SUBSCRIPTION_STORE = "subscription";
-const VAPID_PUBLIC_KEY = ${JSON.stringify(vapidKey)};
+const VAPID_PUBLIC_KEY = "";
 
 let permissionState${T(ts, "NotificationPermission | undefined")} = typeof Notification !== "undefined" ? Notification.permission : undefined;
 
@@ -57,7 +59,7 @@ export async function getPushSubscription()${R(ts, "Promise<PushSubscription | n
   }
 }
 
-/** Subscribe to push notifications. Returns the subscription or null if permission denied. Uses the VAPID public key from your swoff.config.json. */
+/** Subscribe to push notifications. Returns the subscription or null if permission denied. Update VAPID_PUBLIC_KEY at the top with your key. */
 export async function subscribeToPush()${R(ts, "Promise<PushSubscription | null>")}{
   const granted = await requestNotificationPermission();
   if (!granted) return null;

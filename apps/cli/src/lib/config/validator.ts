@@ -27,10 +27,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         if (typeof value !== "number" || value < 0 || !Number.isInteger(value)) {
           errors.push("features.requestBatchWindowMs must be a non-negative integer");
         }
-      } else if (key === "vapidPublicKey") {
-        if (value !== undefined && typeof value !== "string") {
-          errors.push("features.vapidPublicKey must be a string");
-        }
       } else {
         if (!KNOWN_FEATURES.includes(key as (typeof KNOWN_FEATURES)[number])) {
           errors.push(`Unknown feature "${key}"`);
@@ -327,9 +323,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
 
     if (features.pushNotifications !== undefined && typeof features.pushNotifications !== "boolean") {
       errors.push("features.pushNotifications must be a boolean");
-    }
-    if (features.vapidPublicKey !== undefined && typeof features.vapidPublicKey !== "string") {
-      errors.push("features.vapidPublicKey must be a string");
     }
     const sp = features.serverPush as Record<string, unknown> | undefined;
     if (sp && typeof sp === "object") {

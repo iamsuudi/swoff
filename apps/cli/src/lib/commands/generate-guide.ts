@@ -39,7 +39,8 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push("");
     lines.push("  ── PWA ──");
     lines.push(`  Import in app entry:`);
-    lines.push(`    import { setupPwaInstall, isInstallable, promptInstall } from "./swoff/pwa/index.${ext}";`);
+    lines.push(`    import { setupPwaInstall } from "./swoff/pwa/injector.${ext}";`);
+    lines.push(`    import { isInstallable, promptInstall } from "./swoff/pwa/prompt.${ext}";`);
     lines.push("    setupPwaInstall();");
     lines.push("");
     lines.push(`  Link manifest in index.html <head>:`);

@@ -1,11 +1,10 @@
 /**
- * Generates pwa/ files — injector, prompt, and index barrel.
+ * Generates pwa/ files — injector and prompt.
  */
 
 import { GeneratorContext, writeFile } from "./context.js";
 import { generatePwaInjectorCode } from "../../../runtime/pwa-injector.js";
 import { generatePwaPromptCode } from "../../../runtime/pwa-prompt.js";
-import { generatePwaIndexCode } from "../../../runtime/pwa-index.js";
 
 export function generatePwaInstall(ctx: GeneratorContext): void {
   const opts = { ts: ctx.ext === "ts", ext: ctx.ext };
@@ -16,6 +15,4 @@ export function generatePwaInstall(ctx: GeneratorContext): void {
     ...opts,
     preventDefaultInstall: ctx.config.features.pwa.preventDefaultInstall,
   }));
-
-  writeFile(ctx, `pwa/index.${ctx.ext}`, generatePwaIndexCode(opts));
 }

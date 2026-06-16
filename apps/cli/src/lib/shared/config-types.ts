@@ -129,7 +129,6 @@ export interface SwoffConfig {
     tagInvalidation: TagInvalidationConfig;
     graphql: GqlConfig;
     pushNotifications: boolean;
-    vapidPublicKey: string;
     serverPush: ServerPushConfig;
   };
   build: {
@@ -297,9 +296,6 @@ export function mergeConfigs(
       pushNotifications:
         override.features?.pushNotifications ??
         base.features.pushNotifications,
-      vapidPublicKey:
-        override.features?.vapidPublicKey ??
-        base.features.vapidPublicKey,
       serverPush: {
         ...defaultServerPushConfig,
         ...base.features.serverPush,
@@ -355,7 +351,6 @@ export const defaultConfig: SwoffConfig = {
     tagInvalidation: { ...defaultTagInvalidation },
     graphql: { ...defaultGql },
     pushNotifications: false,
-    vapidPublicKey: "",
     serverPush: { ...defaultServerPushConfig },
   },
 };
@@ -405,7 +400,6 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
     tagInvalidation: { ...defaultTagInvalidation },
     graphql: { ...defaultGql },
     pushNotifications: false,
-    vapidPublicKey: "",
     serverPush: { ...defaultServerPushConfig },
   },
   build: { outputDir: "dist", swFilename: "sw", precacheDirs: {} },

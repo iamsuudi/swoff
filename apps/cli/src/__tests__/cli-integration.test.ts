@@ -168,7 +168,7 @@ describe("CLI commands integration", () => {
           auth: { enabled: false, type: "bearer" as const },
           tagInvalidation: {},
           graphql: { enabled: false, endpoints: ["/graphql"] },
-          pushNotifications: false, vapidPublicKey: "", serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
+          pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
         },
         build: { outputDir: "dist", swFilename: "sw" },
         ...overrides,

@@ -344,19 +344,19 @@ describe("generateTypeDefinitions", () => {
 });
 
 describe("generateAuthCheck", () => {
-  it("creates sw/auth-check.js with default isAuthFailureResponse", () => {
+  it("creates auth/check.js with default isAuthFailureResponse", () => {
     const ctx = makeContext();
     generateAuthCheck(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw", "auth-check.js"), "utf8");
+    const content = readFileSync(join(ctx.swoffDir, "auth", "check.js"), "utf8");
     expect(content).toContain("isAuthFailureResponse");
     expect(content).toContain("return response.status === 401");
   });
 
-  it("creates sw/auth-check.ts with type annotations when ext is ts", () => {
+  it("creates auth/check.ts with type annotations when ext is ts", () => {
     const ctx = makeContext();
     ctx.ext = "ts";
     generateAuthCheck(ctx);
-    const content = readFileSync(join(ctx.swoffDir, "sw", "auth-check.ts"), "utf8");
+    const content = readFileSync(join(ctx.swoffDir, "auth", "check.ts"), "utf8");
     expect(content).toContain(": Response");
     expect(content).toContain("Promise<boolean>");
   });

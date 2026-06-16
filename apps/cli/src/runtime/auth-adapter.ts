@@ -23,6 +23,7 @@ export interface AuthData {
   expiresAt?: number;
 }
 ` : ""}
+import { isAuthFailureResponse } from "./check.${ext}";
 
 export const adapter${T(ts, "{ type: 'cookie'; getAuth: () => Promise<AuthData | null>; getHeaders: (auth: AuthData | null) => Record<string, string>; refresh: (auth: AuthData) => Promise<AuthData | null>; fetchUser: () => Promise<AuthData | null> }")}= {
   type: "cookie",
@@ -37,7 +38,7 @@ export const adapter${T(ts, "{ type: 'cookie'; getAuth: () => Promise<AuthData |
     return {};
   },
 
-  /** Refresh the session. Cookie auth: server manages session, return null. */
+  /** Refresh the session. Cookie auth: server manages session, return null to skip. */
   async refresh(_auth${T(ts, "AuthData")})${R(ts, "Promise<AuthData | null>")}{
     return null;
   },
@@ -45,7 +46,8 @@ export const adapter${T(ts, "{ type: 'cookie'; getAuth: () => Promise<AuthData |
   /** Fetch current user from the server. Uses credentials: include for cookie auth. */
   async fetchUser()${R(ts, "Promise<AuthData | null>")}{
     const res = await fetch("/api/me", { credentials: "include" });
-    return res.ok ? { user: await res.json() } : null;
+    if (await isAuthFailureResponse(res)) return null;
+    return { user: await res.json() };
   },
 };
 `;
@@ -74,6 +76,7 @@ export interface AuthData {
 }
 ` : ""}
 import { getAuth } from "./store.${ext}";
+import { isAuthFailureResponse } from "./check.${ext}";
 
 export const adapter${T(ts, "{ type: 'bearer'; getAuth: () => Promise<AuthData | null>; getHeaders: (auth: AuthData | null) => Record<string, string>; refresh: (auth: AuthData) => Promise<AuthData | null>; fetchUser: () => Promise<AuthData | null> }")}= {
   type: "bearer",
@@ -94,7 +97,7 @@ export const adapter${T(ts, "{ type: 'bearer'; getAuth: () => Promise<AuthData |
       const headers${T(ts, "Record<string, string>")} = { "Content-Type": "application/json" };
       if (auth.token) headers["Authorization"] = \`Bearer \${auth.token}\`;
       const res = await fetch("/api/refresh", { method: "POST", headers });
-      if (!res.ok) return null;
+      if (await isAuthFailureResponse(res)) return null;
       const data = await res.json();
       return { ...auth, token: data.token, expiresAt: data.expiresAt };
     } catch { return null; }
@@ -106,7 +109,8 @@ export const adapter${T(ts, "{ type: 'bearer'; getAuth: () => Promise<AuthData |
     const headers${T(ts, "Record<string, string>")} = {};
     if (auth?.token) headers["Authorization"] = \`Bearer \${auth.token}\`;
     const res = await fetch("/api/me", { headers });
-    return res.ok ? { user: await res.json() } : null;
+    if (await isAuthFailureResponse(res)) return null;
+    return { user: await res.json() };
   },
 };
 `;
@@ -130,6 +134,7 @@ export interface AuthData {
   expiresAt?: number;
 }
 ` : ""}
+import { isAuthFailureResponse } from "./check.${ext}";
 
 export const adapter = {
   /** Set to "cookie" if your backend uses httpOnly cookies, "bearer" if it uses tokens. */
@@ -145,20 +150,20 @@ export const adapter = {
     return {};
   },
 
-  /** Refresh the session. Return null if refresh fails. */
+  /** Refresh the session. Return null if refresh fails. Use isAuthFailureResponse to validate. */
   async refresh(auth) {
     // --- EDIT THIS ---
     try {
       const headers = { "Content-Type": "application/json" };
       if (auth?.token) headers["Authorization"] = \`Bearer \${auth.token}\`;
       const res = await fetch("/api/refresh", { method: "POST", headers });
-      if (!res.ok) return null;
+      if (await isAuthFailureResponse(res)) return null;
       const data = await res.json();
       return { ...auth, token: data.token, expiresAt: data.expiresAt };
     } catch { return null; }
   },
 
-  /** Fetch current user. Return AuthData | null (e.g. { user: data }). */
+  /** Fetch current user. Return AuthData | null (e.g. { user: data }). Use isAuthFailureResponse to validate. */
   async fetchUser() {
     // --- EDIT THIS ---
     return null;

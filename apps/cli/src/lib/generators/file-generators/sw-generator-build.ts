@@ -41,8 +41,8 @@ let template = readFileSync(templatePath, 'utf8');
 const swoffDir = join(projectRoot, 'swoff');
 
 // Replace isAuthFailureResponse body with user's custom auth check
-const authCheckTsPath = join(swoffDir, 'sw', 'auth-check.ts');
-const authCheckJsPath = join(swoffDir, 'sw', 'auth-check.js');
+const authCheckTsPath = join(swoffDir, 'auth', 'check.ts');
+const authCheckJsPath = join(swoffDir, 'auth', 'check.js');
 const authCheckPath = existsSync(authCheckTsPath) ? authCheckTsPath : authCheckJsPath;
 if (existsSync(authCheckPath)) {
   const authContent = readFileSync(authCheckPath, 'utf8');

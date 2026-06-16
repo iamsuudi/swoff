@@ -103,7 +103,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
       enabled: ctx.config.features.auth.enabled,
     },
     {
-      name: "sw/auth-check",
+      name: "auth/check",
       gen: () => generateAuthCheck(ctx),
       enabled: ctx.config.features.auth.enabled,
     },

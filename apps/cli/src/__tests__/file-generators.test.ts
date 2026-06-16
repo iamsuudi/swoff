@@ -224,7 +224,7 @@ describe("generateClientInjector", () => {
       "utf8",
     );
     expect(content).toContain("setupPwaInstall");
-    expect(content).toContain("./pwa/injector");
+    expect(content).toContain("./pwa/prompt");
   });
 
   it("always imports sw/injector", () => {

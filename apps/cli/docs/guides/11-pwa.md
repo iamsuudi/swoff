@@ -21,24 +21,21 @@ Or set `features.pwa.enabled: true` in `swoff.config.json`.
 
 | File                            | What it does                                                            | Import in your code?                  |
 | ------------------------------- | ----------------------------------------------------------------------- | ------------------------------------- |
-| `swoff/sw/injector.ts`          | SW registration, version check, auto-update                             | Yes                                   |
 | `swoff/pwa/prompt.ts`           | Install prompt listener, `isInstallable()`, `promptInstall()`           | Yes                                   |
-| `swoff/pwa/injector.ts`         | Re-exports `setupPwaInstall` from prompt                                | Yes                                   |
-| `swoff/pwa/index.ts`            | Barrel re-export of `setupPwaInstall`, `isInstallable`, `promptInstall` | Convenience                           |
+| `swoff/pwa/injector.ts`         | Re-exports `setupPwaInstall` from prompt (called automatically)         | No — internal to client-injector      |
 | `swoff/sw/template.js`          | The SW source — reads cache strategies, auth, tags from config headers  | No, built into SW                     |
 | `swoff/sw/generator.js`         | Build script that produces the final `sw.js`                            | Run: `node swoff/sw/generator.js`     |
-| `swoff/sw-version.ts`           | `SW_VERSION` constant — controls cache busting on deploy                | Yes, for debugging                    |
-| `swoff/connectivity-manager.ts` | Network status tracking with HEAD heartbeat                             | Yes, if you need online/offline state |
+| `swoff/sw/version.ts`           | `SW_VERSION` constant — controls cache busting on deploy                | Yes, for debugging                    |
+| `swoff/connectivity.ts`         | Network status tracking with HEAD heartbeat                             | Yes, if you need online/offline state |
 
 ## Usage
 
 ```ts
-import { initServiceWorker } from "./swoff/sw/injector";
-import { setupPwaInstall, isInstallable, promptInstall } from "./swoff/pwa";
+import { initServiceWorker } from "./swoff/client-injector";
+import { isInstallable, promptInstall } from "./swoff/pwa/prompt";
 
-// At app startup
+// At app startup — also wires up PWA install handler automatically
 initServiceWorker();
-setupPwaInstall();
 
 // Show install button when available
 if (isInstallable()) {
@@ -70,7 +67,7 @@ if (isInstallable()) {
 
 - `pwa.enabled` — generate PWA install prompt and injector
 - `pwa.preventDefaultInstall` — capture the browser's install event without showing it; show your own UI
-- `serviceWorker.version` — `"package"` (from package.json), `"hash"` (content-hashed), or `"manual"` (you edit `swoff/sw-version.ts`)
+- `serviceWorker.version` — `"package"` (from package.json), `"hash"` (content-hashed), or `"manual"` (you edit `swoff/sw/version.ts`)
 - `serviceWorker.autoActivate` — skip waiting and activate new SW immediately
 
 ## Build the SW
@@ -79,7 +76,31 @@ if (isInstallable()) {
 node swoff/sw/generator.js
 ```
 
-Add this to your build script. It reads the config headers from generated files and produces your final `sw.js`.
+Add this to your build script. It reads the config headers from generated source files and produces your final `sw.js`.
+
+## React adapters
+
+Swoff generates these hooks for PWA-related features (import from `./swoff/adapters`):
+
+```tsx
+import { usePwaInstall } from "./swoff/adapters/usePwaInstall";
+import { useSWUpdate } from "./swoff/adapters/useSWUpdate";
+import { useStorageEstimate } from "./swoff/adapters/useStorageEstimate";
+
+function App() {
+  const { canInstall, install } = usePwaInstall();
+  const { status, progress } = useSWUpdate();
+  const { usage, quota, percentUsed } = useStorageEstimate();
+
+  return (
+    <div>
+      {status === "installing" && <div>Updating SW… {progress}%</div>}
+      {canInstall && <button onClick={install}>Install App</button>}
+      <div>Cache: {percentUsed.toFixed(1)}% used</div>
+    </div>
+  );
+}
+```
 
 ## Related
 

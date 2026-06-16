@@ -11,7 +11,7 @@ export function generateClientInjectorCode(
   const { ext, ts } = ctx;
 
   const pwaImport = pwaEnabled
-    ? `import { setupPwaInstall } from "./pwa/injector.${ext}";
+    ? `import { setupPwaInstall } from "./pwa/prompt.${ext}";
 `
     : "";
 

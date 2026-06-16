@@ -13,8 +13,8 @@
 
 | Pattern     | Strategy        | Behavior                               |
 | ----------- | --------------- | -------------------------------------- |
-| `/api/*`    | `network-first` | Try network, fall back to cache        |
-| `/static/*` | `cache-first`   | Serve from cache, update in background |
+| `/api/*`    | `network-first` | Try network, fall back to cache    |
+| `/static/*` | `cache-first`   | Serve from cache on hit, fetch from network on miss |
 
 The SW handles all `fetch` events — no manual route registration needed.
 
@@ -24,7 +24,7 @@ The SW handles all `fetch` events — no manual route registration needed.
 | ---------------------- | ---------------------------------------------- | ------------------------------------- |
 | `swoff/fetch/core.ts`  | `fetchWithCache()`, `prefetchCache()`          | Yes — main API                        |
 | `swoff/fetch/state.ts` | `getFetchCount()` — in-flight request counter  | Yes, for loading spinners             |
-| `swoff/cache/index.ts` | `invalidateByTag()`, `invalidateByTags()`      | Yes, for manual invalidation          |
+| `swoff/cache/invalidate.ts` | `invalidateByTag()`, `invalidateByTags()`      | Yes, for manual invalidation          |
 | `swoff/config.ts`      | `API_BASE` — base URL for relative fetch paths | Edit if your API is on another origin |
 
 ## Usage
@@ -37,18 +37,9 @@ import { getFetchCount } from "./swoff/fetch/state";
 const { response, fromCache } = await fetchWithCache("/api/notes");
 const notes = await response.json();
 
-// fromCache === true means the SW served a cached response
-// The SW will still refresh it in the background (network-first)
-
-// Optional: per-request strategy override
-const { response } = await fetchWithCache("/api/notes", {
-  strategy: "stale-while-revalidate",
-  staleTime: 30, // seconds — serve cache, refresh after 30s
-  refetchInterval: 60, // seconds — poll every 60s even without navigation
-  refetchOnFocus: true, // refresh when tab regains focus
-  refetchOnReconnect: true, // refresh when network returns
-  signal: AbortSignal.timeout(5000),
-});
+// fromCache === true means the SW served a cached response.
+// What happens next depends on the strategy configured for this URL
+// (see the Caching Strategies guide).
 
 // Prefetch — fire-and-forget cache warm
 prefetchCache("/api/notes/123");
@@ -59,7 +50,7 @@ const fetching = getFetchCount() > 0;
 
 ## Customize
 
-No generated files to edit for basic setup. All caching behavior is configured through `swoff.config.json`.
+No generated files to edit for basic setup. All caching behavior is configured through `swoff.config.json`. See the [Caching Strategies guide](./02-caching-strategy.md) for all strategy options, patterns, and config reference.
 
 ## Config
 
@@ -97,23 +88,42 @@ No generated files to edit for basic setup. All caching behavior is configured t
 }
 ```
 
-### Strategies
+See the [Caching Strategies guide](./02-caching-strategy.md) for the full list of strategies, pattern matching syntax, per-route overrides, timeout, and cache eviction.
 
-| Strategy                 | Behavior                                                                                             |
-| ------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `cache-first`            | Serve from cache. Fetch in background to update.                                                     |
-| `network-first`          | Try network. Fall back to cache on timeout or offline.                                               |
-| `stale-while-revalidate` | Serve stale cache immediately. Fetch fresh in background.                                            |
-| `cache-only`             | Serve from cache only. Never fetch.                                                                  |
-| `network-only`           | Always fetch. Never cache.                                                                           |
-| `reactive`               | Like stale-while-revalidate but with staleTime, refetchInterval, refetchOnFocus, refetchOnReconnect. |
+## React adapters
 
-### Strategy patterns
+Swoff generates these hooks for reactive data fetching (import from `./swoff/adapters`):
 
-URL patterns are glob-style (`*` matches any segment, `**` matches any depth). Each pattern can be a strategy name string or an object with per-route overrides for `timeout`, `staleTime`, `refetchInterval`, `refetchOnFocus`, `refetchOnReconnect`.
+```tsx
+import { useCachedFetch } from "./swoff/adapters/useCachedFetch";
+import { useIsFetching } from "./swoff/adapters/useIsFetching";
+import { usePrefetch } from "./swoff/adapters/usePrefetch";
+
+function NotesList() {
+  const { data, isLoading, error, fromCache } = useCachedFetch("/api/notes");
+
+  const fetching = useIsFetching();
+  const { prefetch } = usePrefetch();
+
+  return (
+    <div>
+      {fetching && <Spinner />}
+      {fromCache && <Badge>cached</Badge>}
+      {data?.map(note => (
+        <div key={note.id} onMouseEnter={() => prefetch(`/api/notes/${note.id}`)}>
+          {note.title}
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+Supports `select` (data transformation), `keepPreviousData`, `retry`, `placeholderData`, and callbacks (`onSuccess`, `onError`).
 
 ## Related
 
-- [Navigation caching: SPA/SSR modes, preloading, fallback](./03-navigation-caching.md)
-- [Tag-based cache invalidation](./05-tag-invalidation.md)
+- [Navigation caching: SPA/SSR modes, preloading, fallback](./04-navigation-caching.md)
+- [Tag-based cache invalidation](./06-tag-invalidation.md)
+- [Service Worker fundamentals: versioning, lifecycle, registration](./01-service-worker.md)
 - [Config reference: strategy patterns](../CONFIG.md#featuresserviceworkerstrategy)

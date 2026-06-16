@@ -118,7 +118,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
       enabled: ctx.ext === "ts",
     },
     {
-      name: "pwa/injector",
+      name: "pwa/prompt",
       gen: () => generatePwaInstall(ctx),
       enabled: ctx.config.features.pwa.enabled,
     },

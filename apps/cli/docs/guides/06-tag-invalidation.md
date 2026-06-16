@@ -16,7 +16,7 @@
 | File                   | What it does                                                                                                                                   | Import in your code? |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
 | `swoff/cache/tags.ts`  | `generateTags()`, `invalidateUrl()`, `invalidateByMethod()`, `invalidateMatching()`, `getUrlsForTag()`, `getTagsForUrl()`, `expandCascading()` | Yes                  |
-| `swoff/cache/index.ts` | `invalidateByTag()`, `invalidateByTags()`                                                                                                      | Yes                  |
+| `swoff/cache/invalidate.ts` | `invalidateByTag()`, `invalidateByTags()`                                                                                                      | Yes                  |
 
 ## Usage — comprehensive examples
 
@@ -33,7 +33,7 @@ GET /api/users/456/posts → tags: ["users", "user:456", "posts"]
 The SW stores these tags alongside the cached response. Invalidate with:
 
 ```ts
-import { invalidateByTag } from "./swoff/cache/index";
+import { invalidateByTag } from "./swoff/cache/invalidate";
 
 // After creating a new note, refresh the notes list
 await invalidateByTag("notes");
@@ -103,7 +103,7 @@ await invalidateMatching("/api/**");
 Wire up a backend endpoint to push invalidation. Your server sends a request to a route the SW intercepts:
 
 ```ts
-import { invalidateByTags } from "./swoff/cache/index";
+import { invalidateByTags } from "./swoff/cache/invalidate";
 
 // POST /api/revalidate — called by your backend
 app.post("/api/revalidate", async (req, res) => {
@@ -129,6 +129,38 @@ Tab A: calls invalidateByTag("notes")
 ```
 
 No manual coordination needed. Works out of the box.
+
+## React adapters
+
+Swoff generates a hook for tag invalidation (import from `./swoff/adapters`):
+
+```tsx
+import { useCacheInvalidation } from "./swoff/adapters/useCacheInvalidation";
+
+function NotesPage() {
+  const { invalidateByTag, invalidateByTags, invalidateUrl } =
+    useCacheInvalidation();
+
+  const handleCreate = async () => {
+    await fetch("/api/notes", { method: "POST" });
+    // Refresh the notes list
+    invalidateByTag("notes");
+  };
+
+  const handleBulkInvalidate = () => {
+    invalidateByTags(["notes", "dashboard"]);
+  };
+
+  return (
+    <div>
+      <button onClick={handleCreate}>Create Note</button>
+      <button onClick={handleBulkInvalidate}>Refresh All</button>
+    </div>
+  );
+}
+```
+
+The hook triggers SW-side invalidation and automatically refetches any active `useCachedFetch` hooks whose URL tags match.
 
 ### Introspection
 
@@ -171,5 +203,6 @@ const tags = await getTagsForUrl("/api/notes/123");
 ## Related
 
 - [Full comparison: Tag-based vs query-key invalidation](../comparisons/invalidation.md)
-- [Server push: real-time invalidation via SSE/WS](./09-server-push.md)
+- [Server push: real-time invalidation via SSE/WS](./10-server-push.md)
+- [Caching strategies: how tags integrate with caching](./02-caching-strategy.md)
 - [Config reference: tagInvalidation](../CONFIG.md#featurestaginvalidations)

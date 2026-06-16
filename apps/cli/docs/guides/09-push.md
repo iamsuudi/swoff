@@ -13,13 +13,13 @@
 npx @swoff/cli add push-notification
 ```
 
-Or set `features.realtime.pushNotifications: true` and `features.realtime.vapidPublicKey` in `swoff.config.json` then regenerate.
+Or set `features.pushNotifications: true` in `swoff.config.json` then regenerate.
 
 ## Generated files
 
 | File                              | What it does                                                                                                               | Import in your code? |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------- |
-| `swoff/realtime/notifications.ts` | `requestNotificationPermission()`, `subscribeToPush()`, `unsubscribeFromPush()`, `isSubscribed()`, `getPushSubscription()` | Yes                  |
+| `swoff/push-notification/index.ts` | `requestNotificationPermission()`, `subscribeToPush()`, `unsubscribeFromPush()`, `isSubscribed()`, `getPushSubscription()` | Yes                  |
 | `swoff/sw/template.js`            | Push event handler — receives push events, displays notifications                                                          | No (built into SW)   |
 
 ## Usage
@@ -31,7 +31,7 @@ import {
   unsubscribeFromPush,
   isSubscribed,
   getPushSubscription,
-} from "./swoff/realtime/notifications";
+} from "./swoff/push-notification";
 
 // Step 1: request permission (user gesture required)
 const granted = await requestNotificationPermission();
@@ -52,6 +52,39 @@ const subscribed = await isSubscribed();
 // Step 4: unsubscribe
 await unsubscribeFromPush();
 await fetch("/api/push/unsubscribe", { method: "POST" });
+```
+
+## React adapters
+
+Swoff generates a hook for push subscription management (import from `./swoff/adapters`):
+
+```tsx
+import { usePushSubscription } from "./swoff/adapters/usePushSubscription";
+
+function PushSettings() {
+  const {
+    subscribed,
+    subscription,
+    permission,
+    loading,
+    subscribe,
+    unsubscribe,
+  } = usePushSubscription();
+
+  if (loading) return <Spinner />;
+  if (permission === "denied")
+    return <p>Notification permission blocked</p>;
+
+  return (
+    <div>
+      {subscribed ? (
+        <button onClick={unsubscribe}>Unsubscribe from Push</button>
+      ) : (
+        <button onClick={subscribe}>Enable Push Notifications</button>
+      )}
+    </div>
+  );
+}
 ```
 
 ### Server side (example)
@@ -80,18 +113,17 @@ The push event handler is embedded in the generated SW (`swoff/sw/template.js`).
 ```json
 {
   "features": {
-    "realtime": {
-      "pushNotifications": true,
-      "vapidPublicKey": ""
-    }
+    "pushNotifications": true
   }
 }
 ```
 
 - `pushNotifications` — enable push subscription management and SW push handler
-- `vapidPublicKey` — your VAPID public key (required for push subscription). Generate with `npx web-push generate-vapid-keys`
+
+The VAPID public key is set directly in the generated `swoff/push-notification/index.ts` file. Edit the `VAPID_PUBLIC_KEY` placeholder to match your key. Generate a key pair with `npx web-push generate-vapid-keys`.
 
 ## Related
 
-- [Server push: real-time cache invalidation via SSE/WS](./09-server-push.md)
-- [Config reference: realtime](../CONFIG.md#featuresrealtime)
+- [Server push: real-time cache invalidation via SSE/WS](./10-server-push.md)
+- [Caching strategies: how push interacts with caching](./02-caching-strategy.md)
+- [Config reference: features](../CONFIG.md#featurespushnotifications)

@@ -141,10 +141,10 @@ describe("fetch-handler", () => {
     expect(code).not.toContain("auth-route-bypass");
   });
 
-  it("generates isAuthFailureResponse with default 401 check", () => {
+  it("checkAuthFailure calls isAuthFailureResponse", () => {
     const code = generateFetchHandler(baseSwConfig, true, false, ["/api/me"], false);
-    expect(code).toContain("function isAuthFailureResponse");
-    expect(code).toContain("return response.status === 401");
+    expect(code).toContain("isAuthFailureResponse(response)");
+    expect(code).not.toContain("function isAuthFailureResponse");
   });
 
   it("checkAuthFailure awaits isAuthFailureResponse", () => {

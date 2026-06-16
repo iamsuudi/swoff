@@ -630,10 +630,6 @@ function handleRefetch(prop) {
   });
 }
 
-function isAuthFailureResponse(response) {
-  return response.status === 401;
-}
-
 async function checkAuthFailure(response) {
   if (response && isAuthFailureResponse(response)) {
     swLog("checkAuthFailure", "AUTH_FAILURE", response.url || "", 1);

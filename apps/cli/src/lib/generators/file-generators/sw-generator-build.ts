@@ -40,21 +40,19 @@ let template = readFileSync(templatePath, 'utf8');
 
 const swoffDir = join(projectRoot, 'swoff');
 
-// Replace isAuthFailureResponse body with user's custom auth check
+// Prepend isAuthFailureResponse from user's auth/check, or use default fallback
 const authCheckTsPath = join(swoffDir, 'auth', 'check.ts');
 const authCheckJsPath = join(swoffDir, 'auth', 'check.js');
 const authCheckPath = existsSync(authCheckTsPath) ? authCheckTsPath : authCheckJsPath;
+let authFailureFn = 'async function isAuthFailureResponse(response) {\\n  return response.status === 401;\\n}';
 if (existsSync(authCheckPath)) {
   const authContent = readFileSync(authCheckPath, 'utf8');
-  const bodyMatch = authContent.match(/export\\s+async\\s+function\\s+isAuthFailureResponse[\\s\\S]*?\\{([\\s\\S]*)\\n\\}/);
-  if (bodyMatch) {
-    const userBody = bodyMatch[1].trim();
-    template = template.replace(
-      /async function isAuthFailureResponse\\(response\\) \\{\\n  return response\\.status === 401;\\n\\}/,
-      'async function isAuthFailureResponse(response) {\\n' + userBody + '\\n}',
-    );
+  const fnMatch = authContent.match(/export\\s+async\\s+function\\s+isAuthFailureResponse[\\s\\S]*?\\n\\}/);
+  if (fnMatch) {
+    authFailureFn = fnMatch[0].replace(/^export\\s+/, '');
   }
 }
+template = authFailureFn + '\\n\\n' + template;
 
 // Resolve API_BASE for server push endpoint
 if (config.features?.realtime?.serverPush?.enabled) {

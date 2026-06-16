@@ -68,14 +68,12 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
       "endpoints": ["/graphql"]
     },
     "tagInvalidation": {},
-    "realtime": {
-      "pushNotifications": false,
-      "serverPush": {
-        "enabled": false,
-        "type": "sse",
-        "endpoint": "/api/events",
-        "reconnectDelayMs": 5000
-      }
+    "pushNotifications": false,
+    "serverPush": {
+      "enabled": false,
+      "type": "sse",
+      "endpoint": "/api/events",
+      "reconnectDelayMs": 5000
     }
   }
 }
@@ -126,7 +124,7 @@ Example — precache NextJS static HTML pages without the `.html` extension and 
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enabled` | `boolean` | `true` | Enable PWA installability (generates `pwa/index.ts` + `pwa/prompt.ts` + `pwa/injector.ts` + `manifest.json`) |
+| `enabled` | `boolean` | `true` | Enable PWA installability (generates `pwa/prompt.ts` + `manifest.json`) |
 | `preventDefaultInstall` | `boolean` | `false` | Suppress browser's native install prompt. When true, dev must call `promptInstall()` manually. |
 
 ---
@@ -279,22 +277,19 @@ Object-only feature (boolean shorthand not supported).
 
 ---
 
-## `features.realtime`
-
-Container for real-time features — push notifications and server-sent events.
-
-### `features.realtime.pushNotifications`
+## `features.pushNotifications`
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `pushNotifications` | `boolean` | `false` | Enable push notification subscription management. Generates `swoff/realtime/notifications.ts` with `subscribeToPush()` / `unsubscribeFromPush()`. |
-| `vapidPublicKey` | `string` | — | VAPID public key for push subscription. Required when `pushNotifications` is `true`. Baked into the generated push handler at build time — not needed at runtime. |
+| `pushNotifications` | `boolean` | `false` | Enable push notification subscription management. Generates `swoff/push-notification/index.ts` with `subscribeToPush()` / `unsubscribeFromPush()`. |
 
-### `features.realtime.serverPush`
+The VAPID public key is configured directly in the generated `swoff/push-notification/index.ts` file — edit the `VAPID_PUBLIC_KEY` placeholder there.
+
+## `features.serverPush`
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enabled` | `boolean` | `false` | Enable real-time cache invalidation via SSE or WebSocket |
+| `enabled` | `boolean` | `false` | Enable real-time cache invalidation via SSE or WebSocket. Generates `swoff/server-push/client.ts`. |
 | `type` | `"sse"` \| `"websocket"` | `"sse"` | Transport protocol |
 | `endpoint` | `string` | `"/api/events"` | Push endpoint URL |
 | `reconnectDelayMs` | `number` | `5000` | Initial reconnect delay on connection loss (exponential backoff, capped at 30s) |
@@ -322,7 +317,7 @@ These boolean flags nest under their parent object feature:
 | Feature | Config path | Default |
 |---------|-------------|---------|
 | Background Sync | `features.mutationQueue.backgroundSync` | `false` |
-| Push Notifications | `features.realtime.pushNotifications` | `false` |
+| Push Notifications | `features.pushNotifications` | `false` |
 
 ---
 
@@ -334,5 +329,5 @@ Some features work best together:
 |---------|------------------|-----|
 | `mutationQueue.backgroundSync` | + `mutationQueue` | Background Sync processes mutations even after tab close |
 | `realtime.serverPush` | + `tagInvalidation` | Server push triggers `invalidateByTag()` — requires tag invalidation to function |
-| `auth` + `mutationQueue` | — | `flushMutations()` after re-login replays mutations that failed with 401 |
+| `auth` + `mutationQueue` | — | `clearAuth()` also clears the mutation queue — no manual `clearQueue()` needed on logout |
 | `graphql` | + `mutationQueue` + `tagInvalidation` | Offline GQL mutations queue in IndexedDB; mutations auto-invalidate operation-name tags |

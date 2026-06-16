@@ -268,7 +268,7 @@ The mutation queue stores writes in IndexedDB and replays them when online. Each
 - `batchSize` controls how many mutations fire per progress event
 - `batchDelayMs` adds a delay between mutations (rate limiting)
 - `maxRetries` limits retries before dropping (with exponential backoff: `retryBackoffMs × 2^retryCount`)
-- `flushMutations()` provides a manual trigger (call after re-login to replay 401'd mutations)
+- `flushMutations()` provides a manual trigger (e.g. user clicks "Sync Now")
 
 ## Dual-replay coordination
 
@@ -306,7 +306,7 @@ Why per-mutation instead of once?
 
 ## Server push transport: SSE vs WebSocket
 
-Both transports are supported via `features.realtime.serverPush.type`.
+Both transports are supported via `features.serverPush.type`.
 
 | Aspect | SSE | WebSocket |
 |--------|-----|-----------|
@@ -320,7 +320,7 @@ Both transports are supported via `features.realtime.serverPush.type`.
 
 **Default: SSE**. It's simpler, the browser handles reconnection, and Swoff only needs server-to-client invalidation events — no bidirectional communication is required.
 
-The SW manages the connection directly for reliability across page navigations. The client-side `realtime/server-push.ts` is a fallback that starts the connection when the SW is not yet active.
+The SW manages the connection directly for reliability across page navigations. The client-side `server-push/client.ts` is a fallback that starts the connection when the SW is not yet active.
 
 **Server event format (SSE):**
 ```
@@ -378,6 +378,7 @@ clearAuth()
   → null memoryAuth
   → delete "session" from IndexedDB (swoff-auth DB)
   → delete runtime caches by prefix (swoff-runtime*)
+  → clear mutation queue (if mutationQueue enabled)
   → dispatch sw-auth-state-change event
   → postMessage({ type: "AUTH_CLEARED" }) to SW
     → SW forwards to all clients via clients.matchAll()
@@ -406,7 +407,7 @@ This works for all HTTP methods and raw `fetch()` calls — no client-set header
 
 ### Background sync consideration
 
-When the SW syncs queued mutations, cookie auth works transparently (SW sets `credentials: "same-origin"`). Bearer auth does **not** work in the SW (token is memory-only in the page). For bearer auth, call `flushMutations()` after re-login to drain the queue from the client context. The adapter's `type` field (`"cookie"` / `"bearer"`) determines whether background sync is enabled at build time.
+When the SW syncs queued mutations, cookie auth works transparently (SW sets `credentials: "same-origin"`). Bearer auth does **not** work in the SW (token is memory-only in the page). For bearer auth, `clearAuth()` clears the queue automatically; call `flushMutations()` after re-auth to drain the queue from the client context. The adapter's `type` field (`"cookie"` / `"bearer"`) determines whether background sync is enabled at build time.
 
 ### Single IndexedDB database
 
@@ -578,9 +579,9 @@ SW scope:
 client-injector.ts:
   message listener   → CustomEvent("swoff:notification", { detail: { level, code, message } })
   AUTH_FAILURE       → ensureValidAuth() → clearAuth() fallback
+  swInit() callback  → checkStorage() → navigator.storage.estimate() >= 80% → CustomEvent("swoff:notification")
 
-notification.ts:
-  checkStorage()     → navigator.storage.estimate() >= 80% → CustomEvent("swoff:notification")
+storage.ts:
   getStorageEstimate() → raw estimate without dispatch
 ```
 
@@ -595,7 +596,7 @@ This timeout applies uniformly across all strategies, ensuring no single slow re
 
 ### Storage quota awareness
 
-`notification.ts` exposes `checkStorage()` and `getStorageEstimate()` — thin wrappers around `navigator.storage.estimate()`. The former dispatches a warning at 80% usage; the latter is a pure utility for rendering quota in the UI (e.g. `useStorageEstimate()` React hook). Formatting is handled by the exported `formatBytes()` helper.
+`storage.ts` exposes `getStorageEstimate()` and `formatBytes()` — thin wrappers around `navigator.storage.estimate()`. The former is a pure utility for rendering quota in the UI (e.g. `useStorageEstimate()` React hook). The storage check (≥80% threshold) runs inside `client-injector.ts` after SW initialization and dispatches `CustomEvent("swoff:notification")` on threshold breach.
 
 ### Why a unified channel?
 

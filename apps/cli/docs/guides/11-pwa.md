@@ -22,7 +22,6 @@ Or set `features.pwa.enabled: true` in `swoff.config.json`.
 | File                            | What it does                                                            | Import in your code?                  |
 | ------------------------------- | ----------------------------------------------------------------------- | ------------------------------------- |
 | `swoff/pwa/prompt.ts`           | Install prompt listener, `isInstallable()`, `promptInstall()`           | Yes                                   |
-| `swoff/pwa/injector.ts`         | Re-exports `setupPwaInstall` from prompt (called automatically)         | No — internal to client-injector      |
 | `swoff/sw/template.js`          | The SW source — reads cache strategies, auth, tags from config headers  | No, built into SW                     |
 | `swoff/sw/generator.js`         | Build script that produces the final `sw.js`                            | Run: `node swoff/sw/generator.js`     |
 | `swoff/sw/version.ts`           | `SW_VERSION` constant — controls cache busting on deploy                | Yes, for debugging                    |
@@ -69,6 +68,16 @@ if (isInstallable()) {
 - `pwa.preventDefaultInstall` — capture the browser's install event without showing it; show your own UI
 - `serviceWorker.version` — `"package"` (from package.json), `"hash"` (content-hashed), or `"manual"` (you edit `swoff/sw/version.ts`)
 - `serviceWorker.autoActivate` — skip waiting and activate new SW immediately
+
+## PWA assets
+
+Generate app icons, splash screens, and `manifest.json` from a source image:
+
+```bash
+npx @swoff/assets --source <path-to-icon> --output swoff/assets
+```
+
+This creates platform-ready assets (PNG at various sizes, SVG favicon, Apple touch icons) and a `manifest.json` configured for your PWA. The generated manifest is automatically precached by the SW.
 
 ## Build the SW
 

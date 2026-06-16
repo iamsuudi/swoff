@@ -61,7 +61,7 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 | Configurable retry+backoff       | ✅                  | 🟡        | ❌             | ❌     | ❌   | 🟡 via Query            |
 | Background sync (post-tab-close) | ✅ SW via sync API  | ✅ plugin | ❌             | ❌     | ❌   | ✅ offline tx           |
 | Per-mutation online check        | ✅ before each      | ❌        | ❌             | ❌     | ❌   | ❌                      |
-| Manual flush (after re-login)    | ✅                  | ❌        | ❌             | ❌     | ❌   | ❌                      |
+| Manual flush (e.g. "Sync Now")   | ✅                  | ❌        | ❌             | ❌     | ❌   | ❌                      |
 | Mutation progress tracking       | ✅ per-item + batch | ❌        | ❌             | ❌     | ❌   | 🟡 per-item             |
 
 ### Service Worker

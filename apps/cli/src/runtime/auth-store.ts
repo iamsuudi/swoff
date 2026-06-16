@@ -16,6 +16,7 @@ export function generateAuthStoreCode(
   ctx: RuntimeContext,
   authType: string,
   authRoutePaths: string[] = DEFAULT_AUTH_ROUTES,
+  mutationQueueEnabled: boolean = false,
 ): string {
   const { ext, ts } = ctx;
   const isCookie = authType === "cookie";
@@ -53,6 +54,7 @@ export function generateAuthStoreCode(
 import { adapter } from "./adapter.${ext}";
 ${ts ? `import type { AuthData } from "./adapter.${ext}";` : ""}
 import { openDB } from "../db.${ext}";
+${mutationQueueEnabled ? `import { clearQueue } from "../mutation/queue.${ext}";\n` : ""}
 
 const DB_NAME = "swoff-auth";
 const STORE_NAME = "auth";
@@ -179,7 +181,7 @@ export async function clearAuth(options${T(ts, "{ broadcast?: boolean }")} = {})
         .map(name => caches.delete(name))
     );
   } catch { /* caches API unavailable */ }
-  window.dispatchEvent(new CustomEvent("sw-auth-state-change", { detail: { type: "clear" } }));
+  ${mutationQueueEnabled ? `await clearQueue();\n` : ""}  window.dispatchEvent(new CustomEvent("sw-auth-state-change", { detail: { type: "clear" } }));
 }
 
 /** Check if auth exists and has not expired. Returns true if no expiresAt is set. */

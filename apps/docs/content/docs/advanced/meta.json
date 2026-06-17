@@ -1,5 +1,0 @@
-{
-  "title": "Advanced",
-  "icon": "Rocket",
-  "pages": ["performance", "conflict-resolution", "testing", "debugging"]
-}

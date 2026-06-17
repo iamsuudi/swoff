@@ -4,8 +4,6 @@ description: fetch/core.ts and fetch/state.ts — caching, auth, offline queue, 
 icon: Globe
 ---
 
-# Fetch Module
-
 ## `fetch/core.ts`
 
 Unified fetch with caching, auth, offline queue, auto-invalidation, staleTime, prefetching, and
@@ -17,10 +15,10 @@ import { fetchWithCache, prefetchCache } from "swoff/fetch/core";
 
 ### `fetchWithCache<T>(input, options?)`
 
-| Param | Type | Description |
+| Param     | Type                    | Description                  |
 | --------- | ----------------------- | ---------------------------- |
-| `input` | `RequestInfo` | URL string or Request object |
-| `options` | `FetchWithCacheOptions` | See below |
+| `input`   | `RequestInfo`           | URL string or Request object |
+| `options` | `FetchWithCacheOptions` | See below                    |
 
 **Returns:** `Promise<{ response: Response & { json(): Promise<T> }, fromCache: boolean }>`
 
@@ -31,18 +29,18 @@ import { fetchWithCache, prefetchCache } from "swoff/fetch/core";
 
 All `RequestInit` fields are supported (`method`, `body`, `headers`, `credentials`, `signal`, etc.) plus:
 
-| Option | Type | Default | Description |
+| Option            | Type                                                                                                           | Default                 | Description                                                                                            |
 | ----------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------ |
-| `tags` | `string[]` | auto-generated from URL | Cache invalidation tags for this request |
-| `auth` | `boolean` | `false` | Attach auth token via `withAuthHeaders()` |
-| `queueOffline` | `boolean` | `true` | When offline, queue writes to IndexedDB |
-| `invalidate` | `'auto' \| string[] \| false` | `'auto'` | Auto-invalidate cache tags after successful mutation |
-| `type` | `'read' \| 'mutation'` | auto-detected | Override read/mutation detection |
-| `strategy` | `'cache-first' \| 'network-first' \| 'stale-while-revalidate' \| 'cache-only' \| 'network-only' \| 'reactive'` | — | Override caching strategy per-request (highest priority) |
-| `staleTime` | `number` | — | Override stale time in seconds (reactive-only, per-request tier 1) |
-| `validateSuccess` | `(response: Response) => boolean \| Promise<boolean>` | `res.ok` | Custom mutation success check (e.g. when API returns 200 with `{ success: false }`) |
-| `invalidateUrl` | `string` | the request URL | Override the URL used for auto-invalidation tags. Useful when mutation URL differs from cache tag URL. |
-| `signal` | `AbortSignal` | — | AbortController signal for cancellation |
+| `tags`            | `string[]`                                                                                                     | auto-generated from URL | Cache invalidation tags for this request                                                               |
+| `auth`            | `boolean`                                                                                                      | `false`                 | Attach auth token via `withAuthHeaders()`                                                              |
+| `queueOffline`    | `boolean`                                                                                                      | `true`                  | When offline, queue writes to IndexedDB                                                                |
+| `invalidate`      | `'auto' \| string[] \| false`                                                                                  | `'auto'`                | Auto-invalidate cache tags after successful mutation                                                   |
+| `type`            | `'read' \| 'mutation'`                                                                                         | auto-detected           | Override read/mutation detection                                                                       |
+| `strategy`        | `'cache-first' \| 'network-first' \| 'stale-while-revalidate' \| 'cache-only' \| 'network-only' \| 'reactive'` | —                       | Override caching strategy per-request (highest priority)                                               |
+| `staleTime`       | `number`                                                                                                       | —                       | Override stale time in seconds (reactive-only, per-request tier 1)                                     |
+| `validateSuccess` | `(response: Response) => boolean \| Promise<boolean>`                                                          | `res.ok`                | Custom mutation success check (e.g. when API returns 200 with `{ success: false }`)                    |
+| `invalidateUrl`   | `string`                                                                                                       | the request URL         | Override the URL used for auto-invalidation tags. Useful when mutation URL differs from cache tag URL. |
+| `signal`          | `AbortSignal`                                                                                                  | —                       | AbortController signal for cancellation                                                                |
 
 ### Behavior
 
@@ -80,11 +78,11 @@ import {
 } from "swoff/fetch/state";
 ```
 
-| Function | Returns | Description |
+| Function              | Returns  | Description                                                                                 |
 | --------------------- | -------- | ------------------------------------------------------------------------------------------- |
-| `incrementFetchCount` | `void` | Increments the global in-flight counter and dispatches a `fetch-count-changed` custom event |
-| `decrementFetchCount` | `void` | Decrements the global in-flight counter and dispatches a `fetch-count-changed` custom event |
-| `getFetchCount` | `number` | Returns the current number of in-flight requests |
+| `incrementFetchCount` | `void`   | Increments the global in-flight counter and dispatches a `fetch-count-changed` custom event |
+| `decrementFetchCount` | `void`   | Decrements the global in-flight counter and dispatches a `fetch-count-changed` custom event |
+| `getFetchCount`       | `number` | Returns the current number of in-flight requests                                            |
 
 The `fetchCount` is a module-level variable (not persisted). A `Set<string>` of in-flight cache keys is also maintained to prevent duplicate requests to the same URL. Both are reset on page reload.
 

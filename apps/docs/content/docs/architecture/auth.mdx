@@ -1,0 +1,77 @@
+---
+title: Auth System
+description: Auth adapter plugin system, memory-only tokens, and auth flow.
+icon: Shield
+---
+
+Auth is handled through a **adapter plugin system** — a thin port between your auth provider and Swoff. Swoff owns all infrastructure (cache cleanup, event dispatch, 401 handling, SW communication); the adapter reports state for Swoff to react.
+
+### Security: memory-only tokens
+
+Auth tokens are stored **in memory only** — never persisted to IndexedDB or localStorage. Only non-sensitive user data (`{ user, expiresAt }`) is stored in IndexedDB for offline user display.
+
+**Security rationale:**
+
+- A token in IndexedDB/localStorage persists on disk and can be extracted by any script running on the same origin
+- A token in memory is cleared on page refresh and cannot be accessed by other tabs
+- After page refresh, re-login (or token refresh via adapter's `refresh()`) is required
+
+### Adapter types
+
+| `features.auth.type` | Provider                    | Adapter behavior                                      |
+| -------------------- | --------------------------- | ----------------------------------------------------- |
+| `"cookie"`           | Generic cookie/session auth | No-op headers; browser auto-sends httpOnly cookies    |
+| `"bearer"`           | Generic bearer token        | `Authorization: Bearer <token>` header injection      |
+| `"custom"`           | Any custom header           | Editable stub — implement `getHeaders()`, `refresh()` |
+
+The adapter exposes `type`, `getAuth()`, `getHeaders()`, `refresh()`, and `fetchUser()`. The developer owns login/logout; Swoff provides `setAuth()` and `clearAuth()` as a facade.
+
+### Auth flow
+
+1. User logs in via developer's code → server returns token + user data
+2. Developer calls `setAuth(authData)` → stored in memory, persisted to `swoff-auth` IndexedDB, dispatches `sw-auth-state-change`
+3. `fetchWithCache(url, { auth: true })` → `getAuth()` → adapter's `getHeaders(headers, auth)` injects auth headers
+4. On 401: Swoff calls `clearAuth()` which cascades and broadcasts
+
+### `clearAuth()` cascade
+
+```
+clearAuth()
+  → null memoryAuth
+  → delete "session" from IndexedDB (swoff-auth DB)
+  → delete runtime caches by prefix (swoff-runtime*)
+  → clear mutation queue (if mutationQueue enabled)
+  → dispatch sw-auth-state-change event
+  → postMessage({ type: "AUTH_CLEARED" }) to SW
+    → SW forwards to all clients via clients.matchAll()
+      → each client calls clearMemoryAuth()
+```
+
+Cache Storage is per-origin — one tab's cache deletion benefits all tabs. Other tabs only null memory (no redundant IDB/cache ops). The SW is a transparent forwarder only — it never inspects, clears, or manages auth data.
+
+### Cross-tab auth sync
+
+- **Initiating tab**: `clearAuth()` sends `AUTH_CLEARED` via `postMessage` to SW
+- **SW**: `message-handler.ts` forwards `AUTH_CLEARED` to all clients via `self.clients.matchAll()`
+- **Receiving tabs**: `client-injector.ts` handles incoming `AUTH_CLEARED` → calls `clearMemoryAuth()` (nulls memory only) + dispatches `sw-auth-state-change` for UI refresh
+
+### SW build-time auth bypass
+
+Auth endpoints must always reach the server — never cached. At build time, `features.auth.routePaths` is injected into the SW as an `AUTH_ROUTES` constant. The fetch event listener returns early for matching requests, before any strategy resolution, cache lookup, or tag invalidation.
+
+This works for all HTTP methods and raw `fetch()` calls — no client-set headers needed.
+
+### Background sync consideration
+
+When the SW syncs queued mutations, cookie auth works transparently (SW sets `credentials: "same-origin"`). Bearer auth does **not** work in the SW (token is memory-only in the page). For bearer auth, `clearAuth()` clears the queue automatically; call `flushMutations()` after re-auth to drain the queue from the client context.
+
+### AUTH_FAILURE broadcast
+
+When any background refresh returns a 401 response, the SW broadcasts `{ type: "AUTH_FAILURE" }` to all clients. This covers all background refresh paths:
+
+- Reactive interval timers
+- Tag invalidation refetches
+- Window focus / online recovery refetches
+- SWR background fetches
+
+The client-side `client-injector.ts` listens for `AUTH_FAILURE` and calls `ensureValidAuth()` which delegates to the adapter's `refresh()` method. If refresh fails, it falls back to `clearAuth()`. This ensures session expiry is detected silently without requiring a user-initiated request.

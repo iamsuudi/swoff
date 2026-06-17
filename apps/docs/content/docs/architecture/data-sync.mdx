@@ -1,0 +1,84 @@
+---
+title: Data Sync
+description: Request batching, refresh queue, mutation queue, and online recovery.
+icon: Database
+---
+
+## Batch refresh queue (`queueRefresh`)
+
+Instead of fire-and-forget `event.waitUntil(refetch())` on every stale request, Swoff uses a shared batch queue as the single deduped entry point for all proactive refreshes:
+
+1. Any trigger (staleTime expiry, refetchInterval tick, refetchOnFocus, refetchOnReconnect, or tag invalidation) calls `queueRefresh(url)` which adds the URL to a `Map<string, entry>` keyed by cache key (automatic dedup)
+2. A single `_processRefreshQueue()` microtask processes URLs in batches of `features.refetchQueue.batchSize`
+3. Between batches, a delay of `features.refetchQueue.batchDelayMs` is applied (rate limiting)
+4. On each successful refetch, `CACHE_UPDATED` is posted to all connected clients
+
+**Retry with exponential backoff**: if a refresh fetch fails (network error, non-ok response), the entry is re-queued with an incremented `retryCount`. The retry delay = `min(backoffMs × 2^retryCount, maxBackoffMs) + jitter`. After `maxRetries` consecutive failures, the entry is dropped.
+
+**`queueRefresh()` returns a Promise**: Each call returns a `Promise<void>` that resolves when the URL's refetch completes. This enables `event.waitUntil(queueRefresh(url))` to keep the SW alive through the entire deferred batch.
+
+This prevents:
+- **Stampedes**: 50 stale resources from a page load all get queued, not fetched simultaneously
+- **Dedup waste**: Two requests for the same stale URL only produce one refetch
+- **SW termination**: Each `event.waitUntil(queueRefresh(url))` keeps the SW alive through the deferred batch processing
+- **Transient failure loss**: a flaky network doesn't permanently lose the refresh — retries continue with backoff
+
+## Online recovery
+
+When the browser fires `online`, the `client-injector` forwards the event to the SW. The SW runs `handleOnline()` which iterates its in-memory `_reactiveRegistry` Map. For each registry entry with `refetchOnReconnect: true`:
+
+1. Looks up the cached response in the runtime cache by cache key
+2. Checks if the entry is stale (past `staleTime`, or if `staleTime` is 0/undefined)
+3. If stale → queues a refresh via `queueRefresh(url)` through the shared batch queue
+
+Non-reactive strategies (cache-first, network-first, stale-while-revalidate) do **not** participate in the online recovery scan — their contracts are stateless with respect to staleness.
+
+## Request batching + dedup map
+
+Read requests (GET/HEAD/OPTIONS) to the same URL within a short time window are batched into a single network request via a two-phase system:
+
+**Phase 1 — Batch window (50 ms):** When the first caller requests a URL, a 50 ms timer starts. Any additional callers to the same URL within this window join a shared promise. When the timer fires, one fetch executes and the response is cloned to every caller in the batch.
+
+**Phase 2 — In-flight dedup:** After the batch window closes, the fetch promise is stored in `inFlightRequests` map. If another caller requests the same URL while the fetch is still in-flight, they receive a clone of the existing promise — no second network request.
+
+Each caller gets a clone — reading the body doesn't affect other consumers.
+
+## Mutation queue concurrency
+
+The mutation queue stores writes in IndexedDB and replays them when online. Each mutation is an item with `id`, `method`, `url`, `body`, `headers`, `tags`, `timestamp`, `retryCount`, and `status`.
+
+**IndexedDB structure:**
+- Store: `MutationQueueItem`
+- Index: `by-timestamp` (for FIFO replay order)
+
+**Concurrency surface:**
+- `getQueuePosition(id)` — returns the 0-based index of a mutation in the queue
+- `getQueueItems()` — returns all pending items with their status and retry count
+- `useMutationQueue()` — exposes `{ pending, items, lastSync }`
+- `useMutationState(id)` — subscribes to a specific mutation's state changes
+
+**Batch processing:**
+- `batchSize` controls how many mutations fire per progress event
+- `batchDelayMs` adds a delay between mutations (rate limiting)
+- `maxRetries` limits retries before dropping (with exponential backoff)
+- `flushMutations()` provides a manual trigger (e.g. user clicks "Sync Now")
+
+## Dual-replay coordination
+
+Mutations queued while offline can be replayed by **both** the service worker (via Background Sync) and the client (when `online` fires). Swoff prevents double-execution with a simple rule:
+
+1. The SW checks for active clients via `self.clients.matchAll()`
+2. If any client page is open, the SW **skips processing entirely** — the client always wins when open
+3. If no client is open, the SW processes silently via Background Sync
+
+**Per-batch client re-check**: The SW background sync handler re-checks `self.clients.matchAll()` before each mutation batch. If any client tab opened during processing, the SW stops processing and lets the client take over.
+
+## Online-status awareness during mutation replay
+
+Both the client and SW mutation processors check `navigator.onLine` per-mutation (not just once at start):
+
+1. Before each mutation replay attempt, the processor checks online status
+2. If offline, processing stops immediately and dispatches a `mutation-sync-complete` event with `interrupted: true`
+3. On next `online` event or Background Sync trigger, processing resumes from where it left off (FIFO order)
+
+This prevents partial network failures from corrupting the queue — if a fetch fails mid-batch due to connectivity loss, the remaining mutations stay queued.

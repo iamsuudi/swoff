@@ -4,8 +4,6 @@ description: graphql/index.ts — GraphQL wrapper with body-hash caching and tag
 icon: Braces
 ---
 
-# GraphQL Module
-
 ## `graphql/index.ts`
 
 GraphQL wrapper with body-hash caching. Brings Swoff's caching, auth, offline queue, and
@@ -17,11 +15,11 @@ import { fetchWithGql, queryGql, mutateGql } from "swoff/graphql";
 
 ### Functions
 
-| Function | Signature | Description |
+| Function          | Signature                                                                                                                | Description                                                                                    |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| `fetchWithGql<T>` | `(query: string, options?: GqlOptions) => Promise<{ data: T, fromCache: boolean }>` | Core function. Hashes query + variables, sets `X-SW-Cache-Key`, delegates to `fetchWithCache`. |
-| `queryGql<T>` | `(query: string, variables?: Record<string, unknown>, options?: GqlOptions) => Promise<{ data: T, fromCache: boolean }>` | Shorthand for reads — sets `type: "read"` |
-| `mutateGql<T>` | `(mutation: string, variables?: Record<string, unknown>, options?: GqlOptions) => Promise<{ data: T }>` | Shorthand for writes — sets `type: "mutation"`, auto-invalidates related tags |
+| `fetchWithGql<T>` | `(query: string, options?: GqlOptions) => Promise<{ data: T, fromCache: boolean }>`                                      | Core function. Hashes query + variables, sets `X-SW-Cache-Key`, delegates to `fetchWithCache`. |
+| `queryGql<T>`     | `(query: string, variables?: Record<string, unknown>, options?: GqlOptions) => Promise<{ data: T, fromCache: boolean }>` | Shorthand for reads — sets `type: "read"`                                                      |
+| `mutateGql<T>`    | `(mutation: string, variables?: Record<string, unknown>, options?: GqlOptions) => Promise<{ data: T }>`                  | Shorthand for writes — sets `type: "mutation"`, auto-invalidates related tags                  |
 
 ### How it works
 
@@ -34,12 +32,12 @@ import { fetchWithGql, queryGql, mutateGql } from "swoff/graphql";
 
 All `fetchWithCache` options are available, plus:
 
-| Option | Type | Default | Description |
+| Option         | Type                          | Default        | Description                    |
 | -------------- | ----------------------------- | -------------- | ------------------------------ |
-| `variables` | `Record<string, unknown>` | `undefined` | GraphQL variables |
-| `tags` | `string[]` | auto-generated | Override invalidation tags |
-| `auth` | `boolean` | `false` | Attach auth token |
-| `queueOffline` | `boolean` | `true` | Queue mutations when offline |
-| `invalidate` | `'auto' \| string[] \| false` | `'auto'` | Auto-invalidate after mutation |
+| `variables`    | `Record<string, unknown>`     | `undefined`    | GraphQL variables              |
+| `tags`         | `string[]`                    | auto-generated | Override invalidation tags     |
+| `auth`         | `boolean`                     | `false`        | Attach auth token              |
+| `queueOffline` | `boolean`                     | `true`         | Queue mutations when offline   |
+| `invalidate`   | `'auto' \| string[] \| false` | `'auto'`       | Auto-invalidate after mutation |
 
 Generated when `features.graphql.enabled` is `true`.

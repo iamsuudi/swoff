@@ -1,6 +1,6 @@
 ---
 title: Architecture
-description: The architectural foundation of offline-first apps.
+description: Design decisions and rationale behind Swoff's architecture.
 icon: Cog
 ---
 
@@ -9,43 +9,59 @@ icon: Cog
 The architecture guides explain the design decisions and system components that make offline-first apps work.
 
 import {
-  HardDriveIcon,
-  GitBranchIcon,
-  DatabaseIcon,
   CogIcon,
+  HardDriveIcon,
+  DatabaseIcon,
+  GitGraphIcon,
+  ShieldIcon,
+  BarChartIcon,
 } from "lucide-react";
 
 <Cards>
   <Card
-    title="Offline-First Architecture"
-    icon={<HardDriveIcon />}
-    href="/docs/architecture/offline-architecture"
-  >
-    App shell + smart data. Storage strategy, rendering modes (SPA/SSG/SSR), and
-    data flow.
-  </Card>
-  <Card
-    title="Versioned Service Worker"
-    icon={<GitBranchIcon />}
-    href="/docs/architecture/versioned-sw"
-  >
-    How Swoff versions service workers to prevent silent updates. The update
-    consent flow, version manifest, and forced update mechanism.
-  </Card>
-  <Card
-    title="Data Layer"
-    icon={<DatabaseIcon />}
-    href="/docs/architecture/data-layer"
-  >
-    The unified read/write loop: query, mutate, reconcile, and invalidate. How
-    reads, writes, and cache invalidation connect.
-  </Card>
-  <Card
-    title="Design Decisions"
+    title="Hybrid SW + Client Model"
     icon={<CogIcon />}
-    href="/docs/architecture/architecture"
+    href="/docs/architecture/hybrid-model"
   >
-    Why the SW + client hybrid model, reactive staleness strategy, and versioned
-    SW approach.
+    Why Swoff splits responsibilities between service worker and client scopes.
+  </Card>
+  <Card
+    title="Caching System"
+    icon={<HardDriveIcon />}
+    href="/docs/architecture/caching"
+  >
+    Reactive strategy, staleTime, HTML cache isolation, 3-tier config resolution,
+    and strategy flow.
+  </Card>
+  <Card
+    title="Data Sync"
+    icon={<DatabaseIcon />}
+    href="/docs/architecture/data-sync"
+  >
+    Request batching, batch refresh queue, mutation queue, online recovery,
+    and dual-replay coordination.
+  </Card>
+  <Card
+    title="GraphQL & Server Push"
+    icon={<GitGraphIcon />}
+    href="/docs/architecture/graphql-and-push"
+  >
+    Body-hash GraphQL caching, SSE vs WebSocket transport, tag invalidation
+    and introspection.
+  </Card>
+  <Card
+    title="Auth System"
+    icon={<ShieldIcon />}
+    href="/docs/architecture/auth"
+  >
+    Auth adapter plugin system, memory-only tokens, auth flow, and cross-tab
+    sync.
+  </Card>
+  <Card
+    title="Observability"
+    icon={<BarChartIcon />}
+    href="/docs/architecture/observability"
+  >
+    Resource monitoring, fetch timeout, and storage quota awareness.
   </Card>
 </Cards>

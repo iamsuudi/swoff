@@ -18,21 +18,21 @@ export const Route = createRootRoute({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "Swoff - Build Offline-First Web Apps",
+        title: "Swoff — Offline-First PWA Toolchain",
       },
       {
         name: "description",
         content:
-          "A zero-dependency blueprint for building offline-first web applications that feel like native apps. Versioned service workers, user-consented updates, full offline capability.",
+          "A config-driven code generation toolchain for offline-first PWAs. Generate an auditable service worker and client code from a single config file. Zero runtime dependencies, works with any stack.",
       },
       {
         property: "og:title",
-        content: "Swoff - Build Offline-First Web Apps",
+        content: "Swoff — Offline-First PWA Toolchain",
       },
       {
         property: "og:description",
         content:
-          "Zero dependencies. Copy-paste patterns. Own your code. Build web apps that work offline like native apps.",
+          "Config-driven code generation for offline-first PWAs. No runtime deps, works with any frontend or backend.",
       },
       {
         property: "og:type",
@@ -44,12 +44,12 @@ export const Route = createRootRoute({
       },
       {
         name: "twitter:title",
-        content: "Swoff - Build Offline-First Web Apps",
+        content: "Swoff — Offline-First PWA Toolchain",
       },
       {
         name: "twitter:description",
         content:
-          "Zero dependencies. Copy-paste patterns. Build offline-first web apps that feel like native apps.",
+          "Generate an auditable service worker and client code from a single config file. Zero runtime deps, works with any stack.",
       },
     ],
     links: [

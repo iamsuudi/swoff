@@ -1,72 +1,69 @@
-# Swoff (Service Worker & Offline)
+# Swoff — Offline-First PWA Toolchain
 
-Offline-first and versioned web app blueprint that works like native apps using pure web APIs.
+A config-driven code generation toolchain for offline-first, installable PWAs. Swoff generates an auditable service worker and client code from a single config file — zero runtime dependencies.
 
-## Philosophy
+```bash
+npx @swoff/cli init && npx @swoff/cli generate
+```
 
-**We provide code, not dependencies.**
+## Why Swoff
 
-Swoff is not a framework you install via npm. It's a collection of patterns, code snippets, and architecture guides that you copy into your project and fully own.
+Most tools either lock you into a framework (TanStack Query), only handle the SW (Workbox), or force a dual-database architecture (RxDB). Swoff operates at the `fetch` event layer — below the application and data-fetching layers — making it smaller, simpler, and composable with anything.
 
-- **Learn the concepts** — Understand offline-first architecture
-- **Copy our patterns** — Take service worker, hooks, and utilities into your project
-- **Own your code** — Modify, extend, and maintain it yourself
+## What it generates
 
-## What Swoff Provides
+- **6 caching strategies** — cache-first, network-first, stale-while-revalidate, cache-only, network-only, reactive (with staleTime + refetchInterval)
+- **Tag-based cache invalidation** — auto-tags from URL paths, glob matching, cascading, cross-tab sync
+- **3 auth adapters** — cookie, bearer, custom with token refresh and 401 detection
+- **Offline mutation queue** — IndexedDB-backed, configurable retry with exponential backoff
+- **GraphQL support** — body-hash caching, operation-name auto-tags
+- **Service worker** — versioned, auditable, with navigation preload and auto-activation
+- **SSE/WebSocket server push** — real-time cache invalidation from the SW
+- **Push notifications** — subscription management + SW push handler
+- **PWA install prompt** — configurable, plus storage estimation
+- **React hooks** — 16 generated adapters (`useCachedFetch`, `useAuth`, `useMutation`, etc.)
 
-- **Versioned service worker** — User-consented updates, no silent SW changes
-- **Offline-first architecture** — App skeleton and routes work 100% offline
-- **Framework agnostic** — Works with React, Vue, Svelte, or vanilla JS
-- **Zero runtime dependencies** — Pure browser APIs: Service Worker, IndexedDB, Cache API
-- **PWA-ready** — Installable with manifest and install prompts
+All configurable from a single `swoff.config.json`.
+
+## No package.json required
+
+Swoff needs Node.js only for the toolchain — the output is plain JavaScript you serve as a static asset. Works with any backend (Laravel, Django, Rails, Go, PHP) and any frontend (React, Vue, Svelte, HTMX, vanilla).
+
+## Quick Start
+
+```bash
+# 1. Init config
+npx @swoff/cli init --framework vanilla
+
+# 2. Generate all files
+npx @swoff/cli generate
+
+# 3. Build the service worker (after your build)
+node swoff/sw/generator.js
+
+# 4. Include in your HTML
+<script src="/swoff/client-injector.js"></script>
+```
+
+See the [documentation](https://swoff.dev/docs) for per-ecosystem guides.
 
 ## Project Structure
 
 ```
 swoff/
-├── apps/docs/          # Documentation site (Fumadocs)
+├── apps/
+│   └── docs/           # Documentation site (Fumadocs + TanStack Start)
 ├── packages/
+│   ├── cli/            # @swoff/cli — the code generation tool
 │   ├── eslint-config/  # Shared ESLint config
 │   └── typescript-config/ # Shared TypeScript config
 ```
 
-## Quick Start
-
-No install needed! Just read the docs and copy the code:
-
-1. Start with [Concepts](https://swoff.dev/docs/concepts/what-is-offline-and-sw) — understand offline capability
-2. Follow the [Core Architecture](https://swoff.dev/docs/core/offline-architecture) guides
-3. Copy [Framework-Agnostic Patterns](https://swoff.dev/docs/patterns/sw-template)
-4. Choose your framework: [Framework Guides](https://swoff.dev/docs/guides)
-
-## Key Features
-
-- **Guaranteed offline capability** — Versioned SW with asset caching
-- **Consent-based updates** — Users control when to update
-- **Client-only runtime** — All logic runs in browser, no backend required
-- **Installable** — PWA-ready with manifest and install prompts
-
-## Reference Implementation
-
-Check out **Budget Manager** — a fully offline budget tracking app built with Swoff patterns:
-
-- 24+ routes working offline
-- IndexedDB for data storage
-- Versioned SW updates
-- [GitHub →](https://github.com/iamsuudi/budget-manager)
-
-## Future Roadmap
-
-- **Auth integration** — Bearer/cookie/auth header patterns with token refresh
-- **Push notifications** — Client-side subscription handling
-- **Build-time CLI** — Code generation from config (in progress)
-
 ## What Swoff is NOT
 
-- ❌ A backend framework (users bring their own Go, Node.js, Python, etc.)
-- ❌ An npm package you install
-- ❌ A replacement for your framework's backend features
-- ❌ Tied to any specific fullstack framework
+- **Not a runtime npm package** — the CLI generates code you own, zero KB in your bundle
+- **Not a backend framework** — bring your own Go, Node.js, Python, PHP
+- **Not tied to any fullstack framework** — purely client-side, framework-agnostic
 
 ## Community
 
@@ -85,4 +82,4 @@ npm run dev
 
 ## License
 
-MIT — Use freely in your projects.
+MIT

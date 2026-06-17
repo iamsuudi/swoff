@@ -1,5 +1,0 @@
-{
-  "title": "Svelte",
-  "icon": "svelteKit",
-  "pages": ["stores", "components", "svelte-vite", "sveltekit"]
-}

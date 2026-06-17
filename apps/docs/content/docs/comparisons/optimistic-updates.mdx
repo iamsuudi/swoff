@@ -1,9 +1,8 @@
 ---
-title: Optimistic Updates — The Distributed System Trap
+title: Optimistic Updates
 description: Why Swoff deliberately excludes optimistic updates.
 ---
 
-# Optimistic Updates: The Distributed System Trap
 
 Optimistic updates — applying mutations to the UI instantly before the server confirms — transform your frontend into a distributed system. Every edge case that follows is a distributed systems problem: conflict resolution, causal ordering, idempotency, cascading failure, and reconciliation.
 

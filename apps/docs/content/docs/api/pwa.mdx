@@ -4,8 +4,6 @@ description: pwa/prompt.ts — PWA install prompt handling and event wiring.
 icon: Download
 ---
 
-# PWA Module
-
 ## `pwa/prompt.ts`
 
 PWA install prompt handling and event wiring. `setupPwaInstall()` is called automatically by `client-injector.ts` — you only need to import `isInstallable` and `promptInstall` for your install button UI.
@@ -14,9 +12,9 @@ PWA install prompt handling and event wiring. `setupPwaInstall()` is called auto
 import { isInstallable, promptInstall } from "swoff/pwa/prompt";
 ```
 
-| Function | Description |
-| ------------------- | ------------------------------------------------------------------------------------------------------- |
-| `isInstallable()` | Check if install prompt is available (returns `boolean`) |
+| Function          | Description                                                    |
+| ----------------- | -------------------------------------------------------------- |
+| `isInstallable()` | Check if install prompt is available (returns `boolean`)       |
 | `promptInstall()` | Show the native install prompt. Returns `{ outcome: string }`. |
 
 Generated when `features.pwa.enabled` is `true`.

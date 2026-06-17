@@ -1,0 +1,30 @@
+---
+title: Hybrid SW + Client Model
+description: Why Swoff splits responsibilities between service worker and client scopes.
+icon: Cog
+---
+
+## Why a service worker + client hybrid?
+
+Swoff splits responsibilities between two scopes:
+
+**Service worker (SW) scope** — runs in a separate thread, survives page navigation, has access to Cache Storage API:
+- Intercepts fetch requests and applies caching strategies
+- Manages precached assets at install time
+- Maintains persistent SSE/WebSocket connections for server push
+- Handles push notification events
+- Broadcasts invalidation across clients (cross-tab sync)
+- Serves cached responses when offline
+
+**Client (window) scope** — runs in the page, has access to DOM, IndexedDB, and React hooks:
+- Tracks mutation state per-operation
+- Queues offline writes to IndexedDB (the SW could also write, but client-side queuing keeps mutation state accessible to UI components and avoids SW lifecycle complexity)
+- Provides reactive hooks (`useCachedFetch`, `useMutationQueue`)
+- Manages auth tokens in memory-only storage (never exposed to SW)
+- Detects online/offline state and triggers mutation replay
+
+The hybrid model exists because:
+- **Stale detection** requires the SW to know about cached responses (SW scope)
+- **Background refresh** requires the SW to initiate fetches without page involvement (SW scope)
+- **Mutation state tracking** needs per-component reactivity (client scope)
+- **IndexedDB writes** for offline queue need to survive page navigation (SW could work for reads, but client writes are simpler and more reliable)

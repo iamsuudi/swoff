@@ -1,9 +1,8 @@
 ---
-title: Request Batching — Unique to Swoff
+title: Request Batching
 description: 50ms coalescing of concurrent GET requests before the network request.
 ---
 
-# Request Batching: Swoff's Unique Approach
 
 Request batching coalesces concurrent identical GET requests into a single network fetch. Multiple callers asking for the same URL within a short window receive the same response without duplicating the network request. This feature is unique to Swoff — no other caching or SW toolkit implements it at the fetch level.
 

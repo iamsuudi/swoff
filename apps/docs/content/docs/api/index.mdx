@@ -4,24 +4,22 @@ description: Complete API documentation for every generated file in swoff/.
 icon: Code
 ---
 
-# Generated Files API Reference
-
 Complete API documentation for every generated file in `swoff/`. Files are
 generated based on `swoff.config.json` — see [CLI Reference](/docs/cli) for
 generation commands and [Config Reference](/docs/cli/config) for the full config schema.
 
 ## Modules
 
-| Module | File(s) | Description |
-| ------ | ------- | ----------- |
-| [Fetch](/docs/api/fetch) | `fetch/core.ts`, `fetch/state.ts` | Caching, auth, offline queue, auto-invalidation, in-flight request tracking |
-| [Mutation](/docs/api/mutation) | `mutation/queue.ts`, `mutation/state.ts`, `mutation/sync.ts` | Offline write queue, per-mutation state tracking, background sync |
-| [Cache](/docs/api/cache) | `cache/invalidate.ts`, `cache/tags.ts` | Cache invalidation and tag generation utilities |
-| [Server Push](/docs/api/server-push) | `server-push/client.ts` | SSE/WebSocket real-time cache invalidation |
-| [GraphQL](/docs/api/graphql) | `graphql/index.ts` | GraphQL wrapper with body-hash caching |
-| [Auth](/docs/api/auth) | `auth/adapter.ts`, `auth/store.ts`, `auth/state.ts` | Auth provider bridge, token persistence, state detection |
-| [PWA](/docs/api/pwa) | `pwa/prompt.ts` | PWA install prompt handling |
-| [Push Notification](/docs/api/push-notification) | `push-notification/index.ts` | Push subscription management |
-| [Reset](/docs/api/reset) | `reset.ts` | Nuclear reset for the entire Swoff system |
-| [Storage](/docs/api/storage) | `storage.ts` | Storage estimation and quota monitoring |
-| [React Hooks](/docs/api/react-hooks) | `adapters/*.tsx` | `useCachedFetch`, `useMutation`, `useAuth`, `useSWUpdate`, and more |
+| Module                                           | File(s)                                                      | Description                                                                 |
+| ------------------------------------------------ | ------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| [Fetch](/docs/api/fetch)                         | `fetch/core.ts`, `fetch/state.ts`                            | Caching, auth, offline queue, auto-invalidation, in-flight request tracking |
+| [Mutation](/docs/api/mutation)                   | `mutation/queue.ts`, `mutation/state.ts`, `mutation/sync.ts` | Offline write queue, per-mutation state tracking, background sync           |
+| [Cache](/docs/api/cache)                         | `cache/invalidate.ts`, `cache/tags.ts`                       | Cache invalidation and tag generation utilities                             |
+| [Server Push](/docs/api/server-push)             | `server-push/client.ts`                                      | SSE/WebSocket real-time cache invalidation                                  |
+| [GraphQL](/docs/api/graphql)                     | `graphql/index.ts`                                           | GraphQL wrapper with body-hash caching                                      |
+| [Auth](/docs/api/auth)                           | `auth/adapter.ts`, `auth/store.ts`, `auth/state.ts`          | Auth provider bridge, token persistence, state detection                    |
+| [PWA](/docs/api/pwa)                             | `pwa/prompt.ts`                                              | PWA install prompt handling                                                 |
+| [Push Notification](/docs/api/push-notification) | `push-notification/index.ts`                                 | Push subscription management                                                |
+| [Reset](/docs/api/reset)                         | `reset.ts`                                                   | Nuclear reset for the entire Swoff system                                   |
+| [Storage](/docs/api/storage)                     | `storage.ts`                                                 | Storage estimation and quota monitoring                                     |
+| [React Hooks](/docs/api/react-hooks)             | `adapters/*.tsx`                                             | `useCachedFetch`, `useMutation`, `useAuth`, `useSWUpdate`, and more         |

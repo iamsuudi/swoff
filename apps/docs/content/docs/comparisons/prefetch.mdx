@@ -3,36 +3,44 @@ title: Prefetch
 description: Manual prefetchCache and auto-prefetch vs framework-specific solutions.
 ---
 
+## Prefetch: Swoff vs Framework Built-Ins
 
-Prefetch fetches resources before navigation so the response is available instantly. The key difference is where the response is stored — the SW Cache Storage API (disk-backed, survives reloads) versus in-memory framework caches (lost on navigation).
+Prefetch fetches resources before navigation so the response is available instantly. The key difference is where the response is stored — SW Cache Storage API (disk-backed, survives reloads) versus in-memory caches (lost on navigation).
 
 ## How Swoff does it
 
-Swoff provides two prefetch mechanisms: manual `prefetchCache()` for any URL, and **auto-prefetch** on client-side navigation when `navigation.mode` is `"ssr"`.
+Swoff provides two prefetch mechanisms:
 
-**Manual prefetch:**
+**Manual prefetch — `prefetchCache(url)`:** Fire-and-forget. The SW fetches the URL, caches the full HTTP response in the Cache Storage API, and silently swallows errors. Works for any content type — API endpoints, images, pages, third-party resources.
 
 ```ts
 import { prefetchCache } from "swoff/fetch/core";
 prefetchCache("/api/todos");
+prefetchCache("/about");
 ```
 
-**Auto-prefetch (SSR mode):** Every `pushState`/`replaceState` call triggers a prefetch of the target URL. Framework-agnostic — intercepts at the browser API level.
+**Auto-prefetch (SSR mode only):** When `navigation.mode` is `"ssr"`, the generated `client-injector` intercepts `history.pushState()` and `history.replaceState()` — the underlying API every client-side router uses — and calls `prefetchCache(url)` for each navigation. This warms the SW cache with HTML pages as the user browses, so refreshes and return visits load instantly. No framework-specific `<Link prefetch>` attributes needed.
 
 **Key properties:**
-
 - **Storage:** SW Cache Storage API (disk-backed, survives reloads)
-- **Thread:** SW thread — invisible to the main thread
+- **Thread:** SW thread — invisible to main thread, no rendering impact
 - **Scope:** Any URL — not limited to route data
-- **Survives hard navigation:** ✓ Yes
-- **Framework coupling:** None
+- **Framework coupling:** None — intercepts at the browser API level
 
 ## How competitors handle it
 
-**Next.js `<Link prefetch>`:** Stores route data in an in-memory `CacheNode` tree. Lost on hard refresh. Scope-limited to route segments.
+**Next.js `<Link prefetch>`, `router.prefetch()`:** Stores route data in an in-memory `CacheNode` tree, lost on hard refresh. Prefetch triggered by `<Link>` entering viewport or hover. Scope is route segments only — cannot prefetch API endpoints.
 
-**TanStack Router `router.prefetch()`:** Loads route data into an in-memory `routeCache`. Lost on hard refresh.
+**TanStack Router / Remix / SvelteKit:** All store prefetched route data in-memory (`routeCache`, browser HTTP cache with SW-invisible `Cache-Control`, `load_cache`), lost on hard refresh. Scope is route loaders/data only. Remix uses `<link rel="prefetch">` into the browser HTTP cache, which partially survives reloads but is invisible to the SW — it cannot serve responses when the SW intercepts navigation.
 
-**Remix `<Link prefetch>`:** Prefetches route data into the browser HTTP cache via `<link rel="prefetch">` tags. Not SW-visible, does not support tag-based invalidation.
+## Comparison table
 
-**SvelteKit `data-sveltekit-preload-data`:** In-memory `load_cache`. Lost on hard refresh.
+| Dimension                       | Swoff                            | Next.js              | TanStack Router      | Remix                | SvelteKit              |
+| ------------------------------- | -------------------------------- | -------------------- | -------------------- | -------------------- | ---------------------- |
+| **Storage**                     | SW Cache API (disk)              | In-memory CacheNode  | In-memory routeCache | Browser HTTP cache   | In-memory load_cache   |
+| **Survives hard nav?**          | ✅ Yes                           | ❌ No                | ❌ No                | 🟡 Per Cache-Control | ❌ No                  |
+| **Auto-prefetch on pushState?** | ✅ Built-in (SSR mode)           | ❌ No                | ❌ No                | ❌ No                | ❌ No                  |
+| **Scope**                       | Any URL                          | Route data only      | Route loaders only   | Route data only      | Route data only        |
+| **Thread**                      | SW thread                        | Main thread          | Main thread          | Main thread          | Main thread            |
+| **Framework coupling**          | None                             | Next.js              | TanStack Router      | Remix                | SvelteKit              |
+| **Manual API prefetch**         | ✅ `prefetchCache("/api/todos")` | ❌                   | ❌                   | ❌                   | ❌                     |

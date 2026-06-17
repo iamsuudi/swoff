@@ -1,45 +1,98 @@
 ---
-title: Auth Integration
-description: How Swoff handles auth at the client layer with SW awareness.
+title: Authentication
+description: Why Swoff's auth module exists — cache eviction on logout prevents data leaks between users.
 ---
 
+Cached data persists across auth sessions. When user A logs out and user B logs in on a shared device, data from user A is still visible in the cache — a privacy breach. Other caching and data libraries have no concept of auth state, so they cannot prevent this.
 
-Authentication in an offline-capable app involves token management, header injection, 401 detection, silent refresh, and offline user data caching. Swoff handles all of these at the client layer with SW awareness, eliminating the need for axios interceptors, custom fetch wrappers, or third-party auth libraries.
+Swoff's auth module plumbs auth state through to the cache layer so it can evict everything when the user changes. This is its single purpose. Everything else — offline user display, 401 recovery, auth headers — is secondary convenience.
 
 ## How Swoff does it
 
-Swoff generates a client-side auth system with SW notifications for background 401 detection:
+Swoff implements three auth-aware features through an adapter plugin system:
 
-**Token management:**
+### 1. User data persistence for offline display
 
-- Three auth types: `bearer`, `cookie`, `custom` (developer-defined header injection).
-- Token storage: memory-only for bearer tokens (not persisted to storage).
-- Silent refresh: `ensureValidAuth()` probes the refresh endpoint before expiry and updates tokens in memory.
-- `clearAuth()`: wipes tokens from memory and user cache from IndexedDB. The app decides if queue/cache cleanup is needed.
+`setAuth(authData)` stores `{ user, expiresAt }` in IndexedDB so the app can show user information after page reload or tab close. **Tokens are stored in memory only** — never persisted to disk. After page refresh, the token is gone and re-login (or cookie-based refresh) is required.
 
-**Request-level integration:**
+### 2. 401 recovery via adapter
 
-- `fetchWithCache({ auth: true })` automatically injects auth headers.
-- Auth URLs (login, register, refresh, logout) bypass SW caching via `X-SW-Cache-Strategy: mutation`.
-- `401` responses in the fetch wrapper trigger a silent refresh attempt. On failure, `clearAuth()` runs and `sw-auth-unauthorized` fires.
+When the SW detects a 401 on a background refetch, it broadcasts `AUTH_FAILURE` to all clients. The client calls `ensureValidAuth()` → `adapter.refresh()`. If refresh fails, it falls back to `clearAuth()`. For direct `fetchWithCache` calls, the 401 triggers `clearAuth()` immediately.
 
-**Offline user data:**
+The developer writes `refresh()` and `fetchUser()` in the adapter if their auth system supports silent refresh or server-side user lookup.
 
-- The user profile is cached in IndexedDB for offline display.
-- `getAuthState()` returns `{ authenticated, auth, online }` — works offline. Access user data via `auth.user`.
+### 3. Cache eviction cascade (the core feature)
 
-**Reactive hooks:**
+`clearAuth()` is the fundamental operation:
 
-- `useAuth()` returns `{ authenticated, auth, online, isLoading, error, setAuth, clearAuth, ensureValid }`.
-- Listens for `sw-auth-state-change` events (dispatched by the SW after auth state changes).
-- Listens for `online`/`offline` events for connectivity-aware state.
+```
+clearAuth()
+  → null memoryAuth
+  → delete "session" from IndexedDB (swoff-auth DB)
+  → delete runtime caches by prefix (swoff-runtime*)
+  → clear mutation queue (if mutationQueue enabled)
+  → dispatch sw-auth-state-change event
+  → postMessage AUTH_CLEARED to SW
+    → SW forwards to all clients via clients.matchAll()
+      → each client calls clearMemoryAuth()
+```
+
+This ensures no cached data from user A survives to user B — across tabs, across page reloads, across SW restarts.
+
+`clearAuth()` targets auth data specifically. For a complete wipe beyond auth — all caches, IndexedDB databases, localStorage, and SW re-registration — use `resetSwoff()` from `swoff/reset`.
+
+### Auth headers (convenience only)
+
+When `fetchWithCache(url, { auth: true })` is called, the adapter's `getHeaders(auth)` method injects auth headers. For cookie auth this is a no-op (browser sends cookies automatically). For bearer auth it sets `Authorization: Bearer <token>`. For custom auth the developer writes the header logic.
+
+Login and logout flows remain entirely the developer's responsibility. Swoff provides `setAuth()` and `clearAuth()` as facades to connect auth state to the cache layer.
+
+## Adapter contract
+
+| Method             | Purpose                                | Cookie behavior                                    | Bearer behavior                                                               |
+| ------------------ | -------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `type`             | Declares auth mechanism                | `"cookie"`                                         | `"bearer"`                                                                    |
+| `getAuth()`        | Return current auth from your provider | Return `null` — browser sends cookie automatically | Return `null` — token lives in memory, not in adapter                         |
+| `getHeaders(auth)` | Generate auth headers for requests     | Return `{}` — browser sends cookie automatically   | Return `{ Authorization: "Bearer <token>" }` if token present                 |
+| `refresh(auth)`    | Refresh session when 401 detected      | Return `null` — server manages session lifetime    | POST to `/api/refresh` with existing token, return new `{ token, expiresAt }` |
+| `fetchUser()`      | Fetch current user from server         | GET `/api/me` with credentials                     | GET `/api/me` with Bearer header                                              |
+
+## Auth type vs feature compatibility
+
+| Auth type | PWA | Mutation queue | Background sync | Server push | GraphQL |
+| --------- | --- | -------------- | --------------- | ----------- | ------- |
+| cookie    | ✅  | ✅             | ✅              | ✅          | ✅      |
+| bearer    | ✅  | ✅             | ❌              | ❌          | ✅      |
+| custom    | ✅  | ✅             | ❌              | ❌          | ✅      |
+
+Background sync and server push require cookie auth because they run in the SW scope — bearer tokens are memory-only in the page and the SW cannot access them. For bearer auth, `clearAuth()` clears the queue automatically; call `flushMutations()` after re-auth from the client context.
+
+Auth endpoints always bypass the SW cache. At build time, `features.auth.routePaths` is injected into the SW as an `AUTH_ROUTES` constant. The fetch event listener returns early for matching requests before any strategy resolution, cache lookup, or tag invalidation.
+
+## Comparison table
+
+| Aspect                       | Swoff                                         | TanStack Query / SWR                 | Workbox                    | Client DBs (RxDB, PowerSync, ElectricSQL) |
+| ---------------------------- | --------------------------------------------- | ------------------------------------ | -------------------------- | ----------------------------------------- |
+| **Auth awareness**           | ✅ Full — auth state plumbed to cache layer   | ❌ No concept of auth                | ❌ No concept of auth      | ❌ No concept of auth                     |
+| **Cache eviction on logout** | ✅ Wipes memory, IDB, runtime caches, queue   | ❌ Cache persists across sessions    | ❌ Cache persists          | ❌ Data survives forever                  |
+| **Cross-tab eviction**       | ✅ Broadcasts to all open tabs via SW         | ❌ No cross-tab awareness            | ❌ No cross-tab awareness  | ❌ No cross-tab awareness                 |
+| **Offline user display**     | ✅ User data cached in IDB for offline use    | ❌ Not supported                     | ❌ Not supported           | ❌ Not supported                          |
+| **Token security**           | ✅ Memory-only (bearer) — never on disk       | ❌ Developer chooses storage         | N/A                        | N/A                                       |
+| **401 detection + recovery** | ✅ SW broadcasts + client refresh via adapter | ❌ Developer handles                 | ❌ Not supported           | ❌ Not supported                          |
+| **Login / logout flow**      | Developer-owned (only `setAuth`/`clearAuth`)  | Developer-owned                      | Developer-owned            | Developer-owned                           |
+| **Auth header injection**    | ✅ Through adapter `getHeaders()`             | ❌ Developer wraps `queryFn`         | ❌ Not supported           | ❌ Not supported                          |
+| **Data leak on user switch** | ✅ Not possible — caches evicted on logout    | ❌ Possible — cache has no auth gate | ❌ Possible — no auth gate | ❌ Possible — no auth gate                |
+| **Setup cost**               | 0 lines — enabled in config + adapter edits   | ~20–50 lines (interceptor/wrapper)   | N/A                        | N/A                                       |
+| **Full system reset**        | ✅ `resetSwoff()` — caches + IDB + localStorage + SW unregister/re-register | ❌ `queryClient.clear()` clears in-memory cache only | ❌ Manual cache deletion only | ❌ No equivalent                                       |
 
 ## How competitors handle it
 
-**TanStack Query / SWR:** No auth layer. Developers implement their own token injection via `axios` interceptors, custom `fetch` wrappers, or a `queryFn` wrapper. 401 handling, refresh, and offline auth state are entirely the developer's responsibility.
+**TanStack Query / SWR:** No auth layer. Developers implement token injection, 401 handling, and cache clearing manually via interceptors or `queryFn` wrappers. The in-memory cache persists across the session; if the user logs out and another logs in, stale data from the first user remains in the query cache unless the developer explicitly calls `queryClient.clear()`.
 
-**Workbox:** No auth layer. The SW has no knowledge of auth tokens.
+**Workbox:** No auth layer. The Service Worker has no knowledge of auth tokens. Runtime caches persist indefinitely — data from one user is served to the next until the cache expires or is manually deleted.
 
-**RxDB / TanStack DB:** No auth layer. The sync engine may support auth headers, but token management, refresh, and 401 detection are manual.
+**Client DBs (RxDB, PowerSync, ElectricSQL):** No auth layer. Sync engines may support auth headers for connection, but have no concept of token lifecycle — no 401 detection, no silent refresh, no cache eviction on logout. User data persists in IndexedDB or SQLite WASM across sessions indefinitely. On shared devices, one user's cached data is visible to the next without manual database purging.
 
-**Client DBs (RxDB, PowerSync, ElectricSQL):** No auth layer. Sync engines may support auth headers for initial connection, but have no concept of token lifecycle — no 401 detection, no silent refresh, no cache eviction on logout. User data persists across sessions; on shared devices one user's cached data is visible to the next without manual clearing.
+## Library-specific configuration
+
+To determine which auth type (`cookie`, `bearer`, or `custom`) your provider uses and whether you need to edit `getHeaders()`, see the [Auth Libraries Reference](/docs/comparisons/auth-libraries). It covers 20+ libraries including Better-Auth, Auth.js, Clerk, Supabase, Auth0, Firebase, Laravel Sanctum, and more.

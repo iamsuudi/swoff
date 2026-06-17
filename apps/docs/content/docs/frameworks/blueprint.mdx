@@ -1,7 +1,6 @@
 ---
 title: Adapter Blueprint
 description: All Swoff events and properties — create adapters for any framework.
-icon: Puzzle
 ---
 
 # Adapter Blueprint
@@ -24,31 +23,31 @@ Your UI components
 
 These are the "sockets" Swoff provides. Listen with `window.addEventListener(eventName, handler)`.
 
-| Event | Detail shape | When dispatched |
-|---|---|---|
-| `sw-update-available` | `{ version: string, currentVersion: string, forceUpdate: boolean }` | New SW version detected on the server |
-| `sw-progress` | `{ percent: number }` | During SW download/install |
-| `sw-ready` | — | SW activated and controlling the page |
-| `sw-error` | `{ error: string }` | SW registration or update failed |
-| `sw-auth-state-change` | `{ type: "login" \| "logout" \| "refresh" \| "clear" }` | Auth state changed |
-| `cache-invalidated` | `{ tags: string[] }` | Cache entries invalidated (locally or from another tab) |
-| `mutation-sync-complete` | `{ succeeded: number, failed: number }` | Offline mutation queue sync finished |
-| `mutation-queue-changed` | — | Queue contents changed (mutation added or processed) |
-| `background-sync-complete` | `{ succeeded: number, failed: number }` | Background sync event finished |
-| `push-subscription-changed` | `{ subscribed: boolean }` | Push subscription added or removed |
-| `push-permission-changed` | `{ permission: NotificationPermission }` | Notification permission granted or denied |
-| `sw-offline-fallback` | `{ url: string, fallbackLevel: string }` | SW served an offline fallback page |
+| Event                       | Detail shape                                                        | When dispatched                                         |
+| --------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------- |
+| `sw-update-available`       | `{ version: string, currentVersion: string, forceUpdate: boolean }` | New SW version detected on the server                   |
+| `sw-progress`               | `{ percent: number }`                                               | During SW download/install                              |
+| `sw-ready`                  | —                                                                   | SW activated and controlling the page                   |
+| `sw-error`                  | `{ error: string }`                                                 | SW registration or update failed                        |
+| `sw-auth-state-change`      | `{ type: "login" \| "logout" \| "refresh" \| "clear" }`             | Auth state changed                                      |
+| `cache-invalidated`         | `{ tags: string[] }`                                                | Cache entries invalidated (locally or from another tab) |
+| `mutation-sync-complete`    | `{ succeeded: number, failed: number }`                             | Offline mutation queue sync finished                    |
+| `mutation-queue-changed`    | —                                                                   | Queue contents changed (mutation added or processed)    |
+| `background-sync-complete`  | `{ succeeded: number, failed: number }`                             | Background sync event finished                          |
+| `push-subscription-changed` | `{ subscribed: boolean }`                                           | Push subscription added or removed                      |
+| `push-permission-changed`   | `{ permission: NotificationPermission }`                            | Notification permission granted or denied               |
+| `sw-offline-fallback`       | `{ url: string, fallbackLevel: string }`                            | SW served an offline fallback page                      |
 
 ## Window properties
 
 Swoff sets these properties on `window` for synchronous access:
 
-| Property | Type | Purpose |
-|---|---|---|
-| `window.currentSWVersion` | `string \| undefined` | Currently active SW version |
-| `window.latestSWVersion` | `string \| undefined` | Latest version available on server |
-| `window.swMinSupportedVersion` | `string \| undefined` | Minimum version that can still serve |
-| `window.swUpdateRequired` | `boolean \| undefined` | Whether the update is enforced |
+| Property                       | Type                   | Purpose                              |
+| ------------------------------ | ---------------------- | ------------------------------------ |
+| `window.currentSWVersion`      | `string \| undefined`  | Currently active SW version          |
+| `window.latestSWVersion`       | `string \| undefined`  | Latest version available on server   |
+| `window.swMinSupportedVersion` | `string \| undefined`  | Minimum version that can still serve |
+| `window.swUpdateRequired`      | `boolean \| undefined` | Whether the update is enforced       |
 
 ## Adapter template
 
@@ -82,24 +81,24 @@ The 16 hooks available in the React ecosystem show the complete pattern — insp
 
 These are the standard adapters. Each maps directly to the events above:
 
-| Adapter | Listens to | Exposes |
-|---|---|---|
-| `useNetworkStatus` | `window` online/offline events | `online`, `wasOffline`, `effectiveType`, `retry` |
-| `useCachedFetch` | `cache-invalidated` | `data`, `isLoading`, `error`, `fromCache`, `refetch` |
-| `useSWUpdate` | `sw-update-available`, `sw-progress`, `sw-ready`, `sw-error` | `updateStatus`, `progress`, `acceptUpdate`, `dismissUpdate` |
-| `useAuth` | `sw-auth-state-change` | `authenticated`, `auth`, `online`, `setAuth`, `clearAuth` |
-| `useCacheInvalidation` | `cache-invalidated` | `invalidateByTag`, `invalidateByTags` |
-| `useMutationQueue` | `mutation-queue-changed` | `pending`, `items`, `isProcessing`, `retryAll` |
-| `usePushSubscription` | `push-subscription-changed`, `push-permission-changed` | `subscribed`, `permission`, `subscribe`, `unsubscribe` |
-| `useBackgroundSync` | `background-sync-complete` | `supported`, `registered`, `triggerSync` |
-| `usePwaInstall` | `beforeinstallprompt` | `isInstallable`, `promptInstall` |
-| `usePrefetch` | — | `prefetch` (calls `prefetchCache`) |
-| `useMutation` | — | `mutate` (calls `fetchWithCache`) |
-| `useMutationState` | `mutation-queue-changed` | `states`, `track`, `getState` |
-| `useSwoffReset` | — | `reset` (calls `resetSwoff`) |
-| `useIsFetching` | — | `isFetching`, `fetchCount` |
-| `useOfflineAnalytics` | `sw-offline-fallback` | `events`, `lastEvent` |
-| `useStorageEstimate` | — | `usage`, `quota`, `percentUsed` |
+| Adapter                | Listens to                                                   | Exposes                                                     |
+| ---------------------- | ------------------------------------------------------------ | ----------------------------------------------------------- |
+| `useNetworkStatus`     | `window` online/offline events                               | `online`, `wasOffline`, `effectiveType`, `retry`            |
+| `useCachedFetch`       | `cache-invalidated`                                          | `data`, `isLoading`, `error`, `fromCache`, `refetch`        |
+| `useSWUpdate`          | `sw-update-available`, `sw-progress`, `sw-ready`, `sw-error` | `updateStatus`, `progress`, `acceptUpdate`, `dismissUpdate` |
+| `useAuth`              | `sw-auth-state-change`                                       | `authenticated`, `auth`, `online`, `setAuth`, `clearAuth`   |
+| `useCacheInvalidation` | `cache-invalidated`                                          | `invalidateByTag`, `invalidateByTags`                       |
+| `useMutationQueue`     | `mutation-queue-changed`                                     | `pending`, `items`, `isProcessing`, `retryAll`              |
+| `usePushSubscription`  | `push-subscription-changed`, `push-permission-changed`       | `subscribed`, `permission`, `subscribe`, `unsubscribe`      |
+| `useBackgroundSync`    | `background-sync-complete`                                   | `supported`, `registered`, `triggerSync`                    |
+| `usePwaInstall`        | `beforeinstallprompt`                                        | `isInstallable`, `promptInstall`                            |
+| `usePrefetch`          | —                                                            | `prefetch` (calls `prefetchCache`)                          |
+| `useMutation`          | —                                                            | `mutate` (calls `fetchWithCache`)                           |
+| `useMutationState`     | `mutation-queue-changed`                                     | `states`, `track`, `getState`                               |
+| `useSwoffReset`        | —                                                            | `reset` (calls `resetSwoff`)                                |
+| `useIsFetching`        | —                                                            | `isFetching`, `fetchCount`                                  |
+| `useOfflineAnalytics`  | `sw-offline-fallback`                                        | `events`, `lastEvent`                                       |
+| `useStorageEstimate`   | —                                                            | `usage`, `quota`, `percentUsed`                             |
 
 ## Prerequisites
 

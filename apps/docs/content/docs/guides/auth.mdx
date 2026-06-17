@@ -159,15 +159,16 @@ The hook listens for `sw-auth-state-change` events and stays in sync across tabs
 
 | Auth type | PWA | Mutation queue | Background sync | Server push | GraphQL |
 | --------- | --- | -------------- | --------------- | ----------- | ------- |
-| cookie    | ✓   | ✓              | ✓               | ✓           | ✓       |
-| bearer    | ✓   | ✓              | ✗               | ✗           | ✓       |
-| custom    | ✓   | ✓              | ✗               | ✗           | ✓       |
+| cookie    | ✅   | ✅              | ✅               | ✅           | ✅       |
+| bearer    | ✅   | ✅              | ❌               | ❌           | ✅       |
+| custom    | ✅   | ✅              | ❌               | ❌           | ✅       |
 
 Background sync and server push require cookie auth because they run in the SW scope (no DOM, no token refresh possible).
 
 ## Related
 
 - [Full comparison: Auth in Swoff vs none](/docs/comparisons/auth)
+- [Auth Libraries Reference](/docs/comparisons/auth-libraries) — library-specific `getHeaders()` configuration
 - [Tag invalidation: invalidateByTag after auth state changes](/docs/guides/tag-invalidation)
 - [Offline mutations: queue writes, background sync](/docs/guides/offline-mutations)
-- [Config reference: auth](/docs/cli/config#featuresauth)
+- [Config reference: auth](/docs/config#featuresauth)

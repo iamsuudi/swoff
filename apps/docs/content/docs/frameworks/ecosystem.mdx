@@ -1,7 +1,6 @@
 ---
 title: Ecosystem Compatibility
 description: Framework, backend, and rendering strategy compatibility.
-icon: Blocks
 ---
 
 Swoff operates at the **`fetch` event** + **Service Worker** layer — below the application and data-fetching layers. This makes it compatible with any web stack regardless of backend language, frontend framework, or rendering strategy.
@@ -17,16 +16,16 @@ The only framework-specific surface is **view adapters** (React hooks, future Vu
 
 ## Compatible with everything
 
-| Category | Examples | Config Hint |
-|---|---|---|
-| **Backend** | PHP, Laravel, Django, Rails, ASP.NET, Go, Java, Node | `navigation.mode: "ssr"` |
-| **HTML-over-wire** | HTMX, Turbo Hotwire, Unpoly, Livewire | `navigation.mode: "ssr"` |
-| **SSG** | Astro, Hugo, 11ty, Jekyll | `navigation.mode: "default"`, strategy `cache-first` |
-| **SPA frameworks** | React, Vue, Svelte, Solid, Angular, Alpine | `navigation.mode: "spa"` (default) |
-| **Meta-frameworks** | Next.js, Remix, Nuxt, SvelteKit, TanStack Start | Auto-detected; `navigation.mode: "ssr"` + framework-specific `ignoreQueryParams` |
-| **RSC-based** | Next.js App Router | `navigation.mode: "ssr"` + `ignoreQueryParams: ["_rsc"]` (auto-detected) |
-| **Edge / Serverless** | Cloudflare Workers, Deno Deploy, Vercel Edge | Edge runs on CDN, Swoff runs in browser — independent layers, no conflict |
-| **Islands / Resumability** | Astro islands, Qwik, Marko | SW runs in its own thread regardless of component hydration |
+| Category                   | Examples                                             | Config Hint                                                                      |
+| -------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **Backend**                | PHP, Laravel, Django, Rails, ASP.NET, Go, Java, Node | `navigation.mode: "ssr"`                                                         |
+| **HTML-over-wire**         | HTMX, Turbo Hotwire, Unpoly, Livewire                | `navigation.mode: "ssr"`                                                         |
+| **SSG**                    | Astro, Hugo, 11ty, Jekyll                            | `navigation.mode: "default"`, strategy `cache-first`                             |
+| **SPA frameworks**         | React, Vue, Svelte, Solid, Angular, Alpine           | `navigation.mode: "spa"` (default)                                               |
+| **Meta-frameworks**        | Next.js, Remix, Nuxt, SvelteKit, TanStack Start      | Auto-detected; `navigation.mode: "ssr"` + framework-specific `ignoreQueryParams` |
+| **RSC-based**              | Next.js App Router                                   | `navigation.mode: "ssr"` + `ignoreQueryParams: ["_rsc"]` (auto-detected)         |
+| **Edge / Serverless**      | Cloudflare Workers, Deno Deploy, Vercel Edge         | Edge runs on CDN, Swoff runs in browser — independent layers, no conflict        |
+| **Islands / Resumability** | Astro islands, Qwik, Marko                           | SW runs in its own thread regardless of component hydration                      |
 
 ## No package.json required
 
@@ -55,13 +54,13 @@ The generated files in `swoff/` are static — serve them however you serve your
 
 ### Per-ecosystem examples
 
-| Stack | How to serve generated files |
-|---|---|
-| **Laravel / PHP** | Place `swoff/` under `public/`, reference in Blade template |
-| **Django** | Place under `static/`, use `{% static %}` tag, or collect via `python manage.py collectstatic` |
-| **Rails** | Place under `app/assets/` or `public/` with asset pipeline |
-| **Go / net/http** | Embed via `//go:embed swoff/*` or serve from a `static/` directory |
-| **Plain HTML** | Serve from your document root and reference with a `<script>` tag |
+| Stack             | How to serve generated files                                                                   |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| **Laravel / PHP** | Place `swoff/` under `public/`, reference in Blade template                                    |
+| **Django**        | Place under `static/`, use `{% static %}` tag, or collect via `python manage.py collectstatic` |
+| **Rails**         | Place under `app/assets/` or `public/` with asset pipeline                                     |
+| **Go / net/http** | Embed via `//go:embed swoff/*` or serve from a `static/` directory                             |
+| **Plain HTML**    | Serve from your document root and reference with a `<script>` tag                              |
 
 The only thing your project needs is Node.js during development or CI to run the CLI and generator. No `package.json`, no `npm install` — just `npx @swoff/cli` commands.
 
@@ -84,14 +83,14 @@ The `?_rsc=<token>` query param used by RSC frameworks is now safe to strip via 
 
 **How offline navigation works:**
 
-| Scenario | Behavior |
-|---|---|
-| Client navigation to visited page | React's in-memory RSC cache handles this (not SW). Works offline if page was previously visited in the same session. |
-| Refresh visited page (online) | Strategy dispatch fetches fresh HTML from network, caches in HTML cache, returns it |
-| Refresh visited page (offline) | Strategy dispatch looks up `/about` in HTML cache → **hit** if previously full-loaded online; otherwise fall through |
-| Refresh but never full-loaded (only client-nav) | HTML cache has no entry for `/about` (RSC payload stored in main cache) → cache miss → 503 |
-| First visit to SSG route (offline) | Works if route is in `precacheRoutes` — fetched at install time |
-| Navigate to new page (offline) | Network error → main cache serves RSC/data payload if previously cached |
+| Scenario                                        | Behavior                                                                                                             |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Client navigation to visited page               | React's in-memory RSC cache handles this (not SW). Works offline if page was previously visited in the same session. |
+| Refresh visited page (online)                   | Strategy dispatch fetches fresh HTML from network, caches in HTML cache, returns it                                  |
+| Refresh visited page (offline)                  | Strategy dispatch looks up `/about` in HTML cache → **hit** if previously full-loaded online; otherwise fall through |
+| Refresh but never full-loaded (only client-nav) | HTML cache has no entry for `/about` (RSC payload stored in main cache) → cache miss → 503                           |
+| First visit to SSG route (offline)              | Works if route is in `precacheRoutes` — fetched at install time                                                      |
+| Navigate to new page (offline)                  | Network error → main cache serves RSC/data payload if previously cached                                              |
 
 **Limitations:**
 

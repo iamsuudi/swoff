@@ -1,0 +1,30 @@
+---
+title: React Ecosystem
+description: Swoff adapters, hooks, and components for React-based frameworks.
+icon: react
+---
+
+## React Ecosystem
+
+All React-based frameworks share the same adapter layer — hooks and components. The only difference is where you inject the files.
+
+## Available Guides
+
+| Framework                                                       | Description              |
+| --------------------------------------------------------------- | ------------------------ |
+| [React + Vite](/docs/frameworks/react-ecosystem/react-vite)         | Plain React with Vite    |
+| [Next.js](/docs/frameworks/react-ecosystem/nextjs)                  | Static export mode       |
+| [Remix](/docs/frameworks/react-ecosystem/remix)                     | Client-side mode         |
+| [TanStack Router](/docs/frameworks/react-ecosystem/tanstack-router) | File-based routing       |
+| [TanStack Start](/docs/frameworks/react-ecosystem/tanstack-start)   | Full-stack (client-only) |
+
+## Shared Adapter Layer
+
+- **[React Hooks](/docs/frameworks/react-ecosystem/hooks)** — `useSWUpdate`, `useSWProgress`, `useCachedFetch`, `useMutationQueue`, `useAuth`, `usePushSubscription`, `useNetworkStatus`, `useBackgroundSync`, `useCacheInvalidation`
+- **[React Components](/docs/frameworks/react-ecosystem/components)** — `UpdatePrompt`, `SWProgressBar`, `InstallButton`, `OfflineErrorBoundary`
+- **[Data Fetching](/docs/frameworks/react-ecosystem/data-fetching)** — TanStack Query integration for powerful data management
+
+## Next Steps
+
+- Start with [React + Vite](/docs/frameworks/react-ecosystem/react-vite) for the simplest setup
+- Understand the concepts: [What is Offline](/docs/concepts/what-is-offline-and-sw)

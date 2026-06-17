@@ -1,0 +1,194 @@
+---
+title: Contributing Adapters
+description: Write concise framework adapters for Swoff.
+icon: GitPullRequest
+---
+
+## Contributing Adapters
+
+Swoff is framework agnostic. We rely on the community to write **concise adapters** for different frameworks.
+
+## What is an Adapter?
+
+An adapter is a short guide showing **where to plug Swoff patterns** into a specific framework.
+
+**Key principle**: Don't repeat patterns — link to them. Adapters are 50-80 lines max.
+
+## Frameworks Needed
+
+| Framework       | Status |
+| --------------- | ------ |
+| React + Vite    | Done   |
+| Next.js         | Done   |
+| Remix           | Done   |
+| TanStack Router | Done   |
+| TanStack Start  | Done   |
+| Vue + Vite      | Done   |
+| Nuxt            | Done   |
+| Svelte + Vite   | Done   |
+| SvelteKit       | Needed |
+| Solid + Vite    | Done   |
+| Angular         | Done   |
+| Vanilla JS      | Done   |
+| Astro           | Needed |
+| Qwik            | Needed |
+
+## How to Contribute
+
+### 1. Fork & Create File
+
+```bash
+git clone https://github.com/iamsuudi/swoff.git
+cd swoff
+
+# Example: Astro adapter
+touch apps/docs/content/docs/frameworks/astro.mdx
+```
+
+### 2. Follow the Template
+
+````mdx
+---
+title: Astro
+description: Set up Swoff with Astro.
+icon: Astro
+---
+
+## Astro
+
+Concise adapter for **Astro** projects.
+
+## Create Project
+
+```bash
+npm create astro@latest my-app
+cd my-app && npm install
+```
+````
+
+## Project Structure
+
+```
+my-app
+├── swoff
+│   ├── sw-template.js
+│   ├── sw-generator.js
+│   ├── sw-injector.js
+│   └── swoff.d.ts
+└── package.json
+```
+
+## Entry Point
+
+Add SW registration to your layout or client-side script (see [Client Registration](/docs/cli/)):
+
+```typescript
+// src/sw-injector.client.ts
+export function initSW() {
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", async () => {
+      const { version } = await fetch("/version.json").then((r) => r.json());
+      await navigator.serviceWorker.register(`/sw-v${version}.js`);
+    });
+  }
+}
+```
+
+## Add Patterns
+
+Copy from [Patterns](/docs/cli/):
+
+1. **[SW Template](/docs/architecture/architecture)** → `swoff/sw-template.js`
+2. **[Build Script](/docs/cli/)** → `swoff/sw-generator.js`
+3. **[Client Registration](/docs/cli/)** → `swoff/sw-injector.js`
+
+## Output Directory
+
+Astro outputs to `dist/` by default. If using an adapter (Vercel, Netlify, Node), the output may differ.
+
+Update `package.json`:
+
+```json
+{
+  "scripts": {
+    "build": "astro build && node swoff/sw-generator.js"
+  }
+}
+```
+
+## Build & Test
+
+```bash
+npm version patch
+npm run build
+```
+
+## Next Steps
+
+- [Integration Concepts](/docs/integration/) — how adapters work
+- [Patterns](/docs/cli/) — all available patterns
+
+````
+
+### 3. Update meta.json
+
+Add to `apps/docs/content/docs/frameworks/meta.json`:
+
+```json
+{
+  "pages": [
+    "...",
+    "astro"
+  ]
+}
+````
+
+### 4. Test Locally
+
+```bash
+cd apps/docs
+bun run dev
+```
+
+### 5. Submit PR
+
+```bash
+git checkout -b feat/astro-adapter
+git add .
+git commit -m "Add Astro adapter guide"
+git push origin feat/astro-adapter
+```
+
+## Guidelines
+
+1. **Keep it concise** — 50-80 lines max (excluding code blocks)
+2. **Link, don't repeat** — Reference `/docs/cli/*`, don't paste pattern code
+3. **Show the entry point** — Where does SW registration go in this framework?
+4. **Show output directory** — Where does the build output land?
+5. **Test it** — Follow your own guide to verify it works
+
+## Adapter Structure (Cheat Sheet)
+
+```
+1. Title + description (frontmatter)
+2. ## Create Project (one command)
+3. ## Project Structure (tree view)
+4. ## Entry Point (where to register SW)
+5. ## Add Patterns (list 3-4 pattern links)
+6. ## Output Directory (where files land)
+7. ## Build & Test (2-3 commands)
+8. ## Next Steps (3 links)
+```
+
+## What NOT to Include
+
+- SW template code (link to [SW Template](/docs/architecture/architecture))
+- Build script code (link to [Build Scripts](/docs/cli/))
+- Client registration logic (link to [Client Registration](/docs/cli/))
+- TypeScript declarations (link to [Utilities](/docs/cli/))
+- Hook/composable implementations (link to your ecosystem's adapter page)
+
+## Next Steps
+
+- Read [Concepts](/docs/concepts/what-is-offline-and-sw) to understand Swoff
+- Check [GitHub Issues](https://github.com/iamsuudi/swoff/issues) for open adapter requests

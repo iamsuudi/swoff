@@ -1,0 +1,80 @@
+---
+title: Svelte + Vite
+description: Set up Swoff with Svelte 5 + Vite.
+icon: svelteKit
+---
+
+## Svelte + Vite
+
+Concise adapter for **Svelte 5 + Vite** projects.
+
+## Create Project
+
+```bash
+npm create vite@latest my-app -- --template svelte-ts
+cd my-app && npm install
+```
+
+## Project Structure
+
+```
+my-app
+├── src
+│   └── main.ts
+├── swoff
+│   ├── sw-template.js
+│   ├── sw-generator.js
+│   ├── sw-injector.js
+│   └── swoff.d.ts
+└── package.json
+```
+
+## Entry Point (`src/main.ts`)
+
+```typescript
+import App from "./App.svelte";
+import { initServiceWorker } from "../swoff/sw-injector";
+
+initServiceWorker();
+
+const app = new App({
+  target: document.getElementById("app"),
+});
+
+export default app;
+```
+
+## Add Patterns
+
+Copy from [Patterns](/docs/cli/):
+
+1. **[SW Template](/docs/architecture/architecture)** → `swoff/sw-template.js`
+2. **[Build Script](/docs/cli/)** → `swoff/sw-generator.js` (output dir: `dist/`)
+3. **[Client Registration](/docs/cli/)** → `swoff/sw-injector.js`
+4. **[TypeScript Declarations](/docs/cli/)** → `swoff/swoff.d.ts`
+
+Update `package.json`:
+
+```json
+{
+  "scripts": {
+    "build": "vite build && node swoff/sw-generator.js"
+  }
+}
+```
+
+## Output Directory
+
+Vite outputs to `dist/` by default. Your `swoff/sw-generator.js` should write to `dist/`.
+
+## Build & Test
+
+```bash
+npm version patch
+npm run build
+```
+
+## Next Steps
+
+- [Svelte Stores](/docs/frameworks/svelte-ecosystem/stores) — `pwaUpdate`, `swProgress`
+- [Svelte Components](/docs/frameworks/svelte-ecosystem/components) — `UpdatePrompt`, `SWProgressBar`

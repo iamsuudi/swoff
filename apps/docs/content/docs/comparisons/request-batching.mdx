@@ -1,0 +1,43 @@
+---
+title: Request Batching — Unique to Swoff
+description: 50ms coalescing of concurrent GET requests before the network request.
+---
+
+# Request Batching: Swoff's Unique Approach
+
+Request batching coalesces concurrent identical GET requests into a single network fetch. Multiple callers asking for the same URL within a short window receive the same response without duplicating the network request. This feature is unique to Swoff — no other caching or SW toolkit implements it at the fetch level.
+
+## How Swoff does it
+
+Swoff implements a configurable batching window (default 50ms, `requestBatchWindowMs` in config) in the generated `fetchWithCache` function:
+
+```
+t=0ms    Component A calls fetchWithCache("/api/notes")
+t=10ms   Component B calls fetchWithCache("/api/notes")
+t=20ms   Component C calls fetchWithCache("/api/notes")
+t=50ms   → single fetch to /api/notes fires
+         → response cloned to A, B, C
+```
+
+Two collections manage this:
+
+- **`pendingBatches`** — a `Map` collecting callers within the window.
+- **`inFlightRequests`** — a `Map` deduplicating late arrivals after the batch fires.
+
+**Key properties:**
+
+- **Scope:** Any `fetchWithCache` call — hooks, raw calls, GraphQL queries.
+- **Configurable window:** Default 50ms. Set to 0 to disable.
+- **In-flight dedup:** A request already in flight is reused by new callers via promise cloning.
+- **Automatic cleanup:** AbortController signals remove entries on cancellation.
+
+## No competitor implements this
+
+| Library            | Request batching                     | Dedup mechanism                                        |
+| ------------------ | ------------------------------------ | ------------------------------------------------------ |
+| **Swoff**          | ✓ 50ms batch window + in-flight Map | Coalesces concurrent GETs _before_ the network request |
+| **TanStack Query** | ✗                                   | Per query-key dedup _after_ fetch starts               |
+| **SWR**            | ✗                                   | Per-key dedup _after_ fetch starts                     |
+| **Workbox**        | ✗                                   | Network request dedup only                             |
+
+The savings are most visible on cold cache (first page load) or when many components independently request the same resource on mount.

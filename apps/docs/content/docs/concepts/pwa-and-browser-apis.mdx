@@ -10,35 +10,11 @@ PWA is **three small additions** to your web app:
 
 ### 1. Web App Manifest
 
-A JSON file that tells the browser the app is installable:
-
-```json
-{
-  "name": "My App",
-  "short_name": "MyApp",
-  "start_url": "/",
-  "display": "standalone",
-  "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
-}
-```
-
-Linked in HTML: `<link rel="manifest" href="/manifest.json" />`
+A JSON file that tells the browser the app is installable. It specifies the app name, icons, start URL, and display mode (standalone vs browser tab).
 
 ### 2. Install Prompt
 
-Handle the browser's install prompt:
-
-```javascript
-window.addEventListener("beforeinstallprompt", (e) => {
-  e.preventDefault();
-  window.deferredInstallPrompt = e;
-});
-
-async function installApp() {
-  await window.deferredInstallPrompt?.prompt();
-  const { outcome } = await window.deferredInstallPrompt.userChoice;
-}
-```
+The browser fires a `beforeinstallprompt` event on supported platforms. Your app can capture this to show a custom "Install App" button. On platforms that don't support it (iOS Safari), users add to the home screen via the Share menu.
 
 ### 3. HTTPS
 
@@ -81,34 +57,15 @@ Swoff is built on standard browser APIs — no frameworks, no libraries. These A
 
 ### Cache API
 
-Store and retrieve network requests/responses.
-
-```javascript
-const cache = await caches.open("my-cache-v1");
-await cache.put(request, response);
-const response = await cache.match(request);
-```
+Store and retrieve network requests/responses. Used by the Service Worker to cache API responses and serve them when offline.
 
 ### IndexedDB
 
-Client-side database for structured data.
-
-```javascript
-const request = indexedDB.open("my-db", 1);
-request.onupgradeneeded = (e) => {
-  const db = e.target.result;
-  db.createObjectStore("todos", { keyPath: "id" });
-};
-```
+Client-side database for structured data. Used for the mutation queue (pending writes) and local application data.
 
 ### Fetch API
 
-Make network requests.
-
-```javascript
-const response = await fetch("/api/data");
-const data = await response.json();
-```
+Make network requests. Swoff wraps this with caching, tagging, and invalidation logic.
 
 ## Supporting APIs
 
@@ -148,5 +105,5 @@ These APIs are stable, well-documented on MDN, sufficient for offline-first apps
 
 ## Next Steps
 
-- [Offline-First Architecture](/docs/core/offline-architecture) — how to build with these APIs
+- [Offline-First Architecture](/docs/architecture/offline-architecture) — how to build with these APIs
 - [iOS Safari Limitations](/docs/concepts/ios-safari-limitations) — platform constraints

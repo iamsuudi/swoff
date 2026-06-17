@@ -1,0 +1,5 @@
+{
+  "title": "Architecture",
+  "icon": "Cog",
+  "pages": ["offline-architecture", "versioned-sw", "data-layer", "architecture"]
+}

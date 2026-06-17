@@ -1,0 +1,45 @@
+---
+title: GraphQL Module
+description: graphql/index.ts — GraphQL wrapper with body-hash caching and tag-based invalidation.
+icon: Braces
+---
+
+# GraphQL Module
+
+## `graphql/index.ts`
+
+GraphQL wrapper with body-hash caching. Brings Swoff's caching, auth, offline queue, and
+tag-based invalidation to GraphQL APIs.
+
+```ts
+import { fetchWithGql, queryGql, mutateGql } from "swoff/graphql";
+```
+
+### Functions
+
+| Function | Signature | Description |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `fetchWithGql<T>` | `(query: string, options?: GqlOptions) => Promise<{ data: T, fromCache: boolean }>` | Core function. Hashes query + variables, sets `X-SW-Cache-Key`, delegates to `fetchWithCache`. |
+| `queryGql<T>` | `(query: string, variables?: Record<string, unknown>, options?: GqlOptions) => Promise<{ data: T, fromCache: boolean }>` | Shorthand for reads — sets `type: "read"` |
+| `mutateGql<T>` | `(mutation: string, variables?: Record<string, unknown>, options?: GqlOptions) => Promise<{ data: T }>` | Shorthand for writes — sets `type: "mutation"`, auto-invalidates related tags |
+
+### How it works
+
+1. **Body hashing**: `query` + `variables` are JSON-stringified and SHA-256 hashed via `crypto.subtle.digest()`. First 16 hex chars become `X-SW-Cache-Key: gql:<hash>`.
+2. **Virtual cache URL**: The SW treats the hash as the cache key instead of the actual URL. Different queries to the same endpoint don't collide.
+3. **Auto-tags**: Operation names like `getTodos` → `["todos"]`; `createTodo` → `["todos", "todo"]`.
+4. **Offline queue**: Mutations queue in IndexedDB; reads return cached data.
+
+### `GqlOptions`
+
+All `fetchWithCache` options are available, plus:
+
+| Option | Type | Default | Description |
+| -------------- | ----------------------------- | -------------- | ------------------------------ |
+| `variables` | `Record<string, unknown>` | `undefined` | GraphQL variables |
+| `tags` | `string[]` | auto-generated | Override invalidation tags |
+| `auth` | `boolean` | `false` | Attach auth token |
+| `queueOffline` | `boolean` | `true` | Queue mutations when offline |
+| `invalidate` | `'auto' \| string[] \| false` | `'auto'` | Auto-invalidate after mutation |
+
+Generated when `features.graphql.enabled` is `true`.

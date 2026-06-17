@@ -1,0 +1,36 @@
+---
+title: "PWA: Swoff vs vite-plugin-pwa / Workbox"
+description: Manifest generation, install prompts, push notifications from a single config.
+---
+
+# PWA: Swoff vs vite-plugin-pwa / Workbox
+
+Progressive Web App features are often bolted on separately from caching infrastructure. Swoff integrates them into the same config-driven code generation pipeline as caching, auth, and data fetching.
+
+## How Swoff does it
+
+Swoff generates the full PWA surface from a single config. **Generated files:**
+
+- `manifest.json` — Web app manifest with icons, display, theme color, orientation.
+- `pwa/prompt.ts` — Install prompt management with `beforeinstallprompt` event capture.
+- `sw/template.js` — Push event listeners (push, notificationclick) in the SW.
+- App icons — Generated via the `swoff assets` command.
+
+**Reactive hook:**
+
+```tsx
+import { isInstallable, promptInstall } from "../../swoff/pwa/prompt";
+
+function InstallButton() {
+  const [installable, setInstallable] = useState(() => isInstallable());
+  // ...
+}
+```
+
+## How competitors handle it
+
+**vite-plugin-pwa:** Wraps Workbox and adds Vite-specific manifest generation. Requires Vite and wraps Workbox's SW runtime.
+
+**Workbox alone:** No PWA manifest generation, no install prompt management, no push notification handling.
+
+**Web app manifest:** Can be written manually. No integration with SW generation, no icon generation, no reactive install prompt hooks.

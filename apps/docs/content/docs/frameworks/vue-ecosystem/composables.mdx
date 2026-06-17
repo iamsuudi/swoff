@@ -1,0 +1,268 @@
+---
+title: Composables
+description: Vue composables for Swoff's service worker system.
+icon: RefreshCw
+---
+
+## Vue Composables
+
+These composables listen to window events dispatched by the client registration code and expose reactive state for your components.
+
+## useSWUpdate
+
+Main composable for the update flow.
+
+```typescript
+const {
+  currentVersion, // Ref<string | null>
+  availableVersion, // Ref<string | null>
+  updateStatus,  // Ref<'idle' | 'available' | 'downloading'>
+  progress,      // Ref<number>
+  forceUpdate,   // Ref<boolean>
+  dismissUpdate, // () => void
+  acceptUpdate,  // () => Promise<void>
+  checkForUpdates, // () => Promise<void>
+} = useSWUpdate();
+```
+
+**Usage:**
+
+```vue
+<script setup>
+import { useSWUpdate } from "./composables/useSWUpdate";
+const { updateStatus, acceptUpdate } = useSWUpdate();
+</script>
+
+<template>
+  <button v-if="updateStatus === 'available'" @click="acceptUpdate">Update</button>
+</template>
+```
+
+**Implementation:**
+
+```typescript
+import { ref, onMounted, onUnmounted } from "vue";
+
+export function useSWUpdate() {
+  const updateStatus = ref<"idle" | "available" | "downloading">("idle");
+  const currentVersion = ref<string | null>(null);
+  const availableVersion = ref<string | null>(null);
+  const progress = ref(0);
+  const forceUpdate = ref(false);
+
+  const handleUpdateAvailable = (e: Event) => {
+    const detail = (e as CustomEvent).detail;
+    const current = localStorage.getItem("swRegisteredVersion");
+    currentVersion.value = current;
+    availableVersion.value = detail.version;
+    updateStatus.value = "available";
+    forceUpdate.value = current < (window.swMinSupportedVersion || "0.0.0");
+  };
+
+  const handleProgress = (e: Event) => {
+    if (updateStatus.value === "downloading")
+      progress.value = (e as CustomEvent).detail.percent;
+  };
+
+  const handleReady = () => {
+    if (updateStatus.value === "downloading") {
+      updateStatus.value = "idle";
+      progress.value = 0;
+    }
+  };
+
+  const acceptUpdate = async () => {
+    updateStatus.value = "downloading";
+    await registerServiceWorker(availableVersion.value);
+  };
+
+  const dismissUpdate = () => {
+    if (!forceUpdate.value) {
+      updateStatus.value = "idle";
+      sessionStorage.setItem("sw-dismissed-update", "true");
+    }
+  };
+
+  const checkForUpdates = async () => {};
+
+  onMounted(() => {
+    window.addEventListener("sw-update-available", handleUpdateAvailable);
+    window.addEventListener("sw-progress", handleProgress);
+    window.addEventListener("sw-ready", handleReady);
+  });
+
+  onUnmounted(() => {
+    window.removeEventListener("sw-update-available", handleUpdateAvailable);
+    window.removeEventListener("sw-progress", handleProgress);
+    window.removeEventListener("sw-ready", handleReady);
+  });
+
+  return { currentVersion, availableVersion, updateStatus, progress, forceUpdate, dismissUpdate, acceptUpdate, checkForUpdates };
+}
+```
+
+## useSWProgress
+
+Track SW download progress.
+
+```typescript
+const { progress, status } = useSWProgress();
+// status: 'idle' | 'installing'
+```
+
+**Implementation:**
+
+```typescript
+import { ref, onMounted, onUnmounted } from "vue";
+
+export function useSWProgress() {
+  const progress = ref(0);
+  const status = ref<"idle" | "installing">("idle");
+
+  const handleProgress = (e: Event) => {
+    status.value = "installing";
+    progress.value = (e as CustomEvent).detail.percent;
+  };
+
+  const handleReady = () => {
+    status.value = "idle";
+    progress.value = 0;
+  };
+
+  onMounted(() => {
+    window.addEventListener("sw-progress", handleProgress);
+    window.addEventListener("sw-ready", handleReady);
+  });
+
+  onUnmounted(() => {
+    window.removeEventListener("sw-progress", handleProgress);
+    window.removeEventListener("sw-ready", handleReady);
+  });
+
+  return { progress, status };
+}
+```
+
+## useNetworkStatus
+
+Track online/offline connectivity state. Always generated.
+
+```typescript
+const isOnline = useNetworkStatus();
+// isOnline: boolean
+```
+
+**Usage:**
+
+```vue
+<script setup>
+import { useNetworkStatus } from "../composables/useNetworkStatus";
+const isOnline = useNetworkStatus();
+</script>
+
+<template>
+  <div v-if="!isOnline" class="banner">You're offline</div>
+</template>
+```
+
+**Implementation:**
+
+```typescript
+import { ref, onMounted, onUnmounted } from "vue";
+
+export function useNetworkStatus() {
+  const isOnline = ref(navigator.onLine);
+
+  const handleOnline = () => (isOnline.value = true);
+  const handleOffline = () => (isOnline.value = false);
+
+  onMounted(() => {
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+  });
+
+  onUnmounted(() => {
+    window.removeEventListener("online", handleOnline);
+    window.removeEventListener("offline", handleOffline);
+  });
+
+  return isOnline;
+}
+```
+
+## useBackgroundSync
+
+Register and manage background sync for offline mutations.
+
+```typescript
+const { supported, registered, lastSync, triggerSync } = useBackgroundSync();
+// supported: Ref<boolean>
+// registered: Ref<boolean>
+// lastSync: Ref<{ succeeded: number, failed: number } | null>
+// triggerSync: () => Promise<void>
+```
+
+**Implementation:**
+
+```typescript
+import { ref, onMounted } from "vue";
+
+export function useBackgroundSync() {
+  const supported = ref("serviceWorker" in navigator && "SyncManager" in window);
+  const registered = ref(false);
+  const lastSync = ref<{ succeeded: number; failed: number } | null>(null);
+
+  onMounted(() => {
+    if (!supported.value) return;
+    navigator.serviceWorker.ready.then((reg) => {
+      if (reg.sync)
+        reg.sync.register("swoff-sync").then(() => (registered.value = true));
+    });
+
+    const onSyncComplete = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      registered.value = true;
+      lastSync.value = { succeeded: detail.succeeded, failed: detail.failed };
+    };
+    window.addEventListener("background-sync-complete", onSyncComplete);
+  });
+
+  const triggerSync = async () => {
+    if (!supported.value) return;
+    const reg = await navigator.serviceWorker.ready;
+    if (reg.sync) {
+      await reg.sync.register("swoff-sync");
+      lastSync.value = { succeeded: 0, failed: 0 };
+    }
+  };
+
+  return { supported, registered, lastSync, triggerSync };
+}
+```
+
+## useCacheInvalidation
+
+Programmatically invalidate cached responses by tag or URL.
+
+```typescript
+const { invalidateByTag, invalidateByTags, invalidateUrl } = useCacheInvalidation();
+// invalidateByTag: (tag: string) => Promise<void>
+// invalidateByTags: (tags: string[]) => Promise<void>
+// invalidateUrl: (url: string) => Promise<void>
+```
+
+**Implementation:**
+
+```typescript
+import { invalidateByTag, invalidateByTags } from "./swoff/cache";
+import { invalidateUrl } from "./swoff/invalidation-tags";
+
+export function useCacheInvalidation() {
+  return { invalidateByTag, invalidateByTags, invalidateUrl };
+}
+```
+
+## Next Steps
+
+- See [Vue Components](/docs/frameworks/vue-ecosystem/components) — UI components using these composables
+- Understand the [Adapter Concept](/docs/integration/adapters) — how composables bridge window events to Vue

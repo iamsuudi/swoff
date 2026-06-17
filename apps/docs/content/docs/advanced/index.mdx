@@ -6,19 +6,13 @@ icon: Rocket
 
 ## Advanced Patterns
 
-These patterns solve real-world production needs — conflict resolution, authentication, push notifications, and more. Each is optional and independent.
+These patterns solve real-world production needs — performance, conflict resolution, testing, and debugging. Each is optional and independent.
 
 import {
-  WorkflowIcon,
-  RefreshCwIcon,
-  BellIcon,
   BugIcon,
   SearchIcon,
   GitMergeIcon,
-  ShieldIcon,
   GaugeIcon,
-  AccessibilityIcon,
-  BarChartIcon,
 } from "lucide-react";
 
 <Cards>
@@ -30,53 +24,11 @@ import {
     Cache size limits, IndexedDB optimization, and memory management.
   </Card>
   <Card
-    title="Benchmarks"
-    icon={<BarChartIcon className="text-purple-500" />}
-    href="/docs/advanced/benchmarks"
-  >
-    Measure SW install, cache latency, IndexedDB speed, and memory usage.
-  </Card>
-  <Card
-    title="Accessibility"
-    icon={<AccessibilityIcon className="text-purple-500" />}
-    href="/docs/advanced/accessibility"
-  >
-    Make offline apps accessible — screen readers, keyboard nav, ARIA.
-  </Card>
-  <Card
-    title="Mutation Queuing"
-    icon={<WorkflowIcon className="text-purple-500" />}
-    href="/docs/advanced/mutation-queuing"
-  >
-    Queue offline writes and sync when connection returns.
-  </Card>
-  <Card
-    title="Background Sync"
-    icon={<RefreshCwIcon className="text-purple-500" />}
-    href="/docs/advanced/background-sync"
-  >
-    Process mutation queue after tab close via Background Sync API.
-  </Card>
-  <Card
-    title="Push Notifications"
-    icon={<BellIcon className="text-purple-500" />}
-    href="/docs/advanced/push-notifications"
-  >
-    Subscribe to push, handle notifications, and integrate with your data layer.
-  </Card>
-  <Card
     title="Conflict Resolution"
     icon={<GitMergeIcon className="text-purple-500" />}
     href="/docs/advanced/conflict-resolution"
   >
     Handle concurrent offline edits — LWW, custom merge, manual, CRDT.
-  </Card>
-  <Card
-    title="Authentication"
-    icon={<ShieldIcon className="text-purple-500" />}
-    href="/docs/advanced/authentication"
-  >
-    Auth-aware offline architecture: store tokens, cache user, handle 401s.
   </Card>
   <Card
     title="Testing"

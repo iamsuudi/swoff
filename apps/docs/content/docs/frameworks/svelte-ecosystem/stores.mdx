@@ -1,0 +1,141 @@
+---
+title: Stores
+description: Svelte stores for Swoff's service worker system.
+icon: RefreshCw
+---
+
+## Svelte Stores
+
+These stores listen to window events dispatched by the client registration code and expose reactive state for your components.
+
+## pwaUpdate Store
+
+Main store for the update flow.
+
+```typescript
+// stores/pwaUpdate.ts
+import { writable } from "svelte/store";
+
+export const updateStatus = writable<"idle" | "available" | "downloading">(
+  "idle",
+);
+export const currentVersion = writable<string | null>(null);
+export const availableVersion = writable<string | null>(null);
+export const progress = writable(0);
+export const forceUpdate = writable(false);
+
+export function acceptUpdate() {
+  updateStatus.set("downloading");
+  registerServiceWorker(availableVersion);
+}
+
+export function dismissUpdate() {
+  if (!forceUpdate) {
+    updateStatus.set("idle");
+    sessionStorage.setItem("sw-dismissed-update", "true");
+  }
+}
+
+export async function checkForUpdates() {
+  const manifest = await checkForUpdate();
+}
+
+// Initialize listeners
+if (typeof window !== "undefined") {
+  window.addEventListener("sw-update-available", (e: Event) => {
+    const detail = (e as CustomEvent).detail;
+    const current = localStorage.getItem("swRegisteredVersion");
+    currentVersion.set(current);
+    availableVersion.set(detail.version);
+    updateStatus.set("available");
+    forceUpdate.set(current < (window.swMinSupportedVersion || "0.0.0"));
+  });
+
+  window.addEventListener("sw-progress", (e: Event) => {
+    const status = get(updateStatus);
+    if (status === "downloading") {
+      progress.set((e as CustomEvent).detail.percent);
+    }
+  });
+
+  window.addEventListener("sw-ready", () => {
+    const status = get(updateStatus);
+    if (status === "downloading") {
+      updateStatus.set("idle");
+      progress.set(0);
+    }
+  });
+}
+```
+
+**Usage:**
+
+```svelte
+<script>
+import { updateStatus, availableVersion, currentVersion, acceptUpdate, dismissUpdate, forceUpdate, progress } from './stores/pwaUpdate'
+</script>
+
+{#if $updateStatus === 'available'}
+  <div class="update-prompt">
+    <p>Update: v{$currentVersion} → v{$availableVersion}</p>
+    <button on:click={acceptUpdate}>Update</button>
+    {#if !$forceUpdate}
+      <button on:click={dismissUpdate}>Later</button>
+    {/if}
+  </div>
+{/if}
+```
+
+## swProgress Store
+
+Track SW download progress.
+
+```typescript
+// stores/swProgress.ts
+import { writable } from "svelte/store";
+
+export const progress = writable(0);
+export const status = writable<"idle" | "installing" | "ready" | "error">(
+  "idle",
+);
+
+if (typeof window !== "undefined") {
+  window.addEventListener("sw-progress", (e: Event) => {
+    status.set("installing");
+    progress.set((e as CustomEvent).detail.percent);
+  });
+
+  window.addEventListener("sw-ready", () => {
+    status.set("ready");
+    setTimeout(() => status.set("idle"), 1000);
+  });
+
+  window.addEventListener("sw-error", () => status.set("error"));
+}
+```
+
+## pwaVersion Store
+
+Read current/latest versions.
+
+```typescript
+// stores/pwaVersion.ts
+import { writable } from "svelte/store";
+
+export const currentVersion = writable<string | null>(null);
+export const latestVersion = writable<string | null>(null);
+
+if (typeof window !== "undefined") {
+  window.addEventListener("sw-version-detected", () => {
+    currentVersion.set(window.currentSWVersion || null);
+    latestVersion.set(window.latestSWVersion || null);
+  });
+  currentVersion.set(window.currentSWVersion || null);
+  latestVersion.set(window.latestSWVersion || null);
+}
+```
+
+## Next Steps
+
+- See [Svelte Components](/docs/frameworks/svelte-ecosystem/components) — UI components using these stores
+- Understand the [Adapter Concept](/docs/integration/adapters) — how stores bridge window events to Svelte

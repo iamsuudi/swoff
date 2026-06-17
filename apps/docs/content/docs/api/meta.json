@@ -1,0 +1,16 @@
+{
+  "title": "API Reference",
+  "pages": [
+    "fetch",
+    "mutation",
+    "cache",
+    "server-push",
+    "graphql",
+    "auth",
+    "pwa",
+    "push-notification",
+    "reset",
+    "storage",
+    "react-hooks"
+  ]
+}

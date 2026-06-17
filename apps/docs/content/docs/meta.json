@@ -6,16 +6,15 @@
   "pages": [
     "index",
     "introduction",
-    "features",
-    "configuration",
     "---",
     "concepts",
-    "core",
-    "patterns",
+    "guides",
+    "api",
     "advanced",
     "cli",
     "integration",
-    "guides",
-    "reference"
+    "frameworks",
+    "comparisons",
+    "architecture"
   ]
 }

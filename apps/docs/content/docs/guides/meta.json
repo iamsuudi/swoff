@@ -1,11 +1,16 @@
 {
-  "title": "Framework Guides",
-  "description": "Framework-specific Swoff integration guides.",
-  "icon": "Code",
+  "title": "Guides",
   "pages": [
-    "react-ecosystem",
-    "vue-ecosystem",
-    "svelte-ecosystem",
-    "contributing-adapters"
+    "service-worker",
+    "caching-strategy",
+    "data-fetching",
+    "navigation-caching",
+    "auth",
+    "tag-invalidation",
+    "graphql",
+    "offline-mutations",
+    "push-notifications",
+    "server-push",
+    "pwa"
   ]
 }

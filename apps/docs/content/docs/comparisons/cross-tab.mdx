@@ -1,0 +1,36 @@
+---
+title: Cross-Tab Synchronization
+description: Swoff vs BroadcastChannel vs Storage Events.
+---
+
+# Cross-Tab Synchronization: Swoff vs BroadcastChannel vs Storage Events
+
+Cross-tab synchronization keeps cache state consistent across multiple open tabs.
+
+## How Swoff does it
+
+Swoff uses the Service Worker as a central message hub with zero setup — no BroadcastChannel registration, no event listeners to wire. Every generated client automatically connects to the SW message channel. When a mutation succeeds in one tab:
+
+```
+Tab A: mutation success → dispatch INVALIDATE_TAG to SW
+  → SW: clears cache entries for tag
+  → SW: posts TAG_INVALIDATED to all clients (self.clients.matchAll())
+  → Tab B: receives TAG_INVALIDATED → dispatches cache-invalidated event
+  → Tab B: useCachedFetch for matching tag auto-refetches
+```
+
+**Key properties:**
+
+- **Transport:** `self.clients.matchAll()` — the SW posts messages to every connected client. No BroadcastChannel API needed.
+- **Scope:** Every tab with the same origin receives the event.
+- **Coverage:** All cache invalidation — auto-invalidation after mutations, manual `invalidateByTag`, server push invalidation, and mutation queue sync completion.
+- **Auth sync:** `sw-auth-state-change` is broadcast to all tabs. Logout in one tab logs out all tabs.
+- **Server push broadcast:** When the SW receives an invalidation signal via SSE or WebSocket, it broadcasts to every connected tab simultaneously.
+
+## How competitors handle it
+
+**TanStack Query:** No built-in cross-tab sync. The `refetchOnWindowFocus` option refetches when a tab gains focus, but this is a per-tab heuristic.
+
+**Apollo Client:** No built-in cross-tab sync. Each tab maintains its own in-memory normalized cache.
+
+**RxDB:** Built-in cross-tab replication via `BroadcastChannel`. Changes in one tab are broadcast to all other tabs.

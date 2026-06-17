@@ -1,0 +1,44 @@
+---
+title: "Cache Invalidation: Tag-Based vs Query-Key"
+description: URL-derived tags with SW confirmation vs manual query-key invalidation.
+---
+
+# Cache Invalidation: Tag-Based vs Query-Key
+
+Invalidation tells the cache "this data is now stale — refetch it."
+
+## How Swoff does it
+
+Swoff uses **URL-derived tags** with automatic generation, cascading dependencies, glob matching, and SW-confirmed invalidation.
+
+**Tag generation:** Every `fetchWithCache` call generates tags from the URL path:
+
+- `/api/notes` → `["notes"]`
+- `/api/notes/123` → `["notes", "notes:id"]`
+
+The SW stores these tags in an IndexedDB registry mapping tags → URLs. When a mutation succeeds:
+
+1. Looks up all URLs registered under the tag
+2. Clears those entries from the Cache Storage API
+3. Queues background refetches for stale URLs
+4. Posts `TAG_INVALIDATED` back to all clients
+5. Each `useCachedFetch` for a matching URL auto-refetches
+
+**Key properties:**
+
+- **Tag source:** URL path segments by default. GraphQL operation names used for `queryGql`/`mutateGql`.
+- **Cascading:** Tags can expand — invalidating `notes` cascades to `notes:details` if configured.
+- **Glob matching:** Tags support glob patterns (`notes:*` matches all note-related tags).
+- **SW confirmation:** `cache-invalidated` fires _after_ the SW confirms the cache is cleared.
+- **Cross-tab:** SW broadcasts `TAG_INVALIDATED` via `self.clients.matchAll()`.
+
+## How TanStack Query does it
+
+TanStack Query uses **query-key-based invalidation**. The developer manually defines a query key and calls `queryClient.invalidateQueries({ queryKey: ["notes"] })` after a mutation.
+
+**Key properties:**
+
+- **Tag source:** Developer-defined query key. No automatic derivation from URL.
+- **Cascading:** Not built-in. Must manually invalidate each related key.
+- **Confirmation:** No SW confirmation. `invalidateQueries` immediately marks entries as stale.
+- **Cross-tab:** Limited. One tab's mutation doesn't invalidate another tab's cache without manual BroadcastChannel setup.

@@ -6,8 +6,6 @@ icon: GitMerge
 
 ## Conflict Resolution
 
-**Prerequisites:** [Mutation Queuing](/docs/advanced/mutation-queuing) with ID reconciliation and `$synced` tracking.
-
 ## The Problem
 
 Two users edit the same record while offline. When both come back online, their mutations sync — but the server only has one copy of the record. Whose changes win?
@@ -464,8 +462,4 @@ async function updateTodo(id, changes) {
 - [ ] Test both auto-resolve and manual-resolve paths
 - [ ] Verify rollback works correctly when conflicts are detected
 
-## Next Steps
-
-- [Mutation Queuing](/docs/advanced/mutation-queuing) — the queue that triggers conflict detection
-- [Testing](/docs/advanced/testing) — test conflict scenarios
 

@@ -1,0 +1,38 @@
+---
+title: "GraphQL: Swoff vs Apollo Client / Relay"
+description: Body-hash URL caching vs normalized in-memory caches.
+---
+
+# GraphQL: Swoff vs Apollo Client / Relay
+
+GraphQL caching splits between **body-hash URL caching** (Swoff) and **normalized in-memory caches** (Apollo, Relay).
+
+## How Swoff does it
+
+Swoff treats GraphQL queries and mutations as HTTP requests. The cache key is a deterministic SHA-256 hash of the request URL + body:
+
+```
+const cacheKey = await bodyHash({ query: LIST_QUERY, variables });
+// → "a1b2c3d4e5f6g7h8"
+// SW caches by this key in the Cache Storage API
+```
+
+**Key properties:**
+
+- **Storage:** Cache Storage API (disk-backed, survives reloads and SW restarts).
+- **Cache key:** SHA-256 hash of the full request body (query + variables).
+- **Tags:** Auto-derived from the GraphQL operation name.
+- **Offline:** Native. Cached GraphQL responses are served from the SW cache.
+- **No normalized merging:** Each query result is cached as a complete response.
+
+## How Apollo Client does it
+
+Apollo Client uses a **normalized in-memory cache**. Every response is split into individual entities (identified by `__typename` + `id`), stored in a flat `Map`, and reassembled on read.
+
+**Key properties:**
+
+- **Storage:** In-memory `InMemoryCache` (wiped on tab close, survives via optional `persistCache` to IDB).
+- **Cache key:** `__typename` + `id` (or custom `keyFields`). Entity-based, not request-based.
+- **Tags:** No built-in tag system.
+- **Offline:** Requires `persistCache` adapter. No SW integration.
+- **Normalized merging:** A mutation updating one entity automatically updates every query referencing it.

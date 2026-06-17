@@ -1,0 +1,29 @@
+---
+title: Reset Module
+description: reset.ts — nuclear reset for the entire Swoff system.
+icon: RotateCcw
+---
+
+# Reset Module
+
+## `reset.ts`
+
+Nuclear reset for the entire Swoff system. Clears all caches, IndexedDB databases, localStorage,
+unregisters service workers, and re-registers via `initServiceWorker`.
+
+```ts
+import { resetSwoff } from "swoff/reset";
+```
+
+### `resetSwoff(options?)`
+
+```ts
+await resetSwoff({ clearStorage: true, unregisterSW: true });
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `clearStorage` | `boolean` | `true` | When true, clears all caches, IndexedDB (`swoff-*` databases), and localStorage |
+| `unregisterSW` | `boolean` | `true` | When true, unregisters and re-registers the service worker after cleanup |
+
+Always generated.

@@ -11,7 +11,6 @@ import {
   MarkdownCopyButton,
   ViewOptionsPopover,
 } from "fumadocs-ui/layouts/docs/page";
-import { Icons } from "@/components/icons";
 import { baseOptions } from "@/lib/layout.shared";
 import { gitConfig } from "@/lib/shared";
 import { useFumadocsLoader } from "fumadocs-core/source/client";
@@ -88,10 +87,7 @@ function Page() {
   );
 
   return (
-    <DocsLayout
-      {...baseOptions()}
-      tree={pageTree}
-    >
+    <DocsLayout {...baseOptions()} tree={pageTree}>
       <AISearch>
         <AISearchPanel />
         <AISearchTrigger

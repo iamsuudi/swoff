@@ -4,8 +4,6 @@ description: Generated React hooks for data fetching, mutations, auth, PWA, and 
 icon: Atom
 ---
 
-# React Hooks
-
 Generated when the framework is React-based (`"react-spa"`, `"nextjs"`, `"remix"`, `"tanstack-start-react"`, `"astro"`). All hooks live in `swoff/adapters/`.
 
 ## `useCachedFetch<T>(url, options?)`
@@ -25,14 +23,14 @@ Returns `{ data: T \| null, error: unknown, loading: boolean, refetch: () => voi
 
 ### Options
 
-| Option | Type | Default | Description |
-| ------------------ | ------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `select` | `(data: T) => TSelected` | identity | Transform the response data. Uses `useRef` to skip re-renders when the selected value is equal (`Object.is`) to the previous one. |
-| `keepPreviousData` | `boolean` | `false` | When `true`, keeps the previous successful data during a background refetch instead of showing a loading state. The returned `data` is stable — it only updates when the new fetch completes. |
-| `placeholderData` | `T \| null` | `null` | Initial data to show while the first fetch is in-flight. Useful for skeleton UI. |
-| `onSuccess` | `(data: T) => void` | — | Callback fired when a fetch succeeds. Runs at the hook level (every successful fetch). |
-| `onError` | `(err: unknown) => void` | — | Callback fired when a fetch fails. Runs at the hook level (every failed fetch). |
-| `enabled` | `boolean` | `true` | When `false`, the fetch is skipped entirely. Useful for dependent queries. |
+| Option             | Type                     | Default  | Description                                                                                                                                                                                   |
+| ------------------ | ------------------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `select`           | `(data: T) => TSelected` | identity | Transform the response data. Uses `useRef` to skip re-renders when the selected value is equal (`Object.is`) to the previous one.                                                             |
+| `keepPreviousData` | `boolean`                | `false`  | When `true`, keeps the previous successful data during a background refetch instead of showing a loading state. The returned `data` is stable — it only updates when the new fetch completes. |
+| `placeholderData`  | `T \| null`              | `null`   | Initial data to show while the first fetch is in-flight. Useful for skeleton UI.                                                                                                              |
+| `onSuccess`        | `(data: T) => void`      | —        | Callback fired when a fetch succeeds. Runs at the hook level (every successful fetch).                                                                                                        |
+| `onError`          | `(err: unknown) => void` | —        | Callback fired when a fetch fails. Runs at the hook level (every failed fetch).                                                                                                               |
+| `enabled`          | `boolean`                | `true`   | When `false`, the fetch is skipped entirely. Useful for dependent queries.                                                                                                                    |
 
 ## `useMutation<TData>(url, options?)`
 
@@ -66,12 +64,12 @@ All calls to `mutate` share the same `isLoading`, `error`, `data`, and `isSucces
 
 `mutate()` returns a `MutateResult<T>` discriminated union:
 
-| Status | Meaning | `data` | `error` |
+| Status      | Meaning                                        | `data` | `error` |
 | ----------- | ---------------------------------------------- | ------ | ------- |
-| `"success"` | Server responded with 2xx | `T` | — |
-| `"queued"` | Offline — stored in mutation queue | — | — |
-| `"error"` | Server/network error | — | `Error` |
-| `"skipped"` | Deduped — same `mutationKey` already in-flight | — | — |
+| `"success"` | Server responded with 2xx                      | `T`    | —       |
+| `"queued"`  | Offline — stored in mutation queue             | —      | —       |
+| `"error"`   | Server/network error                           | —      | `Error` |
+| `"skipped"` | Deduped — same `mutationKey` already in-flight | —      | —       |
 
 ```ts
 const result = await mutate(body);
@@ -85,18 +83,18 @@ from the same source as the return value — they stay in sync with the last mut
 
 ### Options
 
-| Option | Type | Description |
+| Option        | Type                     | Description                                                                                                                  |
 | ------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `url` | `string` | Endpoint URL. Required — fixed at the hook level. |
-| `method` | `string` | HTTP method (POST, PUT, PATCH, DELETE, etc.). |
-| `headers` | `Record<string, string>` | Request headers. |
-| `auth` | `boolean` | Attach auth headers from the auth store. |
-| `onSuccess` | `(data: T) => void` | Hook-level success callback. Runs for every successful mutation. |
-| `onError` | `(error: Error) => void` | Hook-level error callback. Runs for every failed mutation. |
-| `onMutate` | `() => void` | Called before the mutation request fires. Use for optimistic updates — mutate your local state here, roll back in `onError`. |
-| `onSettled` | `() => void` | Runs after success or error, regardless of outcome. |
-| `mutationKey` | `string` | Deduplication key — if a mutation with the same key is already in-flight, the new call is skipped. |
-| `retry` | `number \| boolean` | Retry count on failure (default 0). `true` = Infinity. |
+| `url`         | `string`                 | Endpoint URL. Required — fixed at the hook level.                                                                            |
+| `method`      | `string`                 | HTTP method (POST, PUT, PATCH, DELETE, etc.).                                                                                |
+| `headers`     | `Record<string, string>` | Request headers.                                                                                                             |
+| `auth`        | `boolean`                | Attach auth headers from the auth store.                                                                                     |
+| `onSuccess`   | `(data: T) => void`      | Hook-level success callback. Runs for every successful mutation.                                                             |
+| `onError`     | `(error: Error) => void` | Hook-level error callback. Runs for every failed mutation.                                                                   |
+| `onMutate`    | `() => void`             | Called before the mutation request fires. Use for optimistic updates — mutate your local state here, roll back in `onError`. |
+| `onSettled`   | `() => void`             | Runs after success or error, regardless of outcome.                                                                          |
+| `mutationKey` | `string`                 | Deduplication key — if a mutation with the same key is already in-flight, the new call is skipped.                           |
+| `retry`       | `number \| boolean`      | Retry count on failure (default 0). `true` = Infinity.                                                                       |
 
 ### Per-call callbacks
 
@@ -142,11 +140,11 @@ Listens to `fetch-count-changed` custom events.
 const { reset, isResetting, error } = useSwoffReset();
 ```
 
-| Field | Type | Description |
+| Field         | Type                          | Description                                                         |
 | ------------- | ----------------------------- | ------------------------------------------------------------------- |
-| `reset` | `(options?) => Promise<void>` | Calls `resetSwoff()` with optional `{ clearStorage, unregisterSW }` |
-| `isResetting` | `boolean` | `true` while the reset is in progress |
-| `error` | `unknown` | Last error from a failed reset attempt, or `null` |
+| `reset`       | `(options?) => Promise<void>` | Calls `resetSwoff()` with optional `{ clearStorage, unregisterSW }` |
+| `isResetting` | `boolean`                     | `true` while the reset is in progress                               |
+| `error`       | `unknown`                     | Last error from a failed reset attempt, or `null`                   |
 
 ## `useMutationState(id)`
 
@@ -166,13 +164,13 @@ Pass `null` or empty string to disable.
 const { pending, items, lastSync, isProcessing, retryAll } = useMutationQueue();
 ```
 
-| Field | Type | Description |
+| Field          | Type                                            | Description                                                                                                       |
 | -------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `pending` | `number` | Count of mutations waiting to sync |
-| `items` | `MutationQueueItem[]` | All pending items with status, retry count, URL, method |
-| `lastSync` | `{ succeeded: number, failed: number } \| null` | Result of the last sync attempt |
-| `isProcessing` | `boolean` | `true` while the mutation queue is actively processing items (derived from `mutation-sync-complete` custom event) |
-| `retryAll` | `() => Promise<void>` | Manually trigger a full replay of all queued mutations |
+| `pending`      | `number`                                        | Count of mutations waiting to sync                                                                                |
+| `items`        | `MutationQueueItem[]`                           | All pending items with status, retry count, URL, method                                                           |
+| `lastSync`     | `{ succeeded: number, failed: number } \| null` | Result of the last sync attempt                                                                                   |
+| `isProcessing` | `boolean`                                       | `true` while the mutation queue is actively processing items (derived from `mutation-sync-complete` custom event) |
+| `retryAll`     | `() => Promise<void>`                           | Manually trigger a full replay of all queued mutations                                                            |
 
 ## `useNetworkStatus()`
 
@@ -181,13 +179,13 @@ const { online, wasOffline, lastChangedAt, effectiveType, downlink } =
   useNetworkStatus();
 ```
 
-| Field | Type | Description |
-| ---------------- | ------------ | ---------------------------------------------------------------------------------------- |
-| `online` | `boolean` | Current online status |
-| `wasOffline` | `boolean` | `true` if the browser was offline at any point since the hook mounted |
-| `lastChangedAt` | `Date \| null` | Timestamp of the last online/offline transition |
-| `effectiveType` | `string` | Network effective type (`"slow-2g"`, `"2g"`, `"3g"`, `"4g"`) from `navigator.connection` |
-| `downlink` | `number` | Estimated downlink speed in Mb/s from `navigator.connection` |
+| Field           | Type           | Description                                                                              |
+| --------------- | -------------- | ---------------------------------------------------------------------------------------- |
+| `online`        | `boolean`      | Current online status                                                                    |
+| `wasOffline`    | `boolean`      | `true` if the browser was offline at any point since the hook mounted                    |
+| `lastChangedAt` | `Date \| null` | Timestamp of the last online/offline transition                                          |
+| `effectiveType` | `string`       | Network effective type (`"slow-2g"`, `"2g"`, `"3g"`, `"4g"`) from `navigator.connection` |
+| `downlink`      | `number`       | Estimated downlink speed in Mb/s from `navigator.connection`                             |
 
 ## `useAuth()`
 
@@ -204,16 +202,16 @@ const {
 } = useAuth();
 ```
 
-| Field | Type | Description |
-| ---------------- | ----------------------------------- | ----------------------------------------------------------------------------- |
-| `authenticated` | `boolean` | Whether the user is authenticated |
-| `auth` | `AuthData \| null` | Full auth data (typed via `AuthData` interface). Access user via `auth.user`. |
-| `online` | `boolean` | Current online status (from connectivity manager) |
-| `isLoading` | `boolean` | `true` while checking auth state on mount |
-| `error` | `unknown` | Last auth error, or `null` |
-| `setAuth` | `(data: AuthData) => Promise<void>` | Manually set auth data |
-| `clearAuth` | `() => Promise<void>` | Clear auth data (cascades: memory → IDB → caches → SW broadcast) |
-| `ensureValid` | `() => Promise<boolean>` | Check auth validity and refresh if needed. Returns `true` if valid. |
+| Field           | Type                                | Description                                                                   |
+| --------------- | ----------------------------------- | ----------------------------------------------------------------------------- |
+| `authenticated` | `boolean`                           | Whether the user is authenticated                                             |
+| `auth`          | `AuthData \| null`                  | Full auth data (typed via `AuthData` interface). Access user via `auth.user`. |
+| `online`        | `boolean`                           | Current online status (from connectivity manager)                             |
+| `isLoading`     | `boolean`                           | `true` while checking auth state on mount                                     |
+| `error`         | `unknown`                           | Last auth error, or `null`                                                    |
+| `setAuth`       | `(data: AuthData) => Promise<void>` | Manually set auth data                                                        |
+| `clearAuth`     | `() => Promise<void>`               | Clear auth data (cascades: memory → IDB → caches → SW broadcast)              |
+| `ensureValid`   | `() => Promise<boolean>`            | Check auth validity and refresh if needed. Returns `true` if valid.           |
 
 Reacts to `sw-auth-state-change` events dispatched by `clearAuth()`, `setAuth()`, or the SW's AUTH_CLEARED broadcast for cross-tab sync.
 
@@ -256,15 +254,15 @@ const { usage, quota, percentUsed, formattedUsage, formattedQuota, loading } =
   useStorageEstimate();
 ```
 
-| Field | Type | Description |
+| Field            | Type             | Description                                      |
 | ---------------- | ---------------- | ------------------------------------------------ |
-| `usage` | `number` | Bytes used (from `navigator.storage.estimate()`) |
-| `quota` | `number` | Total quota in bytes |
-| `percentUsed` | `number` | Percentage of quota used (0–100) |
-| `formattedUsage` | `string` | Human-readable usage (e.g. `"1.5 MB"`) |
-| `formattedQuota` | `string` | Human-readable quota (e.g. `"100 MB"`) |
-| `loading` | `boolean` | `true` while the estimate is being fetched |
-| `error` | `string \| null` | Error message if the estimate failed |
+| `usage`          | `number`         | Bytes used (from `navigator.storage.estimate()`) |
+| `quota`          | `number`         | Total quota in bytes                             |
+| `percentUsed`    | `number`         | Percentage of quota used (0–100)                 |
+| `formattedUsage` | `string`         | Human-readable usage (e.g. `"1.5 MB"`)           |
+| `formattedQuota` | `string`         | Human-readable quota (e.g. `"100 MB"`)           |
+| `loading`        | `boolean`        | `true` while the estimate is being fetched       |
+| `error`          | `string \| null` | Error message if the estimate failed             |
 
 By default, re-checks on every `visibilitychange` to `"visible"` (pass `false` to disable auto-refresh).
 

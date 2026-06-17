@@ -1,5 +1,5 @@
 {
   "title": "Architecture",
   "icon": "Cog",
-  "pages": ["offline-architecture", "versioned-sw", "data-layer", "architecture"]
+  "pages": ["hybrid-model", "caching", "data-sync", "graphql-and-push", "auth", "observability"]
 }

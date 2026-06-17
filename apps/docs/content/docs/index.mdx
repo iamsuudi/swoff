@@ -1,35 +1,42 @@
 ---
 title: Motivation
-description: Why Swoff exists and the future of client-side web apps.
+description: Why Swoff exists and how it fits any web stack.
 icon: Zap
 ---
 
-## Why Swoff
+Swoff is a **code generation toolchain** for offline-first, installable PWAs — not a runtime library. It generates an auditable service worker and client code from a single config file, with zero runtime dependencies.
 
-Modern web frameworks (Next.js, Nuxt, etc.) have shifted toward server-side rendering, leaving powerful browser APIs — Service Worker, IndexedDB, Cache API — underutilized. Meanwhile, state management libraries lock you into specific frameworks, and most tools abstract away the browser's native offline capabilities.
+- You only need Node.js to run the CLI and build script — no `package.json`, no `npm install` in your project
+- The output is plain JavaScript you serve as a static asset
+- Works with any backend (Laravel, Django, Rails, Go, PHP) and any frontend (React, Vue, Svelte, HTMX, vanilla)
 
-Swoff is a framework-agnostic, zero-dependency CLI for client-first web apps. It generates code you **own**:
-
-- Run `npx @swoff/cli generate` to produce SW + supporting files
-- Every generated file is yours — edit, extend, or remove as needed
-- Pair with any framework (React, Vue, Svelte, vanilla JS)
-- Build offline-first, installable PWAs that feel native
-- Ship updates instantly — no app store friction
-
-> We provide code and architecture, not locked-in dependencies.
+```bash
+# Get started with any project
+npx @swoff/cli init --framework vanilla && npx @swoff/cli generate
+```
 
 ## What Swoff is NOT
 
-- **Not a runtime npm package** — the CLI generates code you own, with zero runtime dependencies
-- **Not a backend framework** — bring your own Go, Node.js, Python
-- **Not tied to any fullstack framework** — purely client-side
+- **Not a runtime npm package** — the CLI generates code you own, zero KB in your bundle
+- **Not a backend framework** — bring your own Go, Node.js, Python, PHP
+- **Not tied to any fullstack framework** — purely client-side, framework-agnostic
 - **Not an SSR framework** — we focus on browser APIs after the page loads
 
 :::warning
 Swoff focuses on **client-side browser APIs** (offline app shell, data caching, sync). Your backend is your responsibility.
 :::
 
+## Why this approach
+
+Most tools either:
+- Lock you into a framework (TanStack Query, Apollo Client)
+- Only handle the SW (Workbox, Serwist)
+- Force a dual-database architecture (RxDB, TanStack DB)
+
+Swoff operates at the `fetch` event layer — below the application and data-fetching layers. This makes it smaller, simpler, and composable with anything.
+
 ## Next Steps
 
-- [Introduction](/docs/introduction) — get started in 2 commands
-- [CLI Reference](/docs/cli) — command overview
+- [Framework Integration](/docs/frameworks) — per-ecosystem config guides
+- [Ecosystem Compatibility](/docs/frameworks/ecosystem) — backend and framework support
+- [Library Comparison](/docs/comparisons) — Swoff vs alternatives

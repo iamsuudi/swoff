@@ -4,8 +4,6 @@ description: server-push/client.ts — SSE/WebSocket connection manager for real
 icon: Radio
 ---
 
-# Server Push Module
-
 ## `server-push/client.ts`
 
 SSE/WebSocket connection manager for real-time cache invalidation.
@@ -18,11 +16,11 @@ The service worker maintains the connection directly; this module is auto-manage
 
 ### Functions
 
-| Function | Description |
+| Function            | Description                                                                                                                                                                       |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `startPushEvents()` | Connect to the push endpoint and begin listening for invalidation events. Auto-reconnects on connection loss with exponential backoff (initial delay from config, capped at 30s). |
-| `stopPushEvents()` | Disconnect from the push endpoint |
-| `isPushConnected()` | Returns `boolean` — whether the connection is currently active |
+| `stopPushEvents()`  | Disconnect from the push endpoint                                                                                                                                                 |
+| `isPushConnected()` | Returns `boolean` — whether the connection is currently active                                                                                                                    |
 
 ### Events
 

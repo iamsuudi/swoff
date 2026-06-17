@@ -1,5 +1,0 @@
-{
-  "title": "Vue",
-  "icon": "vue",
-  "pages": ["composables", "components", "vue-vite", "nuxt"]
-}

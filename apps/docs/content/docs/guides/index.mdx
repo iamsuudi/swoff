@@ -4,22 +4,20 @@ description: Walk through Swoff features step by step.
 icon: BookOpen
 ---
 
-# Swoff Integration Guides
-
 Walk through Swoff features step by step. Each guide is standalone — start with what you need, skip what you don't.
 
-| Guide | Competitor it replaces | What you'll integrate |
-| ----- | ---------------------- | --------------------- |
-| [1. Service Worker](/docs/guides/service-worker) | Workbox / Serwist | SW lifecycle, versioning, auto-activation, navigation preload |
-| [2. Caching Strategy](/docs/guides/caching-strategy) | TanStack Query / SWR | 6 strategies, patterns, reactive, timeout, eviction |
-| [3. Data Fetching & Caching](/docs/guides/data-fetching) | TanStack Query / SWR | fetchWithCache, stale-while-revalidate, prefetch |
-| [4. Navigation Caching](/docs/guides/navigation-caching) | — | SPA/SSR navigation, preload, fallback, precache routes |
-| [5. Auth](/docs/guides/auth) | — | Auth headers, 401 detection, token refresh, protected routes |
-| [6. Tag Invalidation](/docs/guides/tag-invalidation) | TanStack Query invalidateQueries | Auto-tags, glob patterns, cascading, cross-tab invalidation |
-| [7. GraphQL](/docs/guides/graphql) | Apollo Client | Body-hash caching, operation-name auto-tags |
-| [8. Offline Mutations](/docs/guides/offline-mutations) | RxDB / PouchDB | Queue writes offline, replay online, background-sync |
-| [9. Push Notifications](/docs/guides/push-notifications) | Web Push API | Subscribe, notify, unsubscribe |
-| [10. Server Push](/docs/guides/server-push) | Socket.io | SSE/WS from SW, live tag invalidation across all tabs |
-| [11. PWA Foundation](/docs/guides/pwa) | Workbox / Serwist | Install prompt, manifest, icons, storage estimate |
+| Guide                                                    | Related tools                    | What you'll integrate                                         |
+| -------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------- |
+| [1. Service Worker](/docs/guides/service-worker)         | Workbox / Serwist                | SW lifecycle, versioning, auto-activation, navigation preload |
+| [2. Caching Strategy](/docs/guides/caching-strategy)     | TanStack Query / SWR             | 6 strategies, patterns, reactive, timeout, eviction           |
+| [3. Data Fetching & Caching](/docs/guides/data-fetching) | TanStack Query / SWR             | fetchWithCache, stale-while-revalidate, prefetch              |
+| [4. Navigation Caching](/docs/guides/navigation-caching) | —                                | SPA/SSR navigation, preload, fallback, precache routes        |
+| [5. Auth](/docs/guides/auth)                             | —                                | Auth headers, 401 detection, token refresh, protected routes  |
+| [6. Tag Invalidation](/docs/guides/tag-invalidation)     | TanStack Query invalidateQueries | Auto-tags, glob patterns, cascading, cross-tab invalidation   |
+| [7. GraphQL](/docs/guides/graphql)                       | Apollo Client                    | Body-hash caching, operation-name auto-tags                   |
+| [8. Offline Mutations](/docs/guides/offline-mutations)   | RxDB / PouchDB                   | Queue writes offline, replay online, background-sync          |
+| [9. Push Notifications](/docs/guides/push-notifications) | Web Push API                     | Subscribe, notify, unsubscribe                                |
+| [10. Server Push](/docs/guides/server-push)              | Socket.io                        | SSE/WS from SW, live tag invalidation across all tabs         |
+| [11. PWA Foundation](/docs/guides/pwa)                   | Workbox / Serwist                | Install prompt, manifest, icons, storage estimate             |
 
 New to Swoff? Start with guides 1–2 — they're the foundation for everything else and are enabled by default after `swoff init`.

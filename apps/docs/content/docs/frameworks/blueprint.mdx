@@ -1,0 +1,115 @@
+---
+title: Adapter Blueprint
+description: All Swoff events and properties — create adapters for any framework.
+icon: Puzzle
+---
+
+# Adapter Blueprint
+
+Swoff communicates with your framework through standard browser APIs: `window` events and `CustomEvent` details. If you know how to listen to a DOM event and expose reactive state in your framework, you can create an adapter.
+
+No Swoff internals required.
+
+## The contract
+
+```
+Swoff client-injector (framework-agnostic)
+  ↓ dispatches window custom events
+Your adapter (framework-specific)
+  ↓ listens and exposes as reactive state
+Your UI components
+```
+
+## Window events
+
+These are the "sockets" Swoff provides. Listen with `window.addEventListener(eventName, handler)`.
+
+| Event | Detail shape | When dispatched |
+|---|---|---|
+| `sw-update-available` | `{ version: string, currentVersion: string, forceUpdate: boolean }` | New SW version detected on the server |
+| `sw-progress` | `{ percent: number }` | During SW download/install |
+| `sw-ready` | — | SW activated and controlling the page |
+| `sw-error` | `{ error: string }` | SW registration or update failed |
+| `sw-auth-state-change` | `{ type: "login" \| "logout" \| "refresh" \| "clear" }` | Auth state changed |
+| `cache-invalidated` | `{ tags: string[] }` | Cache entries invalidated (locally or from another tab) |
+| `mutation-sync-complete` | `{ succeeded: number, failed: number }` | Offline mutation queue sync finished |
+| `mutation-queue-changed` | — | Queue contents changed (mutation added or processed) |
+| `background-sync-complete` | `{ succeeded: number, failed: number }` | Background sync event finished |
+| `push-subscription-changed` | `{ subscribed: boolean }` | Push subscription added or removed |
+| `push-permission-changed` | `{ permission: NotificationPermission }` | Notification permission granted or denied |
+| `sw-offline-fallback` | `{ url: string, fallbackLevel: string }` | SW served an offline fallback page |
+
+## Window properties
+
+Swoff sets these properties on `window` for synchronous access:
+
+| Property | Type | Purpose |
+|---|---|---|
+| `window.currentSWVersion` | `string \| undefined` | Currently active SW version |
+| `window.latestSWVersion` | `string \| undefined` | Latest version available on server |
+| `window.swMinSupportedVersion` | `string \| undefined` | Minimum version that can still serve |
+| `window.swUpdateRequired` | `boolean \| undefined` | Whether the update is enforced |
+
+## Adapter template
+
+Every adapter follows the same pattern. Here's a minimal `useCachedFetch` for any reactive framework:
+
+```ts
+// 1. Define the reactive state shape
+interface CachedFetchState<T> {
+  data: T | null;
+  isLoading: boolean;
+  error: Error | null;
+  fromCache: boolean;
+}
+
+// 2. Create adapter using your framework's reactive primitives
+//    React: useState + useEffect
+//    Vue:   ref + onMounted
+//    Svelte: writable + onMount
+
+function useCachedFetch(url: string) {
+  // Initialize reactive state
+  // Call swoff fetch on mount / url change
+  // Listen to cache-invalidated to refetch
+  // Return reactive state
+}
+```
+
+The 16 hooks available in the React ecosystem show the complete pattern — inspect the generated files in `swoff/adapters/` for reference.
+
+## Adapter list
+
+These are the standard adapters. Each maps directly to the events above:
+
+| Adapter | Listens to | Exposes |
+|---|---|---|
+| `useNetworkStatus` | `window` online/offline events | `online`, `wasOffline`, `effectiveType`, `retry` |
+| `useCachedFetch` | `cache-invalidated` | `data`, `isLoading`, `error`, `fromCache`, `refetch` |
+| `useSWUpdate` | `sw-update-available`, `sw-progress`, `sw-ready`, `sw-error` | `updateStatus`, `progress`, `acceptUpdate`, `dismissUpdate` |
+| `useAuth` | `sw-auth-state-change` | `authenticated`, `auth`, `online`, `setAuth`, `clearAuth` |
+| `useCacheInvalidation` | `cache-invalidated` | `invalidateByTag`, `invalidateByTags` |
+| `useMutationQueue` | `mutation-queue-changed` | `pending`, `items`, `isProcessing`, `retryAll` |
+| `usePushSubscription` | `push-subscription-changed`, `push-permission-changed` | `subscribed`, `permission`, `subscribe`, `unsubscribe` |
+| `useBackgroundSync` | `background-sync-complete` | `supported`, `registered`, `triggerSync` |
+| `usePwaInstall` | `beforeinstallprompt` | `isInstallable`, `promptInstall` |
+| `usePrefetch` | — | `prefetch` (calls `prefetchCache`) |
+| `useMutation` | — | `mutate` (calls `fetchWithCache`) |
+| `useMutationState` | `mutation-queue-changed` | `states`, `track`, `getState` |
+| `useSwoffReset` | — | `reset` (calls `resetSwoff`) |
+| `useIsFetching` | — | `isFetching`, `fetchCount` |
+| `useOfflineAnalytics` | `sw-offline-fallback` | `events`, `lastEvent` |
+| `useStorageEstimate` | — | `usage`, `quota`, `percentUsed` |
+
+## Prerequisites
+
+- Basic knowledge of your framework's reactive system (hooks, refs, stores, signals)
+- Familiarity with `window.addEventListener` and `CustomEvent`
+- The generated `swoff/` directory in your project
+
+## How to add a new framework
+
+1. Create a file for your framework (e.g., `frameworks/solid.mdx`)
+2. Document the `swoff.config.json` values specific to that framework
+3. Link to this Blueprint for the adapter implementation
+4. Update `frameworks/meta.json` to include your file

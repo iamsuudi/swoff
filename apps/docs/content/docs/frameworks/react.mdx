@@ -1,0 +1,90 @@
+---
+title: React
+description: Swoff config and adapters for all React-based frameworks.
+icon: react
+---
+
+# React
+
+All React-based frameworks (Vite, Next.js, Remix, TanStack Start, Astro) share the same adapter layer — the CLI generates 16 React hooks into `swoff/adapters/`. The only differences are config values in `swoff.config.json`.
+
+## Config per flavor
+
+| Setting | React + Vite | Next.js (static) | Remix | TanStack Start | Astro |
+|---|---|---|---|---|---|
+| `build.outputDir` | `"dist"` | `"out"` | `"build/client"` | `"dist"` | `"dist"` |
+| `build.swFilename` | `"sw"` | `"sw"` | `"sw"` | `"sw"` | `"sw"` |
+| `navigation.mode` | `"spa"` | `"spa"` | `"spa"` | `"spa"` | `"spa"` |
+| `navigation.fallback` | `"/index.html"` | `"/index.html"` | `"/index.html"` | `"/index.html"` | `"/404"` |
+| `navigation.preload` | `true` | `true` | `true` | `true` | `false` |
+| `strategy.ignoreQueryParams` | `[]` | `["_rsc"]` | `["_data"]` | `[]` | `[]` |
+
+All other config fields (`strategy.default`, `strategy.patterns`, `features.*`) are the same across flavors.
+
+## Generated adapters
+
+The CLI generates these hooks into `swoff/adapters/`. Import them directly:
+
+```ts
+import { useCachedFetch } from "./swoff/adapters/useCachedFetch";
+```
+
+| Hook | Condition | Purpose |
+|---|---|---|
+| `useNetworkStatus` | always | Online/offline state, connection type, retry |
+| `useCachedFetch` | always | Reactive fetch with caching and auth |
+| `useMutation` | always | Mutate data with SW awareness |
+| `usePrefetch` | always | Prefetch resources before navigation |
+| `useMutationState` | always | Per-mutation lifecycle tracking |
+| `useCacheInvalidation` | always | `invalidateByTag()` from your UI |
+| `useSwoffReset` | always | Wipe all caches, IDB, SW |
+| `useIsFetching` | always | Global in-flight request counter |
+| `useOfflineAnalytics` | always | Track offline fallback events |
+| `useStorageEstimate` | always | Storage quota and usage |
+| `useSWUpdate` | `pwa.enabled` | SW update lifecycle |
+| `usePwaInstall` | `pwa.enabled` | Install prompt handler |
+| `useAuth` | `auth.enabled` | Auth state, login/logout |
+| `useMutationQueue` | `mutationQueue.enabled` | Offline write queue |
+| `useBackgroundSync` | `mutationQueue.backgroundSync` | Background sync registration |
+| `usePushSubscription` | `pushNotifications` | Push notification subscription |
+
+All hooks are documented in the [API Reference](/docs/api/react-hooks).
+
+## Entry point
+
+For all React flavors, import `initServiceWorker` in your root component:
+
+```tsx
+import { useEffect } from "react";
+import { initServiceWorker } from "./swoff/client-injector";
+
+function App() {
+  useEffect(() => { initServiceWorker(); }, []);
+  return <YourApp />;
+}
+```
+
+Next.js App Router: add `"use client"` and call in `app/layout.tsx`.
+Next.js Pages Router: call in `pages/_app.tsx`.
+Remix: call in `app/root.tsx` client entry.
+Astro: call in a client-side script or Island component.
+
+## Build script
+
+Run the SW generator after your build:
+
+```bash
+node swoff/sw/generator.js
+```
+
+Or add it to `package.json`:
+
+```json
+{
+  "scripts": {
+    "build": "your-framework-build && node swoff/sw/generator.js"
+  }
+}
+```
+
+Next.js static export output goes to `out/` — the SW generator reads `build.outputDir` from config and writes there automatically.

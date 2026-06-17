@@ -1,15 +1,11 @@
 # Swoff Documentation
 
-This is the documentation site for Swoff, built with Fumadocs.
-
-## About
-
-Documentation for the Swoff offline-first blueprint — teaching developers how to build offline-capable web apps using pure browser APIs.
+Documentation site for [Swoff](https://github.com/iamsuudi/swoff) — a config-driven code generation toolchain for offline-first PWAs.
 
 ## Tech Stack
 
 - [Fumadocs](https://fumadocs.dev/) — Documentation framework
-- [TanStack Start](https://tanstack.com/start/latest) — Full-stack React framework (client-only mode)
+- [TanStack Start](https://tanstack.com/start/latest) — Full-stack React framework (static export)
 - [Vite](https://vitejs.dev/) — Build tool
 
 ## Run Development Server
@@ -18,22 +14,19 @@ Documentation for the Swoff offline-first blueprint — teaching developers how 
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to view the docs.
+Visit [http://localhost:3000](http://localhost:3000).
 
 ## Documentation Structure
 
 ```
 content/docs/
-├── index.mdx              # Introduction
-├── introduction.mdx       # Getting started
-├── features.mdx           # Feature overview
-├── configuration/         # Config reference & migration
-├── cli.mdx                # CLI reference
-├── concepts/              # Theory and browser APIs
-├── core/                  # Core architecture guides
-├── patterns/              # Copy-paste code patterns
-├── advanced/              # Advanced patterns (auth, sync, etc.)
-├── integration/           # Framework-agnostic integration concepts
-├── guides/                # Framework-specific setup
-└── reference/             # Example apps
+├── index.mdx              # Motivation & positioning
+├── introduction.mdx       # Getting started in 2 commands
+├── meta.json              # Sidebar order
+├── architecture/          # Design rationale docs
+├── cli/                   # CLI commands & config schema
+├── comparisons/           # Swoff vs alternatives
+├── frameworks/            # Per-ecosystem integration
+├── guides/                # Feature guides
+└── api/                   # Generated file reference
 ```

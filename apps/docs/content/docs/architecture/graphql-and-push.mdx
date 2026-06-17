@@ -1,0 +1,82 @@
+---
+title: GraphQL & Server Push
+description: Body-hash GraphQL caching and SSE/WebSocket server push transport.
+icon: GitGraph
+---
+
+## Body-hash GraphQL caching
+
+GraphQL queries are POST requests with the query and variables in the body. Standard HTTP caching can't handle this because the URL is always the same but the response differs per query.
+
+Swoff's approach:
+1. JSON-stringify `query` + `variables`
+2. SHA-256 hash via `crypto.subtle.digest()`
+3. First 16 hex chars become the cache key → `X-SW-Cache-Key: gql:<hash>`
+4. The SW caches under a virtual URL (`/__swc/gql:<hash>`)
+5. Different queries to the same endpoint don't collide
+
+**Why not a normalized entity cache** (like Apollo/Relay)?
+
+- Normalized caches require a schema-aware cache layer that normalizes every response into entities
+- This adds significant complexity: schema introspection, entity merging, garbage collection
+- Swoff is **config-driven and generates auditable code** — a normalized cache would need runtime logic that can't be generated statically
+- The body-hash approach is simple, deterministic, and produces cache keys that are visible in the SW's Cache Storage
+
+**Auto-tags from operation names:**
+- `query getTodos { ... }` → tags: `["todos"]`
+- `mutation createTodo(...)` → tags: `["todos", "todo"]`
+- These auto-invalidate after mutations, just like REST tag invalidation
+
+## Server push transport: SSE vs WebSocket
+
+Both transports are supported via `features.serverPush.type`.
+
+| Aspect | SSE | WebSocket |
+|--------|-----|-----------|
+| Direction | Server → Client only | Bidirectional |
+| Protocol | HTTP (standard) | WS (upgraded) |
+| Browser support | All modern browsers | All modern browsers |
+| Reconnection | Built-in `EventSource` auto-reconnects | Manual reconnection logic needed |
+| Binary data | Text only | Text + binary |
+| Server complexity | Simple — any HTTP server can send SSE | Requires WebSocket handshake + frame handling |
+
+**Default: SSE**. It's simpler, the browser handles reconnection, and Swoff only needs server-to-client invalidation events — no bidirectional communication is required.
+
+The SW manages the connection directly for reliability across page navigations. The client-side `server-push/client.ts` is a fallback that starts the connection when the SW is not yet active.
+
+**Server event format (SSE):**
+```
+event: invalidate
+data: {"tags": ["todos", "categories"]}
+```
+
+**Server message format (WebSocket):**
+```json
+{"event": "invalidate", "tags": ["todos", "categories"]}
+```
+
+When the SW receives an `invalidate` event, it calls `invalidateByTags(tags)` which removes matching cache entries and queues each invalidated URL through the shared batch refresh queue.
+
+## Tag invalidation flow
+
+```
+On tag invalidation:
+  → open tag DB → find all entries matching tag
+  → delete cache entries from runtime cache (by cache key URL)
+  → queueRefresh(entry.actualUrl) for each (deduplicated via batch queue)
+  → on successful refetch → CACHE_UPDATED to all clients
+```
+
+The tag DB stores both `url` (cache key) and `actualUrl` (the real request URL). `invalidateByTag` deletes cache by `url` but fetches the live endpoint by `actualUrl`, ensuring the server is hit correctly.
+
+## Tag introspection
+
+Swoff exposes three introspection functions for debugging and dynamic invalidation:
+
+| Client function | SW handler | Description |
+|---|---|---|
+| `getUrlsForTag(tag)` → `{ url, actualUrl }[]` | `GET_URLS_FOR_TAG` | Query all URLs cached under a given tag |
+| `getTagsForUrl(url)` → `string[]` | `GET_TAGS_FOR_URL` | Query all tags associated with a URL |
+| `invalidateMatching(glob)` | `INVALIDATE_MATCHING` | Invalidate all cached entries whose URL matches a glob pattern |
+
+The client functions use `MessageChannel` to communicate with the SW. `invalidateMatching` scans all entries in the tag registry, filters by `matchGlob(url, globPattern)`, collects unique tags, and calls `invalidateByTag(tag)` for each matching tag.

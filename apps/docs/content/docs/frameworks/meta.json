@@ -1,11 +1,5 @@
 {
-  "title": "Framework Guides",
-  "description": "Framework-specific Swoff integration guides.",
-  "icon": "Code",
-  "pages": [
-    "react-ecosystem",
-    "vue-ecosystem",
-    "svelte-ecosystem",
-    "contributing-adapters"
-  ]
+  "title": "Framework Integration",
+  "icon": "Cable",
+  "pages": ["index", "ecosystem", "react", "vue", "svelte", "blueprint"]
 }

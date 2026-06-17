@@ -4,8 +4,6 @@ description: push-notification/index.ts — push notification subscription manag
 icon: Bell
 ---
 
-# Push Notification Module
-
 ## `push-notification/index.ts`
 
 Push notification subscription management with IndexedDB persistence.
@@ -20,12 +18,12 @@ import {
 } from "swoff/push-notification";
 ```
 
-| Function | Description |
+| Function                          | Description                                                                            |
 | --------------------------------- | -------------------------------------------------------------------------------------- |
-| `subscribeToPush()` | Request permission and subscribe. Returns `PushSubscription \| null` (null if denied). |
-| `unsubscribeFromPush()` | Unsubscribe and clear stored subscription |
-| `isSubscribed()` | Check subscription status (returns `Promise<boolean>`) |
-| `getPushSubscription()` | Get current subscription object (returns `Promise<PushSubscription \| null>`) |
-| `requestNotificationPermission()` | Request permission only. Returns `Promise<boolean>`. |
+| `subscribeToPush()`               | Request permission and subscribe. Returns `PushSubscription \| null` (null if denied). |
+| `unsubscribeFromPush()`           | Unsubscribe and clear stored subscription                                              |
+| `isSubscribed()`                  | Check subscription status (returns `Promise<boolean>`)                                 |
+| `getPushSubscription()`           | Get current subscription object (returns `Promise<PushSubscription \| null>`)          |
+| `requestNotificationPermission()` | Request permission only. Returns `Promise<boolean>`.                                   |
 
 Generated when `features.pushNotifications` is `true`.

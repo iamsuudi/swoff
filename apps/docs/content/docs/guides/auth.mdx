@@ -4,8 +4,6 @@ description: Auth headers, 401 detection, token refresh, protected routes, cross
 icon: Lock
 ---
 
-# Auth-Aware Caching
-
 > Swoff's auth layer is unique — no equivalent in general-purpose data fetching libraries. Auth headers are injected automatically into `fetchWithCache` calls, 401 responses trigger silent token refresh, and `clearAuth()` purges memory + IndexedDB + runtime caches + cross-tab in a single call.
 
 ## Preconditions
@@ -30,12 +28,12 @@ Or set `features.auth.enabled: true` and `features.auth.type` in `swoff.config.j
 
 ## Generated files
 
-| File | What it does | Import in your code? |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
-| `swoff/auth/adapter.ts` | Maps Swoff auth to your provider | Yes — import `adapter` for type reference |
-| `swoff/auth/store.ts` | `setAuth()`, `getAuth()`, `clearAuth()`, `ensureValidAuth()`, `isAuthValid()`, `withAuthHeaders()`, `isAuthUrl()`, `AUTH_WITH_CREDENTIALS` | Yes — main auth API |
-| `swoff/auth/state.ts` | `getAuthState()` — 4-state matrix (online/offline × authed/unauthed) | Yes |
-| `swoff/auth/check.ts` | `isAuthFailureResponse()` — customize what both the SW and client treat as auth failure | Yes — edit this file |
+| File                    | What it does                                                                                                                               | Import in your code?                      |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
+| `swoff/auth/adapter.ts` | Maps Swoff auth to your provider. Defines `AuthData` + exports `adapter` with `getAuth`, `getHeaders`, `refresh`, `fetchUser`.             | Yes — import `adapter` for type reference |
+| `swoff/auth/store.ts`   | `setAuth()`, `getAuth()`, `clearAuth()`, `ensureValidAuth()`, `isAuthValid()`, `withAuthHeaders()`, `isAuthUrl()`, `AUTH_WITH_CREDENTIALS` | Yes — main auth API                       |
+| `swoff/auth/state.ts`   | `getAuthState()` — 4-state matrix (online/offline × authed/unauthed)                                                                       | Yes                                       |
+| `swoff/auth/check.ts`   | `isAuthFailureResponse()` — customize what both the SW and client treat as auth failure                                                    | Yes — edit this file                      |
 
 ## Usage
 
@@ -79,20 +77,42 @@ Bearer-only — token refresh is automatic when the SW detects a 401 on `{ auth:
 
 ### `swoff/auth/adapter.ts` — **you must edit this file**
 
-Three methods to implement for your backend:
+#### `AuthData`
+
+The single source of truth for auth shapes across the client, store, and state modules:
 
 ```ts
-// getHeaders — return auth headers for fetch requests
-adapter.getHeaders(auth); // cookie → {}; bearer → { Authorization: "Bearer <token>" }
-
-// refresh — called when SW detects 401
-adapter.refresh(auth); // cookie → null (server manages session); bearer → POST /api/refresh
-
-// fetchUser — fetch current user from /api/me
-adapter.fetchUser(); // return { user: data } or null
+export interface AuthData {
+  token?: string; // Bearer token (cookie auth omits this)
+  user?: unknown; // Replace `unknown` with your backend's user type
+  expiresAt?: number; // Unix ms — used by isAuthValid() / ensureValidAuth()
+}
 ```
 
-The `AuthData` interface is also in this file — edit the `user` type to match your backend's user shape.
+Edit the `user` field type to match your backend's user object.
+
+#### Adapter methods
+
+The exported `adapter` object has four methods:
+
+```ts
+export const adapter: {
+  type: "cookie" | "bearer";
+  getAuth: () => Promise<AuthData | null>;
+  getHeaders: (auth: AuthData | null) => Record<string, string>;
+  refresh: (auth: AuthData) => Promise<AuthData | null>;
+  fetchUser: () => Promise<AuthData | null>;
+};
+```
+
+| Method             | Purpose                                                                                        | Cookie behavior                                     | Bearer behavior                                                                |
+| ------------------ | ---------------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `getAuth()`        | Return current auth from your provider. Used by `getAuth()` in store.ts as first lookup.       | Return `null` — browser sends cookie automatically. | Return `null` — token lives in memory, not in adapter.                         |
+| `getHeaders(auth)` | Generate auth headers for `fetchWithCache` requests.                                           | Return `{}` — browser sends cookie automatically.   | Return `{ Authorization: "Bearer <token>" }` if token present.                 |
+| `refresh(auth)`    | Refresh the session when SW detects a 401. Called by `ensureValidAuth()` / SW on auth-failure. | Return `null` — server manages session lifetime.    | POST to `/api/refresh` with existing token, return new `{ token, expiresAt }`. |
+| `fetchUser()`      | Fetch current user from server. Used by `getAuth()` in store.ts as last-resort fallback.       | GET `/api/me` with `credentials: "include"`.        | GET `/api/me` with Bearer header.                                              |
+
+The `type` field controls `AUTH_WITH_CREDENTIALS` in store.ts (`true` for cookie, `false` for bearer).
 
 ### `swoff/auth/check.ts` — customize auth failure detection
 
@@ -116,15 +136,7 @@ export async function isAuthFailureResponse(response) {
     "auth": {
       "enabled": true,
       "type": "cookie",
-      "routePaths": [
-        "/login",
-        "/logout",
-        "/register",
-        "/api/login",
-        "/api/logout",
-        "/api/refresh",
-        "/api/me"
-      ]
+      "routePaths": ["/api/login", "/api/logout", "/api/refresh", "/api/me"]
     }
   }
 }
@@ -133,35 +145,12 @@ export async function isAuthFailureResponse(response) {
 - `auth.type` — `"cookie"` (httpOnly session cookie), `"bearer"` (token), or `"custom"`
 - `auth.routePaths` — URL paths that bypass SW cache (auth endpoints must not be cached)
 
-## React adapters
+## Framework adapters
 
-Swoff generates a reactive auth hook (import from `./swoff/adapters`):
+See the [Framework Integration](/docs/frameworks) page for adapter usage in your ecosystem. React adapters are generated by the CLI into `swoff/adapters/`. Import and use them as needed:
 
-```tsx
+```ts
 import { useAuth } from "./swoff/adapters/useAuth";
-
-function Profile() {
-  const { authenticated, auth, online, isLoading, error, setAuth, clearAuth } =
-    useAuth();
-
-  if (isLoading) return <Spinner />;
-  if (error) return <Error />;
-
-  return (
-    <div>
-      {authenticated ? (
-        <div>
-          <p>Welcome, {auth.user.name}</p>
-          <button onClick={clearAuth}>Logout</button>
-        </div>
-      ) : (
-        <button disabled={!online} onClick={() => setAuth(user)}>
-          Login
-        </button>
-      )}
-    </div>
-  );
-}
 ```
 
 The hook listens for `sw-auth-state-change` events and stays in sync across tabs.
@@ -170,9 +159,9 @@ The hook listens for `sw-auth-state-change` events and stays in sync across tabs
 
 | Auth type | PWA | Mutation queue | Background sync | Server push | GraphQL |
 | --------- | --- | -------------- | --------------- | ----------- | ------- |
-| cookie | ✓ | ✓ | ✓ | ✓ | ✓ |
-| bearer | ✓ | ✓ | ✗ | ✗ | ✓ |
-| custom | ✓ | ✓ | ✗ | ✗ | ✓ |
+| cookie    | ✓   | ✓              | ✓               | ✓           | ✓       |
+| bearer    | ✓   | ✓              | ✗               | ✗           | ✓       |
+| custom    | ✓   | ✓              | ✗               | ✗           | ✓       |
 
 Background sync and server push require cookie auth because they run in the SW scope (no DOM, no token refresh possible).
 

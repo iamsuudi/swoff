@@ -6,13 +6,18 @@ export function baseOptions(): BaseLayoutProps {
     nav: {
       // JSX supported
       title: (
-        <div className="flex items-center gap-1">
+        <div className="flex items-baseline-last">
           <img
-            src="/swoff.png"
+            src="/swoff-black.svg"
             alt="Swoff"
-            className="h-5 w-auto brightness-200"
-          />{" "}
-          {appName}
+            className="h-5 w-auto brightness-200 dark:hidden"
+          />
+          <img
+            src="/swoff-white.svg"
+            alt="Swoff"
+            className="hidden h-5 w-auto brightness-200 dark:inline"
+          />
+          <span className="text-[10px] -ml-3">{appName}</span>
         </div>
       ),
     },

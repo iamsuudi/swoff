@@ -12,15 +12,15 @@ Full documentation for every `@swoff/cli` command and flag.
 
 Creates `swoff.config.json` in your project root. Auto-detects:
 
-- **Framework**: checks for react, vue, svelte dependencies in `package.json`; defaults to `"vanilla"`
+- **Framework**: checks for react, vue, svelte dependencies in `package.json` (falls back to `"vanilla"` if no `package.json` found)
 
 ```
 swoff init
 swoff init --framework react-spa   # override auto-detection
 ```
 
-| Flag | Type | Description |
-|------|------|-------------|
+| Flag          | Type                                                                                                                                                   | Description                       |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
 | `--framework` | `"react-spa"` \| `"nextjs"` \| `"remix"` \| `"tanstack-start-react"` \| `"astro"` \| `"nuxt"` \| `"sveltekit"` \| `"vue"` \| `"svelte"` \| `"vanilla"` | Override framework auto-detection |
 
 ---
@@ -35,12 +35,12 @@ swoff generate --sw-only      # regenerate only the service worker
 swoff generate --files-only   # regenerate only supporting files (not SW)
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--sw-only` | Skip all client-side files; regenerate only `sw/template.js`, `sw/injector.ts`, `sw/generator.js` |
-| `--files-only` | Skip SW regeneration; regenerate all client-side files (fetch/core, adapters, etc.) |
-| `--language` | `"ts"` \| `"js"` — override language auto-detection; forces `.tsx`/`.ts` or `.jsx`/`.js` output |
-| `--continue-on-sw-error` | Proceed with generation even if the SW template build fails |
+| Flag                     | Description                                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------------------- |
+| `--sw-only`              | Skip all client-side files; regenerate only `sw/template.js`, `sw/injector.ts`, `sw/generator.js` |
+| `--files-only`           | Skip SW regeneration; regenerate all client-side files (fetch/core, adapters, etc.)               |
+| `--language`             | `"ts"` \| `"js"` — override language auto-detection; forces `.tsx`/`.ts` or `.jsx`/`.js` output   |
+| `--continue-on-sw-error` | Proceed with generation even if the SW template build fails                                       |
 
 After generation, read `swoff/GUIDE.md` for documentation links.
 
@@ -48,35 +48,36 @@ After generation, read `swoff/GUIDE.md` for documentation links.
 
 All files land in `swoff/`. See [API Reference](/docs/api) for the full reference.
 
-| File | Condition | Purpose |
-|------|-----------|---------|
-| `client-injector.ts` | always | Single entry point — wires SW registration, PWA install, mutation queue, cross-tab sync |
-| `fetch/core.ts` | always | Unified fetch with caching, auth, offline queue, auto-invalidation |
-| `mutation/queue.ts` | `mutationQueue.enabled` | Offline write queue in IndexedDB |
-| `mutation/state.ts` | `mutationQueue.enabled` | Per-mutation status tracking |
-| `mutation/sync.ts` | `mutationQueue.backgroundSync` | Background Sync API registration |
-| `server-push/client.ts` | `serverPush.enabled` | SSE/WebSocket connection manager (runs in SW) |
-| `cache/invalidate.ts` | always | `invalidateByTag()` / `invalidateByTags()` |
-| `cache/tags.ts` | always | Tag generation helpers from URL paths |
-| `graphql/index.ts` | `graphql.enabled` | GraphQL wrapper with body-hash caching |
-| `push-notification/index.ts` | `pushNotifications` | Push notification subscription management |
-| `auth/adapter.ts` | `auth.enabled` | Auth provider adapter — generated template (cookie, bearer, or custom) |
-| `auth/store.ts` | `auth.enabled` | Token/user persistence + cascading clearAuth + cross-tab sync |
-| `auth/state.ts` | `auth.enabled` | Online/offline × auth state detection (connectivity manager) |
-| `auth/check.ts` | `auth.enabled` | Custom auth failure response detection |
-| `pwa/prompt.ts` | `pwa.enabled` | Install prompt handling (`isInstallable`, `promptInstall`) |
-| `connectivity.ts` | always | Online/offline detection with HEAD heartbeat |
-| `adapters/*.tsx` | React-based framework (react-spa, nextjs, remix, tanstack-start-react, astro) | React hooks (see [API Reference](/docs/api/react-hooks)) |
-| `sw/template.js` | always | Service worker source — runs in SW scope |
-| `sw/injector.ts` | always | SW registration logic |
-| `sw/generator.js` | always | Build-time script — embeds asset hashes |
-| `sw/version.ts` | always | `SW_VERSION` constant for cache busting |
-| `swoff.d.ts` | TypeScript | TypeScript declarations |
-| `GUIDE.md` | always | Documentation links and quick-start info |
-| `manifest.json` | `pwa.enabled` | Web app manifest |
-| `reset.ts` | always | `resetSwoff()` — wipes caches, IndexedDB databases, localStorage, unregisters SW |
-| `fetch/state.ts` | always | Global fetch counter (`getFetchCount`) |
-| `storage.ts` | always | Storage estimation (`getStorageEstimate` / `formatBytes`) |
+| File                               | Condition                                                                     | Purpose                                                                                 |
+| ---------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `client-injector.{ts\|js}`         | always                                                                        | Single entry point — wires SW registration, PWA install, mutation queue, cross-tab sync |
+| `config.{ts\|js}`                  | always                                                                        | Project configuration — mirrors `swoff.config.json` at runtime                          |
+| `connectivity.{ts\|js}`            | always                                                                        | Online/offline detection with HEAD heartbeat                                            |
+| `db.{ts\|js}`                      | always                                                                        | IndexedDB database open/init helpers                                                    |
+| `fetch/core.{ts\|js}`              | always                                                                        | Unified fetch with caching, auth, offline queue, auto-invalidation                      |
+| `fetch/state.{ts\|js}`             | always                                                                        | Global fetch counter (`getFetchCount`)                                                  |
+| `cache/invalidate.{ts\|js}`        | always                                                                        | `invalidateByTag()` / `invalidateByTags()`                                              |
+| `cache/tags.{ts\|js}`              | always                                                                        | Tag generation helpers from URL paths                                                   |
+| `storage.{ts\|js}`                 | always                                                                        | Storage estimation (`getStorageEstimate` / `formatBytes`)                               |
+| `reset.{ts\|js}`                   | always                                                                        | `resetSwoff()` — wipes caches, IndexedDB databases, localStorage, unregisters SW        |
+| `auth/adapter.{ts\|js}`            | `auth.enabled`                                                                | Auth provider adapter — generated template (cookie, bearer, or custom)                  |
+| `auth/store.{ts\|js}`              | `auth.enabled`                                                                | Token/user persistence + cascading clearAuth + cross-tab sync                           |
+| `auth/state.{ts\|js}`              | `auth.enabled`                                                                | Online/offline × auth state detection (connectivity manager)                            |
+| `auth/check.{ts\|js}`              | `auth.enabled`                                                                | Custom auth failure response detection                                                  |
+| `graphql/index.{ts\|js}`           | `graphql.enabled`                                                             | GraphQL wrapper with body-hash caching                                                  |
+| `mutation/queue.{ts\|js}`          | `mutationQueue.enabled`                                                       | Offline write queue in IndexedDB                                                        |
+| `mutation/state.{ts\|js}`          | `mutationQueue.enabled`                                                       | Per-mutation status tracking                                                            |
+| `mutation/sync.{ts\|js}`           | `mutationQueue.backgroundSync`                                                | Background Sync API registration                                                        |
+| `push-notification/index.{ts\|js}` | `pushNotifications`                                                           | Push notification subscription management                                               |
+| `pwa/prompt.{ts\|js}`              | `pwa.enabled`                                                                 | Install prompt handling (`isInstallable`, `promptInstall`)                              |
+| `server-push/client.{ts\|js}`      | `serverPush.enabled`                                                          | SSE/WebSocket connection manager (runs in SW)                                           |
+| `sw/template.js`                   | always                                                                        | Service worker source — runs in SW scope                                                |
+| `sw/injector.{ts\|js}`             | always                                                                        | SW registration logic                                                                   |
+| `sw/generator.js`                  | always                                                                        | Build-time script — embeds asset hashes                                                 |
+| `sw/version.{ts\|js}`              | always                                                                        | `SW_VERSION` constant for cache busting                                                 |
+| `adapters/*.tsx`                   | React-based framework (react-spa, nextjs, remix, tanstack-start-react, astro) | React hooks (see [API Reference](/docs/api/react-hooks))                                |
+| `swoff.d.ts`                       | TypeScript                                                                    | TypeScript declarations                                                                 |
+| `GUIDE.md`                         | always                                                                        | Documentation links and quick-start info                                                |
 
 ### PWA assets
 
@@ -96,16 +97,16 @@ Run `npx @swoff/assets --help` for all flags (`--source`, `--no-splash`, `--them
 
 Generated assets by default:
 
-| File | Description |
-|------|-------------|
-| `public/icon-64.png` | Small PWA icon (64×64) |
-| `public/icon-192.png` | Standard PWA icon (192×192) |
-| `public/icon-512.png` | Large PWA icon (512×512) |
-| `public/maskable-icon-512.png` | Maskable PWA icon (512×512) with safe zone padding |
-| `public/apple-touch-icon.png` | Apple touch icon (180×180) |
-| `public/favicon.ico` | Multi-size favicon (16×16, 32×32, 48×48) |
-| `public/og-image.png` | Open Graph / social sharing image (1200×630) with centered logo |
-| `public/splash-*.png` | Apple splash screens (7 sizes for all iOS devices) |
+| File                           | Description                                                     |
+| ------------------------------ | --------------------------------------------------------------- |
+| `public/icon-64.png`           | Small PWA icon (64×64)                                          |
+| `public/icon-192.png`          | Standard PWA icon (192×192)                                     |
+| `public/icon-512.png`          | Large PWA icon (512×512)                                        |
+| `public/maskable-icon-512.png` | Maskable PWA icon (512×512) with safe zone padding              |
+| `public/apple-touch-icon.png`  | Apple touch icon (180×180)                                      |
+| `public/favicon.ico`           | Multi-size favicon (16×16, 32×32, 48×48)                        |
+| `public/og-image.png`          | Open Graph / social sharing image (1200×630) with centered logo |
+| `public/splash-*.png`          | Apple splash screens (7 sizes for all iOS devices)              |
 
 After generation, **manually reference these assets** in your app. Run `swoff assets --help`
 for a copy-paste guide with the exact `<link>` and `<meta>` tags for your HTML `<head>`.
@@ -150,11 +151,12 @@ swoff clean
 swoff clean --yes     # skip confirmation prompt
 ```
 
-| Flag | Description |
-|------|-------------|
+| Flag           | Description              |
+| -------------- | ------------------------ |
 | `--yes` / `-y` | Skip confirmation prompt |
 
 This deletes:
+
 - `swoff/` directory (all generated files)
 - `swoff.config.json`
 
@@ -175,21 +177,22 @@ swoff help generate
 ## Build script integration
 
 The SW generator (`sw/generator.js`) must run after every build to produce the final
-service worker file. Add it to your `package.json` build script:
-
-```json
-"build": "vite build && node swoff/sw/generator.js"
-```
-
-Or run it manually after each build:
+service worker file. Run it directly:
 
 ```bash
 node swoff/sw/generator.js
 ```
 
+For Node.js projects, add it to your `package.json` build script:
+
+```json
+"build": "vite build && node swoff/sw/generator.js"
+```
+
 The generator:
+
 1. Reads `swoff.config.json` for output dir, version, and strategy config
 2. Reads `sw/template.js` — the service worker source code
 3. Collects all built assets from the output directory
 4. Replaces placeholders (`[[CACHE_NAME]]`, `[[ASSETS_LIST]]`, `[[AUTO_SKIP_WAITING]]`) with actual values
-5. Writes the final versioned SW file (e.g. `dist/sw-v1.2.3.js`) and `version.json`
+5. Writes the final versioned SW file (e.g. `dist/sw-v1.2.3.js`)

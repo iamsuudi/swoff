@@ -40,8 +40,8 @@ export function Navbar() {
           <Link to="/docs/cli" className={linkClass}>
             CLI
           </Link>
-          <Link to="/docs/comparisons" className={linkClass}>
-            Comparisons
+          <Link to="/about" className={linkClass}>
+            About
           </Link>
         </div>
 
@@ -92,11 +92,11 @@ export function Navbar() {
             CLI
           </Link>
           <Link
-            to="/docs/comparisons"
+            to="/about"
             className={mobileLinkClass}
             onClick={() => setIsOpen(false)}
           >
-            Comparisons
+            About
           </Link>
         </div>
       )}

@@ -4,7 +4,7 @@ description: Body-hash caching, operation-name auto-tags, and React hooks for Gr
 icon: Braces
 ---
 
-> **If you're coming from Apollo Client:** Swoff caches GraphQL responses by body hash (query + variables → SHA-256 digest), not by normalized entities. No schema introspection, no fragment matchers, no `InMemoryCache` config. Each query is a standalone cache entry. Mutations auto-invalidate by operation name tags. See the [full comparison](/docs/comparisons/graphql).
+> **If you're coming from Apollo Client:** Swoff caches GraphQL responses by body hash (query + variables → SHA-256 digest), not by normalized entities. No schema introspection, no fragment matchers, no `InMemoryCache` config. Each query is a standalone cache entry. Mutations auto-invalidate by operation name tags. See the [full comparison](/docs/comparisons#graphql).
 
 ## Preconditions
 
@@ -130,7 +130,7 @@ No generated files to edit. The wrapper lives at `swoff/graphql/index.ts` and is
 
 ## Related
 
-- [Full comparison: Swoff vs Apollo Client](/docs/comparisons/graphql)
+- [Full comparison: Swoff vs Apollo Client](/docs/comparisons#graphql)
 - [Tag invalidation: auto-tags from operation names](/docs/guides/tag-invalidation)
 - [Offline mutations: queue mutations offline](/docs/guides/offline-mutations)
-- [Config reference: graphql](/docs/cli/config#featuresgraphql)
+- [Config reference: graphql](/docs/config#featuresgraphql)

@@ -12,10 +12,10 @@ html > body[data-scroll-locked] {
 }
 
 @theme {
-  --color-fd-primary: hsl(25, 95%, 73%);
+  --color-fd-primary: hsl(25, 85%, 55%);
   --color-fd-primary-foreground: hsl(0, 0%, 98%);
 }
 .dark {
-  --color-fd-primary: hsl(25, 95%, 73%);
+  --color-fd-primary: hsl(25, 85%, 55%);
   --color-fd-primary-foreground: hsl(0, 0%, 9%);
 }

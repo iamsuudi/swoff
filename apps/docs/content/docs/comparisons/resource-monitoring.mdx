@@ -3,20 +3,24 @@ title: Resource Monitoring
 description: Fetch timeout, storage quota, and unified error notifications.
 ---
 
-
-Resource monitoring covers network fetch timeout and storage quota awareness — both about the app gracefully handling resource constraints inherent to the browser environment.
+Resource monitoring covers two concerns for offline-first apps: **network fetch timeout** (preventing stalled requests from blocking cache fallbacks) and **storage quota awareness** (notifying users before the browser evicts cached data).
 
 ## How Swoff does it
 
-Swoff addresses both concerns through a single notification channel that originates in the Service Worker and surfaces as a `swoff:notification` CustomEvent on the window.
-
 ### Network fetch timeout
 
-Every network request made by the SW passes through `_fetchWithTimeout()`, which wraps `fetch()` with an `AbortController` configured to `features.serviceWorker.strategy.timeout` seconds (default 10). On timeout or network error, `SW_NOTIFICATION` (`FETCH_FAILED`) is broadcast, and the strategy falls through to its cache fallback.
+Every network request made by the SW passes through `_fetchWithTimeout()`, wrapping `fetch()` with an `AbortController` configured to `features.serviceWorker.strategy.timeout` seconds (default 10). On timeout or network error, `SW_NOTIFICATION` (`FETCH_FAILED`) is broadcast to all connected clients, and the calling strategy falls through to its cache fallback. The timeout applies uniformly across all 6 caching strategies.
 
 ### Storage quota awareness
 
-`storage.ts` exports `getStorageEstimate()` and `formatBytes()`. The storage threshold check (≥80%) runs inside `client-injector.ts` after SW initialization and dispatches `CustomEvent("swoff:notification")` on threshold breach.
+`storage.ts` exports two utilities; the threshold check runs in `client-injector.ts`:
+
+| Function               | Purpose                                                                            |
+| ---------------------- | ---------------------------------------------------------------------------------- |
+| `getStorageEstimate()` | Wraps `navigator.storage.estimate()` — returns `{ usage, quota, percentUsed }`      |
+| `formatBytes(n)`       | Formats byte counts for display (`1572864` → `"1.5 MB"`)                           |
+
+The React adapter `useStorageEstimate()` ties these together as a reactive hook that refreshes on visibility change.
 
 ### Unified notification channel
 
@@ -34,8 +38,21 @@ window.addEventListener("swoff:notification", (event) => {
 
 **TanStack Query / SWR:** No SW-level fetch timeout. Storage estimation is entirely the developer's responsibility.
 
-**Workbox:** Provides `NetworkTimeoutSeconds` per-strategy, not global. No storage quota monitoring. No notification channel.
+**Workbox:** Provides `NetworkTimeoutSeconds` per strategy, not global. No storage quota monitoring. Errors log to SW console, not surfaced to the window.
 
-**Client DBs (RxDB, TanStack DB, ElectricSQL):** No fetch timeout. Storage management handled by the local database engine. No unified notification channel.
+**Client DBs (RxDB, TanStack DB, ElectricSQL):** No fetch timeout — they don't intercept `fetch`. Storage management is handled by the local database engine.
 
-**Vite-plugin-pwa:** Wraps Workbox. Inherits the same limitations.
+**Vite-plugin-pwa:** Wraps Workbox — same limitations.
+
+## Comparison table
+
+| Feature                                   | Swoff                                        | TanStack Query / SWR | Workbox              | Client DBs                          |
+| ----------------------------------------- | -------------------------------------------- | -------------------- | -------------------- | ----------------------------------- |
+| **SW-level fetch timeout**                | ✅ Global, all strategies                    | ❌ No SW timeout     | 🟡 Per-strategy only | ❌ Not applicable                   |
+| **Timeout broadcasts to window**          | ✅ `SW_NOTIFICATION`                         | ❌                   | ❌                   | ❌                                  |
+| **Storage quota monitoring**              | ✅ `getStorageEstimate()` + threshold check  | ❌ Not provided      | ❌ Not provided      | 🟡 DB engine reports its own errors |
+| **Unified notification channel**          | ✅ Single `swoff:notification` event         | ❌                   | ❌                   | ❌                                  |
+| **Precache failure notifications**        | ✅ `PRECACHE_FAILED` per-asset               | ❌ Not applicable    | ❌                   | ❌ Not applicable                   |
+| **Background sync failure notifications** | ✅ `BACKGROUND_SYNC_FAILED`                  | ❌ Not applicable    | ❌                   | ❌ Not applicable                   |
+| **Auto-clear on logout**                  | ✅ Notification + `clearAuth()`              | ❌                   | ❌                   | ❌ Data persists                    |
+| **Full system reset**                     | ✅ `resetSwoff()` — caches + IDB + localStorage + SW re-register | ❌                   | ❌                   | ❌                                    |

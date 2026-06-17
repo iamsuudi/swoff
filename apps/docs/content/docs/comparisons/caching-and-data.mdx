@@ -3,7 +3,116 @@ title: Caching vs Databases
 description: SW-level HTTP caching versus client databases — the architectural tradeoffs.
 ---
 
+## Data Layer: HTTP Caching vs Client Databases
 
-The way you cache data on the client determines your entire offline architecture. Swoff operates at the HTTP cache layer. Client databases (RxDB, TanStack DB, ElectricSQL, PowerSync) embed a local database engine and synchronize it with the server.
+The way you cache data on the client determines your entire offline architecture. Swoff operates at the HTTP cache layer — the Service Worker intercepts `fetch` events, caches responses by URL, and serves them on subsequent requests. Data retains its server shape (JSON, HTML, images) and the server remains the single source of truth. Client databases (RxDB, TanStack DB, ElectricSQL, PowerSync) embed a local database engine and synchronize it with the server — they solve a fundamentally different problem, and the choice between them defines your relationship with data, consistency, and complexity.
 
-See the [original comparison](https://swoff.netlify.app/docs/comparisons/caching-and-data) for the full analysis.
+## How Swoff does it
+
+Swoff implements 6 caching strategies that execute in the SW `fetch` event handler, configured through a 3-tier resolution system:
+
+| Strategy                 | Behavior                                                                                                                   |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `cache-first`            | Return cached immediately, background refresh. Never show stale data longer than the last successful fetch.                |
+| `network-first`          | Try network, fall back to cache. Best for live data with offline fallback.                                                 |
+| `stale-while-revalidate` | Serve cached (even if stale), then fetch in background. Best for infrequently changing data.                               |
+| `cache-only`             | Serve only from cache. Useful for precached assets.                                                                        |
+| `network-only`           | Always fetch from network. Never cache. Best for non-cacheable data (auth, nonces).                                        |
+| `reactive`               | Serve cache if within `staleTime`, otherwise fetch network + cache. Combines `cache-first` with a freshness threshold.     |
+
+**3-tier resolution:** Per-request via `fetchWithCache({ strategy })` → route pattern in config → global default. Each tier overrides the one below.
+
+**Server is source of truth:** Swoff caches HTTP responses as-is. When data changes, the server sends invalidation signals via SSE/WebSocket, the SW evicts stale entries, and the next request fetches fresh data. No polling, no sync engine, no conflict resolution.
+
+**No schemas, no migrations:** The server defines the API response shape. A new field in the response is automatically cached without any client-side schema change.
+
+## How competitors handle it
+
+**TanStack Query / SWR:** One strategy — stale-while-revalidate (with configurable `staleTime` and `gcTime`). No cache-first, network-first, cache-only, or network-only because these libraries operate at the application layer, not the SW layer. They cannot intercept native `fetch` events or cache HTML/CSS/JS for offline navigation.
+
+**Workbox:** 5 strategies (same as Swoff minus `reactive`), also SW-level, using Cache Storage API. Lacks 3-tier resolution, per-request override via headers, and reactive strategy.
+
+**Apollo Client:** No explicit caching strategies. `InMemoryCache` is a normalized GraphQL cache with fetch policies. App-level only — does not affect native `fetch` caching or offline HTML access.
+
+**Client DBs (RxDB, TanStack DB, ElectricSQL, PowerSync):** Embed a local database engine (IndexedDB, SQLite WASM, PGlite) and replicate server data through a sync engine. The app reads and writes to the local DB as if it were primary storage.
+
+## The client DB approach and its costs
+
+- **No offline app skeleton.** Client DBs store data locally, but they don't make your app's HTML, CSS, or JavaScript accessible offline. Without a separate Service Worker, the app can't load when offline — you get data without an app to display it.
+- **Dual-DB maintenance tax.** Every schema migration — add a column, change a type, rename a field — must be applied to both the server database and the client database schema. This is distributed system maintenance in your frontend codebase.
+- **Server becomes a data dump.** Client-side queries (filter, sort, search) require replicating bulk data to every client. No single source of truth — no two clients are guaranteed to be in sync at any moment.
+- **WASM bloat.** SQLite-in-browser requires a 2–3 MB gzip download (PGlite WASM, SQL.js). On a mobile connection, that's the entire budget for your app's code.
+- **Data never auto-clears.** All user data persists in IndexedDB or SQLite indefinitely. On shared devices, one user's data is visible to the next. Privacy-safe logout requires manually purging the entire database.
+- **Over-engineered for most use cases.** Forms need draft storage — use native IndexedDB or localStorage, not a sync engine with schema definitions and WASM downloads. Collaborative editing needs WebSocket/WebRTC, not a polling sync engine.
+
+## Comparison table
+
+| Aspect                        | Swoff                                       | TanStack Query / SWR               | Workbox                         | Client DBs (RxDB, TanStack DB, ElectricSQL, PowerSync) |
+| ----------------------------- | ------------------------------------------- | ---------------------------------- | ------------------------------- | ------------------------------------------------------ |
+| **Paradigm**                  | SW HTTP cache                               | App-layer stale-while-revalidate   | SW HTTP cache                   | Client DB + sync engine                                |
+| **Cache scope**               | Any HTTP response (HTML, assets, REST, GQL) | Only data passed to `queryFn`      | Any HTTP response               | Only data in synced collections                        |
+| **Offline app skeleton**      | ✅ Built-in (SW caches HTML/CSS/JS)         | ❌ Not provided                    | ✅ Built-in                     | ❌ Requires separate SW                                |
+| **Server as source of truth** | ✅ Yes — cache is ephemeral                 | 🟡 Stale data lives until refetch  | ✅ Yes — cache is ephemeral     | ❌ Each client has its own DB version                  |
+| **Real-time mechanism**       | SSE/WebSocket server push                   | Polling on refetchInterval         | ❌ None                         | Polling-based sync                                     |
+| **Cache invalidation**        | Tag-based + server push + auto on mutation  | Query-key based                    | URL-based                       | Manual or replication                                  |
+| **Schema required**           | ✅ No                                       | ✅ No                              | ✅ No                           | ❌ Yes (client + server schemas)                       |
+| **Dual-DB management**        | ✅ None                                     | ✅ None                            | ✅ None                         | ❌ Must keep client and server schemas in sync         |
+| **Client-side queries**       | Server-shaped only                          | In-memory cache only               | Server-shaped only              | SQL + joins + aggregation                              |
+| **WASM download**             | ✅ None                                     | ✅ None                            | ✅ None                         | ❌ 2–3 MB gzip                                         |
+| **Privacy-safe logout**       | ✅ `clearAuth()` wipes all caches           | ❌ Memory persists until tab close | ❌ Cache persists               | ❌ Data survives across sessions                       |
+| **Full system reset**        | ✅ `resetSwoff()` — caches + IDB + localStorage + SW unregister/re-register | ❌ `queryClient.clear()` clears in-memory cache only | ❌ Manual cache deletion only | ❌ No equivalent                                       |
+| **Native fetch interception** | ✅ Every `fetch()` on the page              | ❌ Only through `queryFn`          | ✅ Every `fetch()` on the page  | ❌ Bypasses cache                                      |
+| **Third-party API caching**   | ✅ Yes                                      | ❌ No                              | ✅ Yes                          | ❌ No                                                  |
+| **Runtime deps**              | 0 kB (generated code)                       | ~3.8 kB gzip                       | ~30 kB SW runtime               | ~40 kB gzip + WASM                                     |
+| **Setup cost**                | 1 config file                               | Query client + hooks setup         | Config + imports                | Schema + DB + sync engine + server adapter             |
+
+## Offline Write Queue
+
+Offline write queuing captures mutations (POST, PUT, PATCH, DELETE) when offline and replays them when connectivity returns. This is where Swoff's mutation queue differs fundamentally from the client DB approach.
+
+**How Swoff does it:**
+
+Swoff implements a dual-layer mutation queue: primary storage in IndexedDB (survives tab close), with Service Worker fallback via the Background Sync API (survives SW termination).
+
+```
+Offline mutation → IndexedDB (queue)
+  → processMutationQueue() on online event
+    → SW replays mutations sequentially
+      → per-mutation online check (aborts batch if offline mid-way)
+      → configurable retry with exponential backoff
+      → progress events per batch item
+      → SUCCESS → invalidate cache tags → refetch → UI updates
+      → FAILURE → retry or drop based on maxRetries
+```
+
+**Key properties:**
+
+- **Storage:** IndexedDB (persists across tab close, SW restart, browser restart).
+- **SW fallback:** When all tabs close, the SW wakes via Background Sync API and replays the queue.
+- **Per-mutation online check:** Before each replay, checks `navigator.onLine`. If offline mid-batch, remaining mutations stay queued.
+- **Configurable retry:** `maxRetries`, `retryBackoffMs` (exponential), `batchSize`, `batchDelayMs`.
+- **Queue introspection:** `getQueuePosition(id)`, `getQueueItems()`, `useMutationQueue()`.
+- **Dual-replay prevention:** SW skips Background Sync replay if any client page is open.
+- **Auth-aware:** If the auth token expires mid-batch, the SW attempts silent refresh before retrying.
+
+**The Telegram pattern:** Mutations appear as "pending" until the server confirms. No optimistic updates, no phantom ID reconciliation. See [Optimistic Updates](/docs/comparisons/optimistic-updates) for the full design rationale.
+
+**Full system reset — `resetSwoff()`:** Beyond auth-scoped `clearAuth()`, `resetSwoff()` provides a nuclear reset: clears all caches, IndexedDB databases, and localStorage, then unregisters and re-registers the Service Worker. Useful as a "factory reset" for debugging or when the user wants to start completely fresh.
+
+**Comparison:**
+
+| Feature                       | Swoff                                      | TanStack Query              | Workbox                  | RxDB / TanStack DB                                |
+| ----------------------------- | ------------------------------------------ | --------------------------- | ------------------------ | ------------------------------------------------- |
+| **Queue storage**             | IndexedDB (persistent)                     | In-memory (lost on close)   | IndexedDB                | Local DB (IDB / SQLite)                           |
+| **Survives tab close**        | ✅ Yes                                     | ❌ No                       | ✅ Yes                   | ✅ Yes                                            |
+| **Survives SW restart**       | ✅ Yes (Background Sync)                   | ❌ No SW                    | ✅ Yes (Background Sync) | N/A                                               |
+| **Per-mutation online check** | ✅ Before each replay                      | ❌ Not applicable           | ❌ Not applicable        | N/A (sync engine handles)                         |
+| **Batch processing**          | ✅ Configurable size + delay               | ❌ Not applicable           | ❌ Single replay         | N/A (continuous sync)                             |
+| **Retry with backoff**        | ✅ Exponential                             | 🟡 Basic retry (no backoff) | ✅ Basic retry           | N/A (continuous sync)                             |
+| **Queue introspection**       | ✅ Position, items, lastSync, isProcessing | ❌ Not supported            | ❌ Not supported         | ✅ Local DB queries                               |
+| **Progress events**           | ✅ Per-batch + per-item                    | ❌ Not supported            | ❌ Not supported         | ✅ Replication status                             |
+| **Dual-replay prevention**    | ✅ SW skips if client open                 | ❌ Not applicable           | ❌ May duplicate         | N/A                                               |
+| **Auth-aware replay**         | ✅ Silent refresh + stop on failure        | ❌ Not supported            | ❌ Not supported         | ❌ Not supported                                  |
+| **Conflict resolution**       | ❌ Last-write-wins only                    | ❌ Not applicable           | ❌ Not applicable        | ✅ CRDTs, custom merge                            |
+| **Schema coupling**           | ✅ No schema needed                        | ✅ No schema needed         | ✅ No schema needed      | ❌ Requires schema definition + migrations        |
+| **Bundle cost**               | 0 kB (generated code)                      | Included in ~20 kB          | ~30 kB                   | ~40 kB (RxDB) / ~6 kB + SQLite WASM (TanStack DB) |

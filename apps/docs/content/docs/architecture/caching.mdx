@@ -1,7 +1,6 @@
 ---
 title: Caching System
 description: How Swoff handles caching strategies, staleness, config resolution, and HTML isolation.
-icon: HardDrive
 ---
 
 ## Reactive strategy: staleTime + refresh triggers
@@ -15,24 +14,24 @@ This means the user **never sees a loading spinner** for cached data. The respon
 
 **staleTime is reactive-only.** It has no meaning on other strategies — each non-reactive strategy has its own simple, predictable contract:
 
-| Strategy | Behavior |
-|----------|----------|
-| `cache-first` | Serve from cache if available, fall back to network. No staleTime awareness. |
-| `network-first` | Try network first, fall back to cache on failure. No staleTime awareness. |
-| `stale-while-revalidate` | Serve from cache immediately + always background refresh on every request. Unconditional — no staleTime gate. |
-| `cache-only` | Serve from cache only. Never hits the network. |
-| `network-only` | Always hit the network. Never caches. |
-| `reactive` | Serve from cache. If stale (past `staleTime`), trigger a background refresh. Additionally, can auto-refetch on interval, window focus, or reconnect. |
+| Strategy                 | Behavior                                                                                                                                             |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cache-first`            | Serve from cache if available, fall back to network. No staleTime awareness.                                                                         |
+| `network-first`          | Try network first, fall back to cache on failure. No staleTime awareness.                                                                            |
+| `stale-while-revalidate` | Serve from cache immediately + always background refresh on every request. Unconditional — no staleTime gate.                                        |
+| `cache-only`             | Serve from cache only. Never hits the network.                                                                                                       |
+| `network-only`           | Always hit the network. Never caches.                                                                                                                |
+| `reactive`               | Serve from cache. If stale (past `staleTime`), trigger a background refresh. Additionally, can auto-refetch on interval, window focus, or reconnect. |
 
 The key insight: staleTime does not **evict** the entry. It makes the data **usable indefinitely** while keeping it fresh in the background. Background refreshes are batched (`features.refetchQueue.batchSize`) with rate limiting (`features.refetchQueue.batchDelayMs`) to avoid stampedes.
 
 The reactive strategy bundles three optional refresh triggers that all gate through `staleTime`:
 
-| Trigger | Description | Gating |
-|---------|-------------|--------|
-| `refetchInterval` | Timer-based — re-fetches every N seconds in the background | Only fires if stale (past `staleTime`) |
-| `refetchOnFocus` | Fires when the tab regains focus (`visibilitychange`) | Only fires if stale (past `staleTime`) |
-| `refetchOnReconnect` | Fires when the browser comes back online | Only fires if stale (past `staleTime`) |
+| Trigger              | Description                                                | Gating                                 |
+| -------------------- | ---------------------------------------------------------- | -------------------------------------- |
+| `refetchInterval`    | Timer-based — re-fetches every N seconds in the background | Only fires if stale (past `staleTime`) |
+| `refetchOnFocus`     | Fires when the tab regains focus (`visibilitychange`)      | Only fires if stale (past `staleTime`) |
+| `refetchOnReconnect` | Fires when the browser comes back online                   | Only fires if stale (past `staleTime`) |
 
 ## SSR navigation mode
 
@@ -76,14 +75,15 @@ The `strategy` field resolves through three priority levels:
 
 **Reactive-only fields** (`staleTime`, `refetchInterval`, `refetchOnReconnect`, `refetchOnFocus`) resolve through tiers:
 
-| Field | Tier 1 (per-request) | Tier 2 (route pattern) | Tier 3 (global default) |
-|-------|---------------------|----------------------|------------------------|
-| `staleTime` | ✓ `X-SW-Stale-Time` header or `fetchWithCache({ staleTime })` | ✓ pattern entry | ✓ `reactive.defaults.staleTime` |
-| `refetchInterval` | ✗ SW-initiated timer — not per-request | ✓ pattern entry | ✓ `reactive.defaults.refetchInterval` |
-| `refetchOnReconnect` | ✗ SW-initiated — not per-request | ✓ pattern entry | ✓ `reactive.defaults.refetchOnReconnect` |
-| `refetchOnFocus` | ✗ SW-initiated — not per-request | ✓ pattern entry | ✓ `reactive.defaults.refetchOnFocus` |
+| Field                | Tier 1 (per-request)                                          | Tier 2 (route pattern) | Tier 3 (global default)                  |
+| -------------------- | ------------------------------------------------------------- | ---------------------- | ---------------------------------------- |
+| `staleTime`          | ✅ `X-SW-Stale-Time` header or `fetchWithCache({ staleTime })` | ✅ pattern entry        | ✅ `reactive.defaults.staleTime`          |
+| `refetchInterval`    | ❌ SW-initiated timer — not per-request                        | ✅ pattern entry        | ✅ `reactive.defaults.refetchInterval`    |
+| `refetchOnReconnect` | ❌ SW-initiated — not per-request                              | ✅ pattern entry        | ✅ `reactive.defaults.refetchOnReconnect` |
+| `refetchOnFocus`     | ❌ SW-initiated — not per-request                              | ✅ pattern entry        | ✅ `reactive.defaults.refetchOnFocus`     |
 
 **Example resolution flow:**
+
 - request to `/api/todos` with strategy `"reactive"` → tier 1: `X-SW-Stale-Time` header? no → tier 2: `/api/*` has `staleTime: 30` → use 30s
 - request to `/api/posts` with strategy `"reactive"` (no route match) → tier 1: no header → tier 2: no pattern → tier 3: global `staleTime: 0` → use 0s (always stale)
 
@@ -146,10 +146,10 @@ non-navigate (any mode):
 
 ## Decision Matrix
 
-| Request type | SPA (nav) | SSR / Default (nav) | Any mode (subresource) |
-|---|---|---|---|
-| Reactive strategy | network → fallback (no cache) | cache → network → fallback | cache (fresh) → network → cache |
-| Network‑Only | network → fallback (no cache) | network → fallback (cache on OK) | network → cache (on OK) |
-| Network‑First | network → fallback (no cache) | cache → network → fallback | cache → network → cache |
-| Cache‑First | network → fallback (no cache) | cache → network (miss) → fallback | cache → network (miss) → cache |
-| Stale‑While‑Revalidate | network (bg) + fallback | network (bg) + cache → fallback | network (bg) + cache → fallback |
+| Request type           | SPA (nav)                     | SSR / Default (nav)               | Any mode (subresource)          |
+| ---------------------- | ----------------------------- | --------------------------------- | ------------------------------- |
+| Reactive strategy      | network → fallback (no cache) | cache → network → fallback        | cache (fresh) → network → cache |
+| Network‑Only           | network → fallback (no cache) | network → fallback (cache on OK)  | network → cache (on OK)         |
+| Network‑First          | network → fallback (no cache) | cache → network → fallback        | cache → network → cache         |
+| Cache‑First            | network → fallback (no cache) | cache → network (miss) → fallback | cache → network (miss) → cache  |
+| Stale‑While‑Revalidate | network (bg) + fallback       | network (bg) + cache → fallback   | network (bg) + cache → fallback |

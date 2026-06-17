@@ -4,7 +4,7 @@ description: fetchWithCache, prefetchCache, and React hooks for reactive data fe
 icon: Globe
 ---
 
-> **If you're coming from TanStack Query:** `fetchWithCache` is Swoff's equivalent of `useQuery` — it returns `{ response, fromCache }` instead of `{ data, isLoading }`. The key difference: caching happens in the Service Worker, not in JavaScript memory. Cached responses survive hard navigation, tab close, and full page reload. No provider wrapper needed. See the [full comparison](/docs/comparisons/data-fetching).
+> **If you're coming from TanStack Query:** `fetchWithCache` is Swoff's equivalent of `useQuery` — it returns `{ response, fromCache }` instead of `{ data, isLoading }`. The key difference: caching happens in the Service Worker, not in JavaScript memory. Cached responses survive hard navigation, tab close, and full page reload. No provider wrapper needed. See the [full comparison](/docs/comparisons#data-fetching).
 
 ## Preconditions
 
@@ -109,4 +109,4 @@ import { usePrefetch } from "./swoff/adapters/usePrefetch";
 - [Navigation caching: SPA/SSR modes, preloading, fallback](/docs/guides/navigation-caching)
 - [Tag-based cache invalidation](/docs/guides/tag-invalidation)
 - [Service Worker fundamentals: versioning, lifecycle, registration](/docs/guides/service-worker)
-- [Config reference: strategy patterns](/docs/cli/config#featuresserviceworkerstrategy)
+- [Config reference: strategy patterns](/docs/config#featuresserviceworkerstrategy)

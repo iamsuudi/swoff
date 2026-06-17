@@ -4,7 +4,7 @@ description: Auto-tags, glob patterns, cascading invalidation, cross-tab, and Re
 icon: Tags
 ---
 
-> **If you're coming from TanStack Query:** `invalidateByTag("notes")` is Swoff's equivalent of `queryClient.invalidateQueries({ queryKey: ["notes"] })`. The difference: Swoff auto-generates tags from URL patterns, supports glob matching, cascading invalidation, and works cross-tab — no query key management needed. See the [full comparison](/docs/comparisons/invalidation).
+> **If you're coming from TanStack Query:** `invalidateByTag("notes")` is Swoff's equivalent of `queryClient.invalidateQueries({ queryKey: ["notes"] })`. The difference: Swoff auto-generates tags from URL patterns, supports glob matching, cascading invalidation, and works cross-tab — no query key management needed. See the [full comparison](/docs/comparisons#invalidation).
 
 ## Preconditions
 
@@ -184,7 +184,7 @@ const tags = await getTagsForUrl("/api/notes/123");
 
 ## Related
 
-- [Full comparison: Tag-based vs query-key invalidation](/docs/comparisons/invalidation)
+- [Full comparison: Tag-based vs query-key invalidation](/docs/comparisons#invalidation)
 - [Server push: real-time invalidation via SSE/WS](/docs/guides/server-push)
 - [Caching strategies: how tags integrate with caching](/docs/guides/caching-strategy)
-- [Config reference: tagInvalidation](/docs/cli/config#featurestaginvalidation)
+- [Config reference: tagInvalidation](/docs/config#featurestaginvalidation)

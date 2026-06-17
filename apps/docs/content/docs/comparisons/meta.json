@@ -1,21 +1,14 @@
 {
   "title": "Comparisons",
   "pages": [
-    "service-worker",
-    "pwa",
-    "devx",
     "caching-and-data",
-    "data-fetching",
-    "invalidation",
-    "prefetch",
-    "offline-navigation",
     "auth",
-    "graphql",
-    "realtime",
-    "offline-queue",
-    "optimistic-updates",
+    "auth-libraries",
     "cross-tab",
+    "offline-navigation",
+    "prefetch",
     "request-batching",
+    "optimistic-updates",
     "resource-monitoring"
   ]
 }

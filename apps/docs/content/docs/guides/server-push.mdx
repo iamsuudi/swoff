@@ -4,7 +4,7 @@ description: Real-time cache invalidation from the Service Worker via SSE or Web
 icon: Radio
 ---
 
-> **If you're coming from Socket.io for real-time updates:** Swoff's server push connects to your SSE or WebSocket endpoint from the Service Worker, not from the page. The connection survives navigation, tab refresh, and doesn't consume page memory. When the server sends tags, the SW invalidates cached responses across all tabs — no need to manually wire up socket events to cache invalidation. See the [full comparison](/docs/comparisons/realtime).
+> **If you're coming from Socket.io for real-time updates:** Swoff's server push connects to your SSE or WebSocket endpoint from the Service Worker, not from the page. The connection survives navigation, tab refresh, and doesn't consume page memory. When the server sends tags, the SW invalidates cached responses across all tabs — no need to manually wire up socket events to cache invalidation. See the [full comparison](/docs/comparisons#real-time).
 
 ## Preconditions
 
@@ -125,8 +125,8 @@ Server push works by calling `invalidateByTags()` in the SW. If `tagInvalidation
 
 ## Related
 
-- [Full comparison: Real-time invalidation](/docs/comparisons/realtime)
+- [Full comparison: Real-time invalidation](/docs/comparisons#real-time)
 - [Tag invalidation: glob patterns, cascading](/docs/guides/tag-invalidation)
 - [Auth guide: why cookie auth is required](/docs/guides/auth)
 - [Push notifications: browser push vs server push](/docs/guides/push-notifications)
-- [Config reference: features](/docs/cli/config#featuresserverpush)
+- [Config reference: features](/docs/config#featuresserverpush)

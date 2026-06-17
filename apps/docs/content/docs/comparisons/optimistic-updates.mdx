@@ -3,23 +3,22 @@ title: Optimistic Updates
 description: Why Swoff deliberately excludes optimistic updates.
 ---
 
+## Optimistic Updates: The Distributed System Trap
 
-Optimistic updates — applying mutations to the UI instantly before the server confirms — transform your frontend into a distributed system. Every edge case that follows is a distributed systems problem: conflict resolution, causal ordering, idempotency, cascading failure, and reconciliation.
+Optimistic updates — applying mutations to the UI instantly before the server confirms — transform your frontend into a distributed system. Every edge case that follows is a distributed systems problem: conflict resolution, causal ordering, cascade failure, and reconciliation. Swoff does not implement optimistic updates; this is a deliberate architectural boundary.
 
-Swoff does not implement optimistic updates. This is not a missing feature; it is a deliberate architectural boundary. The Telegram pattern — pending state until server confirmation — avoids the entire class of problems documented below.
+**The phantom ID problem.** When a resource is created offline, it has no server-assigned ID. The client assigns a temp ID. Every dependent mutation references this temp ID. If the server rejects the create (validation, permission, duplicate), the temp ID never becomes real, and all dependent mutations reference a phantom. Client DBs can map temp IDs on success, but on rejection there is no reverse mapping to find and clean up dependents — that requires full knowledge of your foreign key graph.
 
-## The phantom ID problem
+**Cascade failure in mutation chains.** Real apps chain mutations: create order → add line items → apply discount → update inventory. Each step depends on the previous one succeeding. Failure can happen for reasons the client cannot predict — business rule violation, rate limit, server trigger error, referential integrity, concurrent modification. The cascade depth is unbounded, and no client DB provides framework-level cascading rollback.
 
-When a resource is created offline, it has no server-assigned ID. The client assigns a temporary ID. Every subsequent mutation referencing that resource must use this temp ID. When the queue replays, the temp ID must be mapped to the real server ID. This fails when the server rejects the create, or returns a different ID than expected, or returns a stale representation with server-computed fields.
+**Server-side state the client cannot know.** Computed fields (`totalPrice = SUM(line_items.price)`), slug generation, auto-incrementing counters, timestamps, derived state (`isComplete = ALL(items.checked)`), and server middleware (auth checks, audit logs, webhooks) all happen server-side after the mutation is accepted. Every one of these can cause the server's response to differ from the optimistic local state.
 
-## Cascade failure in mutation chains
+**Auth edges.** Token expires mid-queue (partial batch failure), permission revoked while offline, resource deleted by another user, ownership changes — all routine scenarios in any multi-user application. Client DBs provide no framework-level handling for any of them.
 
-Real apps chain mutations: Create order → Add line items → Apply discount → Update inventory. Each depends on the previous succeeding. Failure can happen for reasons the client cannot predict: business rule violations, rate limits, server-side trigger errors, referential integrity, concurrent modification.
+**The CRDT illusion.** CRDTs solve exactly one problem: concurrent edits to the same field of the same document by different users. They do not solve server validation rejection, cascading failure, foreign key violations, business rules, permission changes, computed-field divergence, schema migration conflicts, or any scenario where the server says "no."
 
-## The CRDT illusion
+**Why client DBs cannot escape this.** This is the CAP theorem: client DBs choose AP (Availability + Partition tolerance) over Consistency. The client and server diverge during offline periods, and sync engines only partially reconcile that divergence. The remaining complexity is not a bug — it is a consequence of the CAP theorem, and no library can engineer around it.
 
-CRDTs solve exactly one problem: concurrent edits to the _same field_ of the _same document_ by _different users_. They do not solve server validation rejection, cascading failure, foreign key constraint violations, business rule enforcement, permission changes, or server-computed field divergence.
+**Enterprise reality.** No major enterprise application uses a client-side embedded database for its primary data layer. Google Docs uses operational transformation + WebSocket. Figma uses WebSocket + CRDT for canvas state. Notion uses optimistic local state with server confirmation. These apps invest heavily in distributed systems engineering because their core product is collaborative editing. For a typical web application — dashboards, e-commerce, content management, social feeds — the complexity is disproportionate to the benefit.
 
-## The recommended pattern
-
-The Telegram approach: show pending state, disable dependent actions, and replace with confirmed state on server response. This works with any API, any data model, and any backend — and it does not require the developer to become a distributed systems engineer.
+**What Swoff says.** Swoff does not generate optimistic update code. The recommended pattern is the Telegram approach: show pending state, disable dependent actions, and replace with confirmed state on server response. See [Offline Write Queue](/docs/comparisons/caching-and-data#offline-write-queue) for the mutation queue design. This works with any API, any data model, and any backend — and it does not require the developer to become a distributed systems engineer.

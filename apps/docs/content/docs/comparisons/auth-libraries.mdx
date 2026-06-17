@@ -1,0 +1,222 @@
+---
+title: Auth Libraries Reference
+description: How popular auth libraries transmit identity under the hood — and whether you need to set headers.
+---
+
+## Auth Libraries Reference
+
+Identify your auth library's mechanism to know whether you need to configure `getHeaders()` in your [adapter](/docs/guides/auth#swoffauthadapterts---you-must-edit-this-file) or can skip it entirely.
+
+## The Three Categories
+
+### Cookie / Session Auth (Automatic)
+
+The server sets an **http-only cookie** on login. The browser automatically sends it on every same-origin request. **No header setup needed.**
+
+Set `features.auth.type: "cookie"` in `swoff.config.json` — the CLI generates a no-op `getHeaders()`.
+
+### Bearer Token Auth (Manual)
+
+The server returns a **token string** on login. The client must store it and manually set `Authorization: Bearer <token>` on every request. **Header setup handled by CLI.**
+
+Set `features.auth.type: "bearer"` — the CLI generates `getHeaders()` with the bearer injection.
+
+### Custom Header Auth (Manual)
+
+Same as Bearer, but with a non-standard header name (e.g., `X-Auth-Token`, `X-API-Key`, `Authorization: Token`). **You must edit the generated stub.**
+
+Set `features.auth.type: "custom"` — the CLI generates a `getHeaders()` stub you edit.
+
+## Quick Reference Table
+
+| Library / Framework                 | Category              | Transmission                                                                        | Need to Edit `getHeaders()`? |
+| ----------------------------------- | --------------------- | ----------------------------------------------------------------------------------- | ---------------------------- |
+| **Better-Auth** (default)           | Cookie                | `better-auth.session-token` http-only cookie (HMAC-signed)                          | No                           |
+| **Better-Auth** (bearer plugin)     | Bearer                | `Authorization: Bearer <session_token>`                                             | Yes                          |
+| **Auth.js / NextAuth.js** (v4 & v5) | Cookie                | `next-auth.session-token` / `__Secure-authjs.session-token` http-only encrypted JWT | No                           |
+| **Clerk** (same-origin)             | Cookie                | `__session` cookie (set via JS on app domain)                                       | No                           |
+| **Clerk** (cross-origin)            | Bearer                | `Authorization: Bearer <token>` from `getToken()`                                   | Yes                          |
+| **Supabase** (browser SDK)          | SDK-managed           | `Authorization: Bearer <JWT>` — auto-injected by SDK client                         | No (use SDK client)          |
+| **Supabase** (raw fetch)            | Bearer                | `Authorization: Bearer <JWT>`                                                       | Yes                          |
+| **Supabase** (SSR mode)             | Cookie                | `sb-{ref}-auth-token` http-only cookie                                              | No                           |
+| **Auth0 SPA SDK**                   | Bearer                | `Authorization: Bearer <token>` from `getTokenSilently()`                           | Yes (always)                 |
+| **Firebase Auth**                   | Bearer                | `Authorization: Bearer <id_token>` from `getIdToken()`                              | Yes (always)                 |
+| **Laravel Sanctum** (SPA mode)      | Cookie                | `laravel_session` http-only cookie + `X-XSRF-TOKEN` CSRF header                     | No (CSRF only)               |
+| **Laravel Sanctum** (API mode)      | Bearer                | `Authorization: Bearer <personal_access_token>`                                     | Yes                          |
+| **DRF SessionAuthentication**       | Cookie                | `sessionid` http-only cookie + `X-CSRFToken` header                                 | No (CSRF only)               |
+| **DRF TokenAuthentication**         | Custom Header         | `Authorization: Token <token>`                                                      | Yes                          |
+| **DRF SimpleJWT**                   | Bearer                | `Authorization: Bearer <JWT>`                                                       | Yes                          |
+| **Passport.js** (session strategy)  | Cookie                | `connect.sid` http-only cookie (via express-session)                                | No                           |
+| **Passport.js** (JWT strategy)      | Bearer / Configurable | Typically `Authorization: Bearer <JWT>`                                             | Yes                          |
+| **Logto** (web / SSR)               | Cookie                | `logto`-prefixed http-only encrypted cookie                                         | No                           |
+| **Logto** (SPA / API)               | Bearer                | `Authorization: Bearer <token>` from `getAccessToken()`                             | Yes                          |
+
+## How to Determine Your Category
+
+Not sure which one you have? Inspect your login flow:
+
+### Check the Login Response
+
+Open DevTools → Network tab → Find your login request → Look at the response headers:
+
+```
+Set-Cookie: better-auth.session-token=abc123; HttpOnly; Secure; SameSite=Lax
+                                    ↑
+                     http-only cookie present?
+```
+
+**Yes, http-only cookie present → Cookie/Session auth.**
+
+Your browser will auto-send this cookie on subsequent same-origin requests. You don't need to edit `getHeaders()`.
+
+### Check the Login Response Body
+
+If no `Set-Cookie` header, check the JSON body:
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "user": { "id": 1, "name": "Alice" }
+}
+```
+
+**Token field in response → Bearer or Custom header auth.**
+
+- If your backend uses `Authorization: Bearer <token>` → Bearer category
+- If it uses `Authorization: Token <token>` or `X-API-Key` → Custom header category
+- Either way, you **must** edit `getHeaders()`
+
+### Check if You're Using an SDK
+
+Are you calling `supabase.from('notes').select()` or `authClient.fetch('/api/...')` instead of raw `fetch()`?
+
+**Yes → SDK-managed auth.** The SDK auto-injects headers. You don't need `fetchWithCache({ auth: true })` — but you also lose Swoff's caching and offline queue. To get both, either:
+
+1. Use `fetchWithCache({ auth: true })` with the token you extract from the SDK (via `supabase.auth.getSession()` or similar)
+2. Or intercept the SDK's internal fetch to add Swoff's cache strategy headers
+
+## Configuration by Category
+
+### Cookie Auth — No Header Setup
+
+If you have cookie/session auth, skip `getHeaders()` entirely:
+
+```typescript
+function getHeaders(auth: AuthData | null): Record<string, string> {
+  // Cookie/Session auth — nothing needed.
+  // Browser auto-sends cookies on every same-origin request.
+  return {};
+}
+```
+
+**Note:** Some cookie-based backends require a CSRF token for unsafe methods (POST, PUT, DELETE):
+
+- Laravel Sanctum: `X-XSRF-TOKEN` header from `XSRF-TOKEN` cookie
+- Django: `X-CSRFToken` header from `csrftoken` cookie
+
+If your backend requires CSRF, add it:
+
+```typescript
+function getHeaders(auth: AuthData | null): Record<string, string> {
+  // Read CSRF token from cookie and set as header
+  const csrfToken = getCookie("XSRF-TOKEN"); // or "csrftoken"
+  if (csrfToken) {
+    return { "X-XSRF-TOKEN": csrfToken };
+  }
+  return {};
+}
+```
+
+### Bearer Token Auth — Header Setup
+
+```typescript
+function getHeaders(auth: AuthData | null): Record<string, string> {
+  if (auth?.token) {
+    return { Authorization: `Bearer ${auth.token}` };
+  }
+  return {};
+}
+```
+
+### Custom Header Auth — Header Setup
+
+```typescript
+// Authorization: Token (DRF TokenAuthentication)
+function getHeaders(auth: AuthData | null): Record<string, string> {
+  if (auth?.token) {
+    return { Authorization: `Token ${auth.token}` };
+  }
+  return {};
+}
+
+// X-API-Key (API key auth)
+function getHeaders(auth: AuthData | null): Record<string, string> {
+  if (auth?.token) {
+    return { "X-API-Key": auth.token };
+  }
+  return {};
+}
+```
+
+### SDK-Managed Auth — Use the SDK Client
+
+If you're using an SDK that auto-injects headers (Supabase JS client, Better-Auth client, Clerk components), you have two options:
+
+**Option A:** Use `fetchWithCache({ auth: true })` with the token extracted from the SDK:
+
+```typescript
+import { supabase } from "./supabase-client";
+import { setAuth } from "./swoff/auth/store";
+
+async function loginWithSupabase(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+  if (error) throw error;
+
+  // Extract session and store in Swoff's auth store
+  const session = data.session;
+  await setAuth({
+    token: session.access_token,
+    user: session.user,
+    expiresAt: Date.now() + session.expires_in * 1000,
+  });
+
+  // Now use fetchWithCache for all subsequent calls
+  // getHeaders will inject: Authorization: Bearer <access_token>
+}
+
+// Then in getHeaders:
+function getHeaders(auth: AuthData | null): Record<string, string> {
+  if (auth?.token) {
+    return { Authorization: `Bearer ${auth.token}` };
+  }
+  return {};
+}
+```
+
+**Option B:** Use the SDK's built-in client for data fetching:
+
+```typescript
+// If your SDK auto-injects headers, use it directly
+const { data: notes } = await supabase.from("notes").select("*");
+// Auth is handled by the SDK internally
+```
+
+**Tradeoff:** Option A gives you Swoff's caching and offline queue. Option B gives you automatic auth but bypasses Swoff's cache layer.
+
+## Summary
+
+| Your Auth Type   | `getHeaders()`              | `fetchWithCache({ auth: true })` Needed? |
+| ---------------- | --------------------------- | ---------------------------------------- |
+| Cookie / Session | No-op (skip)                | Yes (for 401 handling + user cache)      |
+| Bearer Token     | Set `Authorization: Bearer` | Yes                                      |
+| Custom Header    | Set your header             | Yes                                      |
+| SDK-managed      | Extract token → set as Bearer | Optional (gives you caching)           |
+
+## Next Steps
+
+- [Auth-Aware Caching guide](/docs/guides/auth) — full setup walkthrough
+- [Config reference: auth](/docs/config#featuresauth) — all configuration options
+- [Authentication comparison](/docs/comparisons/auth) — why auth awareness matters for cache security

@@ -9,12 +9,15 @@ import {
   Globe,
   Smartphone,
   Braces,
+  Container,
   Zap,
   Database,
   Radio,
   ArrowRight,
   Bell,
+  BookOpen,
   Command,
+  Images,
   Blocks,
   Cpu,
   ExternalLink,
@@ -84,6 +87,13 @@ const features = [
     desc: "Built-in push notification subscription management, VAPID key configuration, and SW push event handler — no manual service worker wiring.",
     color: "text-purple-500",
     bg: "bg-purple-500/10",
+  },
+  {
+    icon: Images,
+    title: "PWA Asset Generation",
+    desc: "Generate icons, splash screens, favicons, Apple touch icons, and OG images from a single SVG source. Includes HTML meta-tag copy-paste guide for your <head>.",
+    color: "text-green-500",
+    bg: "bg-green-500/10",
   },
   {
     icon: Braces,
@@ -206,7 +216,7 @@ function Home() {
 
             <div className="text-center">
               <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tight text-fd-foreground leading-[1.05] text-center">
-                Offline Infrastructure,
+                Offline Infrastructure
                 <br />
                 <span className="bg-linear-to-r from-fd-primary via-orange-400 to-amber-500 bg-clip-text text-transparent text-center">
                   Zero Dependencies
@@ -217,7 +227,7 @@ function Home() {
                 Swoff generates an auditable Service Worker and client code that
                 uses only native browser APIs — no runtime deps, no plugins, no
                 bundler hooking, no framework coupling. Just a CLI command and
-                you own the output.
+                you own the code.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -433,7 +443,7 @@ function Home() {
           </h2>
           <p className="text-fd-muted-foreground text-lg max-w-lg mx-auto mb-10">
             No runtime deps, no framework lock-in, no package.json required.
-            Just a single config and a CLI command.
+            Just a single config and a CLI command, you own the code.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link

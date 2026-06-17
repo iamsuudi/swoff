@@ -6,106 +6,21 @@ icon: Rocket
 
 # Introduction
 
-Swoff is a **CLI toolbox**, not a framework. It generates files you own and control.
+Swoff is a CLI toolbox that generates offline-first infrastructure for your web app. No runtime dependencies — you own the generated code.
 
-- **Pick what you need** — toggle features in `swoff.config.json`
-- **Tweak everything** — the code is yours, no library fights you
-- **Zero runtime dependencies** — the generated files are all you need
+## Why Swoff?
 
-## Quick Start
-
-```bash
-npx @swoff/cli init     # create swoff.config.json + swoff/ directory
-npx @swoff/cli generate # generate SW + supporting files
-```
-
-This creates:
-
-- `swoff.config.json` — your configuration
-- `swoff/` — injector, fetch wrapper, cache helpers, PWA install handler, TypeScript declarations
-- `dist/sw-v{version}.js` — the service worker
-- `dist/version.json` — version manifest for update detection
-- `public/manifest.json` — Web App Manifest (if `public/` exists and no existing manifest)
-
-Generated files are yours to edit, extend, or delete.
+- **Config-driven** — toggle features in `swoff.config.json`, the CLI generates everything
+- **Zero runtime deps** — the generated files are all you need, no library version conflicts
+- **Versioned service worker** — users control when to adopt new versions, no silent breakage
+- **Framework-agnostic** — React, Vue, Svelte, or vanilla JS
 
 ## Next Steps
 
-- [Configuration](/docs/configuration) — full config reference
-- [Features](/docs/features) — what each toggle generates
-
-## Two Approaches
-
-### Config-Driven (Recommended)
-
-Edit `swoff.config.json`, run `npx @swoff/cli generate`. The CLI handles everything:
-
-```json
-{
-  "$schema": "https://swoff.netlify.app/schema/v1.json",
-  "enabled": true,
-  "version": "from-package",
-  "minSupportedVersion": "1.0.0",
-  "serviceWorker": {
-    "autoRegister": true,
-    "autoActivate": false,
-    "strategy": {
-      "default": "cache-first",
-      "patterns": {
-        "/api/*": "network-first"
-      },
-      "mode": "all",
-      "clearRuntimeOnUpdate": false,
-      "normalizeKey": false,
-      "ignoreQueryParams": []
-    },
-    "navigation": {
-      "mode": "spa",
-      "preload": true,
-      "fallback": "/index.html"
-    }
-  },
-  "features": {
-    "versionedSw": true,
-    "mutationQueue": false,
-    "backgroundSync": false,
-    "pwa": { "enabled": true, "preventDefaultInstall": false },
-    "auth": { "enabled": false, "type": "bearer", "refreshPath": "/api/refresh", "userEndpoint": "/api/me" },
-    "tagInvalidation": true,
-    "clientRegistration": true,
-    "indexeddb": { "enabled": false, "name": "app-db", "stores": [] }
-  },
-  "build": {
-    "outputDir": "dist",
-    "swFilename": "sw"
-  }
-}
-```
-
-### Custom Code Mode
-
-Set `"enabled": false` and write your own service worker. The CLI skips SW generation but still creates supporting files.
-
-### Clean
-
-Remove all Swoff traces:
-
-```bash
-npx @swoff/cli clean
-```
-
-Deletes `swoff/`, `swoff.config.json`, and `dist/version.json`.
-
-## Reference
-
-**Budget Manager** — a production app demonstrating Swoff patterns:
-
-- 24+ routes offline
-- Client-side data with IndexedDB
-- Versioned SW updates
-- PWA installable
-
-[See Budget Manager →](/docs/reference/budget-manager)
+→ [Service Worker Setup](/docs/guides/service-worker) — quick start with your first guide
+→ [CLI Configuration](/docs/cli/config) — full config reference
+→ [Framework Guides](/docs/frameworks/) — set up for your framework
+→ [Architecture](/docs/architecture/) — design decisions and internals
 
 ## Community
 

@@ -1,0 +1,42 @@
+---
+title: Offline Navigation Comparison
+description: Swoff vs next-pwa / @serwist/next / Workbox / vite-plugin-pwa.
+---
+
+# Offline Navigation: Swoff vs next-pwa / @serwist/next / Workbox / vite-plugin-pwa
+
+When a user navigates offline, the browser shows "This site can't be reached" unless the Service Worker intercepts the navigation and serves a fallback.
+
+## How Swoff does it
+
+**Three navigation modes** (set via `navigation.mode`):
+
+| Mode        | Behavior                                                                                                      | Use case            |
+| ----------- | ------------------------------------------------------------------------------------------------------------- | ------------------- |
+| `"spa"`     | Runtime serves global fallback directly from precache                                                         | Traditional SPAs    |
+| `"default"` | No special nav handling — strategies handle all requests equally                                              | SSG sites           |
+| `"ssr"`     | Runtime checks HTML cache → per-route fallback → global fallback. Auto-prefetch on `pushState`/`replaceState` | All meta-frameworks |
+
+**Auto-prefetch (SSR mode only):** The generated `client-injector` intercepts `history.pushState()` and `history.replaceState()` and calls `prefetchCache(url)` for each navigation.
+
+**HTML cache isolation:** Swoff stores HTML responses in their own cache container, separate from all other content (JSON, RSC payloads, JS, CSS, images).
+
+**Ultimate fallback chain:**
+
+```
+serveFromCache miss → per-route fallback → global fallback → inline 503 HTML
+```
+
+**Per-route fallback rules:** `navigation.rules` lets you configure per-path fallbacks.
+
+**Smart navigation retry:** When a navigation falls through to the inline 503, the SW starts a background retry loop with configurable interval and max retries.
+
+## How competitors handle it
+
+**next-pwa:** Creates a `NavigationRoute` via Workbox. Works only with Next.js Pages Router. No HTML cache isolation, no auto-prefetch, no per-route fallback rules.
+
+**@serwist/next:** Requires manual configuration in both `next.config.ts` and a custom `app/sw.ts`. No HTML cache isolation. No auto-prefetch, no per-route fallback rules.
+
+**Workbox:** Framework-agnostic. Uses `navigateFallback` option. Single fallback value — no per-route fallbacks without custom code. No HTML cache isolation, no auto-prefetch, no retry.
+
+**vite-plugin-pwa:** Wraps Workbox. Inherits the same limitations.

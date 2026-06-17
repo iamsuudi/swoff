@@ -1,0 +1,39 @@
+---
+title: "Prefetch: Swoff vs Framework Built-Ins"
+description: Manual prefetchCache and auto-prefetch vs framework-specific solutions.
+---
+
+# Prefetch: Swoff vs Framework Built-Ins
+
+Prefetch fetches resources before navigation so the response is available instantly. The key difference is where the response is stored — the SW Cache Storage API (disk-backed, survives reloads) versus in-memory framework caches (lost on navigation).
+
+## How Swoff does it
+
+Swoff provides two prefetch mechanisms: manual `prefetchCache()` for any URL, and **auto-prefetch** on client-side navigation when `navigation.mode` is `"ssr"`.
+
+**Manual prefetch:**
+
+```ts
+import { prefetchCache } from "swoff/fetch/core";
+prefetchCache("/api/todos");
+```
+
+**Auto-prefetch (SSR mode):** Every `pushState`/`replaceState` call triggers a prefetch of the target URL. Framework-agnostic — intercepts at the browser API level.
+
+**Key properties:**
+
+- **Storage:** SW Cache Storage API (disk-backed, survives reloads)
+- **Thread:** SW thread — invisible to the main thread
+- **Scope:** Any URL — not limited to route data
+- **Survives hard navigation:** ✓ Yes
+- **Framework coupling:** None
+
+## How competitors handle it
+
+**Next.js `<Link prefetch>`:** Stores route data in an in-memory `CacheNode` tree. Lost on hard refresh. Scope-limited to route segments.
+
+**TanStack Router `router.prefetch()`:** Loads route data into an in-memory `routeCache`. Lost on hard refresh.
+
+**Remix `<Link prefetch>`:** Prefetches route data into the browser HTTP cache via `<link rel="prefetch">` tags. Not SW-visible, does not support tag-based invalidation.
+
+**SvelteKit `data-sveltekit-preload-data`:** In-memory `load_cache`. Lost on hard refresh.

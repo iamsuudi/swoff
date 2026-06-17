@@ -1,0 +1,38 @@
+---
+title: "Real-Time: SSE Push vs WebSocket vs Polling"
+description: Built-in server push for cache invalidation — SSE and WebSocket.
+---
+
+# Real-Time: Swoff SSE Push vs WebSocket Subscriptions vs Polling
+
+Real-time updates keep the UI in sync with server state without manual refetching.
+
+## How Swoff does it
+
+Swoff provides built-in server push for cache invalidation, supporting both SSE and WebSocket as transport. The connection is managed in the Service Worker for reliability across page navigations.
+
+```
+Server → SSE/WS stream → SW receives event
+  → SW dispatches TAG_INVALIDATED to clients
+    → useCachedFetch auto-refetches
+```
+
+**Transport options:**
+
+- **SSE** (default, recommended): text/event-stream over plain HTTP. Native browser reconnection via `EventSource`.
+- **WebSocket:** Full-duplex, available via `type: "websocket"`. Configurable reconnection delay.
+
+**Key properties:**
+
+- **Connection management:** SW-managed — survives page navigations.
+- **Scope:** Cache invalidation only. Server pushes tag names; SW handles cache clearing and refetching.
+- **No bidirectional communication:** Server→client only.
+- **Bundle cost:** 0 kB (generated code).
+
+## How competitors handle it
+
+**TanStack Query:** No built-in real-time. Uses `refetchInterval` (polling) or manual `invalidateQueries()` triggered by a WebSocket message handler.
+
+**Apollo Client:** WebSocket-based subscriptions via `graphql-ws`. Full bidirectional communication with schema-driven subscription operations.
+
+**RxDB / ElectricSQL:** Continuous replication via WebSocket or custom protocol. Includes conflict resolution and schema-aware synchronization.

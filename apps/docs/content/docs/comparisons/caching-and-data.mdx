@@ -1,0 +1,10 @@
+---
+title: "Data Layer: HTTP Caching vs Client Databases"
+description: SW-level HTTP caching versus client databases — the architectural tradeoffs.
+---
+
+# Data Layer: HTTP Caching vs Client Databases
+
+The way you cache data on the client determines your entire offline architecture. Swoff operates at the HTTP cache layer. Client databases (RxDB, TanStack DB, ElectricSQL, PowerSync) embed a local database engine and synchronize it with the server.
+
+See the [original comparison](https://swoff.netlify.app/docs/comparisons/caching-and-data) for the full analysis.

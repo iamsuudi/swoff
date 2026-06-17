@@ -20,65 +20,17 @@ The most critical limitation: iOS Safari evicts all website data — IndexedDB, 
 
 ### Mitigation
 
-**Encourage PWA installation** — standalone mode is the only reliable protection. Detect eviction on startup:
-
-```javascript
-async function detectEviction() {
-  try {
-    const db = await openDB();
-    const tx = db.transaction("meta", "readonly");
-    const store = tx.objectStore("meta");
-    const marker = await new Promise((r) => {
-      const req = store.get("app-initialized");
-      req.onsuccess = () => r(req.result);
-    });
-    return !marker;
-  } catch {
-    return true;
-  }
-}
-```
+**Encourage PWA installation** — standalone mode is the only reliable protection. Detect eviction on startup by checking whether expected data exists in IndexedDB. If eviction is detected, reset your app state gracefully rather than crashing.
 
 ## IndexedDB Storage Limit
 
 iOS Safari imposes a ~50 MB soft limit on IndexedDB — significantly lower than desktop browsers (typically unlimited up to free disk space). Above 50 MB, `QuotaExceededError` is thrown on writes.
 
-### Monitoring
-
-```javascript
-async function monitorStorage() {
-  const estimate = await navigator.storage.estimate();
-  const usageMB = estimate.usage / (1024 * 1024);
-  const quotaMB = estimate.quota / (1024 * 1024);
-  if (usageMB > 40) console.warn("Approaching iOS IndexedDB limit");
-  return { usageMB, quotaMB };
-}
-```
-
-Note: `navigator.storage.estimate()` on iOS often reports a very large quota (~500 MB+) but writes will still fail around 50 MB. Trim cached data aggressively and implement proactive cleanup.
+Note that `navigator.storage.estimate()` on iOS often reports a very large quota (~500 MB+) but writes will still fail around 50 MB. Trim cached data aggressively and implement proactive cleanup.
 
 ## No beforeinstallprompt
 
-iOS Safari does **not** fire the `beforeinstallprompt` event. Use the Share menu "Add to Home Screen" flow instead:
-
-```javascript
-function showInstallGuide() {
-  if (window.navigator.standalone) return;
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  if (isIOS && "serviceWorker" in navigator) {
-    showIOSInstallInstructions(); // 1. Share → 2. Add to Home Screen
-  }
-}
-```
-
-### Detect Standalone Mode
-
-```javascript
-const standalone = {
-  ios: window.navigator.standalone,
-  standard: window.matchMedia("(display-mode: standalone)").matches,
-};
-```
+iOS Safari does **not** fire the `beforeinstallprompt` event. Users must install via the Share menu → "Add to Home Screen". Detect standalone mode by checking `window.navigator.standalone` (iOS) or `matchMedia("(display-mode: standalone)")` (standard).
 
 ## WKWebView Constraints
 
@@ -102,24 +54,7 @@ Push notifications on iOS can only be tested on a physical device, not the simul
 
 ## Private Browsing Mode
 
-In Safari private browsing, IndexedDB and Cache API may throw errors or return empty databases. Data does not persist after the session ends.
-
-```javascript
-async function isPrivateMode() {
-  try {
-    const db = indexedDB.open("__detect_private__");
-    return new Promise((resolve) => {
-      db.onerror = () => resolve(true);
-      db.onsuccess = () => {
-        indexedDB.deleteDatabase("__detect_private__");
-        resolve(false);
-      };
-    });
-  } catch {
-    return true;
-  }
-}
-```
+In Safari private browsing, IndexedDB and Cache API may throw errors or return empty databases. Data does not persist after the session ends. Detect this by attempting to open an IndexedDB database — if it fails, the user is likely in private mode.
 
 ## Service Worker Lifecycle on iOS
 
@@ -171,5 +106,4 @@ On iOS, persistent storage requests are always denied. The only reliable prevent
 
 ## Next Steps
 
-- [Storage Quota Management](/docs/patterns/indexeddb-patterns#persistent-storage) — quota limits and eviction
-- [Offline-First Architecture](/docs/core/offline-architecture) — build resilient for all platforms
+- [Offline-First Architecture](/docs/architecture/offline-architecture) — build resilient for all platforms

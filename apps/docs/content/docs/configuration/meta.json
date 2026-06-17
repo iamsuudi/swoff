@@ -1,6 +1,0 @@
-{
-  "title": "Configuration",
-  "description": "Swoff configuration guides and reference",
-  "icon": "Settings",
-  "pages": ["schema-reference", "migration"]
-}

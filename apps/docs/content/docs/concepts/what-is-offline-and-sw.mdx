@@ -55,7 +55,7 @@ Browsers automatically download new SW files when detected, install them in the 
 
 ## Swoff's Solution: Versioned SW Files
 
-Instead of `/sw.js`, we use `/sw-v1.0.0.js`, `/sw-v1.0.1.js`, etc. Each version is a unique file. The browser only loads the version you tell it to.
+Instead of `/sw.js`, Swoff uses `/sw-v1.0.0.js`, `/sw-v1.0.1.js`, etc. Each version is a unique file. The browser only loads the version you tell it to.
 
 ```
 package.json version: 1.0.0
@@ -67,8 +67,6 @@ User visits app → App checks version.json
 Same version? → Use existing SW
 New version?  → Show update prompt → User approves → Register new version
 ```
-
-See [Versioned SW System](/docs/core/versioned-sw) for implementation details.
 
 ## Versioned App vs PWA Install
 
@@ -111,4 +109,4 @@ You can have an offline app without PWA install (user accesses via bookmark). Yo
 ## Next Steps
 
 - [PWA & Browser APIs](/docs/concepts/pwa-and-browser-apis) — the supporting stack
-- [Versioned SW System](/docs/core/versioned-sw) — how we prevent silent updates
+- [Versioned SW System](/docs/architecture/versioned-sw) — how we prevent silent updates

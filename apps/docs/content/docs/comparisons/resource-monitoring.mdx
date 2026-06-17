@@ -1,0 +1,42 @@
+---
+title: Resource Monitoring Comparison
+description: Fetch timeout, storage quota, and unified error notifications.
+---
+
+# Resource Monitoring: Swoff vs Manual Handling
+
+Resource monitoring covers network fetch timeout and storage quota awareness — both about the app gracefully handling resource constraints inherent to the browser environment.
+
+## How Swoff does it
+
+Swoff addresses both concerns through a single notification channel that originates in the Service Worker and surfaces as a `swoff:notification` CustomEvent on the window.
+
+### Network fetch timeout
+
+Every network request made by the SW passes through `_fetchWithTimeout()`, which wraps `fetch()` with an `AbortController` configured to `features.serviceWorker.strategy.timeout` seconds (default 10). On timeout or network error, `SW_NOTIFICATION` (`FETCH_FAILED`) is broadcast, and the strategy falls through to its cache fallback.
+
+### Storage quota awareness
+
+`storage.ts` exports `getStorageEstimate()` and `formatBytes()`. The storage threshold check (≥80%) runs inside `client-injector.ts` after SW initialization and dispatches `CustomEvent("swoff:notification")` on threshold breach.
+
+### Unified notification channel
+
+All resource events — fetch failures, precache failures, background sync errors, storage quota warnings — are broadcast through a single `swoff:notification` event with a `code` discriminator:
+
+```ts
+window.addEventListener("swoff:notification", (event) => {
+  const { level, code, message } = event.detail;
+  if (level === "error") myToast.error(message);
+  if (level === "warn") myToast.warn(message);
+});
+```
+
+## How competitors handle it
+
+**TanStack Query / SWR:** No SW-level fetch timeout. Storage estimation is entirely the developer's responsibility.
+
+**Workbox:** Provides `NetworkTimeoutSeconds` per-strategy, not global. No storage quota monitoring. No notification channel.
+
+**Client DBs (RxDB, TanStack DB, ElectricSQL):** No fetch timeout. Storage management handled by the local database engine. No unified notification channel.
+
+**Vite-plugin-pwa:** Wraps Workbox. Inherits the same limitations.

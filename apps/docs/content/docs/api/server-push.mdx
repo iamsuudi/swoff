@@ -1,0 +1,49 @@
+---
+title: Server Push Module
+description: server-push/client.ts — SSE/WebSocket connection manager for real-time cache invalidation.
+icon: Radio
+---
+
+# Server Push Module
+
+## `server-push/client.ts`
+
+SSE/WebSocket connection manager for real-time cache invalidation.
+The service worker maintains the connection directly; this module is auto-managed and requires no page-side imports.
+
+```ts
+// No page-side imports needed — connection is managed by the SW.
+// Events are dispatched to the window automatically:
+```
+
+### Functions
+
+| Function | Description |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `startPushEvents()` | Connect to the push endpoint and begin listening for invalidation events. Auto-reconnects on connection loss with exponential backoff (initial delay from config, capped at 30s). |
+| `stopPushEvents()` | Disconnect from the push endpoint |
+| `isPushConnected()` | Returns `boolean` — whether the connection is currently active |
+
+### Events
+
+The module dispatches:
+
+- `push-events-status` — `CustomEvent<{ connected: boolean }>` — connection status changes
+- `cache-invalidated` — `CustomEvent<{ tags: string[] }>` — when the server sends an invalidation
+
+### Server format
+
+**SSE** (default):
+
+```
+event: invalidate
+data: {"tags": ["todos", "categories"]}
+```
+
+**WebSocket:**
+
+```json
+{ "event": "invalidate", "tags": ["todos", "categories"] }
+```
+
+Generated when `features.serverPush.enabled` is `true`.

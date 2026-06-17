@@ -1,0 +1,46 @@
+---
+title: "Authentication: Swoff vs Manual Integration"
+description: How Swoff handles auth at the client layer with SW awareness.
+---
+
+# Authentication: Swoff vs Manual Integration
+
+Authentication in an offline-capable app involves token management, header injection, 401 detection, silent refresh, and offline user data caching. Swoff handles all of these at the client layer with SW awareness, eliminating the need for axios interceptors, custom fetch wrappers, or third-party auth libraries.
+
+## How Swoff does it
+
+Swoff generates a client-side auth system with SW notifications for background 401 detection:
+
+**Token management:**
+
+- Three auth types: `bearer`, `cookie`, `custom` (developer-defined header injection).
+- Token storage: memory-only for bearer tokens (not persisted to storage).
+- Silent refresh: `ensureValidAuth()` probes the refresh endpoint before expiry and updates tokens in memory.
+- `clearAuth()`: wipes tokens from memory and user cache from IndexedDB. The app decides if queue/cache cleanup is needed.
+
+**Request-level integration:**
+
+- `fetchWithCache({ auth: true })` automatically injects auth headers.
+- Auth URLs (login, register, refresh, logout) bypass SW caching via `X-SW-Cache-Strategy: mutation`.
+- `401` responses in the fetch wrapper trigger a silent refresh attempt. On failure, `clearAuth()` runs and `sw-auth-unauthorized` fires.
+
+**Offline user data:**
+
+- The user profile is cached in IndexedDB for offline display.
+- `getAuthState()` returns `{ authenticated, auth, online }` — works offline. Access user data via `auth.user`.
+
+**Reactive hooks:**
+
+- `useAuth()` returns `{ authenticated, auth, online, isLoading, error, setAuth, clearAuth, ensureValid }`.
+- Listens for `sw-auth-state-change` events (dispatched by the SW after auth state changes).
+- Listens for `online`/`offline` events for connectivity-aware state.
+
+## How competitors handle it
+
+**TanStack Query / SWR:** No auth layer. Developers implement their own token injection via `axios` interceptors, custom `fetch` wrappers, or a `queryFn` wrapper. 401 handling, refresh, and offline auth state are entirely the developer's responsibility.
+
+**Workbox:** No auth layer. The SW has no knowledge of auth tokens.
+
+**RxDB / TanStack DB:** No auth layer. The sync engine may support auth headers, but token management, refresh, and 401 detection are manual.
+
+**Client DBs (RxDB, PowerSync, ElectricSQL):** No auth layer. Sync engines may support auth headers for initial connection, but have no concept of token lifecycle — no 401 detection, no silent refresh, no cache eviction on logout. User data persists across sessions; on shared devices one user's cached data is visible to the next without manual clearing.

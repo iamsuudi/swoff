@@ -1,0 +1,71 @@
+---
+title: Framework Guides
+description: Framework-specific setup instructions and adapter implementations.
+icon: Cable
+---
+
+## Guides
+
+Step-by-step instructions for integrating Swoff into your framework of choice using the new JSON configuration system.
+
+## Available Guides
+
+| Guide                                                       | Description                                           |
+| ----------------------------------------------------------- | ----------------------------------------------------- |
+| [React Ecosystem](/docs/frameworks/react-ecosystem)             | Hooks, components, and adapter for React applications |
+| [Vue Ecosystem](/docs/frameworks/vue-ecosystem)                 | Composables, components, and adapter for Vue apps     |
+| [Svelte Ecosystem](/docs/frameworks/svelte-ecosystem)           | Stores, components, and adapter for Svelte projects   |
+| [Contributing Adapters](/docs/frameworks/contributing-adapters) | How to build and submit adapters for new frameworks   |
+
+## Configuration
+
+All framework guides now use the new JSON configuration system:
+
+```json
+{
+  "$schema": "https://swoff.netlify.app/schema/v1.json",
+  "enabled": true,
+  "version": "from-package",
+  "serviceWorker": {
+    "strategy": {
+      "default": "cache-first",
+      "patterns": {
+        "/api/*": "network-first",
+        "/static/*": "cache-first"
+      }
+    }
+  },
+  "features": {
+    "mutationQueue": true,
+    "pwa": {
+      "enabled": true,
+      "preventDefaultInstall": false
+    }
+  }
+}
+```
+
+## Migration
+
+| Guide                                            | Description                                              |
+| ------------------------------------------------ | -------------------------------------------------------- |
+| [Introduction](/docs/introduction) | Migrate from manual service worker coding to JSON config |
+
+## Learning Path
+
+```
+Concepts (/docs/concepts/)
+    ↓
+Core Architecture (/docs/architecture/)
+    ↓
+Patterns (/docs/cli/) ← Framework-agnostic code
+    ↓
+Integration (/docs/integration/) ← Understand the bridge
+    ↓
+Framework Guides (you are here) ← Framework-specific setup
+```
+
+## Next Steps
+
+- Pick your framework from the table above
+- [Contributing Adapters](/docs/frameworks/contributing-adapters) — add support for a new framework

@@ -1,0 +1,48 @@
+---
+title: Storage Module
+description: storage.ts — storage estimation utilities and quota monitoring.
+icon: HardDrive
+---
+
+# Storage Module
+
+## `storage.ts`
+
+Storage estimation utilities. The storage check (`checkStorage()`) is called automatically by `client-injector.ts` after `initServiceWorker()` — it dispatches `STORAGE_QUOTA_HIGH` when usage exceeds 80%.
+
+```ts
+import { getStorageEstimate, formatBytes } from "swoff/storage";
+```
+
+### Functions
+
+| Function | Returns | Description |
+| ---------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `getStorageEstimate()` | `Promise<{ usage: number, quota: number, percentUsed: number }>` | Raw storage estimate — no dispatch. Use when you want to render quota in UI. |
+| `formatBytes(bytes)` | `string` | Format a byte count for display (e.g. `formatBytes(1572864)` → `"1.5 MB"`). |
+
+### Window events
+
+The SW broadcasts these automatically on failure:
+
+| Code | Level | When |
+| ---------------------------------- | ------- | ------------------------------------------------------------------------------------------------- |
+| `FETCH_FAILED` | `error` | Network request timed out or failed |
+| `PRECACHE_FAILED` | `warn` | Per-asset precache failure during install |
+| `BACKGROUND_SYNC_FAILED` | `error` | Background sync processing error |
+| `STORAGE_QUOTA_HIGH` | `warn` | Storage >80% capacity (from `checkStorage()`, auto-called by client-injector) |
+| `AUTH_FAILURE` (postMessage type) | — | Background refresh returned 401 — client handles via `ensureValidAuth()` → `clearAuth()` fallback |
+| `CACHE_UPDATED` (postMessage type) | — | Successful background refetch — sent with `fetchUrl` payload to trigger UI updates |
+
+Listen with:
+
+```ts
+window.addEventListener("swoff:notification", (event) => {
+  const { level, code, message } = event.detail;
+  // show toast, alert, or log
+});
+```
+
+The type declaration is included in `swoff.d.ts` — no manual casting needed.
+
+Always generated.

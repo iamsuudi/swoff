@@ -1,0 +1,51 @@
+---
+title: Architecture
+description: The architectural foundation of offline-first apps.
+icon: Cog
+---
+
+## Architecture
+
+The architecture guides explain the design decisions and system components that make offline-first apps work.
+
+import {
+  HardDriveIcon,
+  GitBranchIcon,
+  DatabaseIcon,
+  CogIcon,
+} from "lucide-react";
+
+<Cards>
+  <Card
+    title="Offline-First Architecture"
+    icon={<HardDriveIcon />}
+    href="/docs/architecture/offline-architecture"
+  >
+    App shell + smart data. Storage strategy, rendering modes (SPA/SSG/SSR), and
+    data flow.
+  </Card>
+  <Card
+    title="Versioned Service Worker"
+    icon={<GitBranchIcon />}
+    href="/docs/architecture/versioned-sw"
+  >
+    How Swoff versions service workers to prevent silent updates. The update
+    consent flow, version manifest, and forced update mechanism.
+  </Card>
+  <Card
+    title="Data Layer"
+    icon={<DatabaseIcon />}
+    href="/docs/architecture/data-layer"
+  >
+    The unified read/write loop: query, mutate, reconcile, and invalidate. How
+    reads, writes, and cache invalidation connect.
+  </Card>
+  <Card
+    title="Design Decisions"
+    icon={<CogIcon />}
+    href="/docs/architecture/architecture"
+  >
+    Why the SW + client hybrid model, reactive staleness strategy, and versioned
+    SW approach.
+  </Card>
+</Cards>

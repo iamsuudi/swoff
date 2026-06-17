@@ -1,0 +1,26 @@
+---
+title: Optimistic Updates — The Distributed System Trap
+description: Why Swoff deliberately excludes optimistic updates.
+---
+
+# Optimistic Updates: The Distributed System Trap
+
+Optimistic updates — applying mutations to the UI instantly before the server confirms — transform your frontend into a distributed system. Every edge case that follows is a distributed systems problem: conflict resolution, causal ordering, idempotency, cascading failure, and reconciliation.
+
+Swoff does not implement optimistic updates. This is not a missing feature; it is a deliberate architectural boundary. The Telegram pattern — pending state until server confirmation — avoids the entire class of problems documented below.
+
+## The phantom ID problem
+
+When a resource is created offline, it has no server-assigned ID. The client assigns a temporary ID. Every subsequent mutation referencing that resource must use this temp ID. When the queue replays, the temp ID must be mapped to the real server ID. This fails when the server rejects the create, or returns a different ID than expected, or returns a stale representation with server-computed fields.
+
+## Cascade failure in mutation chains
+
+Real apps chain mutations: Create order → Add line items → Apply discount → Update inventory. Each depends on the previous succeeding. Failure can happen for reasons the client cannot predict: business rule violations, rate limits, server-side trigger errors, referential integrity, concurrent modification.
+
+## The CRDT illusion
+
+CRDTs solve exactly one problem: concurrent edits to the _same field_ of the _same document_ by _different users_. They do not solve server validation rejection, cascading failure, foreign key constraint violations, business rule enforcement, permission changes, or server-computed field divergence.
+
+## The recommended pattern
+
+The Telegram approach: show pending state, disable dependent actions, and replace with confirmed state on server response. This works with any API, any data model, and any backend — and it does not require the developer to become a distributed systems engineer.

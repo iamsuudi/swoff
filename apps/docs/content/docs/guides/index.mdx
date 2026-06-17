@@ -1,71 +1,25 @@
 ---
-title: Framework Guides
-description: Framework-specific setup instructions and adapter implementations.
-icon: Cable
+title: Integration Guides
+description: Walk through Swoff features step by step.
+icon: BookOpen
 ---
 
-## Guides
+# Swoff Integration Guides
 
-Step-by-step instructions for integrating Swoff into your framework of choice using the new JSON configuration system.
+Walk through Swoff features step by step. Each guide is standalone — start with what you need, skip what you don't.
 
-## Available Guides
+| Guide | Competitor it replaces | What you'll integrate |
+| ----- | ---------------------- | --------------------- |
+| [1. Service Worker](/docs/guides/service-worker) | Workbox / Serwist | SW lifecycle, versioning, auto-activation, navigation preload |
+| [2. Caching Strategy](/docs/guides/caching-strategy) | TanStack Query / SWR | 6 strategies, patterns, reactive, timeout, eviction |
+| [3. Data Fetching & Caching](/docs/guides/data-fetching) | TanStack Query / SWR | fetchWithCache, stale-while-revalidate, prefetch |
+| [4. Navigation Caching](/docs/guides/navigation-caching) | — | SPA/SSR navigation, preload, fallback, precache routes |
+| [5. Auth](/docs/guides/auth) | — | Auth headers, 401 detection, token refresh, protected routes |
+| [6. Tag Invalidation](/docs/guides/tag-invalidation) | TanStack Query invalidateQueries | Auto-tags, glob patterns, cascading, cross-tab invalidation |
+| [7. GraphQL](/docs/guides/graphql) | Apollo Client | Body-hash caching, operation-name auto-tags |
+| [8. Offline Mutations](/docs/guides/offline-mutations) | RxDB / PouchDB | Queue writes offline, replay online, background-sync |
+| [9. Push Notifications](/docs/guides/push-notifications) | Web Push API | Subscribe, notify, unsubscribe |
+| [10. Server Push](/docs/guides/server-push) | Socket.io | SSE/WS from SW, live tag invalidation across all tabs |
+| [11. PWA Foundation](/docs/guides/pwa) | Workbox / Serwist | Install prompt, manifest, icons, storage estimate |
 
-| Guide                                                       | Description                                           |
-| ----------------------------------------------------------- | ----------------------------------------------------- |
-| [React Ecosystem](/docs/guides/react-ecosystem)             | Hooks, components, and adapter for React applications |
-| [Vue Ecosystem](/docs/guides/vue-ecosystem)                 | Composables, components, and adapter for Vue apps     |
-| [Svelte Ecosystem](/docs/guides/svelte-ecosystem)           | Stores, components, and adapter for Svelte projects   |
-| [Contributing Adapters](/docs/guides/contributing-adapters) | How to build and submit adapters for new frameworks   |
-
-## Configuration
-
-All framework guides now use the new JSON configuration system:
-
-```json
-{
-  "$schema": "https://swoff.netlify.app/schema/v1.json",
-  "enabled": true,
-  "version": "from-package",
-  "serviceWorker": {
-    "strategy": {
-      "default": "cache-first",
-      "patterns": {
-        "/api/*": "network-first",
-        "/static/*": "cache-first"
-      }
-    }
-  },
-  "features": {
-    "mutationQueue": true,
-    "pwa": {
-      "enabled": true,
-      "preventDefaultInstall": false
-    }
-  }
-}
-```
-
-## Migration
-
-| Guide                                            | Description                                              |
-| ------------------------------------------------ | -------------------------------------------------------- |
-| [Migration Guide](/docs/configuration/migration) | Migrate from manual service worker coding to JSON config |
-
-## Learning Path
-
-```
-Concepts (/docs/concepts/)
-    ↓
-Core Architecture (/docs/core/)
-    ↓
-Patterns (/docs/patterns/) ← Framework-agnostic code
-    ↓
-Integration (/docs/integration/) ← Understand the bridge
-    ↓
-Framework Guides (you are here) ← Framework-specific setup
-```
-
-## Next Steps
-
-- Pick your framework from the table above
-- [Contributing Adapters](/docs/guides/contributing-adapters) — add support for a new framework
+New to Swoff? Start with guides 1–2 — they're the foundation for everything else and are enabled by default after `swoff init`.

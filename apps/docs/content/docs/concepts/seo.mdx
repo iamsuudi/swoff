@@ -43,15 +43,7 @@ Googlebot → requests page → SW intercepts
 
 ### Social Media Crawlers
 
-When sharing on Twitter, Facebook, LinkedIn:
-
-```
-og:image, twitter:card → must be in initial HTML
-                          ↓
-SW serves cache OR fetches
-                          ↓
-Crawlers see what's rendered
-```
+When sharing on Twitter, Facebook, LinkedIn, crawlers typically see only the initial HTML. Meta tags like `og:image` and `twitter:card` must be present in the server response — they cannot be added client-side.
 
 **Solution**: Use server-side meta tags for shared pages.
 
@@ -82,44 +74,14 @@ For apps that need both SEO and offline capability, use a hybrid:
 ### Architecture
 
 ```
-┌─────────────────────────────────────────┐
-│              Your Server                 │
-├─────────────────────────────────────────┤
-│  Public pages: SSR (fast initial load) │
-│  /, /about, /pricing, /blog/*          │
-├─────────────────────────────────────────┤
-│  App pages: Client-side (Swoff)        │
-│  /dashboard, /settings, /app/*          │
-└─────────────────────────────────────────┘
+Your Server:
+  Public pages: SSR (fast initial load, meta tags present)
+    /, /about, /pricing, /blog/*
+  App pages: Client-side with Swoff
+    /dashboard, /settings, /app/*
 ```
 
-### Implementation
-
-```javascript
-// Server returns SSR for public pages
-// Client handles app pages with Swoff
-
-// Separate routes by pattern
-const publicPaths = ['/', '/about', '/pricing', '/blog'];
-const appPaths = ['/dashboard', '/settings', '/app'];
-
-function shouldUseSSR(pathname) {
-  return publicPaths.some(p => pathname.startsWith(p));
-}
-
-// SSR page: pre-render meta tags
-export async function handleRequest(req) {
-  const pathname = new URL(req.url).pathname;
-
-  if (shouldUseSSR(pathname)) {
-    // Return fully rendered HTML with meta tags
-    return renderSSRPage(pathname);
-  }
-
-  // Return minimal HTML for SPA + Swoff
-  return renderSPAWithSwoff();
-}
-```
+Public pages are server-rendered with full meta tags for crawlers and social sharing. App pages use the Swoff service worker for offline capability.
 
 ### Swoff Works Differently Based on Rendering Mode
 
@@ -134,124 +96,23 @@ export async function handleRequest(req) {
 
 ## Meta Tags in Client-Side Apps
 
-### Dynamic Meta Tags
-
-For client-rendered pages, update meta tags dynamically:
-
-```javascript
-// Update document meta tags when route changes
-function updateMetaTags(route) {
-  const metaConfig = {
-    '/dashboard': {
-      title: 'Dashboard - My App',
-      description: 'View your personalized dashboard',
-      ogImage: 'https://myapp.com/dashboard-og.png'
-    },
-    '/settings': {
-      title: 'Settings - My App',
-      description: 'Manage your account settings'
-    }
-  };
-
-  const config = metaConfig[route];
-  if (!config) return;
-
-  document.title = config.title;
-
-  // Update description
-  let desc = document.querySelector('meta[name="description"]');
-  if (!desc) {
-    desc = document.createElement('meta');
-    desc.name = 'description';
-    document.head.appendChild(desc);
-  }
-  desc.content = config.description;
-
-  // Update Open Graph
-  let ogImage = document.querySelector('meta[property="og:image"]');
-  if (!ogImage) {
-    ogImage = document.createElement('meta');
-    ogImage.property = 'og:image';
-    document.head.appendChild(ogImage);
-  }
-  ogImage.content = config.ogImage;
-}
-```
+For client-rendered pages, update meta tags dynamically when the route changes: set `document.title`, update `meta[name="description"]`, and modify Open Graph meta tags. This helps crawlers that execute JavaScript and improves link previews in modern messaging apps.
 
 ### Canonical URLs
 
-```javascript
-function setCanonicalUrl(pathname) {
-  const canonical = document.querySelector('link[rel="canonical"]');
-  if (!canonical) {
-    const link = document.createElement('link');
-    link.rel = 'canonical';
-    document.head.appendChild(link);
-  }
-  canonical.href = `https://myapp.com${pathname}`;
-}
-```
+Set a canonical URL via `link[rel="canonical"]` to prevent duplicate content issues when the same page is accessible at multiple paths.
 
 ---
 
 ## Static Export for SEO
 
-If SEO is critical, generate static pages:
-
-### Using SSG
-
-```javascript
-// Next.js static export
-// next.config.js
-module.exports = {
-  output: 'export',
-  images: { unoptimized: true }
-};
-
-// Pages are pre-rendered at build time
-// Swoff caches the static HTML files
-```
-
-### Swoff with Static Export
-
-```javascript
-// In swoff/sw-template.js
-ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/about/index.html',
-  '/pricing/index.html',
-  '/blog/index.html',
-  // ... all static pages
-];
-```
+If SEO is critical, generate static pages using SSG. Pre-rendered HTML files are cached by the Swoff service worker at install time, giving you both SEO and offline capability. This works well for documentation, marketing sites, and blogs.
 
 ---
 
 ## Sitemap for Crawlers
 
-Generate a sitemap even for client-side apps:
-
-```javascript
-// Generate sitemap.xml
-const routes = [
-  { path: '/', priority: '1.0', changefreq: 'daily' },
-  { path: '/about', priority: '0.8', changefreq: 'monthly' },
-  { path: '/pricing', priority: '0.8', changefreq: 'monthly' },
-  { path: '/blog', priority: '0.7', changefreq: 'weekly' },
-];
-
-const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  ${routes.map(r => `
-    <url>
-      <loc>https://myapp.com${r.path}</loc>
-      <changefreq>${r.changefreq}</changefreq>
-      <priority>${r.priority}</priority>
-    </url>
-  `).join('')}
-</urlset>`;
-```
+Generate a sitemap.xml listing all your public routes with priorities and change frequencies. This helps crawlers discover pages even in client-side rendered apps.
 
 ---
 
@@ -279,5 +140,5 @@ Need SEO for public pages?
 
 ## Next Steps
 
-- [Offline-First Architecture](/docs/core/offline-architecture) — build with the right mode
-- [SSR with Next.js](/docs/guides/react-ecosystem/nextjs) — hybrid example
+- [Offline-First Architecture](/docs/architecture/offline-architecture) — build with the right mode
+- [SSR with Next.js](/docs/frameworks/react-ecosystem/nextjs) — hybrid example

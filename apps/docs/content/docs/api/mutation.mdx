@@ -1,0 +1,98 @@
+---
+title: Mutation Module
+description: mutation/queue.ts, mutation/state.ts, and mutation/sync.ts — offline write queue, state tracking, and background sync.
+icon: Upload
+---
+
+# Mutation Module
+
+## `mutation/queue.ts`
+
+Offline write queue backed by IndexedDB. Writes performed while offline are stored and replayed
+automatically when the connection returns.
+
+```ts
+import {
+  queueMutation,
+  processMutationQueue,
+  flushMutations,
+  getPendingCount,
+  getQueuePosition,
+  getQueueItems,
+} from "swoff/mutation/queue";
+```
+
+### Functions
+
+| Function | Signature | Description |
+| ---------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `queueMutation` | `(mutation: MutationQueueItem) => Promise<void>` | Store a write for later sync |
+| `processMutationQueue` | `() => Promise<{ succeeded: number, failed: number }>` | Replay all queued writes. Respects `batchSize`, `batchDelayMs`, and `retry` config (`maxRetries`, `backoffMs`, `maxBackoffMs`, `jitterMs`). Runs automatically on `online` event. |
+| `flushMutations` | `() => Promise<void>` | Same as `processMutationQueue`. Manually force-replay all pending mutations (e.g. user clicks "Sync Now"). |
+| `getPendingCount` | `() => Promise<number>` | Number of mutations waiting to sync |
+| `getQueuePosition` | `(id: string) => Promise<number>` | 0-based position of a mutation in the queue. Returns -1 if not found. |
+| `getQueueItems` | `() => Promise<MutationQueueItem[]>` | All pending queue items with their status, retry count, and metadata |
+
+### `MutationQueueItem`
+
+```ts
+{
+  id: string;
+  method: string;
+  url: string;
+  body?: unknown;
+  headers?: Record<string, string>;
+  tags?: string[];
+  timestamp: number;
+  retryCount: number;
+  status?: "pending" | "processing" | "failed";
+}
+```
+
+Generated when `features.mutationQueue.enabled` is `true`.
+
+## `mutation/state.ts`
+
+Per-mutation state tracking. Each mutation operation gets an ID that can be used to track its
+status (loading, success, error) across the app.
+
+```ts
+import {
+  startMutation,
+  trackMutation,
+  getMutationState,
+  clearMutationState,
+  onMutationStateChange,
+} from "swoff/mutation/state";
+```
+
+### Functions
+
+| Function | Signature | Description |
+| ----------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `startMutation` | `(id?: string) => string` | Create a new mutation with `"loading"` status. Returns the mutation ID. |
+| `trackMutation` | `(id: string, status: MutationStatus, data?: unknown, error?: unknown) => void` | Update a mutation's status. Dispatches a state change event. |
+| `getMutationState` | `(id: string) => MutationState \| undefined` | Get the current state of a mutation |
+| `clearMutationState` | `(id: string) => void` | Remove a mutation from tracking |
+| `onMutationStateChange` | `(cb: (state: MutationState) => void) => () => void` | Subscribe to all mutation state changes. Returns an unsubscribe function. |
+
+### Use with `useMutation`
+
+The `useMutation` React hook wraps `startMutation` + `trackMutation` and exposes
+`{ mutate, isLoading, isError, isSuccess, data, error, reset }`.
+
+## `mutation/sync.ts`
+
+Background Sync API registration for processing mutations even after tab close.
+
+```ts
+import { syncWhenPossible, retrySync } from "swoff/mutation/sync";
+```
+
+| Function | Description |
+| ---------------------------- | --------------------------------------------------------------------- |
+| `syncWhenPossible(mutation)` | Queue and register a background sync event |
+| `retrySync()` | Re-register sync if mutations are still pending (called automatically) |
+
+Fallback: uses the `online` event listener in unsupported browsers (Firefox, Safari).
+Generated when `features.mutationQueue.backgroundSync` is `true`.

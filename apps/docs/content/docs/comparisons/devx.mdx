@@ -1,0 +1,32 @@
+---
+title: Developer Experience Comparison
+description: Config-driven code gen vs runtime library setup.
+---
+
+# Developer Experience: Swoff Config-Driven Code Gen vs Library Setup
+
+Developer experience determines how quickly a team can adopt, configure, debug, and maintain offline infrastructure.
+
+## How Swoff does it
+
+**One-time setup:**
+
+```
+npm install @swoff/cli
+npx swoff init                → creates swoff.config.json
+npx swoff add auth            → enables auth in config, generates files
+npx swoff add mutation-queue  → enables offline queue, generates files
+npx swoff generate            → generates all files
+```
+
+Every file is generated source code — readable, editable, and committable.
+
+## What generated code means in practice
+
+**Debuggability:** When a caching bug occurs, Swoff developers open `swoff/fetch/core.ts` and read the exact code that runs. TanStack Query developers open Chrome DevTools and step through minified code.
+
+**CI/CD:** Swoff's generated files are committed to the repository. PRs include the generated code diff. Code reviewers can see exactly what the generator changed.
+
+**Version control:** Swoff generates files that match the config. If the config changes, re-running `swoff generate` produces updated files with a clean diff.
+
+**No runtime dependency risk:** Swoff has nothing in `node_modules` at runtime. No version conflicts, no dependency chain issues, no supply chain attacks on the client-side code.

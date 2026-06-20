@@ -6,6 +6,8 @@ export function generateClientInjectorBundleCode(
   swFilename: string,
   pwaEnabled: boolean,
   navMode?: string,
+  authEnabled?: boolean,
+  mutationQueueEnabled?: boolean,
 ): string {
   const pwaCode = pwaEnabled ? `
   // ── PWA Install Prompt ──
@@ -159,6 +161,13 @@ export function generateClientInjectorBundleCode(
     heartbeatIntervalId = null;
   }
 
+  function forceRetry() {
+    stopHeartbeat();
+    return verifyAndNotify().then(function () {
+      startHeartbeat();
+    });
+  }
+
   // ── Storage ──
   async function getStorageEstimate() {
     if (!navigator.storage || !navigator.storage.estimate) {
@@ -238,6 +247,50 @@ ${pwaCode}${ssrPrefetch}
           detail: { level: event.data.level, code: event.data.code, message: event.data.message },
         }));
       }
+${mutationQueueEnabled ? `
+      if (event.data.type === "BACKGROUND_SYNC_PROGRESS") {
+        window.dispatchEvent(new CustomEvent("mutation-sync-progress", { detail: event.data.detail }));
+      }
+      if (event.data.type === "BACKGROUND_SYNC_COMPLETE") {
+        var _d = event.data.detail;
+        window.dispatchEvent(new CustomEvent("mutation-sync-complete", { detail: { succeeded: _d.succeeded, failed: _d.failed } }));
+        if (_d.tags && _d.tags.length > 0) {
+          window.dispatchEvent(new CustomEvent("cache-invalidated", { detail: { tags: _d.tags } }));
+        }
+        window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
+      }
+      if (event.data.type === "MUTATION_STORED" && window.swoff && typeof window.swoff.flushMutations === "function") {
+        window.swoff.flushMutations();
+      }` : ""}
+${authEnabled ? `
+      if (event.data.type === "AUTH_CLEARED" && window.swoff && typeof window.swoff.clearMemoryAuth === "function") {
+        window.swoff.clearMemoryAuth();
+        window.dispatchEvent(new CustomEvent("sw-auth-state-change", { detail: { type: "clear" } }));
+      }
+      if (event.data.type === "AUTH_FAILURE" && window.swoff && typeof window.swoff.ensureValidAuth === "function") {
+        (async function () {
+          var _refreshed = await window.swoff.ensureValidAuth();
+          if (!_refreshed) {
+            if (window.swoff && typeof window.swoff.clearQueue === "function") {
+              await window.swoff.clearQueue();
+            }
+            try {
+              var _names = ["swoff-runtime", "swoff-runtime-html"];
+              for (var _i = 0; _i < _names.length; _i++) {
+                var _cache = await caches.open(_names[_i]);
+                var _keys = await _cache.keys();
+                await Promise.all(_keys.map(function (k) { return _cache.delete(k); }));
+              }
+            } catch (e) {}
+            window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
+          }
+        })();
+      }` : ""}
+      if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
+        window.dispatchEvent(new CustomEvent("cache-invalidated", {
+          detail: { tags: [event.data.tag] },
+        }));
+      }
     });
   }
 
@@ -254,6 +307,11 @@ ${pwaCode}${ssrPrefetch}
         },
       }));
     }
+  }
+
+  // ── Bridge for swoff-api-bundle ──
+  if (typeof window !== "undefined") {
+    window.__SWOFF_FORCE_RETRY = forceRetry;
   }
 
   // ── Auto-initialize ──

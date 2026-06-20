@@ -45,6 +45,11 @@ export function generateSwoffApiBundle(ctx: GeneratorContext): void {
       tagInvalidationCascading: ti.cascading ?? {},
       gqlEnabled: ctx.config.features.graphql.enabled,
       gqlEndpoints: ctx.config.features.graphql.endpoints ?? [],
+      pushNotificationsEnabled: ctx.config.features.pushNotifications,
+      serverPushEnabled: ctx.config.features.serverPush.enabled,
+      serverPushType: ctx.config.features.serverPush.type,
+      serverPushEndpoint: ctx.config.features.serverPush.endpoint,
+      serverPushReconnectDelayMs: ctx.config.features.serverPush.reconnectDelayMs,
     },
   );
 

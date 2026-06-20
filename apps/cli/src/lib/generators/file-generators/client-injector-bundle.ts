@@ -18,6 +18,8 @@ export function generateClientInjectorBundle(ctx: GeneratorContext): void {
     ctx.config.build?.swFilename || "sw",
     ctx.config.features.pwa.enabled,
     sw.navigation.mode,
+    ctx.config.features.auth.enabled,
+    ctx.config.features.mutationQueue.enabled,
   );
 
   writeFile(ctx, `client-injector.bundle.${ext}`, code);

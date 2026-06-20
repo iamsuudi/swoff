@@ -20,6 +20,11 @@ interface SwoffApiBundleFlags {
   tagInvalidationCascading: Record<string, string[]>;
   gqlEnabled: boolean;
   gqlEndpoints: string[];
+  pushNotificationsEnabled: boolean;
+  serverPushEnabled: boolean;
+  serverPushType: string;
+  serverPushEndpoint: string;
+  serverPushReconnectDelayMs: number;
 }
 
 export function generateSwoffApiBundleCode(
@@ -39,6 +44,8 @@ export function generateSwoffApiBundleCode(
   const mutationCode = flags.mutationQueueEnabled ? generateMutationSection(flags) : "";
   const pwaCode = flags.pwaEnabled ? generatePwaSection(flags) : "";
   const gqlCode = flags.gqlEnabled ? generateGqlSection(flags) : "";
+  const pushCode = flags.pushNotificationsEnabled ? generatePushSection() : "";
+  const serverPushCode = flags.serverPushEnabled ? generateServerPushSection(flags) : "";
 
   return `(function () {
   "use strict";
@@ -49,6 +56,23 @@ export function generateSwoffApiBundleCode(
   var SKIP_PREFIXES = ${prefixesCode};
   var SINGULARIZATION = ${singularizationCode};
   var BATCH_WINDOW_MS = ${flags.requestBatchWindowMs};
+
+  // ── Fetch Count ──
+  var _fetchCount = 0;
+
+  function incrementFetchCount() {
+    _fetchCount++;
+    window.dispatchEvent(new CustomEvent("fetch-count-changed", { detail: { count: _fetchCount } }));
+  }
+
+  function decrementFetchCount() {
+    _fetchCount = Math.max(0, _fetchCount - 1);
+    window.dispatchEvent(new CustomEvent("fetch-count-changed", { detail: { count: _fetchCount } }));
+  }
+
+  function getFetchCount() {
+    return _fetchCount;
+  }
 
   // ── IndexedDB Helper ──
   function openDB(name, storeName, keyPath, upgradeCallback, version) {
@@ -169,6 +193,41 @@ export function generateSwoffApiBundleCode(
     return invalidateByTags(allTags);
   }
 
+  function invalidateMatching(glob) {
+    var controller = navigator.serviceWorker && navigator.serviceWorker.controller;
+    if (!controller) return Promise.resolve();
+    controller.postMessage({ type: "INVALIDATE_MATCHING", glob: glob });
+    return Promise.resolve();
+  }
+
+  function getUrlsForTag(tag) {
+    var controller = navigator.serviceWorker && navigator.serviceWorker.controller;
+    if (!controller) return Promise.resolve([]);
+    return new Promise(function (resolve) {
+      var channel = new MessageChannel();
+      var timer = setTimeout(function () { channel.port1.close(); resolve([]); }, 5000);
+      channel.port1.onmessage = function (event) {
+        clearTimeout(timer);
+        resolve(event.data.urls || []);
+      };
+      controller.postMessage({ type: "GET_URLS_FOR_TAG", tag: tag }, [channel.port2]);
+    });
+  }
+
+  function getTagsForUrl(url) {
+    var controller = navigator.serviceWorker && navigator.serviceWorker.controller;
+    if (!controller) return Promise.resolve([]);
+    return new Promise(function (resolve) {
+      var channel = new MessageChannel();
+      var timer = setTimeout(function () { channel.port1.close(); resolve([]); }, 5000);
+      channel.port1.onmessage = function (event) {
+        clearTimeout(timer);
+        resolve(event.data.tags || []);
+      };
+      controller.postMessage({ type: "GET_TAGS_FOR_URL", url: url }, [channel.port2]);
+    });
+  }
+
   // ── Storage ──
   function getStorageEstimate() {
     if (!navigator.storage || !navigator.storage.estimate) {
@@ -199,7 +258,7 @@ export function generateSwoffApiBundleCode(
     if (typeof window === "undefined") return;
     window.addEventListener("offline", callback);
   }
-${authCode}${mutationCode}${pwaCode}${gqlCode}
+${authCode}${mutationCode}${pwaCode}${gqlCode}${pushCode}${serverPushCode}
   // ── Fetch with Cache ──
   var inFlightRequests = new Map();
   var pendingBatches = new Map();
@@ -489,6 +548,9 @@ ${flags.authEnabled && flags.authType === "cookie" ? "    fetchOptions.credentia
       if (opts.auth.refresh) adapter.refresh = opts.auth.refresh;
       if (opts.auth.fetchUser) adapter.fetchUser = opts.auth.fetchUser;
     }
+    if (opts.push) {
+      if (opts.push.vapidPublicKey !== undefined) VAPID_PUBLIC_KEY = opts.push.vapidPublicKey;
+    }
   }
 
   // ── Assembly ──
@@ -500,7 +562,13 @@ ${flags.authEnabled && flags.authType === "cookie" ? "    fetchOptions.credentia
     invalidateByTags: invalidateByTags,
     invalidateUrl: invalidateUrl,
     invalidateByMethod: invalidateByMethod,
+    invalidateMatching: invalidateMatching,
+    getUrlsForTag: getUrlsForTag,
+    getTagsForUrl: getTagsForUrl,
     generateTags: generateTags,
+    incrementFetchCount: incrementFetchCount,
+    decrementFetchCount: decrementFetchCount,
+    getFetchCount: getFetchCount,
     getStorageEstimate: getStorageEstimate,
     formatBytes: formatBytes,
     getCurrentOnlineStatus: getCurrentOnlineStatus,
@@ -508,16 +576,262 @@ ${flags.authEnabled && flags.authType === "cookie" ? "    fetchOptions.credentia
     onOffline: onOffline,
     resetSwoff: resetSwoff,
     skipWaiting: skipWaiting,
-${flags.authEnabled ? "    setAuth: setAuth,\n    getAuth: getAuth,\n    clearAuth: clearAuth,\n    ensureValidAuth: ensureValidAuth," : ""}
-${flags.mutationQueueEnabled ? "    queueMutation: queueMutation,\n    flushMutations: flushMutations,\n    getPendingCount: getPendingCount," : ""}
+    forceRetry: typeof window !== "undefined" && typeof window.__SWOFF_FORCE_RETRY === "function" ? window.__SWOFF_FORCE_RETRY : function () { return Promise.resolve(); },
+${flags.authEnabled ? "    setAuth: setAuth,\n    getAuth: getAuth,\n    clearAuth: clearAuth,\n    ensureValidAuth: ensureValidAuth,\n    clearMemoryAuth: clearMemoryAuth,\n    getAuthState: getAuthState," : ""}
+${flags.mutationQueueEnabled ? "    queueMutation: queueMutation,\n    flushMutations: flushMutations,\n    getPendingCount: getPendingCount,\n    getQueueItems: getQueueItems,\n    getQueuePosition: getQueuePosition,\n    syncWhenPossible: syncWhenPossible,\n    retrySync: retrySync," : ""}
 ${flags.pwaEnabled ? "    promptInstall: promptInstall,\n    isInstallable: isInstallable," : ""}
 ${flags.gqlEnabled ? "    fetchWithGql: fetchWithGql,\n    queryGql: queryGql,\n    mutateGql: mutateGql," : ""}
+${flags.pushNotificationsEnabled ? "    requestNotificationPermission: requestNotificationPermission,\n    getPushSubscription: getPushSubscription,\n    subscribeToPush: subscribeToPush,\n    unsubscribeFromPush: unsubscribeFromPush,\n    isSubscribed: isSubscribed," : ""}
+${flags.serverPushEnabled ? "    startPushEvents: startPushEvents,\n    stopPushEvents: stopPushEvents,\n    isPushConnected: isPushConnected," : ""}
   };
 
   if (typeof window !== "undefined") {
     window.swoff = api;
   }
 })();
+`;
+}
+
+function generatePushSection(): string {
+  return `
+  // ── Push Notifications ──
+  var pushPermissionState = typeof Notification !== "undefined" ? Notification.permission : undefined;
+
+  function requestNotificationPermission() {
+    if (pushPermissionState === "granted") return Promise.resolve(true);
+    if (pushPermissionState === "denied") return Promise.resolve(false);
+    return Notification.requestPermission().then(function (result) {
+      pushPermissionState = result;
+      window.dispatchEvent(new CustomEvent("push-permission-changed", { detail: { permission: result } }));
+      return result === "granted";
+    });
+  }
+
+  function getPushSubscription() {
+    try {
+      return navigator.serviceWorker.ready.then(function (registration) {
+        return registration.pushManager.getSubscription();
+      });
+    } catch (e) {
+      return Promise.resolve(null);
+    }
+  }
+
+  function subscribeToPush() {
+    return requestNotificationPermission().then(function (granted) {
+      if (!granted) return null;
+      return navigator.serviceWorker.ready.then(function (registration) {
+        return registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+      }).then(function (subscription) {
+        return openDB("swoff-push", "subscription", "id").then(function (db) {
+          var tx = db.transaction("subscription", "readwrite");
+          tx.objectStore("subscription").put({
+            id: "current",
+            endpoint: subscription.endpoint,
+            keys: subscription.toJSON().keys,
+            subscribedAt: Date.now(),
+          });
+          return new Promise(function (resolve, reject) {
+            tx.oncomplete = function () { db.close(); resolve(); };
+            tx.onerror = function () { db.close(); reject(tx.error); };
+          });
+        }).then(function () {
+          window.dispatchEvent(new CustomEvent("push-subscription-changed", { detail: { subscribed: true } }));
+          return subscription;
+        });
+      });
+    });
+  }
+
+  function unsubscribeFromPush() {
+    return getPushSubscription().then(function (subscription) {
+      if (!subscription) return;
+      return subscription.unsubscribe().then(function () {
+        return openDB("swoff-push", "subscription", "id").then(function (db) {
+          var tx = db.transaction("subscription", "readwrite");
+          tx.objectStore("subscription").delete("current");
+          return new Promise(function (resolve, reject) {
+            tx.oncomplete = function () { db.close(); resolve(); };
+            tx.onerror = function () { db.close(); reject(tx.error); };
+          });
+        });
+      });
+    }).then(function () {
+      window.dispatchEvent(new CustomEvent("push-subscription-changed", { detail: { subscribed: false } }));
+    });
+  }
+
+  function isSubscribed() {
+    return getPushSubscription().then(function (sub) {
+      return sub !== null;
+    });
+  }
+
+  function urlBase64ToUint8Array(base64String) {
+    var padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    var base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    var rawData = atob(base64);
+    return Uint8Array.from(rawData, function (c) { return c.charCodeAt(0); });
+  }
+`;
+}
+
+function generateServerPushSection(flags: SwoffApiBundleFlags): string {
+  const connectImpl = flags.serverPushType === "sse"
+    ? `
+    return new Promise(function (resolve) {
+      fetch(API_BASE + SERVER_PUSH_ENDPOINT, {
+        headers: { Accept: "text/event-stream" },
+        credentials: "include",
+        signal: options.signal,
+      }).then(function (response) {
+        serverPushFetchController = null;
+        if (!serverPushActive) { resolve(); return; }
+        if (!response.ok || !response.body) { resolve(); return; }
+        serverPushNotifyStatus(true);
+        var reader = response.body.getReader();
+        var decoder = new TextDecoder();
+        var buffer = "";
+        var eventType = "";
+        var dataStr = "";
+        function readNext() {
+          reader.read().then(function (result) {
+            if (result.done) {
+              serverPushNotifyStatus(false);
+              resolve();
+              return;
+            }
+            buffer += decoder.decode(result.value, { stream: true });
+            var lines = buffer.split("\\n");
+            buffer = lines.pop() || "";
+            for (var i = 0; i < lines.length; i++) {
+              var line = lines[i];
+              if (line.indexOf("event: ") === 0) eventType = line.slice(7).trim();
+              else if (line.indexOf("data: ") === 0) dataStr = line.slice(6);
+              else if (line === "" && eventType === "invalidate" && dataStr) {
+                try {
+                  var p = JSON.parse(dataStr);
+                  if (p.tags) serverPushHandleInvalidation(p.tags);
+                } catch (e) {}
+                eventType = "";
+                dataStr = "";
+              }
+            }
+            readNext();
+          }, function () {
+            serverPushNotifyStatus(false);
+            resolve();
+          });
+        }
+        readNext();
+      }, function () {
+        serverPushNotifyStatus(false);
+        resolve();
+      });
+    });`
+    : `
+    return new Promise(function (resolve) {
+      try {
+        var ws = new WebSocket(API_BASE + SERVER_PUSH_ENDPOINT);
+        serverPushWs = ws;
+        ws.onopen = function () { serverPushNotifyStatus(true); };
+        ws.onmessage = function (event) {
+          try {
+            var d = JSON.parse(event.data);
+            if (d.type === "invalidate" && d.tags) serverPushHandleInvalidation(d.tags);
+          } catch (e) {}
+        };
+        ws.onclose = function () { serverPushWs = null; serverPushNotifyStatus(false); resolve(); };
+        ws.onerror = function () { serverPushWs = null; resolve(); };
+        if (options.signal) {
+          options.signal.addEventListener("abort", function () { ws.close(); serverPushWs = null; });
+        }
+      } catch (e) { resolve(); }
+    });`;
+
+  return `
+  // ── Server Push Events ──
+  var SERVER_PUSH_ENDPOINT = ${JSON.stringify(flags.serverPushEndpoint)};
+  var SERVER_PUSH_RECONNECT_DELAY_MS = ${flags.serverPushReconnectDelayMs};
+  var serverPushActive = false;
+  var serverPushSwConnected = false;
+  var serverPushReconnectTimer = null;
+  var serverPushWs = null;
+  var serverPushFetchController = null;
+
+  function serverPushHandleInvalidation(tags) {
+    var i;
+    for (i = 0; i < tags.length; i++) {
+      invalidateByTag(tags[i]);
+    }
+    window.dispatchEvent(new CustomEvent("cache-invalidated", { detail: { tags: tags } }));
+  }
+
+  function serverPushNotifyStatus(connected) {
+    window.dispatchEvent(new CustomEvent("push-events-status", { detail: { connected: connected } }));
+  }
+
+  if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("message", function (event) {
+      if (event.data && event.data.type === "SSE_STATUS") {
+        serverPushSwConnected = event.data.connected;
+        serverPushNotifyStatus(serverPushSwConnected);
+      }
+    });
+  }
+
+  function serverPushConnect() {
+    var controller = new AbortController();
+    serverPushFetchController = controller;
+    var options = { signal: controller.signal };
+    ${connectImpl}
+  }
+
+  function startPushEvents() {
+    if (serverPushActive) return;
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) return;
+    var onControllerChange = function () { stopPushEvents(); };
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+    }
+    serverPushActive = true;
+    var delay = Math.max(1000, SERVER_PUSH_RECONNECT_DELAY_MS);
+    function serverPushLoop() {
+      if (!serverPushActive) {
+        if (navigator.serviceWorker) {
+          navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+        }
+        return;
+      }
+      serverPushConnect().then(function () {
+        if (!serverPushActive) {
+          if (navigator.serviceWorker) {
+            navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+          }
+          return;
+        }
+        serverPushReconnectTimer = setTimeout(function () {
+          delay = Math.min(delay * 1.5, 30000);
+          serverPushLoop();
+        }, delay);
+      });
+    }
+    serverPushLoop();
+  }
+
+  function stopPushEvents() {
+    serverPushActive = false;
+    if (serverPushReconnectTimer) { clearTimeout(serverPushReconnectTimer); serverPushReconnectTimer = null; }
+    if (serverPushWs) { serverPushWs.close(); serverPushWs = null; }
+    if (serverPushFetchController) { serverPushFetchController.abort(); serverPushFetchController = null; }
+  }
+
+  function isPushConnected() {
+    return serverPushActive || serverPushSwConnected;
+  }
 `;
 }
 
@@ -746,6 +1060,20 @@ ${isCookie ? `
     });
   }
 `}
+
+  function clearMemoryAuth() {
+    memoryAuth = null;
+  }
+
+  function getAuthState() {
+    return getAuth().then(function (auth) {
+      return {
+        authenticated: !!(auth && (auth.token || auth.user)),
+        auth: auth,
+        online: getCurrentOnlineStatus(),
+      };
+    });
+  }
 `;
 }
 
@@ -1040,6 +1368,54 @@ function generateMutationSection(flags: SwoffApiBundleFlags): string {
         request.onsuccess = function () { db.close(); resolve(request.result); };
         request.onerror = function () { db.close(); reject(request.error); };
       });
+    });
+  }
+
+  function getQueueItems() {
+    return openQueueDB().then(function (db) {
+      var tx = db.transaction(QUEUE_STORE_NAME, "readonly");
+      var store = tx.objectStore(QUEUE_STORE_NAME);
+      var index = store.index("by-timestamp");
+      return new Promise(function (resolve, reject) {
+        var request = index.getAll();
+        request.onsuccess = function () { resolve(request.result); };
+        request.onerror = function () { reject(request.error); };
+      }).then(function (result) { db.close(); return result; });
+    });
+  }
+
+  function getQueuePosition(id) {
+    return getQueueItems().then(function (items) {
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].id === id) return i;
+      }
+      return -1;
+    });
+  }
+
+  function registerSync() {
+    if (!("SyncManager" in window)) {
+      window.addEventListener("online", processMutationQueue, { once: true });
+      return Promise.resolve();
+    }
+    return navigator.serviceWorker.ready.then(function (registration) {
+      return registration.sync.register("sync-mutations").catch(function () {
+        window.addEventListener("online", processMutationQueue, { once: true });
+      });
+    });
+  }
+
+  function syncWhenPossible(mutation) {
+    return queueMutation(mutation).then(function () {
+      return registerSync();
+    });
+  }
+
+  function retrySync() {
+    window.addEventListener("mutation-sync-complete", retrySync, { once: true });
+    if (!("SyncManager" in window)) return Promise.resolve();
+    return getPendingCount().then(function (count) {
+      if (count > 0) return registerSync();
     });
   }
 `;

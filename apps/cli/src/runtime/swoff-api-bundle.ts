@@ -479,8 +479,21 @@ ${flags.authEnabled && flags.authType === "cookie" ? "    fetchOptions.credentia
     return typeof navigator !== "undefined" ? navigator.onLine : true;
   }
 
+  // ── Configuration ──
+  function configure(opts) {
+    if (!opts) return;
+    if (opts.apiBase !== undefined) API_BASE = opts.apiBase;
+    if (opts.auth) {
+      if (opts.auth.type !== undefined) adapter.type = opts.auth.type;
+      if (opts.auth.getHeaders) adapter.getHeaders = opts.auth.getHeaders;
+      if (opts.auth.refresh) adapter.refresh = opts.auth.refresh;
+      if (opts.auth.fetchUser) adapter.fetchUser = opts.auth.fetchUser;
+    }
+  }
+
   // ── Assembly ──
   var api = {
+    configure: configure,
     fetchWithCache: fetchWithCache,
     prefetchCache: prefetchCache,
     invalidateByTag: invalidateByTag,

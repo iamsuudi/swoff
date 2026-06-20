@@ -80,8 +80,8 @@ async function invalidateByTag(tag) {
   });
   db.close();
 
-  const runtimeCache = await caches.open(CACHE_NAME_RUNTIME);
-  const rscCache = await caches.open(CACHE_NAME_RUNTIME_HTML);
+  const runtimeCache = await caches.open("swoff-runtime");
+  const rscCache = await caches.open("swoff-runtime-html");
   for (const entry of entries) {
     await runtimeCache.delete(entry.url);
     await rscCache.delete(entry.url);

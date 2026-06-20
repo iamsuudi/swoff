@@ -1,8 +1,6 @@
 import { KNOWN_FEATURES, OBJECT_FEATURES, VALID_STRATEGIES, REACTIVE_FIELDS, type SwoffConfig } from "../shared/config-types.js";
 import { FEATURES } from "../shared/feature-registry.js";
 
-const VALID_VERSIONS = ["hash", "package", "manual"];
-
 export function validateConfig(config: Record<string, unknown>): string[] {
   const errors: string[] = [];
 
@@ -50,13 +48,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
 
     const sw = features.serviceWorker as Record<string, unknown> | undefined;
     if (sw) {
-      if (sw.version !== undefined) {
-        if (typeof sw.version !== "string") {
-          errors.push('features.serviceWorker.version must be a string');
-        } else if (!VALID_VERSIONS.includes(sw.version as string)) {
-          errors.push(`features.serviceWorker.version must be one of: ${VALID_VERSIONS.join(", ")}`);
-        }
-      }
       if (sw.autoActivate !== undefined && typeof sw.autoActivate !== "boolean") {
         errors.push("features.serviceWorker.autoActivate must be a boolean");
       }
@@ -117,9 +108,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
               errors.push(`features.serviceWorker.strategy.patterns["${pattern}"] must be a string or an object`);
             }
           }
-        }
-        if (strategy.clearRuntimeOnUpdate !== undefined && typeof strategy.clearRuntimeOnUpdate !== "boolean") {
-          errors.push("features.serviceWorker.strategy.clearRuntimeOnUpdate must be a boolean");
         }
         if (strategy.normalizeKey !== undefined && typeof strategy.normalizeKey !== "boolean") {
           errors.push("features.serviceWorker.strategy.normalizeKey must be a boolean");
@@ -227,9 +215,6 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     const tagInvalidationVal = features.tagInvalidation as Record<string, unknown> | undefined;
     if (tagInvalidationVal && typeof tagInvalidationVal === "object") {
       const ti = tagInvalidationVal as Record<string, unknown>;
-      if (ti.enabled !== undefined && typeof ti.enabled !== "boolean") {
-        errors.push("features.tagInvalidation.enabled must be a boolean");
-      }
       if (ti.debounceMs !== undefined && (typeof ti.debounceMs !== "number" || ti.debounceMs < 0 || !Number.isInteger(ti.debounceMs))) {
         errors.push("features.tagInvalidation.debounceMs must be a non-negative integer");
       }

@@ -29,7 +29,6 @@ export async function validateCommand(projectRoot: string) {
 
   log.success("Configuration is valid!");
   log.info("\nConfig summary:");
-  log.help(`Version: ${config.features.serviceWorker.version}`);
   log.help(
     `Default strategy: ${config.features.serviceWorker.strategy.default}`,
   );

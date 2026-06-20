@@ -1,0 +1,105 @@
+---
+title: HTMX
+description: Integrate Swoff with HTMX and HTML-over-wire patterns.
+icon: htmx
+---
+
+# HTMX
+
+Swoff and HTMX are a natural fit. HTMX handles partial page updates via HTML-over-wire; Swoff handles offline caching, navigation, and background sync at the Service Worker layer. They complement each other without overlap.
+
+## How they work together
+
+- **Navigation caching** — full page loads are cached by the SW. Works automatically after `initServiceWorker()`, no HTMX configuration needed.
+- **HTMX partial responses** — every `hx-get`, `hx-post`, etc. is intercepted by the SW and cached according to your strategy config.
+- **SSE from SW** — Swoff's Server Push connects to your SSE endpoint from the Service Worker (survives navigation). HTMX's `hx-trigger` can listen for server-sent events on the page.
+
+## Config
+
+```json
+{
+  "framework": "vanilla",
+  "build": {
+    "outputDir": "public",
+    "swFilename": "sw"
+  },
+  "features": {
+    "serviceWorker": {
+      "navigation": {
+        "mode": "ssr",
+        "preload": true,
+        "fallback": "/offline"
+      },
+      "strategy": {
+        "default": "network-first",
+        "patterns": {
+          "/api/*": "network-first"
+        }
+      }
+    }
+  }
+}
+```
+
+- `navigation.mode: "ssr"` — full HTML pages (including HTMX-boosted links using `hx-boost`) are cached individually
+
+## Strategy control from HTMX
+
+Control caching strategy per-request using `hx-headers`:
+
+```html
+<!-- Default strategy from config -->
+<button hx-get="/api/notes">Load Notes</button>
+
+<!-- Cache-first for static partials -->
+<button hx-get="/sidebar"
+        hx-headers='{"X-SW-Strategy": "cache-first"}'>
+  Sidebar
+</button>
+
+<!-- Network-first for fresh data -->
+<button hx-get="/api/dashboard"
+        hx-headers='{"X-SW-Strategy": "network-first"}'>
+  Dashboard
+</button>
+```
+
+## Server push + HTMX
+
+Swoff's Server Push (SSE) runs in the Service Worker. For real-time UI updates, you have two options:
+
+**1. Swoff SSE from page (separate from SW):**
+
+```html
+<div hx-sse="connect:/api/events swap:message">
+  <div hx-get="/api/notes" hx-trigger="sse:invalidate">
+    Loading...
+  </div>
+</div>
+```
+
+**2. Swoff SW-level SSE + cache invalidation:**
+
+The SW connects to your SSE endpoint, receives tag invalidation messages, and the next HTMX request to the affected URL fetches fresh data. No page-level SSE connection needed — HTMX just makes its regular requests.
+
+## Entry point
+
+Include the client-injector in your HTML:
+
+```html
+<script src="/swoff/client-injector.bundle.js"></script>
+```
+
+## Build script
+
+```bash
+node swoff/sw/generator.js
+```
+
+## Related
+
+- [Service Worker setup](/docs/guides/service-worker)
+- [Navigation caching](/docs/guides/navigation-caching)
+- [Caching strategies](/docs/guides/caching-strategy)
+- [Server push](/docs/guides/server-push)
+- [Ecosystem compatibility](/docs/frameworks/ecosystem)

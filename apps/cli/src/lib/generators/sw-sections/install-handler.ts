@@ -7,7 +7,10 @@
 export function generateInstallHandler(): string {
   return `
 async function precacheAssets() {
-  const cache = await caches.open(CACHE_NAME);
+  const cache = await caches.open("precache");
+  // Clear stale entries from previous builds before repopulating
+  const stale = await cache.keys();
+  await Promise.all(stale.map(function(req) { return cache.delete(req); }));
   let downloaded = 0;
   let attempted = 0;
   const allClients = await self.clients.matchAll({ includeUncontrolled: true });

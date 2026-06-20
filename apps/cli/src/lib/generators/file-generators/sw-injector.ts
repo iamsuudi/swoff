@@ -6,9 +6,6 @@ import { GeneratorContext, writeFile } from "./context.js";
 import { generateSwInjectorCode } from "../../../runtime/sw-injector.js";
 
 export function generateSwInjector(ctx: GeneratorContext): void {
-  const v = ctx.config.features.serviceWorker.version;
-  const versionMode = v === "hash" ? "hash" : v === "manual" ? "manual" : "package";
-
   writeFile(
     ctx,
     `sw/injector.${ctx.ext}`,
@@ -17,7 +14,6 @@ export function generateSwInjector(ctx: GeneratorContext): void {
       ext: ctx.ext,
       autoActivate: ctx.config.features.serviceWorker.autoActivate,
       swFilename: ctx.config.build?.swFilename || "sw",
-      versionMode,
     }),
   );
 }

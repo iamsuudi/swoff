@@ -1,0 +1,102 @@
+---
+title: Laravel / PHP
+description: Integrate Swoff with Laravel, PHP, or any PHP-based framework.
+icon: laravel
+---
+
+# Laravel / PHP
+
+Swoff works with any PHP backend. The generated files are static — place them under your `public/` directory and reference them in Blade templates. No Node.js runtime needed in production.
+
+## Config per flavor
+
+| Setting | Laravel (Blade) | Plain PHP |
+|---|---|---|
+| `build.outputDir` | `"public"` | your document root |
+| `build.swFilename` | `"sw"` | `"sw"` |
+| `navigation.mode` | `"ssr"` | `"ssr"` |
+| `navigation.fallback` | `"/offline"` | `"/offline.html"` |
+| `navigation.preload` | `true` | `true` |
+| `strategy.default` | `"network-first"` | `"network-first"` |
+
+- **`navigation.mode: "ssr"`** — server-rendered HTML pages get cached individually, repeat visits serve cached HTML offline
+
+## Where to place generated files
+
+```bash
+# After swoff generate, swoff/ lives at project root.
+# Make it web-accessible:
+
+# Laravel — symlink or copy to public/
+ln -s ../swoff public/swoff
+
+# Or copy:
+cp -r swoff public/swoff
+```
+
+## Entry point
+
+In your Blade layout, include the client-injector script:
+
+```blade
+{{-- resources/views/layouts/app.blade.php --}}
+<body>
+  @yield('content')
+
+  {{-- Include swoff client-injector --}}
+  <script src="{{ asset('swoff/client-injector.bundle.js') }}"></script>
+</body>
+```
+
+If you're using a bundler (Vite, Laravel Mix), import the modular injector instead:
+
+```ts
+import { initServiceWorker } from "./swoff/client-injector";
+initServiceWorker();
+```
+
+## Build script
+
+Add the SW generator to your build pipeline. Requires Node.js only at build time:
+
+```bash
+# In your CI or after running npm/vite build:
+node swoff/sw/generator.js
+```
+
+Or add a script to `package.json` if you use one:
+
+```json
+{
+  "scripts": {
+    "build": "vite build && node swoff/sw/generator.js"
+  }
+}
+```
+
+For projects without `package.json`, run the generator manually after each build, or add it to your deployment script.
+
+## Auth
+
+If you use Laravel Sanctum (cookie-based SPA auth):
+
+```json
+{
+  "features": {
+    "auth": {
+      "enabled": true,
+      "type": "cookie",
+      "routePaths": ["/login", "/logout", "/api/*"]
+    }
+  }
+}
+```
+
+The generated `auth/adapter.ts` works with Laravel's session-based auth out of the box — cookies are sent automatically, no token management needed. Background sync and server push are fully compatible.
+
+## Related
+
+- [Service Worker setup](/docs/guides/service-worker)
+- [Navigation caching for SSR](/docs/guides/navigation-caching)
+- [Auth guide: cookie auth](/docs/guides/auth)
+- [Ecosystem compatibility](/docs/frameworks/ecosystem)

@@ -3,9 +3,8 @@
  * Supports comma-separated features: swoff add auth,graphql,pwa
  */
 
-import { readFileSync, writeFileSync, existsSync, readdirSync, copyFileSync, mkdirSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { readFileSync, writeFileSync, existsSync } from "fs";
+import { join } from "path";
 import { log } from "../cli/logger.js";
 import { loadConfigAsync } from "../config/loader.js";
 import { validateConfig } from "../config/validator.js";
@@ -13,16 +12,13 @@ import { deepMerge, type SwoffConfig } from "../shared/config-types.js";
 import { FEATURES, getFeature, resolveDependencies, getAuthConflicts, buildConfigUpdate } from "../shared/feature-registry.js";
 import { generateCommand } from "./generate.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const templatesDir = join(__dirname, "../../../../templates");
-
 const FEATURE_ALIASES: Record<string, string> = {
   mutationqueue: "mutation-queue",
   backgroundsync: "background-sync",
   pushnotification: "push-notification",
 };
 
-const FEATURE_NAMES = Object.keys(FEATURES).concat(["htmx", "php"]);
+const FEATURE_NAMES = Object.keys(FEATURES);
 
 function normalizeFeature(name: string): string {
   const lower = name.toLowerCase().trim();
@@ -31,8 +27,7 @@ function normalizeFeature(name: string): string {
 
 export async function addCommand(projectRoot: string, featureArg: string) {
   const rawFeatures = featureArg.split(",").map(normalizeFeature).filter(Boolean);
-  const ecosystemFeatures = rawFeatures.filter((f) => f === "htmx" || f === "php");
-  const coreFeatures = rawFeatures.filter((f) => f !== "htmx" && f !== "php");
+  const coreFeatures = rawFeatures;
 
   const invalid = coreFeatures.filter((f) => !FEATURES[f]);
   if (invalid.length > 0) {
@@ -75,36 +70,9 @@ export async function addCommand(projectRoot: string, featureArg: string) {
   writeFileSync(resolvedConfigPath, JSON.stringify(mergedConfig, null, 2));
   log.success(`${!configPath ? "Created" : "Updated"} swoff.config.json with ${label}`);
 
-  for (const eco of ecosystemFeatures) {
-    copyEcosystemFiles(projectRoot, eco);
-  }
-
   if (coreFeatures.length > 0) {
     await generateCommand(projectRoot);
   }
 
   log.success(`${label} added successfully!`);
-}
-
-function copyEcosystemFiles(projectRoot: string, name: string): void {
-  const src = join(templatesDir, name);
-  if (!existsSync(src)) {
-    log.warn(`No template files found for "${name}"`);
-    return;
-  }
-
-  const swoffDir = join(projectRoot, "swoff", name);
-  if (!existsSync(swoffDir)) {
-    mkdirSync(swoffDir, { recursive: true });
-  }
-
-  let count = 0;
-  for (const entry of readdirSync(src, { withFileTypes: true })) {
-    if (entry.isFile()) {
-      copyFileSync(join(src, entry.name), join(swoffDir, entry.name));
-      count++;
-    }
-  }
-
-  log.success(`Copied ${count} ${name} file(s) to swoff/${name}/`);
 }

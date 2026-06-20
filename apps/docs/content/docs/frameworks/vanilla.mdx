@@ -1,0 +1,110 @@
+---
+title: Vanilla HTML / Static Sites
+description: Integrate Swoff with plain HTML, SSG, or no build tool.
+icon: FileCode
+---
+
+# Vanilla HTML / Static Sites
+
+Swoff works without Node.js, npm, or `package.json`. The CLI generates a self-contained bundle you include via a `<script>` tag. No import or function call needed — the bundle auto-initializes on load.
+
+## Quick start
+
+```bash
+# No package.json needed — npx downloads the CLI on the fly
+npx @swoff/cli init --framework vanilla
+
+# Generate all swoff files
+npx @swoff/cli generate
+```
+
+## Config
+
+```json
+{
+  "framework": "vanilla",
+  "build": {
+    "outputDir": "public",
+    "swFilename": "sw"
+  },
+  "features": {
+    "serviceWorker": {
+      "navigation": {
+        "mode": "spa",
+        "preload": true,
+        "fallback": "/index.html",
+        "precacheRoutes": ["/", "/about", "/offline"]
+      },
+      "strategy": {
+        "default": "cache-first",
+        "patterns": {
+          "/api/*": "network-first"
+        }
+      }
+    }
+  }
+}
+```
+
+- `navigation.mode: "spa"` — serve precached fallback for all routes (app shell pattern)
+- `precacheRoutes` — critical pages to cache at install time for offline access
+
+## Where to place generated files
+
+```bash
+# After generation, swoff/ lives at project root.
+# Copy or move it into your document root:
+cp -r swoff public/swoff
+```
+
+## Entry point
+
+Include via `<script>` tag:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My Site</title>
+</head>
+<body>
+  <h1>Hello</h1>
+
+  <script src="/swoff/client-injector.bundle.js"></script>
+</body>
+</html>
+```
+
+## Build script
+
+Run the generator after you build your static site:
+
+```bash
+# Build your site, then:
+node swoff/sw/generator.js
+```
+
+The generator reads `build.outputDir` from config and writes the final SW there.
+
+## Auth
+
+For sites without a backend, skip auth entirely. For sites with a simple cookie-based auth:
+
+```json
+{
+  "features": {
+    "auth": {
+      "enabled": true,
+      "type": "cookie",
+      "routePaths": ["/login", "/logout"]
+    }
+  }
+}
+```
+
+## Related
+
+- [Service Worker setup](/docs/guides/service-worker)
+- [Caching strategies](/docs/guides/caching-strategy)
+- [Navigation caching](/docs/guides/navigation-caching)
+- [Ecosystem compatibility](/docs/frameworks/ecosystem)

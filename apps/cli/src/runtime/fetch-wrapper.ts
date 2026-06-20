@@ -225,8 +225,8 @@ export async function fetchWithCache${G(ts, "T")}(input${T(ts, "RequestInfo")}, 
   const headers = new Headers(options.headers);
 
   // Set cache strategy
-  if (!headers.has("X-SW-Cache-Strategy")) {
-    headers.set("X-SW-Cache-Strategy", isRead ? "read" : "mutation");
+  if (!headers.has("X-SW-Type")) {
+    headers.set("X-SW-Type", isRead ? "read" : "mutation");
   }
 ${autoTagsBlock}
   // Custom tags override auto-generated

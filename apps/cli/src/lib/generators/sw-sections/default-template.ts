@@ -4,15 +4,8 @@
  */
 
 export function getDefaultTemplate(): string {
-  return `let CACHE_NAME = "";
-let ASSETS_TO_CACHE = [];
-
-// [[CACHE_NAME]]
-// [[ASSETS_LIST]]
-// [[AUTO_SKIP_WAITING]]
-
-const CACHE_NAME_RUNTIME = "swoff-runtime";
-const CACHE_NAME_RUNTIME_HTML = "swoff-runtime-html";
+  return `let ASSETS_TO_CACHE = [];
+let AUTO_SKIP_WAITING = false;
 
 // --- Shared IndexedDB Utility ---
 

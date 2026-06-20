@@ -3,7 +3,6 @@ import { readFile } from "fs/promises";
 import { join } from "path";
 import { fileURLToPath } from "url";
 import { loadConfigAsync } from "../config/loader.js";
-import { resolveVersion, isVersionEnabled } from "./sw-build-utils.js";
 import { assembleSW } from "./sw-sections/assemble-sw.js";
 import { createRequire } from "module";
 
@@ -12,27 +11,13 @@ interface GeneratorOptions {
   configPath?: string;
 }
 
-export async function generateSW(options: GeneratorOptions = {}): Promise<{ version: string; outputFile: string }> {
+export async function generateSW(options: GeneratorOptions = {}): Promise<{ outputFile: string }> {
   const optProjectRoot = options.projectRoot || process.cwd();
   const optConfigPath = options.configPath;
 
-  const pkgPath = join(optProjectRoot, "package.json");
-  let pkg = { version: "1.0.0" };
+  const { config } = await loadConfigAsync(optProjectRoot, optConfigPath);
 
-  if (existsSync(pkgPath)) {
-    try {
-      pkg = JSON.parse(await readFile(pkgPath, "utf8"));
-    } catch {
-      console.log("Could not read package.json, using default version");
-    }
-  }
-
-  const { config, configSource } = await loadConfigAsync(optProjectRoot, optConfigPath);
-
-  const v = config.features.serviceWorker.version;
-  const versionEnabled = isVersionEnabled(v);
-  const version = resolveVersion(v, pkg.version || "1.0.0");
-  let sw = assembleSW(config, version, optProjectRoot);
+  let sw = assembleSW(config, optProjectRoot);
   let apiBase = "";
   const configJsPath = join(optProjectRoot, "swoff", "config.js");
   if (existsSync(configJsPath)) {
@@ -60,31 +45,16 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ vers
   }
 
   const swFilename = config.build.swFilename;
-  const outputFile = versionEnabled ? `${swFilename}-v${version}.js` : `${swFilename}.js`;
+  const outputFile = `${swFilename}.js`;
 
   try {
     writeFileSync(join(outputDir, outputFile), sw);
-    if (versionEnabled) {
-      writeFileSync(
-        join(outputDir, "version.json"),
-        JSON.stringify(
-          {
-            version,
-            generatedAt: new Date().toISOString(),
-            configSource,
-          },
-          null,
-          2,
-        ),
-      );
-    }
-
     console.log(`${outputDir}/${outputFile}`);
   } catch (err) {
     console.log(`Error writing files: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  return { version, outputFile };
+  return { outputFile };
 }
 
 if (fileURLToPath(import.meta.url) === fileURLToPath(new URL(process.argv[1], "file:"))) {

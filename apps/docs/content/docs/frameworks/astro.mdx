@@ -1,0 +1,107 @@
+---
+title: Astro
+description: Integrate Swoff with Astro, including islands architecture and static/SSR output.
+icon: astro
+---
+
+# Astro
+
+Swoff works with both static and SSR Astro projects. The Service Worker runs in its own thread regardless of how your components are rendered — Astro islands, client directives, and zero-JS pages all benefit equally.
+
+## Config per flavor
+
+| Setting | Astro (static) | Astro (SSR) |
+|---|---|---|
+| `build.outputDir` | `"dist"` | `"dist"` |
+| `build.swFilename` | `"sw"` | `"sw"` |
+| `navigation.mode` | `"spa"` | `"ssr"` |
+| `navigation.fallback` | `"/404"` or `"/index.html"` | `"/offline"` |
+| `navigation.preload` | `false` | `true` |
+| `strategy.default` | `"cache-first"` | `"network-first"` |
+
+- **Static**: use `navigation.mode: "spa"` — all pages are pre-rendered, cached at install time via `precacheRoutes`
+- **SSR**: use `navigation.mode: "ssr"` — individually cached server-rendered pages, offline fallback for unvisited routes
+
+## Entry point
+
+Astro uses an islands architecture. The client-injector needs to run on the client side:
+
+```astro
+---
+import { initServiceWorker } from "../swoff/client-injector";
+---
+
+<html>
+  <body>
+    <slot />
+
+    {{-- Client-side script — runs after page load --}}
+    <script>
+      import { initServiceWorker } from "../swoff/client-injector";
+      initServiceWorker();
+    </script>
+  </body>
+</html>
+```
+
+Or use a `client:load` island component with the init:
+
+```astro
+---
+import SwoffInit from "../components/SwoffInit.astro";
+---
+
+<html>
+  <body>
+    <slot />
+    <SwoffInit client:load />
+  </body>
+</html>
+```
+
+```tsx
+// src/components/SwoffInit.tsx
+import { useEffect } from "react";
+import { initServiceWorker } from "../swoff/client-injector";
+
+export default function SwoffInit() {
+  useEffect(() => { initServiceWorker(); }, []);
+  return null;
+}
+```
+
+## Build script
+
+Add the SW generator after your Astro build:
+
+```bash
+# In package.json:
+{
+  "scripts": {
+    "build": "astro build && node swoff/sw/generator.js"
+  }
+}
+```
+
+## Auth
+
+For Astro SSR with cookie-based auth:
+
+```json
+{
+  "features": {
+    "auth": {
+      "enabled": true,
+      "type": "cookie",
+      "routePaths": ["/login", "/logout"]
+    }
+  }
+}
+```
+
+## Related
+
+- [Service Worker setup](/docs/guides/service-worker)
+- [Navigation caching](/docs/guides/navigation-caching)
+- [Caching strategies](/docs/guides/caching-strategy)
+- [Ecosystem compatibility](/docs/frameworks/ecosystem)

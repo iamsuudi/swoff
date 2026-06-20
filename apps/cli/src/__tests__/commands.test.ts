@@ -90,7 +90,7 @@ describe("addCommand", () => {
   });
 
   it("updates existing config with feature", async () => {
-    const base = { features: { auth: { enabled: false, type: "bearer" }, mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 }, serviceWorker: { version: "package",  autoActivate: false, strategy: { default: "cache-first", mode: "all", clearRuntimeOnUpdate: false, patterns: {}, reactive: { defaults: {} } }, navigation: { mode: "spa", fallback: "/index.html" } }, pwa: { enabled: false, preventDefaultInstall: false }, tagInvalidation: {}, graphql: { enabled: false, endpoints: ["/graphql"] }, pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 }, refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 } }, build: { outputDir: "dist", swFilename: "sw" } };
+    const base = { features: { auth: { enabled: false, type: "bearer" }, mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },         serviceWorker: { autoActivate: false, strategy: { default: "cache-first", mode: "all", patterns: {}, reactive: { defaults: {} } }, navigation: { mode: "spa", fallback: "/index.html" } }, pwa: { enabled: false, preventDefaultInstall: false }, tagInvalidation: {}, graphql: { enabled: false, endpoints: ["/graphql"] }, pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 }, refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 } }, build: { outputDir: "dist", swFilename: "sw" } };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(base));
     await addCommand(testDir, "auth");
     const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
@@ -147,17 +147,15 @@ describe("generateCommand", () => {
   function writeDefaultConfig() {
     const config = {
       $schema: "https://swoff.netlify.app/schema/v1.json",
-      framework: "vanilla",
+      framework: "react-spa",
       features: {
         pwa: { enabled: true, preventDefaultInstall: false },
         serviceWorker: {
-          version: "package",
           autoActivate: false,
           strategy: {
             default: "cache-first",
             patterns: {},
             mode: "all",
-            clearRuntimeOnUpdate: false,
             reactive: { defaults: {} },
           },
           navigation: { mode: "spa", fallback: "/index.html" },
@@ -223,13 +221,11 @@ describe("validateCommand", () => {
       features: {
         pwa: { enabled: false, preventDefaultInstall: false },
         serviceWorker: {
-          version: "package",
           autoActivate: false,
           strategy: {
             default: "cache-first",
             patterns: {},
             mode: "all",
-            clearRuntimeOnUpdate: false,
             reactive: { defaults: {} },
           },
           navigation: { mode: "spa", fallback: "/index.html" },
@@ -265,7 +261,7 @@ describe("validateCommand", () => {
   it("reports errors for invalid config", async () => {
     writeValidConfig();
     const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
-    config.features.serviceWorker.version = 123;
+    config.features.serviceWorker.autoActivate = "yes";
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     await validateCommand(testDir);

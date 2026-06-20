@@ -3,6 +3,7 @@ import { validateConfig } from "../config/validator.js";
 import { detectProjectLanguage } from "../utils/detect-language.js";
 import { generateFiles } from "../generators/swoff-files-generator.js";
 import type { GeneratorContext } from "../generators/file-generators/context.js";
+import { hasBundler } from "../generators/file-generators/context.js";
 import { join } from "path";
 import { log } from "../cli/logger.js";
 
@@ -45,13 +46,15 @@ export async function generateCommand(
   const swoffDir = join(projectRoot, "swoff");
   const generatedFiles: string[] = [];
 
+  const fwName = config.framework ?? "vanilla";
   const ctx: GeneratorContext = {
     config,
     projectRoot,
     swoffDir,
     ext,
     generatedFiles,
-    frameworkName: config.framework ?? "vanilla",
+    frameworkName: fwName,
+    hasBundler: hasBundler(fwName),
     debug: debug ?? false,
   };
 
@@ -74,7 +77,7 @@ export async function generateCommand(
     );
   }
 
-  if (config.features.auth.enabled) {
+  if (config.features.auth.enabled && hasBundler(fwName)) {
     log.normal("");
     log.help(`Auth (${config.features.auth.type})`);
     log.normal("  Edit swoff/auth/adapter.ts to match your backend:");

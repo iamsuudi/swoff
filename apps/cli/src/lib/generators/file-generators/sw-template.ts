@@ -18,7 +18,6 @@ export function generateSwTemplate(ctx: GeneratorContext): void {
     code += generateBackgroundSyncCode(config);
   }
 
-  code += `\n// Dev mode fallback\nif (!CACHE_NAME) CACHE_NAME = "sw-dev-cache";\n`;
 
   writeFile(ctx, "sw/template.js", code);
 }

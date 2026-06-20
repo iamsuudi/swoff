@@ -40,6 +40,7 @@ function makeContext(overrides?: Partial<SwoffConfig>): GeneratorContext {
     ext: "js",
     generatedFiles: [],
     frameworkName: "vanilla",
+    hasBundler: false,
   };
 }
 
@@ -53,20 +54,22 @@ afterEach(() => {
 });
 
 describe("generateSwTemplate", () => {
-  it("produces a template with placeholders", () => {
+  it("produces a standalone template with defaults", () => {
     const ctx = makeContext();
     generateSwTemplate(ctx);
     const content = readFileSync(
       join(ctx.swoffDir, "sw", "template.js"),
       "utf8",
     );
-    expect(content).toContain("// [[CACHE_NAME]]");
-    expect(content).toContain("// [[ASSETS_LIST]]");
-    expect(content).toContain("// [[AUTO_SKIP_WAITING]]");
-    expect(content).toContain("CACHE_NAME_RUNTIME");
-    expect(content).toContain("CACHE_NAME_RUNTIME_HTML");
+    expect(content).toContain("let ASSETS_TO_CACHE = []");
+    expect(content).toContain("let AUTO_SKIP_WAITING = false");
+    expect(content).toContain('"swoff-runtime"');
+    expect(content).toContain('"swoff-runtime-html"');
     expect(content).toContain("self.addEventListener");
     expect(content).toContain("fromPrecache");
+    expect(content).not.toContain("// [[CACHE_NAME]]");
+    expect(content).not.toContain("// [[ASSETS_LIST]]");
+    expect(content).not.toContain("// [[AUTO_SKIP_WAITING]]");
   });
 
   it("includes config-driven strategy code", () => {
@@ -141,32 +144,12 @@ describe("generateSwInjector", () => {
     expect(content).toContain("AUTO_ACTIVATE = false");
   });
 
-  it("generates hash-mode injector without SW_VERSION import", () => {
+  it("generates AUTO_ACTIVATE = true", () => {
     const ctx = makeContext({
       features: {
         ...defaultConfig.features,
         serviceWorker: {
           ...defaultConfig.features.serviceWorker,
-          version: "hash",
-        },
-      },
-    });
-    generateSwInjector(ctx);
-    const content = readFileSync(
-      join(ctx.swoffDir, "sw", "injector.js"),
-      "utf8",
-    );
-    expect(content).not.toContain("SW_VERSION");
-    expect(content).toContain("/sw.js");
-  });
-
-  it("generates AUTO_ACTIVATE = true in hash mode", () => {
-    const ctx = makeContext({
-      features: {
-        ...defaultConfig.features,
-        serviceWorker: {
-          ...defaultConfig.features.serviceWorker,
-          version: "hash",
           autoActivate: true,
         },
       },
@@ -325,7 +308,7 @@ describe("generateSwGeneratorBuild", () => {
     expect(content).toContain("writeFileSync");
     expect(content).toContain("mkdirSync");
     expect(content).toContain("template.js");
-    expect(content).toContain("createHash");
+    expect(content).toContain('CACHE_NAME = "');
     expect(content).not.toContain("import('fs').then");
   });
 });

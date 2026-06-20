@@ -7,6 +7,15 @@ import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join, dirname } from "path";
 import type { SwoffConfig } from "../../shared/config-types.js";
 
+const BUNDLER_FRAMEWORKS = new Set([
+  "nextjs", "remix", "tanstack-start-react", "astro",
+  "nuxt", "sveltekit", "react-spa", "vue", "svelte",
+]);
+
+export function hasBundler(frameworkName: string): boolean {
+  return BUNDLER_FRAMEWORKS.has(frameworkName);
+}
+
 export interface GeneratorContext {
   config: SwoffConfig;
   projectRoot: string;
@@ -14,6 +23,7 @@ export interface GeneratorContext {
   ext: string;
   generatedFiles: string[];
   frameworkName: string;
+  hasBundler: boolean;
   debug?: boolean;
 }
 

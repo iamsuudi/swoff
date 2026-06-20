@@ -246,7 +246,7 @@ function cacheKey(request) {
 
 async function fromPrecache(request) {
   swLog("fromPrecache", "ENTER", request.url, 4);
-  const cache = await caches.open(CACHE_NAME);
+  const cache = await caches.open("precache");
   const url = new URL(request.url);
   url.search = "";
   const result = await cache.match(url.href);
@@ -256,7 +256,7 @@ async function fromPrecache(request) {
 
 async function fromRuntime(request) {
   swLog("fromRuntime", "ENTER", request.url, 4);
-  const cache = await caches.open(CACHE_NAME_RUNTIME);
+  const cache = await caches.open("swoff-runtime");
   const result = await cache.match(cacheKey(request));
   swLog("fromRuntime", result ? "HIT" : "MISS", request.url, 4);
   return result;
@@ -282,7 +282,7 @@ async function serveFromCache(request) {
   if (isNavRequest(request)) {
     if (NAV_MODE === "spa") {
       if (FALLBACK_PATH) {
-        const cache = await caches.open(CACHE_NAME);
+        const cache = await caches.open("precache");
         const match = await cache.match(FALLBACK_PATH);
         if (match) {
           swLog("serveFromCache", "HIT fallback-path", request.url, 3);
@@ -297,21 +297,21 @@ async function serveFromCache(request) {
       swLog("serveFromCache", "HIT precache (nav)", request.url, 3);
       return pc;
     }
-    const htmlCache = await caches.open(CACHE_NAME_RUNTIME_HTML);
-    const htmlMatch = await htmlCache.match(cacheKey(request));
-    if (htmlMatch) {
-      swLog("serveFromCache", "HIT runtime-html", request.url, 3);
-      return htmlMatch;
+      const htmlCache = await caches.open("swoff-runtime-html");
+      const htmlMatch = await htmlCache.match(cacheKey(request));
+      if (htmlMatch) {
+        swLog("serveFromCache", "HIT runtime-html", request.url, 3);
+        return htmlMatch;
+      }
+      swLog("serveFromCache", "MISS (SSR/Default nav)", request.url, 3);
+      return null;
     }
-    swLog("serveFromCache", "MISS (SSR/Default nav)", request.url, 3);
-    return null;
-  }
-  const cached = await fromRuntime(request);
-  if (cached) {
-    swLog("serveFromCache", "HIT runtime", request.url, 3);
-    return cached;
-  }
-  const pc = await fromPrecache(request);
+    const cached = await fromRuntime(request);
+    if (cached) {
+      swLog("serveFromCache", "HIT runtime", request.url, 3);
+      return cached;
+    }
+    const pc = await fromPrecache(request);
   if (pc) {
     const accept = request.headers.get("Accept") || "*/*";
     const pcType = (pc.headers.get("Content-Type") || "").split(";")[0].trim();
@@ -344,7 +344,7 @@ async function cacheResponse(response, request) {
   const key = cacheKey(request);
   const ct = response.headers.get("Content-Type") || "";
   var skipRuntime = false;
-  const precache = await caches.open(CACHE_NAME);
+  const precache = await caches.open("precache");
   const url = new URL(key);
   url.search = "";
   const precached = await precache.match(url.href);
@@ -365,7 +365,7 @@ async function cacheResponse(response, request) {
   }
 
   if (!skipRuntime) {
-    const cacheName = ct.startsWith("text/html") ? CACHE_NAME_RUNTIME_HTML : CACHE_NAME_RUNTIME;
+    const cacheName = ct.startsWith("text/html") ? "swoff-runtime-html" : "swoff-runtime";
     const cache = await caches.open(cacheName);
     const headers = new Headers(response.headers);
     headers.set("X-SW-Cached-At", String(Date.now()));
@@ -381,7 +381,7 @@ async function cacheResponse(response, request) {
       swLog("cacheResponse", "quota error, evicting stale entries", request.url, 3);
       try {
         // Evict stale runtime entries and retry once
-        for (const name of [CACHE_NAME_RUNTIME, CACHE_NAME_RUNTIME_HTML]) {
+        for (const name of ["swoff-runtime", "swoff-runtime-html"]) {
           const c = await caches.open(name);
           const keys = await c.keys();
           const now = Date.now();
@@ -413,18 +413,18 @@ async function fallback(request) {
     return pc;
   }
   if (NAV_MODE !== "spa") {
-    const htmlCache = await caches.open(CACHE_NAME_RUNTIME_HTML);
-    const htmlMatch = await htmlCache.match(cacheKey(request));
-    if (htmlMatch) {
-      swLog("fallback", "HIT runtime-html", request.url, 3);
-      return htmlMatch;
-    }
-  }${
+      const htmlCache = await caches.open("swoff-runtime-html");
+      const htmlMatch = await htmlCache.match(cacheKey(request));
+      if (htmlMatch) {
+        swLog("fallback", "HIT runtime-html", request.url, 3);
+        return htmlMatch;
+      }
+    }${
     hasRules
       ? `
     const routeFallbackPath = matchRouteFallback(request.url);
     if (routeFallbackPath) {
-      const cache = await caches.open(CACHE_NAME);
+      const cache = await caches.open("precache");
       const match = await cache.match(routeFallbackPath);
       if (match) {
         swLog("fallback", "HIT per-route fallback", request.url, 3);
@@ -436,7 +436,7 @@ async function fallback(request) {
   }
   if (NAV_MODE !== "spa") {
     if (FALLBACK_PATH) {
-      const cache = await caches.open(CACHE_NAME);
+      const cache = await caches.open("precache");
       const match = await cache.match(FALLBACK_PATH);
       if (match) {
         swLog("fallback", "HIT global fallback", request.url, 3);
@@ -893,7 +893,7 @@ async function handleMutation(event) {
     mutationQueueEnabled
       ? `
   if (request.method !== "GET") {
-    if (request.headers.get("X-SW-Cache-Strategy") === "mutation") {
+    if (request.headers.get("X-SW-Type") === "mutation") {
       event.respondWith(handleMutation(event));
       return;
     }

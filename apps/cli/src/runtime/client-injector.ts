@@ -238,7 +238,9 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
     }
     if (event.data.type === "AUTH_CLEARED") {
       // Another tab cleared auth — clear memory only (IndexedDB + caches already cleaned by initiator)
-      clearMemoryAuth();
+      if (typeof clearMemoryAuth !== "undefined") {
+        clearMemoryAuth();
+      }
       window.dispatchEvent(new CustomEvent("sw-auth-state-change", { detail: { type: "clear" } }));
     }
     if (event.data.type === "AUTH_FAILURE") {

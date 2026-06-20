@@ -578,7 +578,7 @@ ${flags.authEnabled && flags.authType === "cookie" ? "    fetchOptions.credentia
     skipWaiting: skipWaiting,
     forceRetry: typeof window !== "undefined" && typeof window.__SWOFF_FORCE_RETRY === "function" ? window.__SWOFF_FORCE_RETRY : function () { return Promise.resolve(); },
 ${flags.authEnabled ? "    setAuth: setAuth,\n    getAuth: getAuth,\n    clearAuth: clearAuth,\n    ensureValidAuth: ensureValidAuth,\n    clearMemoryAuth: clearMemoryAuth,\n    getAuthState: getAuthState," : ""}
-${flags.mutationQueueEnabled ? "    queueMutation: queueMutation,\n    flushMutations: flushMutations,\n    getPendingCount: getPendingCount,\n    getQueueItems: getQueueItems,\n    getQueuePosition: getQueuePosition,\n    syncWhenPossible: syncWhenPossible,\n    retrySync: retrySync," : ""}
+${flags.mutationQueueEnabled ? "    queueMutation: queueMutation,\n    flushMutations: flushMutations,\n    clearQueue: clearQueue,\n    getPendingCount: getPendingCount,\n    getQueueItems: getQueueItems,\n    getQueuePosition: getQueuePosition,\n    syncWhenPossible: syncWhenPossible,\n    retrySync: retrySync," : ""}
 ${flags.pwaEnabled ? "    promptInstall: promptInstall,\n    isInstallable: isInstallable," : ""}
 ${flags.gqlEnabled ? "    fetchWithGql: fetchWithGql,\n    queryGql: queryGql,\n    mutateGql: mutateGql," : ""}
 ${flags.pushNotificationsEnabled ? "    requestNotificationPermission: requestNotificationPermission,\n    getPushSubscription: getPushSubscription,\n    subscribeToPush: subscribeToPush,\n    unsubscribeFromPush: unsubscribeFromPush,\n    isSubscribed: isSubscribed," : ""}
@@ -1017,6 +1017,8 @@ function generateAuthSection(flags: SwoffApiBundleFlags): string {
           return Promise.all(keys.filter(function (name) { return name.indexOf("swoff-runtime") === 0; }).map(function (name) { return caches.delete(name); }));
         });
       } catch (e) { return Promise.resolve(); }
+    }).then(function () {
+      if (typeof clearQueue === "function") return clearQueue();
     }).then(function () {
       window.dispatchEvent(new CustomEvent("sw-auth-state-change", { detail: { type: "clear" } }));
     });

@@ -20,7 +20,6 @@ describe("loadConfig", () => {
     expect(result.config).toBeDefined();
     expect(result.configPath).toBeNull();
     expect(result.configSource).toBe("defaults");
-    expect(result.config.features.serviceWorker.version).toBe("package");
   });
 
   it("loads JSON config", () => {
@@ -28,7 +27,6 @@ describe("loadConfig", () => {
       enabled: true,
       features: {
         serviceWorker: {
-          version: "2.0.0",
           autoActivate: true,
           strategy: { default: "network-first", patterns: {} },
         },
@@ -36,8 +34,7 @@ describe("loadConfig", () => {
           enabled: true,
           batchSize: 1,
           batchDelayMs: 0,
-          maxRetries: 5,
-          retryBackoffMs: 1000,
+          retry: { maxRetries: 5, backoffMs: 1000, maxBackoffMs: 30000, jitterMs: 250 },
         },
         pwa: { enabled: true, preventDefaultInstall: true },
         auth: {
@@ -53,22 +50,20 @@ describe("loadConfig", () => {
     const result = loadConfig(testDir);
     expect(result.configPath).toContain("swoff.config.json");
     expect(result.configSource).toBe("JSON");
-    expect(result.config.features.serviceWorker.version).toBe("2.0.0");
     expect(result.config.build.outputDir).toBe("build");
   });
 
   it("merges user config with defaults", () => {
-    const config = { features: { serviceWorker: { version: "hash" } } };
+    const config = { features: { serviceWorker: { autoActivate: true } } };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
 
     const result = loadConfig(testDir);
-    expect(result.config.features.serviceWorker.version).toBe("hash");
-    expect(result.config.features.serviceWorker.autoActivate).toBe(false); // from defaults
+    expect(result.config.features.serviceWorker.autoActivate).toBe(true);
   });
 
   it("prefers JSON over JS config", () => {
     const jsonConfig = {
-      features: { serviceWorker: { version: "json-version" } },
+      features: { serviceWorker: { autoActivate: true } },
     };
     writeFileSync(
       join(testDir, "swoff.config.json"),
@@ -76,18 +71,18 @@ describe("loadConfig", () => {
     );
 
     const result = loadConfig(testDir);
-    expect(result.config.features.serviceWorker.version).toBe("json-version");
+    expect(result.config.features.serviceWorker.autoActivate).toBe(true);
     expect(result.configSource).toBe("JSON");
   });
 
   it("uses explicit path when provided", () => {
     const customPath = join(testDir, "custom-config.json");
-    const config = { features: { serviceWorker: { version: "custom" } } };
+    const config = { features: { serviceWorker: { autoActivate: true } } };
     writeFileSync(customPath, JSON.stringify(config));
 
     const result = loadConfig(testDir, customPath);
     expect(result.configPath).toBe(customPath);
-    expect(result.config.features.serviceWorker.version).toBe("custom");
+    expect(result.config.features.serviceWorker.autoActivate).toBe(true);
   });
 
   it("falls back to defaults on invalid JSON", () => {
@@ -95,7 +90,6 @@ describe("loadConfig", () => {
 
     const result = loadConfig(testDir);
     expect(result.configSource).toBe("defaults");
-    expect(result.config.features.serviceWorker.version).toBe("package");
   });
 
   it("skips JS config with sync loader", () => {

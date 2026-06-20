@@ -1,0 +1,94 @@
+---
+title: Django / Python
+description: Integrate Swoff with Django or Python-based backends.
+icon: python
+---
+
+# Django / Python
+
+Swoff works with any Python backend. The generated files are static — serve them via Django's static file system or collect them with `collectstatic`. No Node.js runtime needed in production.
+
+## Config per flavor
+
+| Setting               | Django            |
+| --------------------- | ----------------- |
+| `build.outputDir`     | `"static"`        |
+| `build.swFilename`    | `"sw"`            |
+| `navigation.mode`     | `"ssr"`           |
+| `navigation.fallback` | `"/offline"`      |
+| `navigation.preload`  | `true`            |
+| `strategy.default`    | `"network-first"` |
+
+- **`navigation.mode: "ssr"`** — server-rendered HTML pages get cached individually
+
+## Where to place generated files
+
+```bash
+# After swoff generate, make swoff/ accessible to Django's static system:
+
+# Option 1: Place directly in your static directory
+cp -r swoff your_app/static/swoff/
+
+# Option 2: Symlink from a static directory
+ln -s /full/path/to/swoff your_app/static/swoff
+
+# Then run collectstatic:
+python manage.py collectstatic
+```
+
+## Entry point
+
+In your Django template, include the client-injector script:
+
+```python
+{% load static %}
+
+<body>
+  {% block content %}{% endblock %}
+
+  <script src="{% static 'swoff/client-injector.bundle.js' %}"></script>
+</body>
+```
+
+## Build script
+
+Add the SW generator to your build pipeline. Requires Node.js only at build time:
+
+```bash
+# In CI or deployment script:
+npm run build  # if using Vite/webpack
+node swoff/sw/generator.js
+python manage.py collectstatic
+```
+
+Or if you don't use a JS build step, just run:
+
+```bash
+node swoff/sw/generator.js
+python manage.py collectstatic
+```
+
+## Auth
+
+For Django session-based auth (cookie):
+
+```json
+{
+  "features": {
+    "auth": {
+      "enabled": true,
+      "type": "cookie",
+      "routePaths": ["/login", "/logout", "/admin/*"]
+    }
+  }
+}
+```
+
+The generated `auth/adapter.ts` works with Django's session-based auth — cookies are sent automatically by the browser. Background sync and server push are fully compatible.
+
+## Related
+
+- [Service Worker setup](/docs/guides/service-worker)
+- [Navigation caching for SSR](/docs/guides/navigation-caching)
+- [Auth guide](/docs/guides/auth)
+- [Ecosystem compatibility](/docs/frameworks/ecosystem)

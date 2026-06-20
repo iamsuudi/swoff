@@ -1,8 +1,4 @@
-export function generateActivateHandler(clearRuntimeOnUpdate: boolean, navigationPreload?: boolean, maxRuntimeCacheAge?: number): string {
-  const cacheCleanup = clearRuntimeOnUpdate
-    ? `keys.filter((key) => key !== CACHE_NAME)`
-    : `keys.filter((key) => key !== CACHE_NAME && key !== CACHE_NAME_RUNTIME && key !== CACHE_NAME_RUNTIME_HTML)`;
-
+export function generateActivateHandler(navigationPreload?: boolean, maxRuntimeCacheAge?: number): string {
   const navPreloadCode = navigationPreload ? `
       if (self.registration.navigationPreload) {
         await self.registration.navigationPreload.enable();
@@ -17,7 +13,7 @@ const MAX_RUNTIME_CACHE_AGE = ${maxRuntimeCacheAge && maxRuntimeCacheAge > 0 ? m
 ${maxRuntimeCacheAge && maxRuntimeCacheAge > 0 ? `
 async function evictStaleRuntimeCache() {
   var cutoff = Date.now() - MAX_RUNTIME_CACHE_AGE * 1000;
-  for (const name of [CACHE_NAME_RUNTIME, CACHE_NAME_RUNTIME_HTML]) {
+  for (const name of ["swoff-runtime", "swoff-runtime-html"]) {
     const cache = await caches.open(name);
     const keys = await cache.keys();
     const promises = [];
@@ -46,19 +42,55 @@ async function evictStaleRuntimeCache() {
         db.close();
       }
     } catch {}
+  }
 }
 ` : ""}`;
 
   return `${evictionHelper}
+async function checkCacheVersion() {
+  const current = CACHE_NAME;
+  let prev = null;
+  try {
+    const db = await openDB("swoff-meta", 1, function(db) {
+      if (!db.objectStoreNames.contains("meta"))
+        db.createObjectStore("meta", { keyPath: "key" });
+    });
+    const tx = db.transaction("meta", "readonly");
+    const store = tx.objectStore("meta");
+    const entry = await new Promise(function(resolve, reject) {
+      const req = store.get("cacheName");
+      req.onsuccess = function() { resolve(req.result); };
+      req.onerror = function() { reject(req.error); };
+    });
+    prev = entry ? entry.value : null;
+    db.close();
+  } catch {}
+
+  if (prev !== null && prev !== current) {
+    await Promise.all(
+      ["precache", "swoff-runtime", "swoff-runtime-html"].map(function(n) { return caches.delete(n); })
+    );
+  }
+
+  try {
+    const db = await openDB("swoff-meta", 1);
+    const tx = db.transaction("meta", "readwrite");
+    const store = tx.objectStore("meta");
+    store.put({ key: "cacheName", value: current });
+    await new Promise(function(resolve, reject) {
+      tx.oncomplete = function() { resolve(); };
+      tx.onerror = function() { reject(tx.error); };
+    });
+    db.close();
+  } catch {}
+}
+
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       if (typeof clearAllReactive === "function") clearAllReactive();
+      await checkCacheVersion();
       await self.clients.claim();${navPreloadCode}${evictionCode}
-      const keys = await caches.keys();
-      await Promise.all(
-        ${cacheCleanup}.map((key) => caches.delete(key))
-      );
     })()
   );
 });`;

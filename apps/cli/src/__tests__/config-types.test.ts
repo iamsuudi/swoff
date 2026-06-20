@@ -21,13 +21,12 @@ describe("config-types", () => {
         "cache-first",
       );
       expect(
-        defaultConfig.features.serviceWorker.strategy.clearRuntimeOnUpdate,
-      ).toBe(false);
+        defaultConfig.features.serviceWorker.strategy.maxRuntimeCacheAge,
+      ).toBe(2592000);
       expect(defaultConfig.features.serviceWorker.navigation.mode).toBe("spa");
       expect(defaultConfig.features.serviceWorker.navigation.fallback).toBe("");
       expect(defaultConfig.features.serviceWorker.navigation.rules).toEqual([]);
       expect(defaultConfig.features.serviceWorker.navigation.mode).toBe("spa");
-      expect(defaultConfig.features.serviceWorker.version).toBe("package");
       expect(defaultConfig.build.outputDir).toBe("dist");
       expect(defaultConfig.build.swFilename).toBe("sw");
       expect(defaultConfig.features.pwa.enabled).toBe(true);

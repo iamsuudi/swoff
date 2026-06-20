@@ -2,19 +2,11 @@ import type { RuntimeContext } from "./utils.js";
 import { T, R } from "./utils.js";
 
 export function generateSwInjectorCode(
-  ctx: RuntimeContext & { autoActivate: boolean; swFilename: string; versionMode: "hash" | "package" | "manual" },
+  ctx: RuntimeContext & { autoActivate: boolean; swFilename: string },
 ): string {
-  const { ext, ts, autoActivate, swFilename, versionMode } = ctx;
-  const isHash = versionMode === "hash";
-  const swUrl = isHash
-    ? `"/${swFilename}.js"`
-    : `\`/${swFilename}-v\${SW_VERSION}.js\``;
+  const { ext, ts, autoActivate, swFilename } = ctx;
 
-  return `${
-    isHash
-      ? ""
-      : `import { SW_VERSION } from "./version.${ext}";\n`
-  }/**
+  return `/**
  * Swoff SW Injector
  * Registers the service worker and tracks installation progress.
  *
@@ -43,7 +35,7 @@ async function waitForController()${R(ts, "Promise<void>")}{
   });
 }
 
-/** Register the SW. On update, the browser handles the lifecycle natively — no version.json or consent needed. */
+/** Register the SW. The browser detects updates by comparing SW file bytes. */
 export async function initServiceWorker()${R(ts, "Promise<void>")}{
   if (!("serviceWorker" in navigator)) {
     console.warn("Service Workers not supported");
@@ -51,7 +43,7 @@ export async function initServiceWorker()${R(ts, "Promise<void>")}{
   }
 
   try {
-    const registration = await navigator.serviceWorker.register(${swUrl});
+    const registration = await navigator.serviceWorker.register("/${swFilename}.js");
 
     var swReadyDispatched = false;
     if (registration.installing) {

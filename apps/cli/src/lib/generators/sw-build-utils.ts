@@ -2,20 +2,6 @@ import { readdirSync, existsSync } from "fs";
 import { join, relative, extname } from "path";
 import type { PrecacheDirConfig, SwoffConfig } from "../shared/config-types.js";
 
-export function resolveVersion(
-  versionField: string,
-  pkgVersion: string,
-): string {
-  if (versionField === "hash") return "0.0.0";
-  if (versionField === "package") return pkgVersion || "1.0.0";
-  if (versionField === "manual") return "0.0.0"; // resolved at build time from sw/version.ts
-  return versionField;
-}
-
-export function isVersionEnabled(versionField: string): boolean {
-  return versionField !== "hash";
-}
-
 export function collectAssets(dir: string, baseDir: string): string[] {
   if (!existsSync(dir)) return [];
   const entries = readdirSync(dir, { withFileTypes: true });
@@ -29,11 +15,6 @@ export function collectAssets(dir: string, baseDir: string): string[] {
     }
   }
   return assets;
-}
-
-export function generateCacheNameFromHash(): string {
-  const ts = Date.now().toString(36);
-  return `sw-cache-${ts}`;
 }
 
 export function buildFallbackList(config: SwoffConfig): string[] {
@@ -87,7 +68,7 @@ export function scanPrecacheAssets(
       if (urlPath !== "/" && urlPath.endsWith("/")) {
         urlPath = urlPath.slice(0, -1);
       }
-      if (urlPath !== `/${swFile}` && urlPath !== "/version.json")
+      if (urlPath !== `/${swFile}`)
         scanned.push(urlPath);
     }
   }

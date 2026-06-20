@@ -6,7 +6,6 @@ describe("validateConfig", () => {
     features: {
       pwa: { enabled: true, preventDefaultInstall: false },
       serviceWorker: {
-        version: "package",
         autoActivate: false,
         strategy: {
           default: "cache-first",
@@ -219,42 +218,6 @@ describe("validateConfig", () => {
         ] } } },
       };
       expect(validateConfig(config)).toEqual([]);
-    });
-  });
-
-  describe("version validation", () => {
-    it('accepts "package" version', () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: "package" } },
-      };
-      expect(validateConfig(config)).toEqual([]);
-    });
-
-    it('accepts "hash" version', () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: "hash" } },
-      };
-      expect(validateConfig(config)).toEqual([]);
-    });
-
-    it("rejects invalid version string", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: "invalid" } },
-      };
-      const errors = validateConfig(config);
-      expect(errors[0]).toContain("features.serviceWorker.version must be one of");
-    });
-
-    it("rejects version with wrong type", () => {
-      const config = {
-        ...validConfig,
-        features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, version: true as unknown as string } },
-      };
-      const errors = validateConfig(config);
-      expect(errors[0]).toContain("features.serviceWorker.version must be a string");
     });
   });
 

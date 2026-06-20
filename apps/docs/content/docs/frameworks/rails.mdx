@@ -1,0 +1,95 @@
+---
+title: Ruby on Rails
+description: Integrate Swoff with Ruby on Rails.
+icon: rails
+---
+
+# Ruby on Rails
+
+Swoff works with any Rails backend. The generated files are static — serve them from `public/` or `app/assets/`. No Node.js runtime needed in production.
+
+## Config per flavor
+
+| Setting | Rails (ERB) |
+|---|---|
+| `build.outputDir` | `"public"` |
+| `build.swFilename` | `"sw"` |
+| `navigation.mode` | `"ssr"` |
+| `navigation.fallback` | `"/offline"` |
+| `navigation.preload` | `true` |
+| `strategy.default` | `"network-first"` |
+
+- **`navigation.mode: "ssr"`** — server-rendered HTML pages get cached individually
+
+## Where to place generated files
+
+```bash
+# After swoff generate, make swoff/ accessible:
+# Option 1: Link from public/
+ln -s ../swoff public/swoff
+
+# Option 2: Copy to public/
+cp -r swoff public/swoff
+
+# Option 3: Use asset pipeline (Rails < 7)
+cp -r swoff app/assets/javascripts/swoff
+```
+
+## Entry point
+
+In your layout ERB template:
+
+```erb
+<body>
+  <%= yield %>
+
+  <script src="/swoff/client-injector.bundle.js"></script>
+</body>
+```
+
+If using a bundler (Vite, esbuild), import the modular injector instead:
+
+```ts
+import { initServiceWorker } from "./swoff/client-injector";
+initServiceWorker();
+```
+
+## Build script
+
+Add the SW generator to your build pipeline:
+
+```bash
+# In your Rakefile or CI:
+node swoff/sw/generator.js
+```
+
+If you use a JS build tool (Vite, esbuild), chain the generator:
+
+```bash
+bun run build && node swoff/sw/generator.js
+```
+
+## Auth
+
+For Rails cookie-based session auth:
+
+```json
+{
+  "features": {
+    "auth": {
+      "enabled": true,
+      "type": "cookie",
+      "routePaths": ["/login", "/logout", "/session/*"]
+    }
+  }
+}
+```
+
+Rails uses httpOnly session cookies by default — the browser sends them automatically. Cookie auth is compatible with background sync and server push.
+
+## Related
+
+- [Service Worker setup](/docs/guides/service-worker)
+- [Navigation caching for SSR](/docs/guides/navigation-caching)
+- [Auth guide](/docs/guides/auth)
+- [Ecosystem compatibility](/docs/frameworks/ecosystem)

@@ -8,27 +8,26 @@ describe("assembleSW", () => {
   };
 
   it("generates a service worker string", () => {
-    const sw = assembleSW(config, "hash");
+    const sw = assembleSW(config);
     expect(sw).toContain("self.addEventListener");
-    expect(sw).toContain("CACHE_NAME_RUNTIME");
-    expect(sw).toContain("CACHE_NAME_RUNTIME_HTML");
+    expect(sw).toContain('"swoff-runtime"');
+    expect(sw).toContain('"swoff-runtime-html"');
   });
 
   it("includes install handler", () => {
-    const sw = assembleSW(config, "hash");
+    const sw = assembleSW(config);
     expect(sw).toContain('self.addEventListener("install"');
     expect(sw).toContain("SW_PROGRESS");
   });
 
   it("includes activate handler with clients.claim()", () => {
-    const sw = assembleSW(config, "hash");
+    const sw = assembleSW(config);
     expect(sw).toContain('self.addEventListener("activate"');
-    expect(sw).toContain("caches.keys()");
     expect(sw).toContain("self.clients.claim()");
   });
 
   it("includes fetch handler with strategies", () => {
-    const sw = assembleSW(config, "hash");
+    const sw = assembleSW(config);
     expect(sw).toContain('self.addEventListener("fetch"');
     expect(sw).toContain("cacheFirst");
     expect(sw).toContain("networkFirst");
@@ -39,7 +38,7 @@ describe("assembleSW", () => {
   });
 
   it("checks serve-from-cache from all strategies", () => {
-    const sw = assembleSW(config, "hash");
+    const sw = assembleSW(config);
     expect(sw).toContain("fromPrecache");
     expect(sw).toContain("async function fromPrecache");
     expect(sw).toContain("cache.match(url.href)");
@@ -48,13 +47,13 @@ describe("assembleSW", () => {
   });
 
   it("includes message handler", () => {
-    const sw = assembleSW(config, "hash");
+    const sw = assembleSW(config);
     expect(sw).toContain('self.addEventListener("message"');
     expect(sw).toContain("SKIP_WAITING");
   });
 
   it("includes tag management", () => {
-    const sw = assembleSW(config, "hash");
+    const sw = assembleSW(config);
     expect(sw).toContain("invalidateByTag");
     expect(sw).toContain("INVALIDATE_TAG");
   });
@@ -71,13 +70,13 @@ describe("assembleSW", () => {
         },
       },
     };
-    const sw = assembleSW(configWithSync, "hash");
+    const sw = assembleSW(configWithSync);
     expect(sw).toContain('self.addEventListener("sync"');
     expect(sw).toContain("sync-mutations");
   });
 
   it("excludes background sync when disabled", () => {
-    const sw = assembleSW(config, "hash");
+    const sw = assembleSW(config);
     expect(sw).not.toContain('self.addEventListener("sync"');
   });
 
@@ -89,8 +88,8 @@ describe("assembleSW", () => {
         serviceWorker: { ...config.features.serviceWorker, autoActivate: true },
       },
     };
-    const sw = assembleSW(configAutoActivate, "hash");
-    expect(sw).toContain("const AUTO_SKIP_WAITING = true");
+    const sw = assembleSW(configAutoActivate);
+    expect(sw).toContain("let AUTO_SKIP_WAITING = true");
 
     const configNoAutoActivate: SwoffConfig = {
       ...config,
@@ -102,24 +101,13 @@ describe("assembleSW", () => {
         },
       },
     };
-    const sw2 = assembleSW(configNoAutoActivate, "hash");
-    expect(sw2).toContain("const AUTO_SKIP_WAITING = false");
+    const sw2 = assembleSW(configNoAutoActivate);
+    expect(sw2).toContain("let AUTO_SKIP_WAITING = false");
   });
 
-  it("uses hash-based cache name when version mode is 'hash'", () => {
-    const configHash: SwoffConfig = {
-      ...config,
-      features: {
-        ...config.features,
-        serviceWorker: {
-          ...config.features.serviceWorker,
-          version: "hash",
-        },
-      },
-    };
-    const sw = assembleSW(configHash, "hash");
-    expect(sw).toContain("CACHE_NAME = 'sw-cache-");
-    expect(sw).not.toContain("sw-v1.0.0");
+  it("includes build-time CACHE_NAME timestamp", () => {
+    const sw = assembleSW(config);
+    expect(sw).toContain("CACHE_NAME = \"");
   });
 
   it("includes PWA assets when pwa feature is enabled", () => {
@@ -130,7 +118,7 @@ describe("assembleSW", () => {
         pwa: { enabled: true, preventDefaultInstall: false },
       },
     };
-    const sw = assembleSW(configWithPwa, "hash");
+    const sw = assembleSW(configWithPwa);
     expect(sw).toContain("/manifest.json");
   });
 
@@ -142,7 +130,7 @@ describe("assembleSW", () => {
         pwa: { enabled: false, preventDefaultInstall: false },
       },
     };
-    const sw = assembleSW(configNoPwa, "hash");
+    const sw = assembleSW(configNoPwa);
     expect(sw).not.toContain("/manifest.json");
   });
 
@@ -160,7 +148,7 @@ describe("assembleSW", () => {
         },
       },
     };
-    const sw = assembleSW(configWithStrategies, "hash");
+    const sw = assembleSW(configWithStrategies);
     expect(sw).toContain("/api/*");
     expect(sw).toContain("network-first");
     expect(sw).toContain("new URL(request.url).pathname");
@@ -185,7 +173,7 @@ describe("assembleSW", () => {
           },
         },
       };
-      const sw = assembleSW(configWithRules, "hash");
+      const sw = assembleSW(configWithRules);
       expect(sw).toContain("NAV_RULES");
       expect(sw).toContain("/blog/*");
       expect(sw).toContain("/dashboard/**");
@@ -205,7 +193,7 @@ describe("assembleSW", () => {
           },
         },
       };
-      const sw = assembleSW(configWithRules, "hash");
+      const sw = assembleSW(configWithRules);
       expect(sw).toContain("function matchRouteFallback(url)");
       expect(sw).toContain("matchGlob(path, rule.match)");
     });
@@ -227,7 +215,7 @@ describe("assembleSW", () => {
           },
         },
       };
-      const sw = assembleSW(configWithRules, "hash");
+      const sw = assembleSW(configWithRules);
       expect(sw).toContain("/blog-offline.html");
       expect(sw).toContain("/dashboard-offline.html");
     });
@@ -249,20 +237,20 @@ describe("assembleSW", () => {
           },
         },
       };
-      const sw = assembleSW(configWithRules, "hash");
+      const sw = assembleSW(configWithRules);
       expect(sw).toContain("/");
       expect(sw).toContain("/about");
     });
 
     it("does not generate NAV_RULES when no rules configured", () => {
-      const sw = assembleSW(config, "hash");
+      const sw = assembleSW(config);
       expect(sw).not.toContain("NAV_RULES");
     });
   });
 
   describe("offline fallback analytics", () => {
     it("generates OFFLINE_FALLBACK_ACTIVATED postMessage in ultimate fallback", () => {
-      const sw = assembleSW(config, "hash");
+      const sw = assembleSW(config);
       expect(sw).toContain("OFFLINE_FALLBACK_ACTIVATED");
     });
 
@@ -280,7 +268,7 @@ describe("assembleSW", () => {
           },
         },
       };
-      const sw = assembleSW(configWithOfflineFallback, "hash");
+      const sw = assembleSW(configWithOfflineFallback);
       expect(sw).toContain('FALLBACK_PATH = "/offline.html"');
     });
 
@@ -298,13 +286,13 @@ describe("assembleSW", () => {
           },
         },
       };
-      const sw = assembleSW(configWithRules, "hash");
+      const sw = assembleSW(configWithRules);
       expect(sw).toContain("OFFLINE_FALLBACK_ACTIVATED");
       expect(sw).toContain("route-fallback");
     });
 
     it("generates inline-503 fallback level in fromUltimateFallback", () => {
-      const sw = assembleSW(config, "hash");
+      const sw = assembleSW(config);
       expect(sw).toContain("inline-503");
     });
   });

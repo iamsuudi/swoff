@@ -39,6 +39,10 @@ self.addEventListener("message", (event) => {
   if (event.data.type === "ONLINE") {
     if (typeof handleRefetch === "function") handleRefetch("refetchOnReconnect");
   }
+  if (event.data.type === "OFFLINE") {
+    // Client went offline — the SW already serves from cache transparently.
+    // No action needed; reactive refetches will resume on next ONLINE signal.
+  }
   if (event.data.type === "RESET_CACHE") {
     event.waitUntil(
       (async () => {

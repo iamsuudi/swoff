@@ -88,6 +88,10 @@ export interface SwoffConfig {
     | "react-spa"
     | "vue"
     | "svelte"
+    | "laravel"
+    | "django"
+    | "rails"
+    | "go"
     | "vanilla";
   features: {
     pwa: {
@@ -95,7 +99,6 @@ export interface SwoffConfig {
       preventDefaultInstall: boolean;
     };
     serviceWorker: {
-      version: "hash" | "package" | "manual";
       autoActivate: boolean;
       strategy: {
         default: "cache-first" | "network-first" | "stale-while-revalidate" | "cache-only" | "network-only" | "reactive";
@@ -108,7 +111,6 @@ export interface SwoffConfig {
             refetchOnFocus?: boolean;
           };
         };
-        clearRuntimeOnUpdate: boolean;
         maxRuntimeCacheAge?: number;
         normalizeKey?: boolean;
         ignoreQueryParams?: string[];
@@ -249,10 +251,6 @@ export function mergeConfigs(
       serviceWorker: {
         ...base.features.serviceWorker,
         ...override.features?.serviceWorker,
-        version:
-          override.features?.serviceWorker?.version ??
-          base.features.serviceWorker.version ??
-          "hash",
         strategy: {
           ...base.features.serviceWorker.strategy,
           ...override.features?.serviceWorker?.strategy,
@@ -318,11 +316,9 @@ export const defaultConfig: SwoffConfig = {
       preventDefaultInstall: false,
     },
     serviceWorker: {
-      version: "package",
       autoActivate: false,
       strategy: {
         default: "cache-first",
-        clearRuntimeOnUpdate: false,
         maxRuntimeCacheAge: 2592000,
         normalizeKey: false,
         ignoreQueryParams: [],
@@ -364,7 +360,6 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
     requestBatchWindowMs: 50,
     pwa: { enabled: true, preventDefaultInstall: false },
     serviceWorker: {
-      version: "package",
       autoActivate: false,
       navigation: {
         mode: "spa",
@@ -375,7 +370,6 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
       },
       strategy: {
         default: "cache-first",
-        clearRuntimeOnUpdate: false,
         maxRuntimeCacheAge: 2592000,
         normalizeKey: false,
         ignoreQueryParams: [],

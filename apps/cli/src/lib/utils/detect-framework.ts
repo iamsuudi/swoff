@@ -20,6 +20,10 @@ export type FrameworkName =
   | "react-spa"
   | "vue"
   | "svelte"
+  | "laravel"
+  | "django"
+  | "rails"
+  | "go"
   | "vanilla";
 
 const META_FRAMEWORKS: [string, FrameworkName][] = [
@@ -37,9 +41,20 @@ const BASE_FRAMEWORKS: [string, FrameworkName][] = [
   ["svelte", "svelte"],
 ];
 
+function probeBackend(projectRoot: string): FrameworkName | null {
+  if (existsSync(join(projectRoot, "composer.json"))) return "laravel";
+  if (existsSync(join(projectRoot, "pyproject.toml")) || existsSync(join(projectRoot, "manage.py"))) return "django";
+  if (existsSync(join(projectRoot, "Gemfile"))) return "rails";
+  if (existsSync(join(projectRoot, "go.mod"))) return "go";
+  return null;
+}
+
 export function detectFramework(projectRoot: string): FrameworkName {
   const pkgPath = join(projectRoot, "package.json");
-  if (!existsSync(pkgPath)) return "vanilla";
+  if (!existsSync(pkgPath)) {
+    const backend = probeBackend(projectRoot);
+    return backend ?? "vanilla";
+  }
 
   let deps: Record<string, string> = {};
   let devDeps: Record<string, string> = {};
@@ -48,22 +63,22 @@ export function detectFramework(projectRoot: string): FrameworkName {
     deps = pkg.dependencies || {};
     devDeps = pkg.devDependencies || {};
   } catch {
-    return "vanilla";
+    const backend = probeBackend(projectRoot);
+    return backend ?? "vanilla";
   }
 
   const allDeps = { ...deps, ...devDeps };
 
-  // Check meta-frameworks first (they may also have base framework deps)
   for (const [dep, name] of META_FRAMEWORKS) {
     if (allDeps[dep]) return name;
   }
 
-  // Check base frameworks
   for (const [dep, name] of BASE_FRAMEWORKS) {
     if (allDeps[dep]) return name;
   }
 
   if (REACT_DEPS.some((d) => allDeps[d])) return "react-spa";
 
-  return "vanilla";
+  const backend = probeBackend(projectRoot);
+  return backend ?? "vanilla";
 }

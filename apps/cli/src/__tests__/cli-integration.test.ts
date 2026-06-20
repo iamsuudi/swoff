@@ -25,7 +25,6 @@ describe("CLI commands integration", () => {
         features: {
           pwa: { enabled: true, preventDefaultInstall: false },
           serviceWorker: {
-            version: "package",
             autoActivate: false,
             strategy: {
               default: "cache-first",
@@ -50,7 +49,6 @@ describe("CLI commands integration", () => {
 
       const parsed = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
       expect(parsed.$schema).toBe("https://swoff.netlify.app/schema/v1.json");
-      expect(parsed.features.serviceWorker.version).toBe("package");
       expect(parsed.features.pwa.preventDefaultInstall).toBe(false);
     });
 
@@ -125,7 +123,7 @@ describe("CLI commands integration", () => {
       const config = {
         features: {
           pwa: { enabled: true, preventDefaultInstall: false },
-          serviceWorker: { version: "package", autoActivate: false, strategy: { default: "cache-first", patterns: {} } },
+          serviceWorker: { autoActivate: false, strategy: { default: "cache-first", patterns: {} } },
           auth: 1,
         },
       };
@@ -146,18 +144,16 @@ describe("CLI commands integration", () => {
     function writeConfig(overrides: Record<string, unknown> = {}) {
       const config = {
         $schema: "https://swoff.netlify.app/schema/v1.json",
-        framework: "vanilla",
+        framework: "react-spa",
         features: {
           pwa: { enabled: true, preventDefaultInstall: false },
           serviceWorker: {
-            version: "package",
             autoActivate: false,
             strategy: {
               default: "cache-first",
               patterns: { "/api/*": "network-first", "/static/*": "cache-first" },
               reactive: { defaults: { staleTime: 0, refetchInterval: 0, refetchOnReconnect: false, refetchOnFocus: false } },
               mode: "all" as const,
-              clearRuntimeOnUpdate: false,
               normalizeKey: false,
               ignoreQueryParams: [],
             },
@@ -177,7 +173,6 @@ describe("CLI commands integration", () => {
     }
 
     it("generates SW and supporting files into swoff/", async () => {
-      writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test-app", version: "1.0.0" }));
       writeConfig();
 
       const { config } = loadConfig(testDir);
@@ -185,15 +180,14 @@ describe("CLI commands integration", () => {
 
       // Generate service worker
       const swResult = await generateSW({ projectRoot: testDir });
-      expect(swResult.outputFile).toBe("sw-v1.0.0.js");
-      expect(existsSync(join(testDir, "dist", "sw-v1.0.0.js"))).toBe(true);
-      expect(existsSync(join(testDir, "dist", "version.json"))).toBe(true);
+      expect(swResult.outputFile).toBe("sw.js");
+      expect(existsSync(join(testDir, "dist", "sw.js"))).toBe(true);
 
-      const swContent = readFileSync(join(testDir, "dist", "sw-v1.0.0.js"), "utf8");
+      const swContent = readFileSync(join(testDir, "dist", "sw.js"), "utf8");
       expect(swContent).toContain("self.addEventListener");
-      expect(swContent).toContain("CACHE_NAME = 'sw-v1.0.0'");
-      expect(swContent).toContain("CACHE_NAME_RUNTIME");
-      expect(swContent).toContain("CACHE_NAME_RUNTIME_HTML");
+      expect(swContent).toContain('CACHE_NAME = "');
+      expect(swContent).toContain('"swoff-runtime"');
+      expect(swContent).toContain('"swoff-runtime-html"');
       expect(swContent).toContain("invalidateByTag");
 
       // Generate supporting files
@@ -203,7 +197,8 @@ describe("CLI commands integration", () => {
         swoffDir: join(testDir, "swoff"),
         ext: "js",
         generatedFiles: [],
-        frameworkName: "vanilla",
+        frameworkName: "react-spa",
+        hasBundler: true,
       };
       const files = generateFiles(ctx);
       expect(files.length).toBeGreaterThan(0);
@@ -224,21 +219,22 @@ describe("CLI commands integration", () => {
         expect(existsSync(fullPath)).toBe(true);
       }
 
-      // Verify generated SW template contains placeholders
+      // Verify generated SW template has defaults (no placeholders)
       const templateContent = readFileSync(join(testDir, "swoff/sw/template.js"), "utf8");
-      expect(templateContent).toContain("// [[CACHE_NAME]]");
-      expect(templateContent).toContain("// [[ASSETS_LIST]]");
+      expect(templateContent).toContain("let ASSETS_TO_CACHE = []");
+      expect(templateContent).toContain("let AUTO_SKIP_WAITING = false");
+      expect(templateContent).not.toContain("// [[CACHE_NAME]]");
+      expect(templateContent).not.toContain("// [[ASSETS_LIST]]");
     });
 
     it("generated SW file has no obvious syntax issues", async () => {
-      writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test-app", version: "1.0.0" }));
       writeConfig();
       mkdirSync(join(testDir, "dist"), { recursive: true });
       writeFileSync(join(testDir, "dist", "index.html"), "<html></html>");
 
       await generateSW({ projectRoot: testDir });
 
-      const swContent = readFileSync(join(testDir, "dist", "sw-v1.0.0.js"), "utf8");
+      const swContent = readFileSync(join(testDir, "dist", "sw.js"), "utf8");
       // Basic structure checks — all event listeners should be properly opened/closed
       const opens = (swContent.match(/self\.addEventListener\(/g) || []).length;
       // At minimum: install, activate, fetch, message

@@ -111,6 +111,66 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
       },
     },
   },
+  laravel: {
+    build: {
+      outputDir: "public",
+    },
+    features: {
+      serviceWorker: {
+        navigation: {
+          mode: "ssr",
+        },
+        strategy: {
+          default: "network-first",
+        },
+      },
+    },
+  },
+  django: {
+    build: {
+      outputDir: "static",
+    },
+    features: {
+      serviceWorker: {
+        navigation: {
+          mode: "ssr",
+        },
+        strategy: {
+          default: "network-first",
+        },
+      },
+    },
+  },
+  rails: {
+    build: {
+      outputDir: "public",
+    },
+    features: {
+      serviceWorker: {
+        navigation: {
+          mode: "ssr",
+        },
+        strategy: {
+          default: "network-first",
+        },
+      },
+    },
+  },
+  go: {
+    build: {
+      outputDir: "static",
+    },
+    features: {
+      serviceWorker: {
+        navigation: {
+          mode: "ssr",
+        },
+        strategy: {
+          default: "network-first",
+        },
+      },
+    },
+  },
 };
 
 export async function initCommand(projectRoot: string, framework?: string) {

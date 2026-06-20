@@ -12,9 +12,9 @@ export function generateFetchWrapperCode(
   const importLines = [
     `import { API_BASE } from "../config.${ext}";`,
 
-    `import { generateTags${mutationQueue ? ", expandCascading" : ""} } from "../cache/tags.${ext}";`,
+    `import { generateTags } from "../cache/tags.${ext}";`,
 
-    `import { invalidateByTags, invalidateUrl } from "../cache/invalidate.${ext}";`,
+    `import { invalidateByTags, invalidateUrl${mutationQueue ? ", expandCascading" : ""} } from "../cache/invalidate.${ext}";`,
 
     authEnabled
       ? `import { getAuth, withAuthHeaders, AUTH_WITH_CREDENTIALS } from "../auth/store.${ext}";`
@@ -225,8 +225,8 @@ export async function fetchWithCache${G(ts, "T")}(input${T(ts, "RequestInfo")}, 
   const headers = new Headers(options.headers);
 
   // Set cache strategy
-  if (!headers.has("X-SW-Cache-Strategy")) {
-    headers.set("X-SW-Cache-Strategy", isRead ? "read" : "mutation");
+  if (!headers.has("X-SW-Type")) {
+    headers.set("X-SW-Type", isRead ? "read" : "mutation");
   }
 ${autoTagsBlock}
   // Custom tags override auto-generated

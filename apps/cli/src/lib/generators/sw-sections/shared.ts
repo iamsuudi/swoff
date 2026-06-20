@@ -70,7 +70,7 @@ export function applySwSections(
 
   code = code.replace(
     "// [[ACTIVATE_HANDLER]]",
-    () => generateActivateHandler(strategy.clearRuntimeOnUpdate, navigation.preload, maxCacheAge),
+    () => generateActivateHandler(navigation.preload, maxCacheAge),
   );
 
   code = code.replace("// [[INSTALL_HANDLER]]", () => generateInstallHandler());

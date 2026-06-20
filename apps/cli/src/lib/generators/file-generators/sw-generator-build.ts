@@ -4,7 +4,7 @@ export function generateSwGeneratorBuild(ctx: GeneratorContext): void {
   const code = `#!/usr/bin/env node
 /**
  * Swoff SW Generator Build Script
- * Reads swoff/sw/template.js and generates versioned SW output.
+ * Reads swoff/sw/template.js and generates the final SW output.
  *
  * Add to package.json:
  *   "build": "your-build && node swoff/sw/generator.js"
@@ -12,14 +12,12 @@ export function generateSwGeneratorBuild(ctx: GeneratorContext): void {
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
 import { join, dirname, relative, extname } from 'path';
-import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = process.cwd();
 
-const pkgPath = join(projectRoot, 'package.json');
 const templatePath = join(__dirname, 'template.js');
 const configPath = join(projectRoot, 'swoff.config.json');
 
@@ -34,7 +32,6 @@ if (!existsSync(templatePath)) {
   process.exit(1);
 }
 
-const pkg = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) : { version: '1.0.0' };
 const config = JSON.parse(readFileSync(configPath, 'utf8'));
 let template = readFileSync(templatePath, 'utf8');
 
@@ -75,29 +72,6 @@ if (config.features?.serverPush?.enabled) {
   template = template.replace(/SWOFF_API_BASE/g, apiBase);
 }
 
-const swoffVersionPath = join(swoffDir, 'sw', 'version.js');
-
-const swConfig = config.features?.serviceWorker || {};
-const versionField = swConfig.version;
-
-const versionEnabled = versionField !== "hash";
-let version;
-if (versionField === "package") {
-  version = (pkg.version || '1.0.0');
-} else if (versionField === "hash") {
-  version = "0.0.0";
-} else if (versionField === "manual") {
-  // Read version from the user-editable swoff/sw/version.js
-  if (existsSync(swoffVersionPath)) {
-    const versionContent = readFileSync(swoffVersionPath, 'utf8');
-    const match = versionContent.match(/SW_VERSION\s*=\s*["']([^"']+)["']/);
-    version = match ? match[1] : '1.0.0';
-  } else {
-    version = '1.0.0';
-  }
-} else {
-  version = (pkg.version || '1.0.0');
-}
 const outputDir = config.build?.outputDir || 'dist';
 const swFilename = config.build?.swFilename || 'sw';
 
@@ -119,10 +93,6 @@ function collectAssets(dir, baseDir) {
     }
   }
   return assets;
-}
-
-function generateCacheNameHash() {
-  return 'sw-cache-' + Date.now().toString(36);
 }
 
 const dirsRaw = config.build?.precacheDirs || {};
@@ -154,8 +124,8 @@ for (const [dir, raw] of Object.entries(dirs)) {
     }
   }
 }
-const swFile = versionEnabled ? \`\${swFilename}-v\${version}.js\` : \`\${swFilename}.js\`;
-const filtered = allAssets.filter(a => !a.endsWith(swFile) && a !== '/version.json');
+const swFile = \`\${swFilename}.js\`;
+const filtered = allAssets.filter(a => a !== \`/\${swFile}\`);
 const nav = config.features?.serviceWorker?.navigation || {};
 const fallback = [];
 if (nav.fallback) fallback.push(nav.fallback);
@@ -174,28 +144,12 @@ const combined = [...new Set([...fallback, ...filtered])];
 const assetsToCache = combined.map(url => ({ url, options: {} }));
 
 let sw = template;
-const sentinel = 'SW_CACHE_SENTINEL';
-if (versionEnabled) {
-  sw = sw.replace('// [[CACHE_NAME]]', () => \`CACHE_NAME = 'sw-v\${version}'\`);
-} else {
-  sw = sw.replace('// [[CACHE_NAME]]', () => \`CACHE_NAME = '\${sentinel}'\`);
-}
-sw = sw.replace('// [[ASSETS_LIST]]', () => \`ASSETS_TO_CACHE = \${JSON.stringify(assetsToCache, null, 2)}\`);
-sw = sw.replace('// [[AUTO_SKIP_WAITING]]', () => \`const AUTO_SKIP_WAITING = \${config.features?.serviceWorker?.autoActivate || false};\`);
+sw = sw.replace(/let ASSETS_TO_CACHE = \[\]/, () => \`let ASSETS_TO_CACHE = \${JSON.stringify(assetsToCache, null, 2)};\`);
+sw = sw.replace(/let AUTO_SKIP_WAITING = (?:true|false)/, () => \`let AUTO_SKIP_WAITING = \${config.features?.serviceWorker?.autoActivate || false};\`);
+sw += \`\\nconst CACHE_NAME = "\${Date.now()}";\\n\`;
 
-if (!versionEnabled) {
-  const cacheName = generateCacheNameHash();
-  sw = sw.replace(sentinel, () => cacheName);
-  writeFileSync(join(outDir, swFile), sw);
-  console.log(\`Service worker built: \${outputDir}/\${swFile}\`);
-} else {
-  writeFileSync(join(outDir, swFile), sw);
-  writeFileSync(join(outDir, 'version.json'), JSON.stringify({
-    version,
-    generatedAt: new Date().toISOString(),
-  }, null, 2));
-  console.log(\`Service worker built: \${outputDir}/\${swFile}\`);
-}
+writeFileSync(join(outDir, swFile), sw);
+console.log(\`Service worker built: \${outputDir}/\${swFile}\`);
 `;
 
   writeFile(ctx, "sw/generator.js", code);

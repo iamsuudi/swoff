@@ -34,6 +34,7 @@ function makeContext(overrides?: Partial<SwoffConfig>): GeneratorContext {
     ext: "js",
     generatedFiles: [],
     frameworkName: "vanilla",
+    hasBundler: false,
   };
 }
 

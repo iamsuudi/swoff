@@ -20,22 +20,34 @@ export function generateGuide(ctx: GeneratorContext): void {
   if (auth.enabled) {
     w(`## Auth (${auth.type})`);
     w("");
-    w("Edit `swoff/auth/adapter." + ext + "` to match your backend:");
-    w("");
-    w("- `getHeaders()`: return auth headers for fetch requests");
-    w("- `fetchUser()`: implement fetching current user from `/api/me`");
-    if (auth.type !== "cookie") {
-      w("- `refresh()`: implement token/session refresh");
+    if (ctx.hasBundler) {
+      w("Edit `swoff/auth/adapter." + ext + "` to match your backend:");
+      w("");
+      w("- `getHeaders()`: return auth headers for fetch requests");
+      w("- `fetchUser()`: implement fetching current user from `/api/me`");
+      if (auth.type !== "cookie") {
+        w("- `refresh()`: implement token/session refresh");
+      }
+      w("");
+      w("Use `{ auth: true }` in `fetchWithCache()` for authenticated requests:");
+      w("");
+      w("```ts");
+      w("import { fetchWithCache } from \"./swoff/fetch/core." + ext + "\";");
+      w('const data = await fetchWithCache("/api/me", { auth: true }).then(r => r.json());');
+      w("```");
+      w("");
+      w("Call `clearAuth()` from `swoff/auth/store." + ext + "` on logout: memory, IndexedDB, and runtime caches are cleaned. Cross-tab sync happens automatically via the service worker.");
+    } else {
+      w("Auth is handled by the bundled script. The SW intercepts 401 responses and co-ordinates auth state across tabs.");
+      w("");
+      w("To configure the auth adapter, edit `swoff/auth/adapter." + ext + "`:");
+      w("");
+      w("- `getHeaders()`: return auth headers for fetch requests");
+      w("- `fetchUser()`: implement fetching current user from `/api/me`");
+      if (auth.type !== "cookie") {
+        w("- `refresh()`: implement token/session refresh");
+      }
     }
-    w("");
-    w("Use `{ auth: true }` in `fetchWithCache()` for authenticated requests:");
-    w("");
-    w("```ts");
-    w("import { fetchWithCache } from \"./swoff/fetch/core." + ext + "\";");
-    w('const data = await fetchWithCache("/api/me", { auth: true }).then(r => r.json());');
-    w("```");
-    w("");
-    w("Call `clearAuth()` from `swoff/auth/store." + ext + "` on logout: memory, IndexedDB, and runtime caches are cleaned. Cross-tab sync happens automatically via the service worker.");
     w("");
   }
 

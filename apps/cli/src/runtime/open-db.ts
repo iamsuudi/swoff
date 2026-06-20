@@ -1,5 +1,5 @@
 import type { RuntimeContext } from "./utils.js";
-import { T, R, PT, AS, G, O } from "./utils.js";
+import { T, R, PT, AS, O } from "./utils.js";
 
 export function generateOpenDBCode(ctx: RuntimeContext): string {
   const { ts } = ctx;

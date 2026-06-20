@@ -20,6 +20,7 @@ import { generateApiConfig } from "./file-generators/api-config.js";
 import { generateSwTemplate } from "./file-generators/sw-template.js";
 import { generateSwInjector } from "./file-generators/sw-injector.js";
 import { generateClientInjector } from "./file-generators/client-injector.js";
+import { generateClientInjectorBundle } from "./file-generators/client-injector-bundle.js";
 import { generateFetchWrapper } from "./file-generators/fetch-wrapper.js";
 import { generateCache } from "./file-generators/cache.js";
 import { generateMutationQueue } from "./file-generators/mutation-queue.js";
@@ -38,13 +39,14 @@ import { generateGqlWrapper } from "./file-generators/gql-wrapper.js";
 import { generateTypeDefinitions } from "./file-generators/type-definitions.js";
 import { generateFrameworkAdapters } from "./file-generators/generate-framework-adapters.js";
 import { generateGuide } from "./file-generators/guide-generator.js";
+import { generateSwoffApiBundle } from "./file-generators/swoff-api-bundle.js";
 import { generateReset } from "./file-generators/reset.js";
 import { generateOpenDB } from "./file-generators/open-db.js";
 import { generateFetchState } from "./file-generators/fetch-state.js";
 import { generateStorage } from "./file-generators/storage.js";
-import { generateSwVersion } from "./file-generators/sw-version-gen.js";
 import { generateConnectivity } from "./file-generators/connectivity.js";
 import { generateAuthCheck } from "./file-generators/auth-check.js";
+import { hasBundler } from "./file-generators/context.js";
 interface Step {
   name: string;
   gen: () => void;
@@ -52,9 +54,38 @@ interface Step {
 }
 
 export function generateFiles(ctx: GeneratorContext): string[] {
+  const bundler = ctx.hasBundler;
+
+  // When !hasBundler: generate the universal bundle instead of individual modular files.
+  // The bundle inlines SW registration, connectivity, storage, event listeners,
+  // and auto-initializes. Feature modules (mutation, auth, etc.) are only
+  // available to bundler users who can import individual files.
+  if (!bundler) {
+    ctx.hasBundler = false;
+    const bundleSteps: Step[] = [
+      { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
+      { name: "sw-generator", gen: () => generateSwGeneratorBuild(ctx), enabled: true },
+      {
+        name: "client-injector-bundle",
+        gen: () => generateClientInjectorBundle(ctx),
+        enabled: true,
+      },
+      {
+        name: "swoff-api-bundle",
+        gen: () => generateSwoffApiBundle(ctx),
+        enabled: true,
+      },
+      { name: "GUIDE.md", gen: () => generateGuide(ctx), enabled: true },
+    ];
+    for (const step of bundleSteps) {
+      if (!step.enabled) continue;
+      step.gen();
+    }
+    return ctx.generatedFiles;
+  }
+
   const steps: Step[] = [
     { name: "api-config", gen: () => generateApiConfig(ctx), enabled: true },
-    { name: "sw-version", gen: () => generateSwVersion(ctx), enabled: true },
     { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
     { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: true },
     {
@@ -192,13 +223,15 @@ if (
       const swoffDir = join(projectRoot, "swoff");
       const generatedFiles: string[] = [];
 
+      const fwName = config.framework ?? "vanilla";
       const ctx: GeneratorContext = {
         config,
         projectRoot,
         swoffDir,
         ext,
         generatedFiles,
-        frameworkName: config.framework ?? "vanilla",
+        frameworkName: fwName,
+        hasBundler: hasBundler(fwName),
         debug,
       };
 

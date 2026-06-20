@@ -39,6 +39,7 @@ import { generateGqlWrapper } from "./file-generators/gql-wrapper.js";
 import { generateTypeDefinitions } from "./file-generators/type-definitions.js";
 import { generateFrameworkAdapters } from "./file-generators/generate-framework-adapters.js";
 import { generateGuide } from "./file-generators/guide-generator.js";
+import { generateSwoffApiBundle } from "./file-generators/swoff-api-bundle.js";
 import { generateReset } from "./file-generators/reset.js";
 import { generateOpenDB } from "./file-generators/open-db.js";
 import { generateFetchState } from "./file-generators/fetch-state.js";
@@ -67,6 +68,11 @@ export function generateFiles(ctx: GeneratorContext): string[] {
       {
         name: "client-injector-bundle",
         gen: () => generateClientInjectorBundle(ctx),
+        enabled: true,
+      },
+      {
+        name: "swoff-api-bundle",
+        gen: () => generateSwoffApiBundle(ctx),
         enabled: true,
       },
       { name: "GUIDE.md", gen: () => generateGuide(ctx), enabled: true },

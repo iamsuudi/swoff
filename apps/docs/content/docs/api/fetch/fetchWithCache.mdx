@@ -1,0 +1,42 @@
+---
+title: fetchWithCache
+description: Unified fetch with caching, auth, offline queue, auto-invalidation.
+---
+
+## `fetchWithCache<T>(input, options?)`
+
+From `swoff/fetch/core.ts`.
+
+| Param     | Type                    | Description                  |
+| --------- | ----------------------- | ---------------------------- |
+| `input`   | `RequestInfo`           | URL string or Request object |
+| `options` | `FetchWithCacheOptions` | See below                    |
+
+**Returns:** `Promise<{ response: Response & { json(): Promise<T> }, fromCache: boolean }>`
+
+All `RequestInit` fields are supported (`method`, `body`, `headers`, `credentials`, `signal`, etc.) plus:
+
+| Option            | Type                                                                                                           | Default                 | Description                                                                                            |
+| ----------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| `tags`            | `string[]`                                                                                                     | auto-generated from URL | Cache invalidation tags for this request                                                               |
+| `auth`            | `boolean`                                                                                                      | `false`                 | Attach auth token via `withAuthHeaders()`                                                              |
+| `queueOffline`    | `boolean`                                                                                                      | `true`                  | When offline, queue writes to IndexedDB                                                                |
+| `invalidate`      | `'auto' \| string[] \| false`                                                                                  | `'auto'`                | Auto-invalidate cache tags after successful mutation                                                   |
+| `type`            | `'read' \| 'mutation'`                                                                                         | auto-detected           | Override read/mutation detection                                                                       |
+| `strategy`        | `'cache-first' \| 'network-first' \| 'stale-while-revalidate' \| 'cache-only' \| 'network-only' \| 'reactive'` | —                       | Override caching strategy per-request (highest priority)                                               |
+| `staleTime`       | `number`                                                                                                       | —                       | Override stale time in seconds (reactive-only)                                                         |
+| `validateSuccess` | `(response: Response) => boolean \| Promise<boolean>`                                                          | `res.ok`                | Custom mutation success check (e.g. when API returns 200 with `{ success: false }`)                    |
+| `invalidateUrl`   | `string`                                                                                                       | the request URL         | Override the URL used for auto-invalidation tags. Useful when mutation URL differs from cache tag URL. |
+| `signal`          | `AbortSignal`                                                                                                  | —                       | AbortController signal for cancellation                                                                |
+
+**Behavior:**
+
+- **Read vs mutation**: GET/HEAD → read (cached). POST/PUT/DELETE/PATCH → mutation (pass through). Override with `type: 'read'` or `type: 'mutation'`.
+- **Offline reads**: returns cached response if available; throws if not cached. **Abort check**: if `signal.aborted`, throws `AbortError` before cache lookup.
+- **Offline writes**: queues to IndexedDB (when `mutationQueue` enabled). Replays on `online` event. Disable per-request with `queueOffline: false`.
+- **Request batching + dedup**: concurrent GETs to the same URL within a 50 ms window coalesce into one network request. After the batch window closes, in-flight requests are deduplicated (late arrivals piggyback on the active promise). Each caller receives a cloned response.
+- **Auto-tags**: when `tagInvalidation` enabled, tags derived from URL path for read requests.
+- **Auto-invalidate**: after a successful mutation, matching cache tags are invalidated. Mutation success is determined by `response.ok` by default, or `validateSuccess` if provided. The auto-invalidation target URL can be overridden with `invalidateUrl`.
+- **Auth**: when `auth: true`, attaches auth headers. Dispatches `sw-auth-unauthorized` on 401.
+- **StaleTime**: 3-tier resolution (per-request / route pattern / global default). Only affects `reactive` strategy.
+- **Background refresh retry**: failed refetches are retried with exponential backoff via a shared `RetryConfig`.

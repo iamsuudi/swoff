@@ -1,0 +1,17 @@
+---
+title: queueMutation
+description: Register for offline replay (IndexedDB).
+---
+
+## `queueMutation(mutation, options?)`
+
+From `swoff/mutation/queue.ts`. Queue a write for offline replay.
+
+| Param      | Type                | Description              |
+| ---------- | ------------------- | ------------------------ |
+| `mutation` | `StoredMutation`    | `{ url, method, body? }` |
+| `options`  | `QueueOptions`      | —                        |
+
+```ts
+import { queueMutation } from "swoff/mutation/queue";
+```

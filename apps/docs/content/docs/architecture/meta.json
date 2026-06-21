@@ -1,5 +1,11 @@
 {
   "title": "Architecture",
-  "icon": "Cog",
-  "pages": ["hybrid-model", "caching", "data-sync", "graphql-and-push", "auth", "observability"]
+  "pages": [
+    "hybrid-model",
+    "caching",
+    "data-sync",
+    "graphql-and-push",
+    "auth",
+    "observability"
+  ]
 }

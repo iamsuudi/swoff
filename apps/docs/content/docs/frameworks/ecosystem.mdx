@@ -18,7 +18,7 @@ The only framework-specific surface is **view adapters** (React hooks, future Vu
 
 | Category                   | Examples                                             | Config Hint                                                                      |
 | -------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------- |
-| **Backend**                | PHP, Laravel, Django, Rails, ASP.NET, Go, Java, Node | `navigation.mode: "ssr"`                                                         |
+| **Backend**                | PHP, Laravel, Django, Flask, Rails, ASP.NET, Go, Java, Node | `navigation.mode: "ssr"`                                                         |
 | **HTML-over-wire**         | HTMX, Turbo Hotwire, Unpoly, Livewire                | `navigation.mode: "ssr"`                                                         |
 | **SSG**                    | Astro, Hugo, 11ty, Jekyll                            | `navigation.mode: "default"`, strategy `cache-first`                             |
 | **SPA frameworks**         | React, Vue, Svelte, Solid, Angular, Alpine           | `navigation.mode: "spa"` (default)                                               |
@@ -29,7 +29,7 @@ The only framework-specific surface is **view adapters** (React hooks, future Vu
 
 ## No package.json required
 
-Swoff needs Node.js only for the **toolchain** — the CLI (`@swoff/cli`) generates your files and the build script produces the final service worker. The generated output is plain JavaScript. Your production app does not need Node.js, npm, or a `package.json`.
+Swoff needs Node.js only for the **toolchain** — the CLI (`@swoff/cli`) generates your files and the build script produces the final service worker. The generated output is plain JavaScript. The SW filename is always `sw.js` (no version appended), and version mode defaults to `"hash"` which needs no `package.json`. Your production app does not need Node.js, npm, or a `package.json`.
 
 ### Workflow for any project
 
@@ -37,32 +37,61 @@ Swoff needs Node.js only for the **toolchain** — the CLI (`@swoff/cli`) genera
 # 1. Generate config (no package.json needed)
 npx @swoff/cli init --framework vanilla
 
-# 2. Set version mode to avoid package.json dependency
-# Edit swoff.config.json → set "version": "hash"
-
-# 3. Generate all files
+# 2. Generate all files
 npx @swoff/cli generate
 
-# 4. Build the final service worker
+# 3. Build the final service worker
 node swoff/sw/generator.js
 
-# 5. Include in your HTML
+# 4. Include in your HTML
 <script src="/swoff/client-injector.js"></script>
 ```
 
 The generated files in `swoff/` are static — serve them however you serve your other assets.
 
+### CI / Docker integration
+
+For non-JS projects, add the Swoff generator to your Makefile or CI pipeline:
+
+```makefile
+# Makefile
+build:
+	composer install            # or pip install, go build, bundle install
+	npx @swoff/cli generate
+	node swoff/sw/generator.js  # final SW output
+	cp -r swoff public/swoff    # or python manage.py collectstatic
+```
+
+In Docker, Node.js is only needed in the build stage:
+
+```dockerfile
+# Multi-stage Docker build
+FROM node:20-alpine AS swoff-build
+WORKDIR /app
+RUN npx @swoff/cli init --framework laravel \&\& npx @swoff/cli generate
+RUN node swoff/sw/generator.js
+
+FROM php:8.2-apache AS runtime
+COPY --from=swoff-build /app/swoff /var/www/html/swoff
+COPY --from=swoff-build /app/swoff.config.json /var/www/html/
+# Your PHP app code, composer install, etc.
+```
+
+The final image contains only static JS files — no Node.js runtime required in production.
+
 ### Per-ecosystem examples
 
-| Stack             | How to serve generated files                                                                   |
-| ----------------- | ---------------------------------------------------------------------------------------------- |
-| **Laravel / PHP** | Place `swoff/` under `public/`, reference in Blade template                                    |
-| **Django**        | Place under `static/`, use `{% static %}` tag, or collect via `python manage.py collectstatic` |
-| **Rails**         | Place under `app/assets/` or `public/` with asset pipeline                                     |
-| **Go / net/http** | Embed via `//go:embed swoff/*` or serve from a `static/` directory                             |
-| **Plain HTML**    | Serve from your document root and reference with a `<script>` tag                              |
+| Stack                      | How to serve generated files                                                                   | Guide                                    |
+| -------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| **Laravel / PHP**          | Place `swoff/` under `public/`, reference in Blade template                                    | [Laravel guide](/docs/frameworks/laravel) |
+| **Django**                 | Place under `static/`, use `{% static %}` tag, or collect via `python manage.py collectstatic` | [Django & Flask guide](/docs/frameworks/django)   |
+| **Flask**                  | Place under `static/`, reference via `url_for('static', ...)`                                   | [Django & Flask guide](/docs/frameworks/django)   |
+| **Rails**                  | Place under `app/assets/` or `public/` with asset pipeline                                     | [Rails guide](/docs/frameworks/rails)     |
+| **Go / net/http**          | Embed via `//go:embed swoff/*` or serve from a `static/` directory                             | [Go guide](/docs/frameworks/go)           |
+| **HTMX**                   | Include `<script>` tag, control via `hx-headers`                                               | [HTMX guide](/docs/frameworks/htmx)       |
+| **Plain HTML / Static**    | Serve from document root and reference with a `<script>` tag                                   | [Vanilla guide](/docs/frameworks/vanilla) |
 
-The only thing your project needs is Node.js during development or CI to run the CLI and generator. No `package.json`, no `npm install` — just `npx @swoff/cli` commands.
+The only thing your project needs is Node.js during development or CI to run the CLI and generator. No `package.json`, no `npm install` — just `npx @swoff/cli` commands. Version mode defaults to `"hash"`, which has no dependency on `package.json`.
 
 ## HTML cache isolation
 

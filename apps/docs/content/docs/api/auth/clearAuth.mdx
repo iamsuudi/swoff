@@ -1,0 +1,18 @@
+---
+title: clearAuth
+description: Clear auth from memory, IndexedDB, and SW caches.
+---
+
+## `clearAuth(options?)`
+
+From `swoff/auth/store.ts`.
+
+| Option      | Type      | Default  | Description             |
+| ----------- | --------- | -------- | ----------------------- |
+| `broadcast` | `boolean` | `true`   | Dispatch `AUTH_CLEARED` to SW |
+
+```ts
+import { clearAuth } from "swoff/auth/store";
+
+await clearAuth();
+```

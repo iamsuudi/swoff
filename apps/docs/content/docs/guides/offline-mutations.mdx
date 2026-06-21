@@ -1,7 +1,6 @@
 ---
 title: Offline Mutations & Sync
 description: Queue writes offline, replay online, background-sync, and React hooks.
-icon: Upload
 ---
 
 > **If you're coming from RxDB for offline sync:** Swoff doesn't replicate a client-side database. Instead, it queues POST/PUT/PATCH/DELETE requests in IndexedDB when offline and replays them when connectivity returns. No schema, no replication protocol, no WebSocket sync engine. Each queued mutation is just a stored HTTP request. See the [full comparison](/docs/comparisons/caching-and-data#offline-write-queue).
@@ -10,6 +9,10 @@ icon: Upload
 
 - Swoff initialized with data fetching enabled
 - **For background sync:** cookie auth (bearer and custom auth are incompatible — see auth guide)
+
+## Status
+
+**Disabled by default.** The mutation queue must be explicitly enabled — it's not part of the default generated config.
 
 ## Enable
 
@@ -52,6 +55,7 @@ Or set config manually:
 | `swoff/mutation/queue.ts` | `queueMutation()`, `processMutationQueue()`, `clearQueue()`, `flushMutations()`, `getPendingCount()`, `getQueueItems()`, `getQueuePosition()` | Yes                      |
 | `swoff/mutation/state.ts` | Mutation state tracking (per-mutation lifecycle)                                                                                              | Yes, for UI              |
 | `swoff/mutation/sync.ts`  | `syncWhenPossible()`, `retrySync()`                                                                                                           | Yes, for background sync |
+| `swoff-api.bundle.js`     | Same mutation API on `window.swoff` for no-bundler projects                                                                                   | No (auto-initializes)    |
 
 ## Usage
 
@@ -89,9 +93,32 @@ await clearQueue();
 await flushMutations();
 ```
 
-### Background sync
+### From any HTTP client (header-based)
 
-If `backgroundSync: true` (and using cookie auth), the SW registers a `SyncManager` event. Queued mutations sync even after the user closes the tab:
+No swoff import needed — the SW intercepts every fetch and queues it on network failure when it detects the `X-SW-Type: mutation` header:
+
+```js
+fetch("/api/notes", {
+  method: "POST",
+  body: JSON.stringify({ title: "New Note" }),
+  headers: { "X-SW-Type": "mutation" },
+});
+```
+
+```html
+<!-- HTMX — header triggers SW offline queue -->
+<button
+  hx-post="/api/notes"
+  hx-headers='{"X-SW-Type": "mutation"}'
+  hx-vals='{"title": "New Note"}'
+>
+  Create Note
+</button>
+```
+
+Works with any HTTP client: native `fetch`, HTMX, jQuery, curl, or server-rendered forms. The SW auto-invalidates the request's URL tags on successful replay, same as `fetchWithCache({ mutation: true })`.
+
+### Background sync
 
 ```ts
 import { syncWhenPossible } from "./swoff/mutation/sync";
@@ -107,34 +134,170 @@ await syncWhenPossible({
 // In unsupported browsers, falls back to `online` event listener
 ```
 
+### No-bundler usage
+
+Include `swoff-api.bundle.js` after `client-injector.bundle.js`. You have three ways to queue mutations:
+
+### 1. Swoff fetch `swoff.fetchWithCache({ mutation: true })` (recommended)
+
+Auto-queues when offline, replays when connectivity returns, auto-invalidates related tags on success:
+
+```html
+<script src="/swoff/swoff-api.bundle.js"></script>
+<script>
+  const { response, queued } = await swoff.fetchWithCache("/api/notes", {
+    method: "POST",
+    body: JSON.stringify({ title: "New Note" }),
+    mutation: true,
+  });
+  // queued === true means it was stored offline for later replay
+</script>
+```
+
+### 2. Native fetch with `X-SW-Type: mutation` header
+
+Works from any server-rendered page, HTMX, or external HTTP client without any swoff import:
+
+```html
+<!-- HTMX — header triggers SW offline queue -->
+<button
+  hx-post="/api/notes"
+  hx-headers='{"X-SW-Type": "mutation"}'
+  hx-vals='{"title": "New Note"}'
+  hx-trigger="click"
+>
+  Create Note
+</button>
+```
+
+```js
+// Plain fetch — SW intercepts and queues when offline
+fetch("/api/notes", {
+  method: "POST",
+  body: JSON.stringify({ title: "New Note" }),
+  headers: { "X-SW-Type": "mutation" },
+});
+```
+
+The SW detects the header and queues the request in IndexedDB on network failure. No `swoff` import needed.
+
+### 3. Background Sync API `swoff.syncWhenPossible()`
+
+Registers the mutation for the browser's `SyncManager`. The browser replays it in the background even after the user closes the tab. Requires cookie auth and `backgroundSync: true` in config.
+
+```html
+<script>
+  await swoff.syncWhenPossible({
+    method: "POST",
+    url: "/api/notes",
+    body: { title: "New Note" },
+    tags: ["notes"],
+  });
+</script>
+```
+
+**`syncWhenPossible` vs `flushMutations`:**
+
+| API                  | What it does                                  | When the mutation replays                                              |
+| -------------------- | --------------------------------------------- | ---------------------------------------------------------------------- |
+| `flushMutations()`   | Force-replay all queued mutations immediately | Right now, synchronously                                               |
+| `syncWhenPossible()` | Register for browser Background Sync API      | When the browser decides (usually on connectivity), survives tab close |
+
+In browsers without `SyncManager` support, `syncWhenPossible()` falls back to an `online` event listener — the mutation replays the next time the browser detects connectivity.
+
+#### Queue inspection and management
+
+```html
+<script>
+  // Inspect queue
+  const count = await swoff.getPendingCount();
+  const items = await swoff.getQueueItems();
+  // items = [{ id, method, url, body, retryCount, status, ... }]
+
+  // Clear all queued mutations (also done automatically by clearAuth())
+  await swoff.clearQueue();
+</script>
+```
+
 ## Framework adapters
 
-See the [Framework Integration](/docs/frameworks) page for adapter usage in your ecosystem. React adapters are generated by the CLI into `swoff/adapters/`. Import and use them as needed:
+This section has four adapters:
 
-```ts
-import { useMutation } from "./swoff/adapters/useMutation";
-import { useMutationQueue } from "./swoff/adapters/useMutationQueue";
-import { useBackgroundSync } from "./swoff/adapters/useBackgroundSync";
-import { useMutationState } from "./swoff/adapters/useMutationState";
-```
+### `useMutationQueue`
 
-### Mutation state tracking (for UI)
+Exposes mutation queue state: `{ pending, items, isProcessing, retryAll }`.
 
-```ts
-import { getQueueItems } from "./swoff/mutation/queue";
+**Events listened to:**
 
-// Listen for queue changes
+| Event                    | Detail shape | Purpose                                              |
+| ------------------------ | ------------ | ---------------------------------------------------- |
+| `mutation-queue-changed` | —            | Queue contents changed (mutation added or processed) |
+
+**Building the adapter:**
+
+```js
+// Reactive state: { pending, items, isProcessing, retryAll }
+// 1. Initialize: pending = 0, items = [], isProcessing = false
+// 2. Listen to mutation-queue-changed:
 window.addEventListener("mutation-queue-changed", async () => {
-  const items = await getQueueItems();
-  updateUI(items);
+  // Call swoff.getPendingCount() -> set pending
+  // Call swoff.getQueueItems() -> set items
 });
-
-// Listen for sync progress
-window.addEventListener("mutation-sync-progress", (e) => {
-  const { succeeded, failed, total } = e.detail;
-  // Update progress bar
-});
+// 3. retryAll(): call swoff.flushMutations()
+// 4. Return { pending, items, isProcessing, retryAll }
 ```
+
+### `useMutationState`
+
+Exposes per-mutation lifecycle tracking: `{ states, track, getState }`.
+
+**Events listened to:** `mutation-queue-changed` (same event).
+
+**Building the adapter:**
+
+```js
+// Reactive state: { states, track, getState }
+// 1. Maintain Map<string, "pending"|"processing"|"completed"|"failed">
+// 2. Listen to mutation-queue-changed to sync state from IndexedDB
+// 3. track(id): call swoff.getQueuePosition(id)
+// 4. Return { states, track, getState }
+```
+
+### `useBackgroundSync`
+
+Exposes background sync support: `{ supported, registered, triggerSync }`.
+
+**Events listened to:**
+
+| Event                      | Detail shape            | Purpose                        |
+| -------------------------- | ----------------------- | ------------------------------ |
+| `background-sync-complete` | `{ succeeded, failed }` | Background sync event finished |
+
+**Building the adapter:**
+
+```js
+// Reactive state: { supported, registered, triggerSync }
+// 1. Initialize: supported = "sync" in ServiceWorkerRegistration
+// 2. Listen to background-sync-complete:
+window.addEventListener("background-sync-complete", (e) => {
+  // Update UI with e.detail.succeeded / e.detail.failed
+});
+// 3. triggerSync(): call swoff.syncWhenPossible()
+// 4. Return { supported, registered, triggerSync }
+```
+
+### `useMutation`
+
+Wraps `fetchWithCache(url, { mutation: true })`. No events needed — calls the mutation API directly.
+
+**Building the adapter:**
+
+```js
+// 1. mutate(url, options): call fetchWithCache(url, { ...options, mutation: true })
+// 2. Return { mutate }
+```
+
+**If your framework already has these adapters** (React): the CLI generates `useMutation`, `useMutationQueue`, `useMutationState`, and `useBackgroundSync` into `swoff/adapters/`. See the [React page](/docs/frameworks/react) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ## Config
 
@@ -168,15 +331,12 @@ window.addEventListener("mutation-sync-progress", (e) => {
 
 | Auth type | Mutation queue | Background sync |
 | --------- | -------------- | --------------- |
-| cookie    | ✅              | ✅               |
-| bearer    | ✅              | ❌               |
-| custom    | ✅              | ❌               |
+| cookie    | ✅             | ✅              |
+| bearer    | ✅             | ❌              |
+| custom    | ✅             | ❌              |
 
 Background sync runs from the SW with no DOM access — bearer tokens can't be refreshed and headers can't be injected, so it requires cookie auth where the browser sends the session cookie automatically.
 
 ## Related
 
-- [Full comparison: Offline queue](/docs/comparisons/caching-and-data#offline-write-queue)
-- [Auth guide: cookie vs bearer](/docs/guides/auth)
-- [GraphQL: mutation auto-invalidation](/docs/guides/graphql)
-- [Config reference: mutationQueue](/docs/config#featuresmutationqueue)
+- [Full Offline Mutation comparison](/docs/comparisons/caching-and-data#offline-write-queue): Swoff vs TanStack Query / SWR / Workbox, Serwist / Client Databases

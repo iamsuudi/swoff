@@ -1,22 +1,41 @@
 ---
 title: Service Worker
 description: SW lifecycle, versioning, auto-activation, navigation preload.
-icon: Shield
 ---
 
 # Service Worker
 
-Swoff generates a complete, auditable service worker from `swoff.config.json` — no manual SW code, no runtime libraries and no messing with bundlers. You integrate it with a single import:
+Swoff generates a complete, auditable service worker from `swoff.config.json` — no manual SW code, no runtime libraries and no messing with bundlers.
+
+## Preconditions
+
+- `npx @swoff/cli init` already run (or existing `swoff.config.json`)
+- Node.js to run the CLI and build script
+
+## Status
+
+**On by default.** The service worker is always generated after `swoff init`. Navigation caching, strategy-based fetch interception, and cross-tab sync work immediately after registration.
+
+How you integrate it depends on whether your project uses a bundler:
+
+**Bundler framework (React, Vue, Svelte, Astro, etc.)** — import the modular injector:
 
 ```ts
 import { initServiceWorker } from "./swoff/client-injector";
-
 initServiceWorker();
 ```
 
-`client-injector` is your app's integration point. It wires up SW registration, online/offline detection, a focus listener for reactive cache refresh, and relays SW messages as DOM events (`cache-updated`, `offline-fallback`, `mutation-sync-progress`, etc.).
+**No bundler (vanilla, Laravel, Django, Flask, Rails, Go, HTMX)** — include the auto-initializing bundle:
 
-After `npx @swoff/cli generate`, everything is already set up — you just need to call `initServiceWorker()` in your app entry point. The rest of this page explains what happens under the hood.
+```html
+<script src="/swoff/client-injector.bundle.js"></script>
+```
+
+Navigation caching, strategy-based fetch interception, and cross-tab sync work immediately after either one-liner.
+
+`client-injector` (or `.bundle.js`) is your app's integration point. It wires up SW registration, online/offline detection, a focus listener for reactive cache refresh, and relays SW messages as DOM events (`cache-updated`, `offline-fallback`, `mutation-sync-progress`, etc.).
+
+After `npx @swoff/cli generate`, everything is already set up. The rest of this page explains what happens under the hood.
 
 ## How it works
 
@@ -30,28 +49,20 @@ Reads `swoff.config.json` and produces all supporting files in `swoff/`. See the
 swoff/sw/
   template.js       ← SW source with config features baked in
   generator.js      ← Build script (node swoff/sw/generator.js)
-  injector.{ts|js}  ← Lower-level SW registration
-  version.{ts|js}   ← SW_VERSION constant
 ```
 
-The template has config features baked in (strategies, auth, tags, push handlers) but still has three placeholders for build-time values: `CACHE_NAME`, `ASSETS_TO_CACHE`, `AUTO_SKIP_WAITING`.
+The template has config features baked in (strategies, auth, tags, push handlers) but still has two placeholders for build-time values: `ASSETS_TO_CACHE`, `AUTO_SKIP_WAITING`.
 
 ### 2. Build step (`node swoff/sw/generator.js`)
 
-Run after your build. It reads the template, scans your built assets, resolves the cache name, and writes the final versioned SW:
+Run after your build. It reads the template, scans your built assets, resolves the cache name, and writes the final SW to `build.outputDir`:
 
 ```bash
 node swoff/sw/generator.js
-# Output: dist/sw-v1.2.3.js (or dist/sw.js in hash mode)
+# Output: dist/sw.js
 ```
 
-Run after your build:
-
-```bash
-node swoff/sw/generator.js
-```
-
-Or add to `package.json` (Node.js projects):
+For Node.js projects, chain it in your `package.json`:
 
 ```json
 {
@@ -63,110 +74,119 @@ Or add to `package.json` (Node.js projects):
 
 ## Versioning
 
-Three modes controlled by `features.serviceWorker.version`:
+SW updates are content-based. Every build produces a byte-different `sw.js` — if your built assets changed, the SW content changes, and the browser detects the update automatically. No version string to manage.
 
-| Mode        | Behavior                                | Cache key                            |
-| ----------- | --------------------------------------- | ------------------------------------ |
-| `"package"` | Uses `version` from `package.json`      | `sw-v1.2.3.js`                       |
-| `"hash"`    | Random cache name per build — no `package.json` needed | `sw.js` (content changes each build) |
-| `"manual"`  | You edit `swoff/sw/version.{ts\|js}`    | `sw-v{x}.js`                         |
-
-```json
-{
-  "features": {
-    "serviceWorker": {
-      "version": "package",
-      "autoActivate": false
-    }
-  }
-}
-```
-
-When version changes, the new SW installs alongside the old one. On activation, the old cache is cleaned up. Set `autoActivate: true` to skip the waiting phase and activate immediately.
+Cache names are fixed: `"precache"`, `"swoff-runtime"`, `"swoff-runtime-html"`. Additionally, every build appends a timestamp constant `CACHE_NAME = "<Date.now()>"` at the end of the SW. This constant is purely a byte-differ — it triggers browser update detection when the SW file changes. On activation, the SW compares this timestamp against an IndexedDB record (`swoff-meta` DB, `cacheName` key). On deploy mismatch, all three caches are deleted before the new SW takes over.
 
 ## What the generated SW does
 
 The SW registers these event listeners based on your config:
 
-| Event      | Purpose                                                         |
-| ---------- | --------------------------------------------------------------- |
-| `install`  | Precaches assets defined in `ASSETS_TO_CACHE`                   |
-| `activate` | Cleans up old caches, enables navigation preload                |
-| `fetch`    | Intercepts requests, applies caching strategies                 |
-| `message`  | Handles SKIP_WAITING, RESET_CACHE, INVALIDATE_TAG, AUTH_CLEARED |
-| `push`     | Displays push notifications (if enabled)                        |
-| `sync`     | Background sync for queued mutations (if enabled)               |
+| Event      | Purpose                                                    |
+| ---------- | ---------------------------------------------------------- |
+| `install`  | Precache configured assets                                 |
+| `activate` | Claim clients, wipe stale caches                           |
+| `fetch`    | Intercept requests — runtime cache, strategies, navigation |
+| `message`  | Reactive cache refresh, auth state sync, mutation control  |
+| `push`     | Display notifications from server push events              |
+| `sync`     | Background sync for queued mutations (if enabled)          |
 
 ## Cache stores
 
-The SW uses three named caches:
+The SW uses three fixed named caches:
 
-| Cache constant            | Purpose                                          |
-| ------------------------- | ------------------------------------------------ |
-| `CACHE_NAME`              | Precached assets — set at build time from config |
-| `CACHE_NAME_RUNTIME`      | Runtime-cached API responses (non-HTML)          |
-| `CACHE_NAME_RUNTIME_HTML` | Runtime-cached navigation responses (HTML)       |
+| Cache name             | Purpose                                          |
+| ---------------------- | ------------------------------------------------ |
+| `"precache"`           | Precached assets — set at build time from config |
+| `"swoff-runtime"`      | Runtime-cached API responses (non-HTML)          |
+| `"swoff-runtime-html"` | Runtime-cached navigation responses (HTML)       |
 
-## Auto-activation
-
-When `autoActivate: true`, the SW calls `self.skipWaiting()` after install and claims all clients on activate. Users get the new SW immediately without needing to close/reopen tabs.
-
-## Navigation preload
-
-When `navigation.preload: true`, the SW starts navigation requests in parallel with SW startup, shaving off a round-trip time on the first navigation after activation.
-
-## Dev mode
-
-When running locally without a build step, the SW falls back to `sw-dev-cache` as the cache name:
-
-```js
-if (!CACHE_NAME) CACHE_NAME = "sw-dev-cache";
-```
-
-This lets you test the SW during development without running the build script.
-
-## Build output
-
-The generator produces a single file:
-
-```bash
-dist/
-  sw-v1.2.3.js       ← Versioned SW (sw.js in hash mode)
-```
-
-The filename changes on each version bump, so the browser naturally detects the update and installs the new SW alongside the old one.
-
-## Config reference
+## Config
 
 ```json
 {
+  "build": {
+    "outputDir": "public",
+    "swFilename": "sw",
+    "precacheDirs": {
+      ".next/static": {
+        "prefix": "/_next/static"
+      },
+      ".next/server/app": {
+        "prefix": "/",
+        "extensions": [".html"],
+        "stripExtension": true,
+        "stripSuffixes": ["index"]
+      }
+    }
+  },
   "features": {
     "serviceWorker": {
-      "version": "package",
       "autoActivate": false
     }
   }
 }
 ```
 
-| Field          | Description                                                                                                                      |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `version`      | `"hash"` — random cache name per build (no `package.json` needed); `"package"` — from `package.json` version; `"manual"` — edit `swoff/sw/version.{ts\|js}` |
-| `autoActivate` | `true` — skip waiting and activate immediately on install                                                                        |
+- `build.outputDir` — directory where the final `sw.js` is written. Default: `"dist"`.
+- `build.swFilename` — service worker filename without `.js` extension. Default: `"sw"` (produces `sw.js`).
+- `build.precacheDirs` — directories to scan for precache assets. Keys are filesystem paths relative to project root. When empty, no directory scanning occurs — only explicit fallback routes are precached. Each entry supports:
+  - `prefix` — URL prefix prepended to each matched file's path
+  - `extensions` — only include files with these extensions (e.g. `[".html"]`); omit for all
+  - `stripExtension` — remove file extension from cache key (`about.html` → `/about`)
+  - `stripSuffixes` — remove segments like `index` before extension (`about/index.html` → `/about`)
+- `features.serviceWorker.autoActivate` — `true` to skip the waiting phase and activate the new SW immediately on install.
 
 Caching strategies and navigation have their own config sections — see [Caching Strategies](/docs/guides/caching-strategy) and [Navigation Caching](/docs/guides/navigation-caching).
 
 ## Framework adapters
 
-See the [Framework Integration](/docs/frameworks) page for adapter usage in your ecosystem. React adapters are generated by the CLI into `swoff/adapters/`. Import and use them as needed:
+This section has one adapter:
 
-```ts
-import { useSWUpdate } from "./swoff/adapters/useSWUpdate";
+### `useSWUpdate`
+
+Exposes SW lifecycle state: `{ updateStatus, progress, error, acceptUpdate, dismissUpdate }`.
+
+**Events listened to:**
+
+| Event                 | Detail shape                               | Purpose                               |
+| --------------------- | ------------------------------------------ | ------------------------------------- |
+| `sw-update-available` | `{ version, currentVersion, forceUpdate }` | New SW version detected on server     |
+| `sw-progress`         | `{ percent }`                              | During SW download / install          |
+| `sw-ready`            | —                                          | SW activated and controlling the page |
+| `sw-error`            | `{ error }`                                | SW registration or update failed      |
+
+**Window properties read:** `currentSWVersion`, `latestSWVersion`, `swMinSupportedVersion`, `swUpdateRequired`.
+
+**Building the adapter:**
+
+```js
+// Reactive state shape: { updateStatus, progress, error, acceptUpdate, dismissUpdate }
+// 1. Initialize: updateStatus = "idle", progress = 0, error = null
+// 2. On mount, read window.*Version properties for version info
+// 3. Listen to events:
+window.addEventListener("sw-update-available", (e) => {
+  // Set updateStatus = "available"
+  // Store e.detail for use in acceptUpdate / dismissUpdate
+});
+window.addEventListener("sw-progress", (e) => {
+  // Set progress = e.detail.percent
+});
+window.addEventListener("sw-ready", () => {
+  // Set updateStatus = "ready"
+});
+window.addEventListener("sw-error", (e) => {
+  // Set updateStatus = "error"
+  // Set error = e.detail.error
+});
+// 4. acceptUpdate: set window.__SWOFF_FORCE_RETRY = true,
+//    then post { type: "SKIP_WAITING" } to the SW registration
+// 5. dismissUpdate: set updateStatus = "dismissed" (client-side only)
+// 6. Return { updateStatus, progress, error, acceptUpdate, dismissUpdate }
 ```
+
+**If your framework already has this adapter** (React): the CLI generates `useSWUpdate` into `swoff/adapters/`. See the [React page](/docs/frameworks/react) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ## Related
 
 - [Full comparison: Swoff vs Workbox / Serwist / next-pwa](/docs/comparisons#service-worker)
-- [Caching strategies: config patterns, 6 strategies, reactive](/docs/guides/caching-strategy)
-- [PWA: install prompt, manifest, icons](/docs/guides/pwa)
-- [Config reference: serviceWorker](/docs/config#featuresserviceworker)

@@ -1,0 +1,14 @@
+---
+title: ensureValidAuth
+description: Get auth, returns null if invalid.
+---
+
+## `ensureValidAuth()`
+
+From `swoff/auth/store.ts`. Delegates to `getAuth()`.
+
+```ts
+import { ensureValidAuth } from "swoff/auth/store";
+
+const auth = await ensureValidAuth();
+```

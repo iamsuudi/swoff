@@ -1,71 +1,32 @@
 ---
 title: Navigation Caching
-description: SPA/SSR navigation modes, preload, fallback chain, precache routes.
-icon: Map
+description: SPA/SSR navigation modes, preload, fallback, precache routes.
 ---
 
 How Swoff handles page navigation — what happens when a user clicks a link or types a URL.
 
+> **Works automatically.** Navigation caching is active the moment you call `initServiceWorker()` — no other imports, no API calls, no framework-specific code. Configured entirely through `swoff.config.json`. Every ecosystem (React, PHP, HTMX, Django, Flask, Rails, vanilla HTML) gets this for free.
+
+For the internal mechanics of `serveFromCache`, the fallback chain, and per-mode lookup rules, see the [Caching System architecture](/docs/architecture/caching#navigation-modes).
+
 ## Preconditions
 
-- Service worker registered and controlling the page
+- Service worker registered and controlling the page (see [Service Worker guide](/docs/guides/service-worker))
+- `initServiceWorker()` called in your app entry — that's it
 
 ## Status
 
 **Already on by default.** After `swoff init`, navigation mode is `"spa"` with preload enabled.
 
-## How it works
-
-Navigation requests go through the **same strategy pipeline** as any other fetch (see [Caching Strategies](/docs/guides/caching-strategy)). The strategy — cache-first, network-first, or whichever — is determined by URL pattern matching, not by whether the request is a navigation. **Only the strategy decides whether to hit the network or serve from cache.**
-
-Each strategy calls two navigation-aware helper functions during its pipeline:
-
-1. **`serveFromCache()`** — looks up a cached response. The navigation mode (`NAV_MODE`) determines what counts as a hit for navigation requests, and whether a precached fallback path can serve as a catch-all.
-2. **`fallback()`** — runs only when the strategy exhausted all options (network failed and cache returned null). It uses `NAV_MODE` to decide which caches and fallback levels to try.
-
-## serveFromCache
-
-Called whenever a strategy checks the cache. The lookup depends on whether the request is a navigation.
-
-### Navigation requests
-
-Each mode follows its own lookup chain:
-
-| Mode      | Steps                                                                               |
-| --------- | ----------------------------------------------------------------------------------- |
-| `spa`     | If `fallback` path configured and found in precache → serve it. Otherwise → `null`. |
-| `ssr`     | Precache → runtime-html cache → `null`.                                             |
-| `default` | Same as ssr.                                                                        |
-
-### Non-navigation requests (JS, CSS, API)
-
-Same regardless of `NAV_MODE`:
-
-1. Runtime cache → hit? serve.
-2. Precache (content-type must match `Accept` header) → hit? serve.
-3. `null`.
-
-No branch decides to hit the network — each returns a cached response or `null`. The **strategy** decides what to do next.
-
-## Fallback chain
-
-When the strategy exhausted all options (network failed + `serveFromCache` returned null), `fallback()` runs. The mode determines which levels are tried before the inline HTML 503:
-
-| Mode      | Fallback steps                                                                |
-| --------- | ----------------------------------------------------------------------------- |
-| `spa`     | precache → per-route rules → inline 503                                       |
-| `ssr`     | precache → runtime-html → per-route rules → global fallback path → inline 503 |
-| `default` | Same as ssr                                                                   |
-
 ## Navigation modes
 
-| Mode        | serveFromCache for navs                                                          | Fallback chain                                       | When to use                                                                                |
-| ----------- | -------------------------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `"spa"`     | Checks precached fallback path. Returns `null` if none configured or not cached. | Skips runtime-html and global fallback (steps 2, 4). | Single-page apps (React, Vue, Svelte). Client router handles routing.                      |
-| `"ssr"`     | Checks precache → runtime-html. Returns `null` if neither matches.               | Full chain (all 5 levels).                           | Server-rendered apps (Next.js pages, Laravel, Rails). Repeat visits can serve cached HTML. |
-| `"default"` | Same as ssr.                                                                     | Full chain (all 5 levels).                           | Static sites or mixed content.                                                             |
+| Mode        | When to use                                                                                                |
+| ----------- | ---------------------------------------------------------------------------------------------------------- |
+| `"spa"`     | Single-page apps (React, Vue, Svelte). Client router handles routing. App shell pattern via offline fallback. |
+| `"ssr"`     | Server-rendered apps (Next.js pages, Laravel, Rails). Repeat visits can serve cached HTML.                     |
+| `"default"` | Static sites or mixed content.                                                                              |
 
-## Config reference
+## Config
 
 ```json
 {
@@ -83,61 +44,105 @@ When the strategy exhausted all options (network failed + `serveFromCache` retur
 }
 ```
 
-### mode
+- `navigation.mode` — `"spa"`, `"ssr"`, or `"default"`. Controls how navigation requests are served from cache and what fallback chain applies. See the [architecture page](/docs/architecture/caching#navigation-modes) for per-mode lookup and fallback details.
+- `navigation.preload` — when `true`, the SW enables Navigation Preload during activation. The browser starts the network request in parallel with SW startup; the SW races the preload response against half the fetch timeout.
+- `navigation.fallback` — URL path of an HTML page to serve as the offline fallback. In SPA mode, `serveFromCache()` serves it for any navigation request (app shell pattern). In SSR/default mode, used only in `fallback()` after everything else has been tried. Empty string means no fallback (browser shows its own offline page).
+- `navigation.precacheRoutes` — array of URL paths to fetch and cache during SW install for offline access from the first visit. Example: `["/", "/about", "/offline"]`.
+- `navigation.rules` — per-route fallback paths, checked inside `fallback()` after precache and runtime-html but before the global fallback path. Each entry has:
+  - `match` — glob pattern for navigation URLs
+  - `fallback` — URL path from precache to serve as fallback
 
-`"spa"`, `"ssr"`, or `"default"`. Controls serveFromCache and fallback behavior as described above.
-
-### preload
-
-When `true`, the SW enables Navigation Preload during activation. On the next navigation, the browser starts the network request in parallel with SW startup. The SW races the preload response against a short timeout (half the fetch timeout). If the preload wins, it's used as the primary response and cached. This shaves off one round-trip time on the first navigation after activation.
-
-Set to `false` if you don't want the SW to preload navigations.
-
-### fallback
-
-The URL path of an HTML page to serve as the offline fallback. What happens with it depends on mode:
-
-- **SPA mode**: If `serveFromCache()` finds this path in precache, it serves it for any navigation request. This is the typical SPA offline pattern — serve the app shell and let the client router show an offline message.
-- **SSR/default mode**: Used only in `fallback()` after everything else has been tried.
-
-Empty string means no fallback (browser shows its own offline page).
-
-### precacheRoutes
-
-URL paths to fetch and cache during SW install, so they work offline from the first visit:
-
-```json
-"precacheRoutes": ["/", "/about", "/offline"]
-```
-
-These are stored in the precache (`CACHE_NAME`) and are checked by `serveFromCache` for SSR/default nav requests and by `fallback()` in all modes.
-
-### rules
-
-Per-route fallback paths, checked only inside `fallback()`:
-
-```json
-"rules": [
-  { "match": "/blog/**", "fallback": "/offline-blog" },
-  { "match": "/admin/*", "fallback": "/login" }
-]
-```
-
-When a navigation request to `/blog/post-123` fails (offline + no cache), `matchRouteFallback` matches the URL against each rule's glob pattern and returns the corresponding `fallback` path from precache. Rules are checked after precache and runtime-html but before the global fallback path.
-
-They do **not** affect normal cached operation — they only apply when the network and cache both fail to produce a response.
+  Does **not** affect normal cached operation — only applies when the network and cache both fail.
 
 ## Framework adapters
 
-See the [Framework Integration](/docs/frameworks) page for adapter usage in your ecosystem. React adapters are generated by the CLI into `swoff/adapters/`. Import and use them as needed:
+### `useNetworkStatus`
 
-```ts
-import { useNetworkStatus } from "./swoff/adapters/useNetworkStatus";
-import { useOfflineAnalytics } from "./swoff/adapters/useOfflineAnalytics";
+Exposes connectivity state: `{ online, wasOffline, lastChangedAt, effectiveType, downlink, isRetrying, retry }`.
+
+Uses the generated `connectivity-manager.ts` module which runs a HEAD heartbeat every 30s to verify true connectivity (not just `navigator.onLine`). The module must be started at app init via `startHeartbeat()` — the client-injector does this automatically.
+
+**Events listened to:**
+
+| Event                           | Detail shape | Purpose                                                   |
+| ------------------------------- | ------------ | --------------------------------------------------------- |
+| `app-connectivity-change`       | `{ online }` | Verified connectivity changed (from connectivity-manager) |
+| `navigator.connection` `change` | —            | Network type / bandwidth changed                          |
+
+**Imports from `connectivity-manager.ts`:** `CONNECTIVITY_EVENT`, `getCurrentOnlineStatus`, `forceRetry`.
+
+**Building the adapter:**
+
+```js
+import {
+  CONNECTIVITY_EVENT,
+  getCurrentOnlineStatus,
+  forceRetry,
+} from "./swoff/connectivity-manager";
+
+// Reactive state: { online, wasOffline, lastChangedAt, effectiveType, downlink, isRetrying, retry }
+// 1. Initialize: online = true, wasOffline = false, lastChangedAt = null
+// 2. On mount, sync with actual status (avoids SSR hydration mismatch):
+if (!getCurrentOnlineStatus()) {
+  // Set online = false, wasOffline = true, lastChangedAt = Date.now()
+}
+// 3. Listen to verified connectivity events:
+window.addEventListener(CONNECTIVITY_EVENT, (e) => {
+  // Set online = e.detail.online
+  // Track wasOffline across transitions
+  // Set lastChangedAt = Date.now()
+});
+// 4. Listen for bandwidth changes (navigator.connection):
+navigator.connection?.addEventListener("change", () => {
+  // Set effectiveType = navigator.connection.effectiveType
+  // Set downlink = navigator.connection.downlink
+});
+// 5. retry(): call forceRetry() — immediately re-checks connectivity
+// 6. Return { online, wasOffline, lastChangedAt, effectiveType, downlink, isRetrying, retry }
 ```
+
+### `useOfflineAnalytics`
+
+Tracks offline fallback events for analytics: `{ lastEvent, events, clear }`.
+
+The SW broadcasts `OFFLINE_FALLBACK_ACTIVATED` via postMessage to all clients. The injector relays it as a window event, giving you two ways to listen:
+
+**Events listened to:**
+
+| Event                        | Source                             | Purpose                                    |
+| ---------------------------- | ---------------------------------- | ------------------------------------------ |
+| `swoff:offline-fallback`     | Window event (relayed by injector) | SW served an offline fallback page         |
+| `OFFLINE_FALLBACK_ACTIVATED` | SW postMessage                     | Direct SW message (no injector dependency) |
+
+**Detail shape:** `{ route, fallbackLevel: "route-fallback" | "offline-page" | "spa-shell" | "inline-503", timestamp }`
+
+**Building the adapter (window event approach — simpler):**
+
+```js
+// Reactive state: { lastEvent, events, clear }
+// 1. Initialize: events = [], lastEvent = null
+// 2. Listen to window event (relayed by injector):
+window.addEventListener("swoff:offline-fallback", (e) => {
+  // Append e.detail to events array
+  // Set lastEvent = e.detail
+});
+// 3. clear(): reset events and lastEvent
+// 4. Return { lastEvent, events, clear }
+```
+
+**Alternative — direct SW message (no injector dependency):**
+
+```js
+navigator.serviceWorker.addEventListener("message", (event) => {
+  if (event.data?.type === "OFFLINE_FALLBACK_ACTIVATED") {
+    // event.data.detail = { route, fallbackLevel, timestamp }
+  }
+});
+```
+
+**If your framework already has these adapters** (React): the CLI generates `useNetworkStatus` and `useOfflineAnalytics` into `swoff/adapters/`. See the [React page](/docs/frameworks/react) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ## Related
 
-- [Caching strategies: patterns, timeout, reactive](/docs/guides/caching-strategy)
-- [Data fetching: fetchWithCache, prefetchCache](/docs/guides/data-fetching)
-- [Config reference: navigation](/docs/config#featuresserviceworkernavigation)
+- [Caching System architecture](/docs/architecture/caching#navigation-modes) — `serveFromCache` per-mode lookup rules, fallback chain, SSR auto-prefetch internals
+- [Offline Navigation Comparison](/docs/comparisons/offline-navigation): Swoff vs next-pwa / @serwist/next / Workbox / vite-plugin-pwa

@@ -1,10 +1,11 @@
 ---
 title: Tag System
 description: Auto-tags, glob patterns, cascading invalidation, cross-tab, and React hooks.
-icon: Tags
 ---
 
 > **If you're coming from TanStack Query:** `invalidateByTag("notes")` is Swoff's equivalent of `queryClient.invalidateQueries({ queryKey: ["notes"] })`. The difference: Swoff auto-generates tags from URL patterns, supports glob matching, cascading invalidation, and works cross-tab — no query key management needed. See the [full comparison](/docs/comparisons#invalidation).
+
+> **No-bundler projects** do not generate `cache/invalidate.ts`. Use the `X-SW-Cache-Tags` header approach (section 1b below) to set tags via native fetch or HTMX headers, or use the `window.swoff` API: `swoff.invalidateByTag()`, `swoff.invalidateByTags()`, `swoff.invalidateMatching()`, `swoff.getUrlsForTag()`, `swoff.getTagsForUrl()` — all available after including `swoff-api.bundle.js`.
 
 ## Preconditions
 
@@ -13,7 +14,7 @@ icon: Tags
 
 ## Status
 
-**Already on by default.** Tag invalidation is enabled (`tagInvalidation.enabled: true`). Every `fetchWithCache` call auto-generates tags from the request URL.
+**Already on by default.** Tag invalidation is always active when the `tagInvalidation` object is present in your config. Every `fetchWithCache` call auto-generates tags from the request URL.
 
 ## Generated files
 
@@ -21,10 +22,11 @@ icon: Tags
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
 | `swoff/cache/tags.{ts\|js}`       | `generateTags()`, `generateTagsFromMethod()` — URL-based tag generation                                                                                                 | Usually not needed (auto-invoked by SW) |
 | `swoff/cache/invalidate.{ts\|js}` | `invalidateByTag()`, `invalidateByTags()`, `invalidateUrl()`, `invalidateByMethod()`, `invalidateMatching()`, `getUrlsForTag()`, `getTagsForUrl()`, `expandCascading()` | Yes — main invalidation API             |
+| `swoff-api.bundle.js`             | Same invalidation API on `window.swoff` for no-bundler projects                                                                                                         | No (auto-initializes)                   |
 
 ## Usage — comprehensive examples
 
-### 1. Auto-tags from URL
+### 1a. Auto-tags from URL (via fetchWithCache)
 
 `fetchWithCache` auto-tags every request. Tags are derived from URL segments with prefix skipping:
 
@@ -36,6 +38,8 @@ GET /api/users/456/posts → tags: ["users", "user:456", "posts"]
 
 The SW stores these tags alongside the cached response. Invalidate with:
 
+**Bundler:**
+
 ```ts
 import { invalidateByTag } from "./swoff/cache/invalidate";
 
@@ -45,6 +49,39 @@ await invalidateByTag("notes");
 // After updating a specific note
 await invalidateByTag("note:123");
 ```
+
+**No-bundler:**
+
+```html
+<script src="/swoff/swoff-api.bundle.js"></script>
+<script>
+  await swoff.invalidateByTag("notes");
+  await swoff.invalidateByTag("note:123");
+</script>
+```
+
+### 1b. Set tags from any HTTP client (X-SW-Cache-Tags header)
+
+No swoff import needed — set the `X-SW-Cache-Tags` header on any request and the SW will tag the cached response:
+
+```js
+// Native fetch — tags set via header
+fetch("/api/notes", {
+  headers: { "X-SW-Cache-Tags": "notes, dashboard" },
+});
+```
+
+```html
+<!-- HTMX — tags via hx-headers -->
+<button
+  hx-get="/api/notes"
+  hx-headers='{"X-SW-Cache-Tags": "notes, dashboard"}'
+>
+  Load Notes
+</button>
+```
+
+This works with any HTTP client — the SW reads the header and stores the tags alongside the cached response. Tags set via header are merged with auto-generated tags from the URL.
 
 ### 2. Custom patterns
 
@@ -92,6 +129,8 @@ await invalidateByTag("notes");
 
 Invalidate all cache entries whose URL matches a glob pattern. This operates on cached URLs, not tag names:
 
+**Bundler:**
+
 ```ts
 import { invalidateMatching } from "./swoff/cache/invalidate";
 
@@ -100,6 +139,15 @@ await invalidateMatching("/api/notes/*");
 
 // Invalidate all cached responses under /api/**
 await invalidateMatching("/api/**");
+```
+
+**No-bundler:**
+
+```html
+<script>
+  await swoff.invalidateMatching("/api/notes/*");
+  await swoff.invalidateMatching("/api/**");
+</script>
 ```
 
 ### 5. Manual invalidation endpoint
@@ -120,6 +168,14 @@ app.post("/api/revalidate", async (req, res) => {
 await invalidateByTags(["notes", "users:*"]);
 ```
 
+**No-bundler:**
+
+```html
+<script>
+  await swoff.invalidateByTags(["notes", "users:*"]);
+</script>
+```
+
 ### 6. Cross-tab invalidation
 
 `invalidateByTag` works across all tabs — the SW receives the message and broadcasts a cache-invalidation event to all clients:
@@ -136,15 +192,36 @@ No manual coordination needed. Works out of the box.
 
 ## Framework adapters
 
-See the [Framework Integration](/docs/frameworks) page for adapter usage in your ecosystem. React adapters are generated by the CLI into `swoff/adapters/`. Import and use them as needed:
+The `cache-invalidated` event drives the `useCachedFetch` adapter (see the [Data Fetching guide](/docs/guides/data-fetching#framework-adapters)). When tags are invalidated, your adapter must listen for this event and refetch affected data.
 
-```ts
-import { useCacheInvalidation } from "./swoff/adapters/useCacheInvalidation";
+**Event:**
+
+| Event               | Detail shape | Purpose                                                               |
+| ------------------- | ------------ | --------------------------------------------------------------------- |
+| `cache-invalidated` | `{ tags }`   | Cache entries invalidated — refetch any data whose URL tags intersect |
+
+**Building the adapter for any framework:**
+
+```js
+// 1. Maintain a map of active URLs and their auto-generated tags
+// 2. Listen to cache-invalidated:
+window.addEventListener("cache-invalidated", (e) => {
+  const { tags } = e.detail;
+  // For each active request whose tags intersect with e.detail.tags:
+  //   → Re-fetch by calling fetchWithCache(url) again
+  //   → Update reactive state with fresh data
+});
+// 3. The SW handles the actual cache invalidation — your adapter
+//    only needs to react to the event and re-fetch
 ```
 
-The hook triggers SW-side invalidation and automatically refetches any active `useCachedFetch` hooks whose URL tags match.
+For introspection (debugging which URLs are tagged), use `getUrlsForTag(tag)` or `swoff.getUrlsForTag(tag)` — see the Introspection section above.
+
+**If your framework already has this** (React): the CLI generates `useCachedFetch` into `swoff/adapters/` which listens to `cache-invalidated` automatically. See the [React page](/docs/frameworks/react) or the [Blueprint](/docs/frameworks/blueprint).
 
 ### Introspection
+
+**Bundler:**
 
 ```ts
 import { getUrlsForTag, getTagsForUrl } from "./swoff/cache/invalidate";
@@ -158,13 +235,21 @@ const tags = await getTagsForUrl("/api/notes/123");
 // ["notes", "note:123"]
 ```
 
+**No-bundler:**
+
+```html
+<script>
+  const urls = await swoff.getUrlsForTag("notes");
+  const tags = await swoff.getTagsForUrl("/api/notes/123");
+</script>
+```
+
 ## Config
 
 ```json
 {
   "features": {
     "tagInvalidation": {
-      "enabled": true,
       "debounceMs": 0,
       "skipPrefixes": ["api", "v1", "v2", "v3", "rest", "graphql", "gql"],
       "patterns": {},
@@ -175,7 +260,7 @@ const tags = await getTagsForUrl("/api/notes/123");
 }
 ```
 
-- `enabled` — set to `false` to disable tag generation entirely
+- Tag invalidation is **always active** when the `tagInvalidation` object is present — no `enabled` toggle needed.
 - `debounceMs` — coalesce rapid invalidations (e.g., 500ms debounce)
 - `skipPrefixes` — URL path segments to ignore during auto-tagging
 - `patterns` — URL pattern → tag mappings (regex path params)
@@ -184,7 +269,5 @@ const tags = await getTagsForUrl("/api/notes/123");
 
 ## Related
 
-- [Full comparison: Tag-based vs query-key invalidation](/docs/comparisons#invalidation)
-- [Server push: real-time invalidation via SSE/WS](/docs/guides/server-push)
-- [Caching strategies: how tags integrate with caching](/docs/guides/caching-strategy)
-- [Config reference: tagInvalidation](/docs/config#featurestaginvalidation)
+- [Full cross-tab comparison](/docs/comparisons/cross-tab)
+- [Full optimistic updates comparison](/docs/comparisons/optimistic-updates)

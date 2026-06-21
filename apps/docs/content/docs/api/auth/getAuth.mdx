@@ -1,0 +1,14 @@
+---
+title: getAuth
+description: Get auth data from memory, adapter, or IndexedDB.
+---
+
+## `getAuth()`
+
+From `swoff/auth/store.ts`. Tries memory → adapter → IndexedDB → server fetch.
+
+```ts
+import { getAuth } from "swoff/auth/store";
+
+const auth = await getAuth();
+```

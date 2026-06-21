@@ -1,0 +1,12 @@
+---
+title: invalidateByTag
+description: Invalidate all cache entries for a single tag.
+---
+
+## `invalidateByTag(tag)`
+
+From `swoff/cache/invalidate.ts`. Sends `INVALIDATE_TAG` to the SW; the SW removes matching cache entries and confirms via `TAG_INVALIDATED` (client-injector dispatches `cache-invalidated` on the window).
+
+```ts
+import { invalidateByTag } from "swoff/cache/invalidate";
+```

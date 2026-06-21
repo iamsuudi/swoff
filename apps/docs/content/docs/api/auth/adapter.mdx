@@ -1,0 +1,21 @@
+---
+title: Auth Adapter
+description: Factory for provider-specific auth logic.
+---
+
+## `createAuthAdapter` / `adapter`
+
+From `swoff/auth/adapter.ts`. The default adapter uses cookie-based auth.
+
+### Methods
+
+| Method | Signature | Description |
+|---|---|---|
+| `getAuth` | `() => Promise<AuthData \| null>` | Returns `{ token, user, expiresAt }` or `null`. Reads from a cookie in the default adapter. |
+| `getHeaders` | `(auth: AuthData \| null) => Record<string, string>` | Returns headers for fetch. Cookie auth returns `{}`. |
+| `refresh` | `(auth: AuthData) => Promise<AuthData \| null>` | Refresh session. Cookie auth returns `null` (server-managed). |
+| `fetchUser` | `() => Promise<AuthData \| null>` | Fetches `/api/me` with `credentials: "include"`. |
+
+```ts
+import { createAuthAdapter, type AuthAdapter } from "swoff/auth/adapter";
+```

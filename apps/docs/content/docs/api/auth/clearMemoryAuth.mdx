@@ -1,0 +1,14 @@
+---
+title: clearMemoryAuth
+description: Null memory auth (used for cross-tab sync).
+---
+
+## `clearMemoryAuth()`
+
+From `swoff/auth/store.ts`. Nulls in-memory auth only. Useful when another tab broadcasts auth change.
+
+```ts
+import { clearMemoryAuth } from "swoff/auth/store";
+
+clearMemoryAuth();
+```

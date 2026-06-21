@@ -1,0 +1,18 @@
+{
+  "title": "mutation",
+  "pages": [
+    "queueMutation",
+    "processMutationQueue",
+    "flushMutations",
+    "getPendingCount",
+    "getQueuePosition",
+    "getQueueItems",
+    "startMutation",
+    "trackMutation",
+    "getMutationState",
+    "clearMutationState",
+    "onMutationStateChange",
+    "syncWhenPossible",
+    "retrySync"
+  ]
+}

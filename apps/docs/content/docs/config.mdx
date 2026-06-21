@@ -25,7 +25,6 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
       "preventDefaultInstall": false
     },
     "serviceWorker": {
-      "version": "package",
       "autoActivate": false,
       "strategy": {
         "default": "cache-first",
@@ -45,7 +44,6 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
             "refetchOnFocus": false
           }
         },
-        "clearRuntimeOnUpdate": false,
         "normalizeKey": false,
         "ignoreQueryParams": []
       },
@@ -80,7 +78,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
     },
     "auth": {
       "enabled": false,
-      "type": "bearer",
+      "type": "cookie",
       "routePaths": [
         "/login",
         "/logout",
@@ -118,7 +116,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | `framework`          | `"react-spa"` \| `"nextjs"` \| `"remix"` \| `"tanstack-start-react"` \| `"astro"` \| `"nuxt"` \| `"sveltekit"` \| `"vue"` \| `"svelte"` \| `"vanilla"` | auto-detected | Your UI framework. Meta-frameworks auto-configure navigation mode, strategy defaults, and build paths via `swoff init`.                                                                                                                                                                                                                                                            |
 | `build.outputDir`    | `string`                                                                                                                                               | `"dist"`      | Build tool output directory                                                                                                                                                                                                                                                                                                                                                        |
 | `build.swFilename`   | `string`                                                                                                                                               | `"sw"`        | Service worker filename prefix (e.g. `sw-v1.2.3.js`)                                                                                                                                                                                                                                                                                                                               |
-| `build.precacheDirs` | `object`                                                                                                                                               | `{}`          | Additional directories to precache. Keys are filesystem paths (relative to project root). Values are objects with `prefix` and optional filter/transform options. E.g. `{ "public/assets": { "prefix": "/assets" } }` precaches all files from `public/assets/` served at `/assets/*`. When empty, only `outputDir` is scanned. See [PrecacheDirConfig](#precachedirconfig) below. |
+| `build.precacheDirs` | `object`                                                                                                                                               | `{}`          | Directories to scan for precache assets. Keys are filesystem paths (relative to project root). Values are objects with `prefix` and optional filter/transform options. E.g. `{ "dist": { "prefix": "/" } }` precaches all files from `dist/` served at their relative paths. When empty, no directory scanning occurs — only explicit fallback routes are precached. See [PrecacheDirConfig](#precachedirconfig) below. |
 
 ---
 
@@ -162,8 +160,7 @@ Example — precache NextJS static HTML pages without the `.html` extension and 
 
 | Field          | Type                                              | Default     | Description                                                                                                                                                                                                                                                                                                                                                                                           |
 | -------------- | ------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `version`      | `"package"` \| `"hash"` \| `"manual"` \| `string` | `"package"` | SW version mode. Generates `swoff/sw/version.{ts\|js}` as the single version source. `"package"`: auto-reads from `package.json` at build time (requires `package.json`). `"hash"`: every build produces a unique cache name (uses `Date.now().toString(36)`), SW URL stays fixed — no `package.json` needed. `"manual"`: user edits `swoff/sw/version.{ts\|js}` directly. Any string works — no semver or keyword validation. |
-| `autoActivate` | `boolean`                                         | `false`     | Automatically activate newly registered service workers (`skipWaiting()`). When `false`, the SW activates on next navigation or browser reload — no user prompt.                                                                                                                                                                                                                                      |
+| `autoActivate` | `boolean`                                         | `false`     | Automatically activate newly registered service workers (`skipWaiting()`). When `false`, the SW activates on next navigation or browser reload — no user prompt. |
 
 ### `features.serviceWorker.strategy`
 
@@ -175,7 +172,6 @@ Example — precache NextJS static HTML pages without the `.html` extension and 
 | `reactive.defaults.refetchInterval`    | `number`   | `0`             | Global auto-refetch interval in seconds for reactive strategy. SW periodically re-fetches matching routes in the background. 0 disables.                                                                                                                                                       |
 | `reactive.defaults.refetchOnReconnect` | `boolean`  | `false`         | Global default — refetch reactive entries when the browser comes back online                                                                                                                                                                                                                   |
 | `reactive.defaults.refetchOnFocus`     | `boolean`  | `false`         | Global default — refetch reactive entries when the tab gains focus                                                                                                                                                                                                                             |
-| `clearRuntimeOnUpdate`                 | `boolean`  | `false`         | Clear runtime cache when a new SW version activates                                                                                                                                                                                                                                            |
 | `normalizeKey`                         | `boolean`  | `false`         | When `true`, query params are sorted alphabetically in cache keys so `?b=1&a=2` and `?a=2&b=1` resolve to the same entry.                                                                                                                                                                      |
 | `ignoreQueryParams`                    | `string[]` | `[]`            | Query params to strip from cache keys (e.g. `["_t", "utm_source"]`). Prevents cache-busting params from creating duplicate cache entries.                                                                                                                                                      |
 | `timeout`                              | `number`   | `10`            | Network fetch timeout in seconds. The SW's `_fetch` wraps `fetch()` with an `AbortController` that aborts after this duration. On timeout or network error, a `SW_NOTIFICATION` is broadcast (level: `"error"`, code: `"FETCH_FAILED"`), and the strategy falls through to its cache fallback. |
@@ -313,7 +309,7 @@ Object-only feature (boolean shorthand not supported).
 | ------------------- | --------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pushNotifications` | `boolean` | `false` | Enable push notification subscription management. Generates `swoff/push-notification/index.ts` with `subscribeToPush()` / `unsubscribeFromPush()`. |
 
-The VAPID public key is configured directly in the generated `swoff/push-notification/index.ts` file — edit the `VAPID_PUBLIC_KEY` placeholder there.
+The VAPID public key is configured at runtime via `swoff.configure({ push: { vapidPublicKey: "..." } })` for no-bundler projects, or directly in `swoff/push-notification/index.ts` for bundler projects.
 
 ## `features.serverPush`
 

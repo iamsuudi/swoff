@@ -10,14 +10,14 @@ Swoff works with any PHP backend. The generated files are static — place them 
 
 ## Config per flavor
 
-| Setting | Laravel (Blade) | Plain PHP |
-|---|---|---|
-| `build.outputDir` | `"public"` | your document root |
-| `build.swFilename` | `"sw"` | `"sw"` |
-| `navigation.mode` | `"ssr"` | `"ssr"` |
-| `navigation.fallback` | `"/offline"` | `"/offline.html"` |
-| `navigation.preload` | `true` | `true` |
-| `strategy.default` | `"network-first"` | `"network-first"` |
+| Setting               | Laravel (Blade)   | Plain PHP          |
+| --------------------- | ----------------- | ------------------ |
+| `build.outputDir`     | `"public"`        | your document root |
+| `build.swFilename`    | `"sw"`            | `"sw"`             |
+| `navigation.mode`     | `"ssr"`           | `"ssr"`            |
+| `navigation.fallback` | `"/offline"`      | `"/offline.html"`  |
+| `navigation.preload`  | `true`            | `true`             |
+| `strategy.default`    | `"network-first"` | `"network-first"`  |
 
 - **`navigation.mode: "ssr"`** — server-rendered HTML pages get cached individually, repeat visits serve cached HTML offline
 

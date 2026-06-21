@@ -1,0 +1,14 @@
+---
+title: getUrlsForTag
+description: Get all URLs cached under a tag.
+---
+
+## `getUrlsForTag(tag)`
+
+From `swoff/cache/tags.ts`. Get all URLs cached under a given tag (uses MessageChannel).
+
+```ts
+import { getUrlsForTag } from "swoff/cache/tags";
+```
+
+Returns `Promise<{ url, actualUrl }[]>`.

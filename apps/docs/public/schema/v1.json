@@ -12,23 +12,29 @@
     },
     "framework": {
       "type": "string",
-      "description": "Detected frontend framework. Used to generate framework-specific hooks and adapters. Set automatically by `swoff init`. When a meta-framework is detected (nextjs, remix, etc.), navigation.mode and strategy defaults are auto-configured.",
+      "description": "Detected framework. Used to set sensible defaults. Set automatically by `swoff init`. When a meta-framework is detected, navigation.mode and strategy defaults are auto-configured.",
       "default": "vanilla",
       "enum": [
-        "react",
-        "vue",
-        "svelte",
-        "vanilla",
         "nextjs",
         "remix",
+        "tanstack-start-react",
         "astro",
         "nuxt",
-        "sveltekit"
+        "sveltekit",
+        "react-spa",
+        "vue",
+        "svelte",
+        "laravel",
+        "django",
+        "flask",
+        "rails",
+        "go",
+        "vanilla"
       ]
     },
     "features": {
       "type": "object",
-      "description": "Feature toggles - enable/disable specific functionality",
+      "description": "Feature toggles — enable/disable specific functionality",
       "properties": {
         "requestBatchWindowMs": {
           "type": "integer",
@@ -42,7 +48,7 @@
           "properties": {
             "enabled": {
               "type": "boolean",
-              "description": "Enable PWA installability (generate pwa-injector.ts + manifest.json)",
+              "description": "Enable PWA installability",
               "default": true
             },
             "preventDefaultInstall": {
@@ -57,24 +63,9 @@
           "type": "object",
           "description": "Service Worker configuration",
           "properties": {
-            "version": {
-              "oneOf": [
-                {
-                  "type": "string",
-                  "enum": ["package", "hash"],
-                  "description": "\"package\": reads version from package.json. \"hash\": uses SHA-256 hash of generated SW content (deterministic, fixed SW URL)."
-                },
-                {
-                  "type": "string",
-                  "pattern": "^\\d+\\.\\d+\\.\\d+$",
-                  "description": "Explicit semver version string (e.g. \"1.2.3\")"
-                }
-              ],
-              "default": "package"
-            },
             "autoActivate": {
               "type": "boolean",
-              "description": "Automatically activate newly registered service workers (skipWaiting). Only applies when a new version is registered — use with autoUpdate for fully silent updates, or wait for user consent then call handleUpdateApproved().",
+              "description": "Automatically activate newly registered service workers (skipWaiting).",
               "default": false
             },
             "strategy": {
@@ -126,12 +117,12 @@
                           },
                           "staleTime": {
                             "type": "integer",
-                            "description": "Stale time in seconds for reactive strategy. Cached data is considered fresh for this duration. After expiry, the SW serves the cached copy but triggers a background refresh. 0 = always stale. Only valid with 'reactive' strategy.",
+                            "description": "Stale time in seconds for reactive strategy. Only valid with 'reactive' strategy.",
                             "minimum": 0
                           },
                           "refetchInterval": {
                             "type": "integer",
-                            "description": "Auto-refetch interval in seconds for reactive strategy. The SW will periodically re-fetch this route in the background. 0 disables. Only valid with 'reactive' strategy.",
+                            "description": "Auto-refetch interval in seconds for reactive strategy. Only valid with 'reactive' strategy.",
                             "minimum": 0
                           },
                           "refetchOnReconnect": {
@@ -143,6 +134,11 @@
                             "type": "boolean",
                             "description": "Refetch when the browser tab gains focus. Only valid with 'reactive' strategy.",
                             "default": false
+                          },
+                          "timeout": {
+                            "type": "integer",
+                            "description": "Override the global timeout for this pattern in seconds.",
+                            "minimum": 1
                           }
                         },
                         "required": ["strategy"]
@@ -152,7 +148,7 @@
                 },
                 "reactive": {
                   "type": "object",
-                  "description": "Reactive strategy global defaults. These apply to all routes using the 'reactive' strategy unless overridden per-route.",
+                  "description": "Reactive strategy global defaults.",
                   "properties": {
                     "defaults": {
                       "type": "object",
@@ -160,13 +156,13 @@
                       "properties": {
                         "staleTime": {
                           "type": "integer",
-                          "description": "Global default stale time in seconds. Data is considered fresh for this long; after expiry, SW serves cached but triggers a background refresh. 0 = always stale.",
+                          "description": "Global default stale time in seconds.",
                           "default": 0,
                           "minimum": 0
                         },
                         "refetchInterval": {
                           "type": "integer",
-                          "description": "Global default auto-refetch interval in seconds. SW periodically re-fetches matching routes in the background. 0 disables.",
+                          "description": "Global default auto-refetch interval in seconds.",
                           "default": 0,
                           "minimum": 0
                         },
@@ -184,20 +180,9 @@
                     }
                   }
                 },
-                "mode": {
-                  "type": "string",
-                  "description": "Controls which requests are processed by the SW cache strategy system. 'all' processes every GET/HEAD request. 'explicit-only' only processes requests with X-SW-Cache-Strategy header (set automatically by fetchWithCache()).",
-                  "default": "all",
-                  "enum": ["all", "explicit-only"]
-                },
-                "clearRuntimeOnUpdate": {
-                  "type": "boolean",
-                  "description": "Delete runtime cache on SW activate. Use as a security measure: when true, cached API responses are cleared on every SW update, preventing poisoned data from persisting.",
-                  "default": false
-                },
                 "maxRuntimeCacheAge": {
                   "type": "integer",
-                  "description": "Maximum age in seconds for runtime cache entries. Entries older than this are evicted. 0 disables eviction. Default 2592000 (30 days).",
+                  "description": "Maximum age in seconds for runtime cache entries. 0 disables eviction. Default 2592000 (30 days).",
                   "default": 2592000,
                   "minimum": 0
                 },
@@ -208,13 +193,13 @@
                 },
                 "ignoreQueryParams": {
                   "type": "array",
-                  "description": "Query parameter names to ignore when matching cache keys. Useful for Analytics/UTM params that should not create separate cache entries.",
+                  "description": "Query parameter names to ignore when matching cache keys.",
                   "items": { "type": "string" },
                   "uniqueItems": true
                 },
                 "timeout": {
                   "type": "integer",
-                  "description": "Network fetch timeout in seconds. The SW wraps fetch() with an AbortController that aborts after this duration. On timeout or network error, a SW_NOTIFICATION is broadcast and the strategy falls through to its cache fallback.",
+                  "description": "Network fetch timeout in seconds.",
                   "default": 10,
                   "minimum": 1
                 }
@@ -226,92 +211,53 @@
               "properties": {
                 "mode": {
                   "type": "string",
-                  "description": "Navigation mode.",
+                  "description": "Navigation mode. 'spa': serve precached fallback (app shell). 'ssr': cache individual HTML pages. 'default': no special handling.",
                   "default": "spa",
-                  "enum": ["spa", "default", "ssr"]
+                  "enum": ["spa", "ssr", "default"]
                 },
                 "preload": {
                   "type": "boolean",
-                  "description": "Enable Navigation Preload API in the service worker. Reduces startup latency for navigation requests by allowing the SW to fetch while the page boots.",
+                  "description": "Enable Navigation Preload API in the service worker.",
                   "default": true
                 },
                 "fallback": {
                   "type": "string",
-                  "description": "Fallback HTML for navigation requests. Used as the SPA shell when navigation mode is 'spa', and as the final fallback in the offline chain for all modes.",
-                  "default": "/index.html"
+                  "description": "Fallback HTML path for offline navigation requests.",
+                  "default": ""
                 },
                 "precacheRoutes": {
                   "type": "array",
-                  "description": "Additional routes to fetch and cache during SW install (e.g. ['/', '/about']). Useful for SSG routes or critical pages that should work offline on first visit. Glob patterns not supported — use exact paths.",
+                  "description": "Additional routes to fetch and cache during SW install (e.g. ['/', '/about']).",
                   "items": { "type": "string" },
                   "default": []
                 },
-                "offlineFallback": {
-                  "type": "string",
-                  "description": "Path to a custom offline HTML page (e.g. '/offline.html'). Served when the network is unavailable and no cached version of the requested page exists. The path is precached at install time.",
-                  "default": ""
-                },
                 "rules": {
                   "type": "array",
-                  "description": "Per-route navigation policies. Each rule defines a glob pattern with a policy and optional offline fallback page.",
+                  "description": "Per-route navigation rules. Each rule defines a glob pattern with an optional per-route offline fallback.",
                   "items": {
                     "type": "object",
                     "properties": {
                       "match": {
                         "type": "string",
-                        "description": "Glob pattern matching request paths (supports *, **, ?, {a,b}). Example: '/notes/**'"
+                        "description": "Glob pattern matching request paths (supports *, **, ?, {a,b})."
                       },
-                      "policy": {
+                      "fallback": {
                         "type": "string",
-                        "description": "Navigation policy for matching routes. 'cache-first': serve from precache immediately (never fetches). 'network-first': try network, fall back to cache/offline. 'network-only': always fetch (never cache). 'stale-while-revalidate': serve cached HTML instantly, refresh in background.",
-                        "default": "network-first",
-                        "enum": [
-                          "cache-first",
-                          "network-first",
-                          "network-only",
-                          "stale-while-revalidate"
-                        ]
-                      },
-                      "offlineFallback": {
-                        "type": "string",
-                        "description": "Per-route offline fallback HTML path. Overrides the global offlineFallback for matching routes. Automatically precached at install time."
+                        "description": "Per-route offline fallback HTML path. Overrides the global fallback for matching routes."
                       }
                     },
                     "required": ["match"]
                   },
                   "default": []
-                },
-                "retry": {
-                  "type": "object",
-                  "description": "Smart navigation retry configuration. When enabled, the SW starts a background retry loop when serving the ultimate offline fallback. On success, caches the response and broadcasts 'swoff:navigation-online' (client) or 'NAV_RETRY_SUCCESS' (SW postMessage).",
-                  "properties": {
-                    "enabled": {
-                      "type": "boolean",
-                      "description": "Enable smart retry. When true, the SW periodically retries failed navigations in the background.",
-                      "default": false
-                    },
-                    "intervalMs": {
-                      "type": "integer",
-                      "description": "Milliseconds between retry attempts.",
-                      "default": 5000,
-                      "minimum": 1000
-                    },
-                    "maxRetries": {
-                      "type": "integer",
-                      "description": "Maximum number of retry attempts before giving up.",
-                      "default": 12,
-                      "minimum": 1
-                    }
-                  }
                 }
               }
             }
           },
-          "required": ["version", "autoActivate"]
+          "required": ["autoActivate"]
         },
         "refetchQueue": {
           "type": "object",
-          "description": "Background refetch queue configuration. Controls batching and retry behavior for stale cache refreshes.",
+          "description": "Background refetch queue configuration.",
           "properties": {
             "batchSize": {
               "type": "integer",
@@ -321,7 +267,7 @@
             },
             "batchDelayMs": {
               "type": "integer",
-              "description": "Delay in ms between batch cycles (rate limiting)",
+              "description": "Delay in ms between batch cycles",
               "default": 1000,
               "minimum": 0
             },
@@ -349,7 +295,7 @@
                 },
                 "jitterMs": {
                   "type": "integer",
-                  "description": "Random jitter in ms added to each backoff delay to prevent thundering herd",
+                  "description": "Random jitter in ms added to each backoff delay",
                   "default": 100,
                   "minimum": 0
                 }
@@ -359,7 +305,7 @@
         },
         "mutationQueue": {
           "type": "object",
-          "description": "Offline mutation queue configuration. Object-only (boolean shorthand not supported).",
+          "description": "Offline mutation queue configuration.",
           "properties": {
             "enabled": {
               "type": "boolean",
@@ -374,7 +320,7 @@
             },
             "batchDelayMs": {
               "type": "integer",
-              "description": "Delay between mutations (rate limiting)",
+              "description": "Delay between mutations",
               "default": 0,
               "minimum": 0
             },
@@ -402,7 +348,7 @@
                 },
                 "jitterMs": {
                   "type": "integer",
-                  "description": "Random jitter in ms added to each backoff delay to prevent thundering herd",
+                  "description": "Random jitter in ms added to each backoff delay",
                   "default": 250,
                   "minimum": 0
                 }
@@ -410,7 +356,7 @@
             },
             "backgroundSync": {
               "type": "boolean",
-              "description": "Enable Background Sync API (Chrome/Edge only). Nests under mutationQueue because it requires mutation queue processing.",
+              "description": "Enable Background Sync API (Chrome/Edge only). Requires mutationQueue to be enabled.",
               "default": false
             }
           }
@@ -427,12 +373,12 @@
             "type": {
               "type": "string",
               "description": "Auth adapter type — determines how Swoff communicates with your auth provider",
-              "default": "bearer",
+              "default": "cookie",
               "enum": ["cookie", "bearer", "custom"]
             },
             "routePaths": {
               "type": "array",
-              "description": "URL path prefixes that bypass SW caching at build time. Requests matching any of these paths return immediately in the fetch event listener, before any strategy resolution. Default: well-known auth routes.",
+              "description": "URL path prefixes that bypass SW caching. Requests matching any of these paths are returned immediately before any strategy resolution.",
               "items": { "type": "string" },
               "default": [
                 "/login",
@@ -451,12 +397,11 @@
         },
         "tagInvalidation": {
           "type": "object",
-          "description": "Tag-based cache invalidation configuration. Object-only (boolean shorthand not supported).",
+          "description": "Tag-based cache invalidation configuration. Always active when present (no enabled toggle).",
           "properties": {
-
             "debounceMs": {
               "type": "integer",
-              "description": "Debounce window (ms) for coalescing rapid invalidations. When > 0, repeated INVALIDATE_TAG messages within the window are batched and processed once, reducing redundant cache scans.",
+              "description": "Debounce window (ms) for coalescing rapid invalidations.",
               "default": 0,
               "minimum": 0
             },
@@ -477,7 +422,7 @@
             },
             "singularization": {
               "type": "object",
-              "description": "Custom plural to singular mapping (e.g. {\"categories\": \"category\"}). Default strips trailing 's'.",
+              "description": "Custom plural to singular mapping (e.g. {\"categories\": \"category\"}).",
               "additionalProperties": { "type": "string" },
               "default": {}
             },
@@ -494,7 +439,7 @@
         },
         "graphql": {
           "type": "object",
-          "description": "GraphQL client wrapper configuration. Object-only (boolean shorthand not supported).",
+          "description": "GraphQL wrapper configuration.",
           "properties": {
             "enabled": {
               "type": "boolean",
@@ -503,57 +448,45 @@
             },
             "endpoints": {
               "type": "array",
-              "description": "GraphQL API endpoints. Supports multiple endpoints — pass endpointIndex to fetchWithCache/useCachedFetch to select one.",
+              "description": "GraphQL API endpoints. Supports multiple endpoints.",
               "items": { "type": "string" },
-              "default": ["/graphql"],
-              "examples": [["/graphql"], ["/api/graphql", "/api/v2/graphql"]]
+              "default": ["/graphql"]
             }
           }
         },
-        "realtime": {
+        "pushNotifications": {
+          "type": "boolean",
+          "description": "Enable push notification subscription management.",
+          "default": false
+        },
+        "serverPush": {
           "type": "object",
-          "description": "Real-time features container. Push notifications and server-sent events for cache invalidation.",
+          "description": "Server push event configuration (SSE or WebSocket). The service worker connects to a push endpoint and invalidates cache tags.",
           "properties": {
-            "pushNotifications": {
+            "enabled": {
               "type": "boolean",
-              "description": "Enable push notification subscription management. Generates realtime/notifications.ts with subscribe/unsubscribe helpers.",
+              "description": "Enable server push event connection for real-time cache invalidation",
               "default": false
             },
-            "vapidPublicKey": {
+            "type": {
               "type": "string",
-              "description": "VAPID public key for push subscription. Baked into the generated push handler at build time — the key is not needed at runtime.",
-              "example": "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeghA5N1Fha7J3Ef4sQyKgOoF7m4wA1gPXi6gXqJxYd3o="
+              "description": "Transport type: 'sse' (Server-Sent Events via fetch stream) or 'websocket'",
+              "default": "sse",
+              "enum": ["sse", "websocket"]
             },
-            "serverPush": {
-              "type": "object",
-              "description": "Server push event configuration (SSE or WebSocket). The service worker connects to a push endpoint and invalidates cache tags when the server signals data changes.",
-              "properties": {
-                "enabled": {
-                  "type": "boolean",
-                  "description": "Enable server push event connection for real-time cache invalidation",
-                  "default": false
-                },
-                "type": {
-                  "type": "string",
-                  "description": "Transport type: 'sse' (Server-Sent Events via fetch stream) or 'websocket'",
-                  "default": "sse",
-                  "enum": ["sse", "websocket"]
-                },
-                "endpoint": {
-                  "type": "string",
-                  "description": "Push event endpoint URL (e.g., /api/events for SSE, wss://example.com/events for WebSocket)",
-                  "example": "/api/events"
-                },
-                "reconnectDelayMs": {
-                  "type": "integer",
-                  "description": "Delay in ms before reconnecting after connection loss",
-                  "default": 5000,
-                  "minimum": 0
-                }
-              },
-              "required": ["enabled", "type", "endpoint"]
+            "endpoint": {
+              "type": "string",
+              "description": "Push event endpoint URL",
+              "example": "/api/events"
+            },
+            "reconnectDelayMs": {
+              "type": "integer",
+              "description": "Delay in ms before reconnecting after connection loss",
+              "default": 5000,
+              "minimum": 0
             }
-          }
+          },
+          "required": ["enabled", "type", "endpoint"]
         }
       },
       "required": [
@@ -563,7 +496,8 @@
         "auth",
         "tagInvalidation",
         "graphql",
-        "realtime"
+        "pushNotifications",
+        "serverPush"
       ]
     },
     "build": {
@@ -572,18 +506,18 @@
       "properties": {
         "outputDir": {
           "type": "string",
-          "description": "Output directory for generated files (e.g. 'dist', 'public', '.next')",
+          "description": "Output directory for generated files (e.g. 'dist', 'public', 'static')",
           "default": "dist"
         },
         "swFilename": {
           "type": "string",
-          "description": "Service worker output filename without version suffix (e.g. 'sw' produces sw-v1.2.3.js)",
+          "description": "Service worker output filename (without .js extension, e.g. 'sw' produces sw.js)",
           "default": "sw",
           "pattern": "^[a-zA-Z0-9-_]+$"
         },
         "precacheDirs": {
           "type": "object",
-          "description": "Additional directories to scan for precache assets. Keys are filesystem paths from project root. Values are objects with prefix and optional filter/transform options. Example: { \".next/static\": { \"prefix\": \"/_next/static\" }, \".next/server/app\": { \"prefix\": \"\", \"extensions\": [\".html\"], \"stripExtension\": true, \"stripSuffixes\": [\"index\"] } }",
+          "description": "Directories to scan for precache assets. Keys are filesystem paths from project root. When empty, no directory scanning occurs — only explicit fallback routes will be precached.",
           "default": {},
           "additionalProperties": {
             "type": "object",
@@ -605,7 +539,7 @@
               },
               "stripSuffixes": {
                 "type": "array",
-                "description": "Strip these path segments before the extension (e.g. [\"index\", \"page\"]). After extension stripping, each matching suffix is removed: /index → /, /about/index → /about/. Trailing slashes are then cleaned up for consistent cache key matching.",
+                "description": "Strip these path segments before the extension (e.g. [\"index\", \"page\"])",
                 "items": { "type": "string" },
                 "uniqueItems": true
               }

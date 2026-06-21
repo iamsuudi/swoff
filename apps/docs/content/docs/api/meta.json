@@ -4,13 +4,12 @@
     "fetch",
     "mutation",
     "cache",
+    "auth",
     "server-push",
     "graphql",
-    "auth",
     "pwa",
     "push-notification",
     "reset",
-    "storage",
-    "react-hooks"
+    "storage"
   ]
 }

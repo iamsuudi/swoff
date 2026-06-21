@@ -36,7 +36,8 @@ These are the "sockets" Swoff provides. Listen with `window.addEventListener(eve
 | `background-sync-complete`  | `{ succeeded: number, failed: number }`                             | Background sync event finished                          |
 | `push-subscription-changed` | `{ subscribed: boolean }`                                           | Push subscription added or removed                      |
 | `push-permission-changed`   | `{ permission: NotificationPermission }`                            | Notification permission granted or denied               |
-| `sw-offline-fallback`       | `{ url: string, fallbackLevel: string }`                            | SW served an offline fallback page                      |
+| `app-connectivity-change` | `{ online: boolean }`                                               | Verified connectivity changed (from connectivity-manager heartbeat) |
+| `swoff:offline-fallback`    | `{ route: string, fallbackLevel: string, timestamp: number }`      | SW served an offline fallback page                      |
 
 ## Window properties
 
@@ -83,11 +84,10 @@ These are the standard adapters. Each maps directly to the events above:
 
 | Adapter                | Listens to                                                   | Exposes                                                     |
 | ---------------------- | ------------------------------------------------------------ | ----------------------------------------------------------- |
-| `useNetworkStatus`     | `window` online/offline events                               | `online`, `wasOffline`, `effectiveType`, `retry`            |
+| `useNetworkStatus`     | `app-connectivity-change`, `navigator.connection` `change`   | `online`, `wasOffline`, `lastChangedAt`, `effectiveType`, `downlink`, `isRetrying`, `retry` |
 | `useCachedFetch`       | `cache-invalidated`                                          | `data`, `isLoading`, `error`, `fromCache`, `refetch`        |
 | `useSWUpdate`          | `sw-update-available`, `sw-progress`, `sw-ready`, `sw-error` | `updateStatus`, `progress`, `acceptUpdate`, `dismissUpdate` |
 | `useAuth`              | `sw-auth-state-change`                                       | `authenticated`, `auth`, `online`, `setAuth`, `clearAuth`   |
-| `useCacheInvalidation` | `cache-invalidated`                                          | `invalidateByTag`, `invalidateByTags`                       |
 | `useMutationQueue`     | `mutation-queue-changed`                                     | `pending`, `items`, `isProcessing`, `retryAll`              |
 | `usePushSubscription`  | `push-subscription-changed`, `push-permission-changed`       | `subscribed`, `permission`, `subscribe`, `unsubscribe`      |
 | `useBackgroundSync`    | `background-sync-complete`                                   | `supported`, `registered`, `triggerSync`                    |
@@ -96,8 +96,7 @@ These are the standard adapters. Each maps directly to the events above:
 | `useMutation`          | —                                                            | `mutate` (calls `fetchWithCache`)                           |
 | `useMutationState`     | `mutation-queue-changed`                                     | `states`, `track`, `getState`                               |
 | `useSwoffReset`        | —                                                            | `reset` (calls `resetSwoff`)                                |
-| `useIsFetching`        | —                                                            | `isFetching`, `fetchCount`                                  |
-| `useOfflineAnalytics`  | `sw-offline-fallback`                                        | `events`, `lastEvent`                                       |
+| `useOfflineAnalytics`  | `swoff:offline-fallback` (or SW message `OFFLINE_FALLBACK_ACTIVATED`) | `lastEvent`, `events`, `clear`                     |
 | `useStorageEstimate`   | —                                                            | `usage`, `quota`, `percentUsed`                             |
 
 ## Prerequisites

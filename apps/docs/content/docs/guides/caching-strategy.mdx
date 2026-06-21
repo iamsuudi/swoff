@@ -1,10 +1,13 @@
 ---
 title: Caching Strategies
-description: 6 strategies, patterns, reactive deep-dive, timeout, cache eviction.
-icon: Layers
+description: 6 strategies, patterns, reactive, timeout, cache eviction.
 ---
 
 Swoff provides 6 caching strategies that run in the Service Worker. Every fetch event is intercepted, matched against your configured patterns, and handled by the appropriate strategy — no manual route registration needed.
+
+> **This guide is purely conceptual.** You don't need to import any swoff API for caching strategies to work. Everything here is configured in `swoff.config.json`. Strategies activate automatically once the Service Worker is registered via `initServiceWorker()`. No code changes required — works the same in React, PHP/Laravel, HTMX, or vanilla HTML.
+
+For the internal mechanics of strategy resolution, `serveFromCache`, the fallback chain, the reactive entry lifecycle, and navigation mode rules, see the [Caching System architecture](/docs/architecture/caching).
 
 ## Preconditions
 
@@ -55,59 +58,7 @@ Swoff provides 6 caching strategies that run in the Service Worker. Every fetch 
 | `network-only`           | Bypasses SW entirely (early return). Browser handles the request directly. Never cached.                                                                            | Non-cacheable requests, analytics beacons       |
 | `reactive`               | Cache hit + fresh (within `staleTime`) → serve. Cache hit + stale → serve + background refresh. Cache miss → fetch and cache. Refreshes only when past `staleTime`. | Dashboard data, polling, focus/refetch patterns |
 
-## How each strategy decides
-
-Each strategy follows a different pipeline — when to hit the network, when to serve from cache, and when to fall back:
-
-```mermaid
-flowchart TD
-    Request[Incoming fetch] --> Resolve{Resolve strategy}
-    Resolve -->|Header override| H[Use X-SW-Strategy]
-    Resolve -->|Pattern match| P[First matching glob]
-    Resolve -->|Default| D[Use strategy.default]
-    H --> Type
-    P --> Type
-    D --> Type
-
-    Type{Which strategy?} -->|cache-first| CF{Cache hit?}
-    CF -->|Yes| CFHit[Serve from cache]
-    CF -->|No| CFFetch[Fetch + cache]
-
-    Type -->|network-first| NF[Fetch from network]
-    NF -->|Success| NFServe[Serve response]
-    NF -->|Fail| NFCache{Cache hit?}
-    NFCache -->|Yes| NFServe
-    NFCache -->|No| NFFallback[Fallback]
-
-    Type -->|stale-while-revalidate| SWR{Cache hit?}
-    SWR -->|Yes| SWRHit[Serve from cache + background refresh]
-    SWR -->|No| SWRFetch[Fetch from network]
-
-    Type -->|cache-only| CO{Cache hit?}
-    CO -->|Yes| COHit[Serve from cache]
-    CO -->|No| COFallback[Fallback]
-
-    Type -->|network-only| NO[Bypass SW entirely]
-    NO --> Browser[Browser handles request]
-
-    Type -->|reactive| R{Cache hit?}
-    R -->|Yes| RFresh{Within staleTime?}
-    RFresh -->|Yes| RServe[Serve from cache]
-    RFresh -->|No| RStale[Serve stale + background refresh]
-    R -->|No| RFetch[Fetch + cache]
-```
-
-## The strategy is resolved in this priority order:
-
-- **Header override** — `X-SW-Strategy` header on the request
-- **Pattern match** — first matching glob in `strategy.patterns`
-- **Default** — `strategy.default` value
-
-### 1. Default strategy
-
-The default strategy is used when no pattern matches or a header override is present.
-
-### 2. Pattern matching
+## Pattern matching
 
 URL patterns use glob syntax:
 
@@ -137,135 +88,75 @@ Patterns can be a strategy name string or an object with per-route overrides:
 }
 ```
 
-Per-route overrides:
+## Request-level overrides
 
-| Option               | Type    | Default                                | Description                                             |
-| -------------------- | ------- | -------------------------------------- | ------------------------------------------------------- |
-| `timeout`            | number  | `strategy.timeout`                     | Fetch timeout in seconds                                |
-| `staleTime`          | number  | `reactive.defaults.staleTime`          | Seconds before cached response is stale (reactive only) |
-| `refetchInterval`    | number  | `reactive.defaults.refetchInterval`    | Poll interval in seconds (reactive only)                |
-| `refetchOnFocus`     | boolean | `reactive.defaults.refetchOnFocus`     | Refetch when tab regains focus (reactive only)          |
-| `refetchOnReconnect` | boolean | `reactive.defaults.refetchOnReconnect` | Refetch when network returns (reactive only)            |
+Any HTTP client (native `fetch`, Axios, HTMX, PHP, curl) can override strategy behavior at call time by sending these headers:
 
-### 3. Request-level overrides
-
-The third priority — a per-request header that bypasses all config. The client can override strategy behavior at call time via `fetchWithCache` options:
-
-```ts
-import { fetchWithCache } from "./swoff/fetch/core";
-
-// Override strategy for this request
-const { response } = await fetchWithCache("/api/notes", {
-  strategy: "reactive",
-  staleTime: 30,
-  refetchInterval: 60,
-  refetchOnFocus: true,
-  refetchOnReconnect: true,
-});
+```bash
+X-SW-Strategy: stale-while-revalidate
+X-SW-Stale-Time: 30
+X-SW-Refetch-Interval: 60
 ```
 
-```ts
-// Per-request header override — bypasses all pattern matching and default strategy
+```js
+// Browser — native fetch
 fetch("/api/notes", {
-  headers: { "X-SW-Strategy": "stale-while-revalidate" },
+  headers: { "X-SW-Strategy": "reactive" },
 });
+
+// HTMX — via hx-headers
+<button hx-get="/api/notes" hx-headers='{"X-SW-Strategy": "network-first"}'>
+  Load Notes
+</button>;
 ```
 
-These values are sent as headers (`X-SW-Strategy`, `X-SW-Stale-Time`, `X-SW-Refetch-Interval`, `X-SW-Refetch-On-Focus`, `X-SW-Refetch-On-Reconnect`) and are read by the SW's `determineCacheStrategy`. The `refetch*` and `staleTime` options only apply to the `reactive` strategy — other strategies ignore them.
+Available headers: `X-SW-Strategy`, `X-SW-Stale-Time`, `X-SW-Refetch-Interval`, `X-SW-Refetch-On-Focus`, `X-SW-Refetch-On-Reconnect`. The `refetch*` and `staleTime` options only apply to the `reactive` strategy — other strategies ignore them.
 
-## Reactive strategy deep dive
-
-The reactive strategy implements stale-while-revalidate with staleness awareness via the `X-SW-Cached-At` header. Unlike plain `stale-while-revalidate` (which always refreshes), reactive only refreshes when the cached response is past `staleTime`. It also supports timer-based polling and focus/reconnect triggers.
-
-### 1. How it works
-
-1. On first request, the response is fetched from network and cached
-1. On subsequent requests within `staleTime`, the cached response is served immediately
-1. After `staleTime` elapses, the cached response is still served but a background refresh is queued
-1. If `refetchInterval` is set, background refreshes happen on a timer
-1. If `refetchOnFocus` is set, a refresh is triggered when the tab regains focus
-1. If `refetchOnReconnect` is set, a refresh is triggered when the network comes back
-
-```
-Timeline:
-  Request A  →  serve from network, cache, register reactive entry
-  30s later  →  staleTime expires
-  Request B  →  serve stale cache, queue background refresh
-  Background →  fetch fresh, update cache
-  Tab focus  →  refetchOnFocus triggers another refresh
-```
-
-### 2. Reactive entry lifecycle
-
-When a reactive strategy match is found, the SW registers a reactive entry:
-
-```ts
-// Inside the SW — automatic
-registerReactiveEntry(cacheKey, actualUrl, {
-  staleTime: 30,
-  refetchInterval: 60,
-  refetchOnFocus: true,
-  refetchOnReconnect: false,
-});
-```
-
-The entry tracks the URL for automatic background refreshes. Intervals are cleaned up on SW deactivation.
-
-### 3. Reactive defaults
+## Config
 
 ```json
 {
-  "reactive": {
-    "defaults": {
-      "staleTime": 0,
-      "refetchInterval": 0,
-      "refetchOnReconnect": false,
-      "refetchOnFocus": false
+  "features": {
+    "serviceWorker": {
+      "strategy": {
+        "default": "cache-first",
+        "timeout": 10,
+        "maxRuntimeCacheAge": 2592000,
+        "normalizeKey": false,
+        "ignoreQueryParams": [],
+        "patterns": {},
+        "reactive": {
+          "defaults": {
+            "staleTime": 0,
+            "refetchInterval": 0,
+            "refetchOnReconnect": false,
+            "refetchOnFocus": false
+          }
+        }
+      }
     }
   }
 }
 ```
 
-Setting `staleTime: 0` means every request after the first one is considered stale and triggers a background refresh while serving the cached response.
-
-## Other strategy config fields
-
-### 1. Timeout
-
-The global `timeout` setting (default 10s) applies to all fetch requests from the SW. If a fetch doesn't respond within this time, the strategy's fallback logic kicks in (e.g., `network-first` would return cached content).
-
-### 2. Cache eviction
-
-Runtime caches have automatic eviction controlled by `maxRuntimeCacheAge` (default 30 days). Entries older than this are pruned during the `activate` event.
-
-```json
-{
-  "strategy": {
-    "maxRuntimeCacheAge": 2592000,
-    "clearRuntimeOnUpdate": false
-  }
-}
-```
-
-Set `clearRuntimeOnUpdate: true` to wipe all runtime caches when a new SW version activates.
-
-### 3. Cache key normalization
-
-```json
-{
-  "strategy": {
-    "normalizeKey": false,
-    "ignoreQueryParams": ["_rsc"]
-  }
-}
-```
-
-- `ignoreQueryParams` — strips specified query params from the cache key (e.g., `_rsc` for Next.js RSC payloads)
-- `normalizeKey` — sorts query params alphabetically before hashing the cache key
+- `strategy.default` — fallback strategy when no pattern matches or header override is present. One of: `"cache-first"`, `"network-first"`, `"stale-while-revalidate"`, `"cache-only"`, `"network-only"`, `"reactive"`.
+- `strategy.timeout` — fetch timeout in seconds applied to all SW-initiated network requests. Default: `10`. If the fetch doesn't respond within this time, the strategy falls back (e.g., `network-first` returns cached content).
+- `strategy.maxRuntimeCacheAge` — maximum age in seconds for runtime-cached entries. Default: `2592000` (30 days). Older entries are pruned during SW activation.
+- `strategy.normalizeKey` — sort query parameters alphabetically before hashing the cache key. Default: `false`.
+- `strategy.ignoreQueryParams` — array of query parameter names to strip from the cache key (e.g. `["_rsc"]` for Next.js RSC payloads).
+- `strategy.patterns` — URL glob pattern → strategy config or strategy name. When the value is an object (per-route override):
+  - `strategy` — the strategy to apply
+  - `timeout` — per-route fetch timeout override (inherits `strategy.timeout`)
+  - `staleTime` — seconds before a cached response is considered stale (reactive only). `0` means every request after the first triggers a background refresh.
+  - `refetchInterval` — poll interval in seconds (reactive only)
+  - `refetchOnFocus` — refetch when tab regains focus (reactive only)
+  - `refetchOnReconnect` — refetch when network returns (reactive only)
+- `strategy.reactive.defaults.staleTime` — default: `0`.
+- `strategy.reactive.defaults.refetchInterval` — default: `0` (no polling).
+- `strategy.reactive.defaults.refetchOnReconnect` — default: `false`.
+- `strategy.reactive.defaults.refetchOnFocus` — default: `false`.
 
 ## Related
 
-- [Service Worker fundamentals: versioning, lifecycle, registration](/docs/guides/service-worker)
-- [Data fetching: fetchWithCache, prefetchCache](/docs/guides/data-fetching)
-- [Navigation caching: SPA/SSR modes, preloading, fallback](/docs/guides/navigation-caching)
-- [Config reference: strategy patterns](/docs/config#featuresserviceworkerstrategy)
+- [Caching System architecture](/docs/architecture/caching) — strategy resolution flow, reactive entry lifecycle, navigation `serveFromCache` and fallback chain, HTML cache isolation
+- [Full Caching comparison](/docs/comparisons/caching-and-data) — Swoff vs TanStack Query / SWR / Workbox, Serwist / Client Databases

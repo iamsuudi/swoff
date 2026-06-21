@@ -141,16 +141,7 @@ export function generateGuide(ctx: GuideContext): string[] {
   lines.push("");
   lines.push(`    // Invalidate after mutations`);
   lines.push('    await invalidateUrl("/api/todos/42");');
-  if (isReact) {
-    lines.push("");
-    lines.push("  React hook generated in swoff/adapters/useCacheInvalidation.tsx:");
-    lines.push(`    import { useCacheInvalidation } from "../swoff/adapters/useCacheInvalidation.${ext}x";`);
-    lines.push("");
-    lines.push("    function InvalidateButton() {");
-    lines.push('      const { invalidateUrl } = useCacheInvalidation();');
-    lines.push('      return <button onClick={() => invalidateUrl("/api/todos")}>Refresh</button>;');
-    lines.push("    }");
-  }
+
 
   return lines;
 }

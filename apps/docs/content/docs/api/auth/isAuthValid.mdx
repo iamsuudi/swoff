@@ -1,0 +1,14 @@
+---
+title: isAuthValid
+description: Check if auth exists and is not expired.
+---
+
+## `isAuthValid(auth)`
+
+From `swoff/auth/store.ts`. Returns `true` if auth exists and `expiresAt` (if set) is in the future.
+
+```ts
+import { isAuthValid } from "swoff/auth/store";
+
+if (isAuthValid(auth)) { /* valid */ }
+```

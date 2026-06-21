@@ -1,0 +1,15 @@
+{
+  "title": "cache",
+  "pages": [
+    "invalidateByTag",
+    "invalidateByTags",
+    "generateTags",
+    "generateTagsFromMethod",
+    "invalidateUrl",
+    "invalidateByMethod",
+    "expandCascading",
+    "getUrlsForTag",
+    "getTagsForUrl",
+    "invalidateMatching"
+  ]
+}

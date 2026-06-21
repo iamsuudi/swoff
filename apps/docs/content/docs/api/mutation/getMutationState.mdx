@@ -1,0 +1,14 @@
+---
+title: getMutationState
+description: Current mutation state by ID.
+---
+
+## `getMutationState(id)`
+
+From `swoff/mutation/state.ts`.
+
+```ts
+import { getMutationState } from "swoff/mutation/state";
+```
+
+Returns `{ status: 'pending' | 'in-flight' | 'completed' | 'failed', error?, rollbackData? }` or `undefined`.

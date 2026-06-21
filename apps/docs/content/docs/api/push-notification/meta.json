@@ -1,0 +1,10 @@
+{
+  "title": "push-notification",
+  "pages": [
+    "subscribeToPush",
+    "unsubscribeFromPush",
+    "isSubscribed",
+    "getPushSubscription",
+    "requestNotificationPermission"
+  ]
+}

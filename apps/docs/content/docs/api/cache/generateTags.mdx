@@ -1,0 +1,12 @@
+---
+title: generateTags
+description: Extract tags from a URL path.
+---
+
+## `generateTags(url)`
+
+From `swoff/cache/tags.ts`. Extract tags from URL path. `/api/todos/42` → `["todos", "todo:42"]`.
+
+```ts
+import { generateTags } from "swoff/cache/tags";
+```

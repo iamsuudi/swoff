@@ -1,0 +1,12 @@
+---
+title: flushMutations
+description: Manual flush, return results.
+---
+
+## `flushMutations(options?)`
+
+From `swoff/mutation/queue.ts`. Flush (`flushMutations`) reads and processes all pending mutations, returning per-item `{ id, status, response?, error? }`.
+
+```ts
+import { flushMutations } from "swoff/mutation/queue";
+```

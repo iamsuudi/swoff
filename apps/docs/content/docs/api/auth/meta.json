@@ -1,0 +1,14 @@
+{
+  "title": "auth",
+  "pages": [
+    "adapter",
+    "setAuth",
+    "getAuth",
+    "clearAuth",
+    "clearMemoryAuth",
+    "isAuthValid",
+    "ensureValidAuth",
+    "withAuthHeaders",
+    "getAuthState"
+  ]
+}

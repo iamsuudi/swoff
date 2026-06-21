@@ -1,0 +1,48 @@
+---
+title: mutation
+description: Offline mutation queue, mutation state tracking, and sync manager.
+---
+
+From `swoff/mutation/`.
+
+<Cards>
+  <Card title="queueMutation" href="queueMutation">
+    Register for offline replay (IndexedDB).
+  </Card>
+  <Card title="processMutationQueue" href="processMutationQueue">
+    Drain the offline queue.
+  </Card>
+  <Card title="flushMutations" href="flushMutations">
+    Manual flush, return results.
+  </Card>
+  <Card title="getPendingCount" href="getPendingCount">
+    Number of pending mutations.
+  </Card>
+  <Card title="getQueuePosition" href="getQueuePosition">
+    Position of a pending mutation by ID.
+  </Card>
+  <Card title="getQueueItems" href="getQueueItems">
+    Full list of queued items.
+  </Card>
+  <Card title="startMutation" href="startMutation">
+    Optimistic start.
+  </Card>
+  <Card title="trackMutation" href="trackMutation">
+    Track mutation lifecycle with status and rollback.
+  </Card>
+  <Card title="getMutationState" href="getMutationState">
+    Current mutation state by ID.
+  </Card>
+  <Card title="clearMutationState" href="clearMutationState">
+    Remove mutation state.
+  </Card>
+  <Card title="onMutationStateChange" href="onMutationStateChange">
+    Subscribe to mutation state changes.
+  </Card>
+  <Card title="syncWhenPossible" href="syncWhenPossible">
+    Defer queue drain until online, then process.
+  </Card>
+  <Card title="retrySync" href="retrySync">
+    Force retry of all failed mutations.
+  </Card>
+</Cards>

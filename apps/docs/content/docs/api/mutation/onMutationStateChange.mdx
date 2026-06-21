@@ -1,0 +1,14 @@
+---
+title: onMutationStateChange
+description: Subscribe to mutation state changes.
+---
+
+## `onMutationStateChange(callback)`
+
+From `swoff/mutation/state.ts`.
+
+```ts
+import { onMutationStateChange } from "swoff/mutation/state";
+```
+
+Returns an unsubscribe function. Callback receives `{ id, status, error?, rollbackData? }`.

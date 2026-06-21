@@ -21,7 +21,7 @@ swoff init --framework react-spa   # override auto-detection
 
 | Flag          | Type                                                                                                                                                   | Description                       |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
-| `--framework` | `"react-spa"` \| `"nextjs"` \| `"remix"` \| `"tanstack-start-react"` \| `"astro"` \| `"nuxt"` \| `"sveltekit"` \| `"vue"` \| `"svelte"` \| `"vanilla"` | Override framework auto-detection |
+| `--framework` | `"react-spa"` \| `"nextjs"` \| `"remix"` \| `"tanstack-start-react"` \| `"astro"` \| `"nuxt"` \| `"sveltekit"` \| `"vue"` \| `"svelte"` \| `"laravel"` \| `"django"` \| `"flask"` \| `"rails"` \| `"go"` \| `"vanilla"` | Override framework auto-detection |
 
 ---
 
@@ -55,7 +55,6 @@ All files land in `swoff/`. See [API Reference](/docs/api) for the full referenc
 | `connectivity.{ts\|js}`            | always                                                                        | Online/offline detection with HEAD heartbeat                                            |
 | `db.{ts\|js}`                      | always                                                                        | IndexedDB database open/init helpers                                                    |
 | `fetch/core.{ts\|js}`              | always                                                                        | Unified fetch with caching, auth, offline queue, auto-invalidation                      |
-| `fetch/state.{ts\|js}`             | always                                                                        | Global fetch counter (`getFetchCount`)                                                  |
 | `cache/invalidate.{ts\|js}`        | always                                                                        | `invalidateByTag()` / `invalidateByTags()`                                              |
 | `cache/tags.{ts\|js}`              | always                                                                        | Tag generation helpers from URL paths                                                   |
 | `storage.{ts\|js}`                 | always                                                                        | Storage estimation (`getStorageEstimate` / `formatBytes`)                               |
@@ -74,8 +73,8 @@ All files land in `swoff/`. See [API Reference](/docs/api) for the full referenc
 | `sw/template.js`                   | always                                                                        | Service worker source — runs in SW scope                                                |
 | `sw/injector.{ts\|js}`             | always                                                                        | SW registration logic                                                                   |
 | `sw/generator.js`                  | always                                                                        | Build-time script — embeds asset hashes                                                 |
-| `sw/version.{ts\|js}`              | always                                                                        | `SW_VERSION` constant for cache busting                                                 |
-| `adapters/*.tsx`                   | React-based framework (react-spa, nextjs, remix, tanstack-start-react, astro) | React hooks (see [API Reference](/docs/api/react-hooks))                                |
+| `sw/version.{ts\|js}`              | always                                                                        | `SW_VERSION` constant — embedded in SW for display / debugging                         |
+| `adapters/*.tsx`                   | React-based framework only                                                  | React hooks. Other frameworks use `window.addEventListener` (see [Blueprint](/docs/frameworks/blueprint)) |
 | `swoff.d.ts`                       | TypeScript                                                                    | TypeScript declarations                                                                 |
 | `GUIDE.md`                         | always                                                                        | Documentation links and quick-start info                                                |
 
@@ -191,8 +190,8 @@ For Node.js projects, add it to your `package.json` build script:
 
 The generator:
 
-1. Reads `swoff.config.json` for output dir, version, and strategy config
+1. Reads `swoff.config.json` for output dir and strategy config
 2. Reads `sw/template.js` — the service worker source code
 3. Collects all built assets from the output directory
 4. Replaces placeholders (`[[CACHE_NAME]]`, `[[ASSETS_LIST]]`, `[[AUTO_SKIP_WAITING]]`) with actual values
-5. Writes the final versioned SW file (e.g. `dist/sw-v1.2.3.js`)
+5. Writes the final SW file (`dist/sw.js`)

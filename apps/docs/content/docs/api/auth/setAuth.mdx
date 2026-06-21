@@ -1,0 +1,14 @@
+---
+title: setAuth
+description: Store auth data in memory and IndexedDB.
+---
+
+## `setAuth(authData)`
+
+From `swoff/auth/store.ts`. Persists auth to memory + IndexedDB (user info only).
+
+```ts
+import { setAuth } from "swoff/auth/store";
+
+await setAuth({ token: "…", user: { name: "Alice" }, expiresAt: Date.now() + 3600000 });
+```

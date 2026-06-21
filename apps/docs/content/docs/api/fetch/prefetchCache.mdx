@@ -1,0 +1,13 @@
+---
+title: prefetchCache
+description: Fire-and-forget cache warm.
+---
+
+## `prefetchCache(input, options?)`
+
+From `swoff/fetch/core.ts`. Fire-and-forget prefetch to warm the cache. Silently swallows errors.
+
+```ts
+prefetchCache("/api/todos");
+prefetchCache("/api/todos");
+```

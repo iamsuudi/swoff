@@ -1,0 +1,12 @@
+---
+title: syncWhenPossible
+description: Defer queue drain until online, then process.
+---
+
+## `syncWhenPossible(options?)`
+
+From `swoff/mutation/sync.ts`. Defers queue drain until `navigator.onLine`. Processes the queue in FIFO order. Calls `processMutationQueue`. Listens for `online` event if offline.
+
+```ts
+import { syncWhenPossible } from "swoff/mutation/sync";
+```

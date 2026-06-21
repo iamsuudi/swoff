@@ -32,6 +32,8 @@ Swoff implements 6 caching strategies that execute in the SW `fetch` event handl
 
 **Workbox:** 5 strategies (same as Swoff minus `reactive`), also SW-level, using Cache Storage API. Lacks 3-tier resolution, per-request override via headers, and reactive strategy.
 
+**Serwist:** A modern, Next.js-first evolution of Workbox with a similar strategy set but tighter framework integration. Same 5 strategies at the SW level, using Cache Storage API. Adds Next.js App Router awareness (prefetch, RSC caching) and a plugin-based API. Not config-driven — code-only setup via JavaScript/TypeScript. No per-request header override, no reactive strategy, no 3-tier resolution.
+
 **Apollo Client:** No explicit caching strategies. `InMemoryCache` is a normalized GraphQL cache with fetch policies. App-level only — does not affect native `fetch` caching or offline HTML access.
 
 **Client DBs (RxDB, TanStack DB, ElectricSQL, PowerSync):** Embed a local database engine (IndexedDB, SQLite WASM, PGlite) and replicate server data through a sync engine. The app reads and writes to the local DB as if it were primary storage.
@@ -47,24 +49,24 @@ Swoff implements 6 caching strategies that execute in the SW `fetch` event handl
 
 ## Comparison table
 
-| Aspect                        | Swoff                                       | TanStack Query / SWR               | Workbox                         | Client DBs (RxDB, TanStack DB, ElectricSQL, PowerSync) |
-| ----------------------------- | ------------------------------------------- | ---------------------------------- | ------------------------------- | ------------------------------------------------------ |
-| **Paradigm**                  | SW HTTP cache                               | App-layer stale-while-revalidate   | SW HTTP cache                   | Client DB + sync engine                                |
-| **Cache scope**               | Any HTTP response (HTML, assets, REST, GQL) | Only data passed to `queryFn`      | Any HTTP response               | Only data in synced collections                        |
-| **Offline app skeleton**      | ✅ Built-in (SW caches HTML/CSS/JS)         | ❌ Not provided                    | ✅ Built-in                     | ❌ Requires separate SW                                |
-| **Server as source of truth** | ✅ Yes — cache is ephemeral                 | 🟡 Stale data lives until refetch  | ✅ Yes — cache is ephemeral     | ❌ Each client has its own DB version                  |
-| **Real-time mechanism**       | SSE/WebSocket server push                   | Polling on refetchInterval         | ❌ None                         | Polling-based sync                                     |
-| **Cache invalidation**        | Tag-based + server push + auto on mutation  | Query-key based                    | URL-based                       | Manual or replication                                  |
-| **Schema required**           | ✅ No                                       | ✅ No                              | ✅ No                           | ❌ Yes (client + server schemas)                       |
-| **Dual-DB management**        | ✅ None                                     | ✅ None                            | ✅ None                         | ❌ Must keep client and server schemas in sync         |
-| **Client-side queries**       | Server-shaped only                          | In-memory cache only               | Server-shaped only              | SQL + joins + aggregation                              |
-| **WASM download**             | ✅ None                                     | ✅ None                            | ✅ None                         | ❌ 2–3 MB gzip                                         |
-| **Privacy-safe logout**       | ✅ `clearAuth()` wipes all caches           | ❌ Memory persists until tab close | ❌ Cache persists               | ❌ Data survives across sessions                       |
-| **Full system reset**        | ✅ `resetSwoff()` — caches + IDB + localStorage + SW unregister/re-register | ❌ `queryClient.clear()` clears in-memory cache only | ❌ Manual cache deletion only | ❌ No equivalent                                       |
-| **Native fetch interception** | ✅ Every `fetch()` on the page              | ❌ Only through `queryFn`          | ✅ Every `fetch()` on the page  | ❌ Bypasses cache                                      |
-| **Third-party API caching**   | ✅ Yes                                      | ❌ No                              | ✅ Yes                          | ❌ No                                                  |
-| **Runtime deps**              | 0 kB (generated code)                       | ~3.8 kB gzip                       | ~30 kB SW runtime               | ~40 kB gzip + WASM                                     |
-| **Setup cost**                | 1 config file                               | Query client + hooks setup         | Config + imports                | Schema + DB + sync engine + server adapter             |
+| Aspect                        | Swoff                                       | TanStack Query / SWR               | Workbox                         | Serwist                         | Client DBs (RxDB, TanStack DB, ElectricSQL, PowerSync) |
+| ----------------------------- | ------------------------------------------- | ---------------------------------- | ------------------------------- | ------------------------------- | ------------------------------------------------------ |
+| **Paradigm**                  | SW HTTP cache                               | App-layer stale-while-revalidate   | SW HTTP cache                   | SW HTTP cache                   | Client DB + sync engine                                |
+| **Cache scope**               | Any HTTP response (HTML, assets, REST, GQL) | Only data passed to `queryFn`      | Any HTTP response               | Any HTTP response (HTML, assets, REST, GQL)            | Only data in synced collections                        |
+| **Offline app skeleton**      | ✅ Built-in (SW caches HTML/CSS/JS)         | ❌ Not provided                    | ✅ Built-in                     | ✅ Built-in (SW caches HTML/CSS/JS)                    | ❌ Requires separate SW                                |
+| **Server as source of truth** | ✅ Yes — cache is ephemeral                 | 🟡 Stale data lives until refetch  | ✅ Yes — cache is ephemeral     | ✅ Yes — cache is ephemeral                            | ❌ Each client has its own DB version                  |
+| **Real-time mechanism**       | SSE/WebSocket server push                   | Polling on refetchInterval         | ❌ None                         | ❌ None                         | Polling-based sync                                     |
+| **Cache invalidation**        | Tag-based + server push + auto on mutation  | Query-key based                    | URL-based                       | URL-based                       | Manual or replication                                  |
+| **Schema required**           | ✅ No                                       | ✅ No                              | ✅ No                           | ✅ No                            | ❌ Yes (client + server schemas)                       |
+| **Dual-DB management**        | ✅ None                                     | ✅ None                            | ✅ None                         | ✅ None                          | ❌ Must keep client and server schemas in sync         |
+| **Client-side queries**       | Server-shaped only                          | In-memory cache only               | Server-shaped only              | Server-shaped only              | SQL + joins + aggregation                              |
+| **WASM download**             | ✅ None                                     | ✅ None                            | ✅ None                         | ✅ None                          | ❌ 2–3 MB gzip                                         |
+| **Privacy-safe logout**       | ✅ `clearAuth()` wipes all caches           | ❌ Memory persists until tab close | ❌ Cache persists               | ❌ Cache persists                | ❌ Data survives across sessions                       |
+| **Full system reset**        | ✅ `resetSwoff()` — caches + IDB + localStorage + SW unregister/re-register | ❌ `queryClient.clear()` clears in-memory cache only | ❌ Manual cache deletion only | ❌ Manual cache deletion only | ❌ No equivalent                                       |
+| **Native fetch interception** | ✅ Every `fetch()` on the page              | ❌ Only through `queryFn`          | ✅ Every `fetch()` on the page  | ✅ Every `fetch()` on the page   | ❌ Bypasses cache                                      |
+| **Third-party API caching**   | ✅ Yes                                      | ❌ No                              | ✅ Yes                          | ✅ Yes                           | ❌ No                                                  |
+| **Runtime deps**              | 0 kB (generated code)                       | ~3.8 kB gzip                       | ~30 kB SW runtime               | ~35 kB SW runtime               | ~40 kB gzip + WASM                                     |
+| **Setup cost**                | 1 config file                               | Query client + hooks setup         | Config + imports                | Config + imports + framework setup | Schema + DB + sync engine + server adapter             |
 
 ## Offline Write Queue
 
@@ -101,18 +103,18 @@ Offline mutation → IndexedDB (queue)
 
 **Comparison:**
 
-| Feature                       | Swoff                                      | TanStack Query              | Workbox                  | RxDB / TanStack DB                                |
-| ----------------------------- | ------------------------------------------ | --------------------------- | ------------------------ | ------------------------------------------------- |
-| **Queue storage**             | IndexedDB (persistent)                     | In-memory (lost on close)   | IndexedDB                | Local DB (IDB / SQLite)                           |
-| **Survives tab close**        | ✅ Yes                                     | ❌ No                       | ✅ Yes                   | ✅ Yes                                            |
-| **Survives SW restart**       | ✅ Yes (Background Sync)                   | ❌ No SW                    | ✅ Yes (Background Sync) | N/A                                               |
-| **Per-mutation online check** | ✅ Before each replay                      | ❌ Not applicable           | ❌ Not applicable        | N/A (sync engine handles)                         |
-| **Batch processing**          | ✅ Configurable size + delay               | ❌ Not applicable           | ❌ Single replay         | N/A (continuous sync)                             |
-| **Retry with backoff**        | ✅ Exponential                             | 🟡 Basic retry (no backoff) | ✅ Basic retry           | N/A (continuous sync)                             |
-| **Queue introspection**       | ✅ Position, items, lastSync, isProcessing | ❌ Not supported            | ❌ Not supported         | ✅ Local DB queries                               |
-| **Progress events**           | ✅ Per-batch + per-item                    | ❌ Not supported            | ❌ Not supported         | ✅ Replication status                             |
-| **Dual-replay prevention**    | ✅ SW skips if client open                 | ❌ Not applicable           | ❌ May duplicate         | N/A                                               |
-| **Auth-aware replay**         | ✅ Silent refresh + stop on failure        | ❌ Not supported            | ❌ Not supported         | ❌ Not supported                                  |
-| **Conflict resolution**       | ❌ Last-write-wins only                    | ❌ Not applicable           | ❌ Not applicable        | ✅ CRDTs, custom merge                            |
-| **Schema coupling**           | ✅ No schema needed                        | ✅ No schema needed         | ✅ No schema needed      | ❌ Requires schema definition + migrations        |
-| **Bundle cost**               | 0 kB (generated code)                      | Included in ~20 kB          | ~30 kB                   | ~40 kB (RxDB) / ~6 kB + SQLite WASM (TanStack DB) |
+| Feature                       | Swoff                                      | TanStack Query              | Workbox                  | Serwist                  | RxDB / TanStack DB                                |
+| ----------------------------- | ------------------------------------------ | --------------------------- | ------------------------ | ------------------------ | ------------------------------------------------- |
+| **Queue storage**             | IndexedDB (persistent)                     | In-memory (lost on close)   | IndexedDB                | IndexedDB                 | Local DB (IDB / SQLite)                           |
+| **Survives tab close**        | ✅ Yes                                     | ❌ No                       | ✅ Yes                   | ✅ Yes                    | ✅ Yes                                            |
+| **Survives SW restart**       | ✅ Yes (Background Sync)                   | ❌ No SW                    | ✅ Yes (Background Sync) | ✅ Yes (Background Sync) | N/A                                               |
+| **Per-mutation online check** | ✅ Before each replay                      | ❌ Not applicable           | ❌ Not applicable        | ❌ Not applicable         | N/A (sync engine handles)                         |
+| **Batch processing**          | ✅ Configurable size + delay               | ❌ Not applicable           | ❌ Single replay         | ❌ Single replay          | N/A (continuous sync)                             |
+| **Retry with backoff**        | ✅ Exponential                             | 🟡 Basic retry (no backoff) | ✅ Basic retry           | ✅ Basic retry            | N/A (continuous sync)                             |
+| **Queue introspection**       | ✅ Position, items, lastSync, isProcessing | ❌ Not supported            | ❌ Not supported         | ❌ Not supported          | ✅ Local DB queries                               |
+| **Progress events**           | ✅ Per-batch + per-item                    | ❌ Not supported            | ❌ Not supported         | ❌ Not supported          | ✅ Replication status                             |
+| **Dual-replay prevention**    | ✅ SW skips if client open                 | ❌ Not applicable           | ❌ May duplicate         | ❌ May duplicate          | N/A                                               |
+| **Auth-aware replay**         | ✅ Silent refresh + stop on failure        | ❌ Not supported            | ❌ Not supported         | ❌ Not supported          | ❌ Not supported                                  |
+| **Conflict resolution**       | ❌ Last-write-wins only                    | ❌ Not applicable           | ❌ Not applicable        | ❌ Not applicable         | ✅ CRDTs, custom merge                            |
+| **Schema coupling**           | ✅ No schema needed                        | ✅ No schema needed         | ✅ No schema needed      | ✅ No schema needed       | ❌ Requires schema definition + migrations        |
+| **Bundle cost**               | 0 kB (generated code)                      | Included in ~20 kB          | ~30 kB                   | ~35 kB                   | ~40 kB (RxDB) / ~6 kB + SQLite WASM (TanStack DB) |

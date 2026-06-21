@@ -1,15 +1,17 @@
 ---
 title: Data Fetching & Caching
 description: fetchWithCache, prefetchCache, and React hooks for reactive data fetching.
-icon: Globe
 ---
 
 > **If you're coming from TanStack Query:** `fetchWithCache` is Swoff's equivalent of `useQuery` — it returns `{ response, fromCache }` instead of `{ data, isLoading }`. The key difference: caching happens in the Service Worker, not in JavaScript memory. Cached responses survive hard navigation, tab close, and full page reload. No provider wrapper needed. See the [full comparison](/docs/comparisons#data-fetching).
 
+> **This is the first guide that introduces a swoff API.** Caching Strategy and Navigation Caching (guides 2–3) require no imports — they work purely through `swoff.config.json`. Data fetching is where you start interacting with the cache programmatically.
+
 ## Preconditions
 
-- Swoff initialized (`swoff init` or `swoff add pwa` done)
+- Swoff initialized (`swoff init` done)
 - Service worker registered and controlling the page
+- Caching strategies configured (see [Caching Strategy guide](/docs/guides/caching-strategy))
 
 ## Status
 
@@ -27,15 +29,19 @@ The SW handles all `fetch` events — no manual route registration needed.
 | File                        | What it does                                   | Import in your code?                  |
 | --------------------------- | ---------------------------------------------- | ------------------------------------- |
 | `swoff/fetch/core.ts`       | `fetchWithCache()`, `prefetchCache()`          | Yes — main API                        |
-| `swoff/fetch/state.ts`      | `getFetchCount()` — in-flight request counter  | Yes, for loading spinners             |
 | `swoff/cache/invalidate.ts` | `invalidateByTag()`, `invalidateByTags()`      | Yes, for manual invalidation          |
 | `swoff/config.ts`           | `API_BASE` — base URL for relative fetch paths | Edit if your API is on another origin |
 
+> **No-bundler projects** (vanilla, Laravel, Django, Flask, Rails, Go, HTMX) do not generate `fetch/core.ts` or `cache/invalidate.ts`. Instead, the `swoff-api.bundle.js` IIFE provides `window.swoff.fetchWithCache()` and related APIs. Use native `fetch()` with `X-SW-*` headers to control caching per request (see below), or use the `window.swoff` API for programmatic cache access. The SW still intercepts all requests and applies your configured strategy.
+
 ## Usage
+
+`fetchWithCache` is a thin wrapper around the native `fetch()` API. It returns the same `{ response, fromCache }` shape regardless of your framework.
+
+### Plain JavaScript (works everywhere)
 
 ```ts
 import { fetchWithCache, prefetchCache } from "./swoff/fetch/core";
-import { getFetchCount } from "./swoff/fetch/state";
 
 // Fetch — cached in SW, survives hard nav
 const { response, fromCache } = await fetchWithCache("/api/notes");
@@ -47,9 +53,80 @@ const notes = await response.json();
 
 // Prefetch — fire-and-forget cache warm
 prefetchCache("/api/notes/123");
+```
 
-// Check if anything is fetching (for global loading indicator)
-const fetching = getFetchCount() > 0;
+### From React (generated hooks)
+
+If your framework is React-based, the CLI generates reactive hooks into `swoff/adapters/`:
+
+```tsx
+import { useCachedFetch } from "./swoff/adapters/useCachedFetch";
+
+function NotesList() {
+  const { data, isLoading, error, fromCache } = useCachedFetch("/api/notes");
+  if (isLoading) return <p>Loading...</p>;
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+See the [React framework page](/docs/frameworks/react) for the full adapter list, or the [Blueprint](/docs/frameworks/blueprint) to create adapters for any framework.
+
+### From HTMX (header-based)
+
+HTMX requests are regular HTTP fetches — the SW intercepts them automatically. Control caching strategy via `hx-headers`:
+
+```html
+<!-- Default strategy applies from swoff.config.json -->
+<button hx-get="/api/notes">Load Notes</button>
+
+<!-- Override strategy for this request -->
+<button hx-get="/api/notes" hx-headers='{"X-SW-Strategy": "network-first"}'>
+  Fresh Notes
+</button>
+```
+
+### From any framework (native fetch with headers)
+
+No swoff import needed for basic caching — the SW intercepts every `fetch` call automatically. Use `X-SW-*` headers for per-request control:
+
+```js
+// Plain fetch — SW applies strategy from config
+const res = await fetch("/api/notes");
+
+// With strategy override via header
+const res = await fetch("/api/notes", {
+  headers: { "X-SW-Strategy": "stale-while-revalidate" },
+});
+```
+
+### From PHP / Laravel / Django (server-rendered pages)
+
+Include the auto-initializing bundles in your template, then use native `fetch()` or the `window.swoff` API:
+
+```blade
+{{-- Laravel Blade --}}
+<script src="{{ asset('swoff/client-injector.bundle.js') }}"></script>
+<script src="{{ asset('swoff/swoff-api.bundle.js') }}"></script>
+<script>
+// Use the window.swoff API for programmatic caching
+const { response, fromCache } = await swoff.fetchWithCache("/api/notes");
+const notes = await response.json();
+
+// SW intercepts all fetch requests — caching works automatically
+const res = await fetch("/api/notes");
+
+// For per-request control, use X-SW-* headers:
+const fresh = await fetch("/api/notes", {
+  headers: { "X-SW-Strategy": "network-first" }
+});
+
+// Mark a request as a mutation via X-SW-Type header:
+const created = await fetch("/api/notes", {
+  method: "POST",
+  body: JSON.stringify({ title: "New" }),
+  headers: { "X-SW-Type": "mutation" }
+});
+</script>
 ```
 
 ## Customize
@@ -61,52 +138,57 @@ No generated files to edit for basic setup. All caching behavior is configured t
 ```json
 {
   "features": {
-    "requestBatchWindowMs": 50,
-    "serviceWorker": {
-      "strategy": {
-        "default": "cache-first",
-        "timeout": 10,
-        "patterns": {
-          "/api/*": {
-            "strategy": "reactive",
-            "staleTime": 30,
-            "refetchOnFocus": true
-          },
-          "/static/*": "cache-first"
-        },
-        "reactive": {
-          "defaults": {
-            "staleTime": 0,
-            "refetchInterval": 0,
-            "refetchOnReconnect": false,
-            "refetchOnFocus": false
-          }
-        },
-        "maxRuntimeCacheAge": 2592000,
-        "normalizeKey": false,
-        "ignoreQueryParams": [],
-        "clearRuntimeOnUpdate": false
-      }
-    }
+    "requestBatchWindowMs": 50
   }
 }
 ```
 
-See the [Caching Strategies guide](/docs/guides/caching-strategy) for the full list of strategies, pattern matching syntax, per-route overrides, timeout, and cache eviction.
+- `requestBatchWindowMs` — debounce window in milliseconds for coalescing rapid `fetchWithCache` calls to the same URL. Default: `50`. Prevents duplicate in-flight requests during rapid re-renders.
+
+Caching strategy configuration (default strategy, timeout, patterns, per-route overrides, cache eviction, cache key normalization, reactive defaults) is covered in the [Caching Strategies guide](/docs/guides/caching-strategy).
 
 ## Framework adapters
 
-See the [Framework Integration](/docs/frameworks) page for adapter usage in your ecosystem. React adapters are generated by the CLI into `swoff/adapters/`. Import and use them as needed:
+This section has two adapters:
 
-```ts
-import { useCachedFetch } from "./swoff/adapters/useCachedFetch";
-import { useIsFetching } from "./swoff/adapters/useIsFetching";
-import { usePrefetch } from "./swoff/adapters/usePrefetch";
+### `useCachedFetch`
+
+The primary data-fetching adapter. Exposes reactive request state: `{ data, isLoading, error, fromCache, refetch }`.
+
+**Events listened to:**
+
+| Event               | Detail shape | Purpose                                                          |
+| ------------------- | ------------ | ---------------------------------------------------------------- |
+| `cache-invalidated` | `{ tags }`   | Cache entries invalidated — refetch if your URL's tags intersect |
+
+**Building the adapter:**
+
+```js
+// Reactive state: { data, isLoading, error, fromCache, refetch }
+// 1. Initialize: data = null, isLoading = true, error = null, fromCache = false
+// 2. On mount: await fetchWithCache(url), update { data, isLoading, fromCache }
+// 3. Listen to cache-invalidated — refetch when tags change:
+window.addEventListener("cache-invalidated", (e) => {
+  // Check if e.detail.tags intersect with this URL's auto-tags
+  // If so, set isLoading = true, re-fetch, update state
+});
+// 4. refetch(): re-run fetchWithCache, update state
+// 5. Return { data, isLoading, error, fromCache, refetch }
 ```
+
+### `usePrefetch`
+
+Exposes a `prefetch(url)` function for fire-and-forget cache warming. No events needed — calls `swoff.prefetchCache()` directly.
+
+**Building the adapter:**
+
+```js
+// 1. prefetch(url): call prefetchCache(url)
+// 2. Return { prefetch }
+```
+
+**If your framework already has these adapters** (React): the CLI generates `useCachedFetch` and `usePrefetch` into `swoff/adapters/`. See the [React page](/docs/frameworks/react) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ## Related
 
-- [Navigation caching: SPA/SSR modes, preloading, fallback](/docs/guides/navigation-caching)
-- [Tag-based cache invalidation](/docs/guides/tag-invalidation)
-- [Service Worker fundamentals: versioning, lifecycle, registration](/docs/guides/service-worker)
-- [Config reference: strategy patterns](/docs/config#featuresserviceworkerstrategy)
+- [Full Data Fetching comparison](/docs/comparisons/caching-and-data#data-layer-http-caching-vs-client-databases): Swoff vs TanStack Query / SWR / Workbox, Serwist / Client Databases

@@ -1,0 +1,36 @@
+---
+title: auth
+description: Auth management — adapter, store, and state.
+---
+
+From `swoff/auth/`.
+
+<Cards>
+  <Card title="adapter" href="adapter">
+    createAuthAdapter factory with getAuth, getHeaders, refresh, fetchUser.
+  </Card>
+  <Card title="setAuth" href="setAuth">
+    Store auth data in memory and IndexedDB.
+  </Card>
+  <Card title="getAuth" href="getAuth">
+    Get auth data from memory, adapter, or IndexedDB.
+  </Card>
+  <Card title="clearAuth" href="clearAuth">
+    Clear auth from memory, IndexedDB, and SW caches.
+  </Card>
+  <Card title="clearMemoryAuth" href="clearMemoryAuth">
+    Null memory auth (cross-tab sync).
+  </Card>
+  <Card title="isAuthValid" href="isAuthValid">
+    Check if auth exists and is not expired.
+  </Card>
+  <Card title="ensureValidAuth" href="ensureValidAuth">
+    Get auth, returns null if invalid.
+  </Card>
+  <Card title="withAuthHeaders" href="withAuthHeaders">
+    Inject auth headers into a Headers object.
+  </Card>
+  <Card title="getAuthState" href="getAuthState">
+    Detect current auth state across online/offline x authenticated/not.
+  </Card>
+</Cards>

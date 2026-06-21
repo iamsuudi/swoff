@@ -1,0 +1,14 @@
+---
+title: trackMutation
+description: Track mutation lifecycle with status and rollback.
+---
+
+## `trackMutation(mutation, options?)`
+
+From `swoff/mutation/state.ts`. Wraps the mutation in a tracked lifecycle: start → fetch → complete/rollback.
+
+```ts
+import { trackMutation } from "swoff/mutation/state";
+```
+
+Runs the mutation through `fetchWithCache`. If it fails, calls rollback. Supports optimistic cache updates via `optimisticUpdate` / `revertOptimisticUpdate` callbacks.

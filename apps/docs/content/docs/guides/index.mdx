@@ -6,18 +6,104 @@ icon: BookOpen
 
 Walk through Swoff features step by step. Each guide is standalone — start with what you need, skip what you don't.
 
-| Guide                                                    | Related tools                    | What you'll integrate                                         |
-| -------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------- |
-| [1. Service Worker](/docs/guides/service-worker)         | Workbox / Serwist                | SW lifecycle, versioning, auto-activation, navigation preload |
-| [2. Caching Strategy](/docs/guides/caching-strategy)     | TanStack Query / SWR             | 6 strategies, patterns, reactive, timeout, eviction           |
-| [3. Data Fetching & Caching](/docs/guides/data-fetching) | TanStack Query / SWR             | fetchWithCache, stale-while-revalidate, prefetch              |
-| [4. Navigation Caching](/docs/guides/navigation-caching) | —                                | SPA/SSR navigation, preload, fallback, precache routes        |
-| [5. Auth](/docs/guides/auth)                             | —                                | Auth headers, 401 detection, token refresh, protected routes  |
-| [6. Tag Invalidation](/docs/guides/tag-invalidation)     | TanStack Query invalidateQueries | Auto-tags, glob patterns, cascading, cross-tab invalidation   |
-| [7. GraphQL](/docs/guides/graphql)                       | Apollo Client                    | Body-hash caching, operation-name auto-tags                   |
-| [8. Offline Mutations](/docs/guides/offline-mutations)   | RxDB / PouchDB                   | Queue writes offline, replay online, background-sync          |
-| [9. Push Notifications](/docs/guides/push-notifications) | Web Push API                     | Subscribe, notify, unsubscribe                                |
-| [10. Server Push](/docs/guides/server-push)              | Socket.io                        | SSE/WS from SW, live tag invalidation across all tabs         |
-| [11. PWA Foundation](/docs/guides/pwa)                   | Workbox / Serwist                | Install prompt, manifest, icons, storage estimate             |
+import { BookOpenIcon, DatabaseIcon, GlobeIcon } from "lucide-react";
 
-New to Swoff? Start with guides 1–2 — they're the foundation for everything else and are enabled by default after `swoff init`.
+## SW Infrastructure
+
+Works automatically for all frameworks — no imports needed.
+
+<Cards className="">
+  <Card
+    title="Service Worker"
+    icon={<BookOpenIcon className="text-blue-500" />}
+    href="/docs/guides/service-worker"
+  >
+    SW lifecycle, versioning, auto-activation, navigation preload.
+  </Card>
+  <Card
+    title="Caching Strategy"
+    icon={<BookOpenIcon className="text-blue-500" />}
+    href="/docs/guides/caching-strategy"
+  >
+    6 strategies, patterns, reactive, timeout, eviction.
+  </Card>
+  <Card
+    title="Navigation Caching"
+    icon={<BookOpenIcon className="text-blue-500" />}
+    href="/docs/guides/navigation-caching"
+  >
+    SPA/SSR navigation, preload, fallback, precache routes.
+  </Card>
+</Cards>
+
+## Client Data Layer
+
+Client-side data fetching for SPA and full-stack frameworks.
+
+<Cards className="">
+  <Card
+    title="Data Fetching & Caching"
+    icon={<DatabaseIcon className="text-emerald-500" />}
+    href="/docs/guides/data-fetching"
+  >
+    fetchWithCache, stale-while-revalidate, prefetch.
+  </Card>
+  <Card
+    title="GraphQL"
+    icon={<DatabaseIcon className="text-emerald-500" />}
+    href="/docs/guides/graphql"
+  >
+    Body-hash caching, operation-name auto-tags.
+  </Card>
+</Cards>
+
+## Browser-Native Features
+
+Run in the browser after rendering; consistent across all frameworks.
+
+<Cards className="">
+  <Card
+    title="Tag Invalidation"
+    icon={<GlobeIcon className="text-amber-500" />}
+    href="/docs/guides/tag-invalidation"
+  >
+    Auto-tags, glob patterns, cascading, cross-tab invalidation.
+  </Card>
+  <Card
+    title="Auth"
+    icon={<GlobeIcon className="text-amber-500" />}
+    href="/docs/guides/auth"
+  >
+    Auth headers, 401 detection, token refresh, protected routes.
+  </Card>
+  <Card
+    title="Offline Mutations"
+    icon={<GlobeIcon className="text-amber-500" />}
+    href="/docs/guides/offline-mutations"
+  >
+    Queue writes offline, replay online, background-sync.
+  </Card>
+  <Card
+    title="Push Notifications"
+    icon={<GlobeIcon className="text-amber-500" />}
+    href="/docs/guides/push-notifications"
+  >
+    Subscribe, notify, unsubscribe.
+  </Card>
+  <Card
+    title="Server Push"
+    icon={<GlobeIcon className="text-amber-500" />}
+    href="/docs/guides/server-push"
+  >
+    SSE/WS from SW, live tag invalidation across all tabs.
+  </Card>
+  <Card
+    title="PWA Foundation"
+    icon={<GlobeIcon className="text-amber-500" />}
+    href="/docs/guides/pwa"
+  >
+    Install prompt, manifest, icons, storage estimate.
+  </Card>
+</Cards>
+
+New to Swoff? Start with guides 1–3 — they require no imports and work purely through `swoff.config.json` after the client script runs.

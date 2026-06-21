@@ -1,0 +1,14 @@
+---
+title: withAuthHeaders
+description: Inject auth headers into a Headers object.
+---
+
+## `withAuthHeaders(headers, auth)`
+
+From `swoff/auth/store.ts`. Delegates to `adapter.getHeaders(auth)`.
+
+```ts
+import { withAuthHeaders } from "swoff/auth/store";
+
+const headers = withAuthHeaders(new Headers(), auth);
+```

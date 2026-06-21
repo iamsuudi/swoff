@@ -1,0 +1,16 @@
+---
+title: getAuthState
+description: Detect current auth state across online/offline x authenticated/not.
+---
+
+## `getAuthState()`
+
+From `swoff/auth/state.ts`.
+
+Returns `{ authenticated: boolean, auth: AuthData | null, online: boolean }`.
+
+```ts
+import { getAuthState } from "swoff/auth/state";
+
+const state = await getAuthState();
+```

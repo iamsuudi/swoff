@@ -1,6 +1,6 @@
 ---
-title: Motivation
-description: Why Swoff exists and how it fits any web stack.
+title: Overview
+description: Swoff generates offline-first infrastructure for any web stack.
 icon: Zap
 ---
 
@@ -11,23 +11,56 @@ npx @swoff/cli init --framework vanilla
 npx @swoff/cli generate
 ```
 
-## What Swoff does
+import {
+  BookOpenIcon,
+  CodeIcon,
+  CogIcon,
+  TerminalIcon,
+  SettingsIcon,
+  CableIcon,
+} from "lucide-react";
 
-Swoff works at the browser infrastructure layer — the Service Worker intercepts `fetch` events, caches HTTP responses, replays offline mutations, and keeps tabs in sync. This is below the application and data-fetching layers, so it composes with anything: React, Vue, Svelte, HTMX, or vanilla JS — and any backend (Laravel, Django, Rails, Go, PHP).
-
-## What Swoff does not do
-
-- **Not a runtime library** — the CLI generates code you own, zero KB in your bundle
-- **Not a backend framework** — bring your own server, no vendor lock-in
-- **Not an SSR framework** — focuses on browser APIs after the page loads
-
-## Why this approach
-
-Most offline-capable tools either lock you into a framework (TanStack Query), handle only the Service Worker (Workbox, Serwist), or force a dual-database architecture (RxDB, TanStack DB). Operating at the `fetch` event layer lets Swoff serve any framework, any rendering strategy, and any backend — with the generated code as the only dependency.
-
-## Next Steps
-
-- [Framework Integration](/docs/frameworks) — per-ecosystem config guides
-- [Ecosystem Compatibility](/docs/frameworks/ecosystem) — backend and framework support
-- [CLI Configuration](/docs/config) — full config reference
-- [Library Comparison](/docs/comparisons) — Swoff vs alternatives
+<Cards>
+  <Card
+    title="Integration Guides"
+    icon={<BookOpenIcon />}
+    href="/docs/guides"
+  >
+    Step-by-step walkthroughs — Service Worker, caching, auth, offline mutations, and more.
+  </Card>
+  <Card
+    title="API Reference"
+    icon={<CodeIcon />}
+    href="/docs/api"
+  >
+    Every generated function: fetch, cache, mutation, auth, push, storage.
+  </Card>
+  <Card
+    title="Architecture"
+    icon={<CogIcon />}
+    href="/docs/architecture"
+  >
+    Design decisions and system internals — hybrid model, caching, data sync.
+  </Card>
+  <Card
+    title="CLI Reference"
+    icon={<TerminalIcon />}
+    href="/docs/cli"
+  >
+    Commands, options, and how generation works.
+  </Card>
+  <Card
+    title="Config Reference"
+    icon={<SettingsIcon />}
+    href="/docs/config"
+  >
+    Full `swoff.config.json` schema and feature flags.
+  </Card>
+  <Card
+    title="Framework Integration"
+    icon={<CableIcon />}
+    href="/docs/frameworks"
+  >
+    Per-ecosystem setup — React, Laravel, Django, Flask, Rails, Go, HTMX, vanilla.
+  </Card>
+</Cards>

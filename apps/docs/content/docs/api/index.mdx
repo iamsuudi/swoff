@@ -1,25 +1,58 @@
 ---
 title: Generated Files API Reference
-description: Complete API documentation for every generated file in swoff/.
-icon: Code
+description: Complete API documentation for every generated function in swoff/.
+icon: Plug
 ---
 
-Complete API documentation for every generated file in `swoff/`. Files are
-generated based on `swoff.config.json` — see [CLI Reference](/docs/cli) for
-generation commands and [Config Reference](/docs/config) for the full config schema.
+Complete API documentation for every generated function in `swoff/`. Files are generated based on `swoff.config.json` — see [CLI Reference](/docs/cli) for generation commands and [Config Reference](/docs/config) for the full config schema.
 
-## Modules
+import {
+  GlobeIcon,
+  HardDriveIcon,
+  GitBranchIcon,
+  ShieldIcon,
+  RadioIcon,
+  GitGraphIcon,
+  SmartphoneIcon,
+  BellIcon,
+  RotateCcwIcon,
+  DatabaseIcon,
+} from "lucide-react";
 
-| Module                                           | File(s)                                                      | Description                                                                 |
-| ------------------------------------------------ | ------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| [Fetch](/docs/api/fetch)                         | `fetch/core.ts`, `fetch/state.ts`                            | Caching, auth, offline queue, auto-invalidation, in-flight request tracking |
-| [Mutation](/docs/api/mutation)                   | `mutation/queue.ts`, `mutation/state.ts`, `mutation/sync.ts` | Offline write queue, per-mutation state tracking, background sync           |
-| [Cache](/docs/api/cache)                         | `cache/invalidate.ts`, `cache/tags.ts`                       | Cache invalidation and tag generation utilities                             |
-| [Server Push](/docs/api/server-push)             | `server-push/client.ts`                                      | SSE/WebSocket real-time cache invalidation                                  |
-| [GraphQL](/docs/api/graphql)                     | `graphql/index.ts`                                           | GraphQL wrapper with body-hash caching                                      |
-| [Auth](/docs/api/auth)                           | `auth/adapter.ts`, `auth/store.ts`, `auth/state.ts`          | Auth provider bridge, token persistence, state detection                    |
-| [PWA](/docs/api/pwa)                             | `pwa/prompt.ts`                                              | PWA install prompt handling                                                 |
-| [Push Notification](/docs/api/push-notification) | `push-notification/index.ts`                                 | Push subscription management                                                |
-| [Reset](/docs/api/reset)                         | `reset.ts`                                                   | Nuclear reset for the entire Swoff system                                   |
-| [Storage](/docs/api/storage)                     | `storage.ts`                                                 | Storage estimation and quota monitoring                                     |
-| [React Hooks](/docs/api/react-hooks)             | `adapters/*.tsx`                                             | `useCachedFetch`, `useMutation`, `useAuth`, `useSWUpdate`, and more         |
+<Cards>
+  <Card title="fetch/core" icon={<GlobeIcon />} href="/docs/api/fetch">
+    fetchWithCache, prefetchCache — unified fetch with caching, auth, offline
+    queue, auto-invalidation.
+  </Card>
+  <Card title="cache" icon={<HardDriveIcon />} href="/docs/api/cache">
+    Cache invalidation and tag generation utilities.
+  </Card>
+  <Card title="mutation" icon={<GitBranchIcon />} href="/docs/api/mutation">
+    Offline write queue, per-mutation state tracking, background sync.
+  </Card>
+  <Card title="auth" icon={<ShieldIcon />} href="/docs/api/auth">
+    Auth provider bridge, token persistence, state detection.
+  </Card>
+  <Card title="server-push" icon={<RadioIcon />} href="/docs/api/server-push">
+    SSE/WebSocket real-time cache invalidation.
+  </Card>
+  <Card title="graphql" icon={<GitGraphIcon />} href="/docs/api/graphql">
+    GraphQL wrapper with body-hash caching.
+  </Card>
+  <Card title="pwa" icon={<SmartphoneIcon />} href="/docs/api/pwa">
+    PWA install prompt handling.
+  </Card>
+  <Card
+    title="push-notification"
+    icon={<BellIcon />}
+    href="/docs/api/push-notification"
+  >
+    Push subscription management.
+  </Card>
+  <Card title="reset" icon={<RotateCcwIcon />} href="/docs/api/reset">
+    Nuclear reset for the entire Swoff system.
+  </Card>
+  <Card title="storage" icon={<DatabaseIcon />} href="/docs/api/storage">
+    Storage estimation and quota monitoring.
+  </Card>
+</Cards>

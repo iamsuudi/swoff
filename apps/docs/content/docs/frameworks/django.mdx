@@ -1,46 +1,60 @@
 ---
-title: Django / Python
-description: Integrate Swoff with Django or Python-based backends.
+title: Django & Flask / Python
+description: Integrate Swoff with Django, Flask, or Python-based backends.
 icon: python
 ---
 
-# Django / Python
+# Django & Flask / Python
 
-Swoff works with any Python backend. The generated files are static — serve them via Django's static file system or collect them with `collectstatic`. No Node.js runtime needed in production.
+Swoff works with any Python backend. The generated files are static — serve them however you serve your other assets. No Node.js runtime needed in production.
 
 ## Config per flavor
 
-| Setting               | Django            |
-| --------------------- | ----------------- |
-| `build.outputDir`     | `"static"`        |
-| `build.swFilename`    | `"sw"`            |
-| `navigation.mode`     | `"ssr"`           |
-| `navigation.fallback` | `"/offline"`      |
-| `navigation.preload`  | `true`            |
-| `strategy.default`    | `"network-first"` |
+| Setting               | Django                 | Flask                 |
+| --------------------- | ---------------------- | --------------------- |
+| `build.outputDir`     | `"static"`             | `"static"`            |
+| `build.swFilename`    | `"sw"`                 | `"sw"`                |
+| `navigation.mode`     | `"ssr"`                | `"ssr"`               |
+| `navigation.fallback` | `"/offline"`           | `"/offline"`          |
+| `navigation.preload`  | `true`                 | `true`                |
+| `strategy.default`    | `"network-first"`      | `"network-first"`     |
 
 - **`navigation.mode: "ssr"`** — server-rendered HTML pages get cached individually
 
 ## Where to place generated files
 
-```bash
-# After swoff generate, make swoff/ accessible to Django's static system:
+After `swoff generate`, make the `swoff/` directory accessible to your app.
 
-# Option 1: Place directly in your static directory
+### Django
+
+```bash
+# Place directly in your static directory
 cp -r swoff your_app/static/swoff/
 
-# Option 2: Symlink from a static directory
+# Or symlink from a static directory
 ln -s /full/path/to/swoff your_app/static/swoff
 
 # Then run collectstatic:
 python manage.py collectstatic
 ```
 
+### Flask
+
+Flask serves `static/` automatically — just copy or generate directly into it:
+
+```bash
+cp -r swoff static/swoff/
+# Or configure swoff.config.json build.outputDir to point into your Flask app:
+#   "outputDir": "your_app/static"
+```
+
 ## Entry point
 
-In your Django template, include the client-injector script:
+Include the client-injector script in your template:
 
-```python
+### Django
+
+```jinja
 {% load static %}
 
 <body>
@@ -50,9 +64,21 @@ In your Django template, include the client-injector script:
 </body>
 ```
 
+### Flask
+
+```html
+<body>
+  {% block content %}{% endblock %}
+
+  <script src="{{ url_for('static', filename='swoff/client-injector.bundle.js') }}"></script>
+</body>
+```
+
 ## Build script
 
 Add the SW generator to your build pipeline. Requires Node.js only at build time:
+
+### Django
 
 ```bash
 # In CI or deployment script:
@@ -61,16 +87,26 @@ node swoff/sw/generator.js
 python manage.py collectstatic
 ```
 
-Or if you don't use a JS build step, just run:
+Without a JS build step:
 
 ```bash
 node swoff/sw/generator.js
 python manage.py collectstatic
 ```
 
+### Flask
+
+Flask has no `collectstatic` equivalent — generated files go straight into `static/`:
+
+```bash
+node swoff/sw/generator.js
+```
+
+If your `swoff.config.json` has `outputDir` pointing to Flask's static folder, run only the generator.
+
 ## Auth
 
-For Django session-based auth (cookie):
+Both Django and Flask use cookie-based session auth — the generated `auth/adapter.ts` works out of the box. Cookies are sent automatically by the browser.
 
 ```json
 {
@@ -83,8 +119,6 @@ For Django session-based auth (cookie):
   }
 }
 ```
-
-The generated `auth/adapter.ts` works with Django's session-based auth — cookies are sent automatically by the browser. Background sync and server push are fully compatible.
 
 ## Related
 

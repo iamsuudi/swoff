@@ -4,9 +4,7 @@ description: Design decisions and rationale behind Swoff's architecture.
 icon: Network
 ---
 
-## Architecture
-
-The architecture guides explain the design decisions and system components that make offline-first apps work.
+The architecture guides explain the design decisions behind Swoff's offline-first system.
 
 import {
   CogIcon,
@@ -30,38 +28,34 @@ import {
     icon={<HardDriveIcon />}
     href="/docs/architecture/caching"
   >
-    Reactive strategy, staleTime, HTML cache isolation, 3-tier config
-    resolution, and strategy flow.
+    Reactive strategy, staleTime, HTML cache isolation, 3-tier config resolution.
   </Card>
   <Card
     title="Data Sync"
     icon={<DatabaseIcon />}
     href="/docs/architecture/data-sync"
   >
-    Request batching, batch refresh queue, mutation queue, online recovery, and
-    dual-replay coordination.
+    Request batching, refresh queue, mutation queue, online recovery.
   </Card>
   <Card
     title="GraphQL & Server Push"
     icon={<GitGraphIcon />}
     href="/docs/architecture/graphql-and-push"
   >
-    Body-hash GraphQL caching, SSE vs WebSocket transport, tag invalidation and
-    introspection.
+    Body-hash GraphQL caching, SSE/WebSocket, tag invalidation.
   </Card>
   <Card
     title="Auth System"
     icon={<ShieldIcon />}
     href="/docs/architecture/auth"
   >
-    Auth adapter plugin system, memory-only tokens, auth flow, and cross-tab
-    sync.
+    Auth adapter plugin system, memory-only tokens, cross-tab sync.
   </Card>
   <Card
     title="Observability"
     icon={<BarChartIcon />}
     href="/docs/architecture/observability"
   >
-    Resource monitoring, fetch timeout, and storage quota awareness.
+    Resource monitoring, fetch timeout, storage quota awareness.
   </Card>
 </Cards>

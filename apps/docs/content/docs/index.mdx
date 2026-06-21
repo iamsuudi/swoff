@@ -1,10 +1,12 @@
 ---
 title: Overview
-description: Swoff generates offline-first infrastructure for any web stack.
+description: Generate offline-first infrastructure from config.
 icon: Zap
 ---
 
-Swoff generates offline-first infrastructure for your web app — the CLI produces a Service Worker and client code from a single config file, with zero runtime dependencies. You own every generated file; no library version conflicts, no hidden breakage.
+Swoff generates offline-first infrastructure from a single config file — a service worker, client utilities, and React hooks for bundler projects. Zero runtime dependencies. Every file is auditable code.
+
+Get started with a single config file:
 
 ```bash
 npx @swoff/cli init --framework vanilla
@@ -26,28 +28,28 @@ import {
     icon={<BookOpenIcon />}
     href="/docs/guides"
   >
-    Step-by-step walkthroughs — Service Worker, caching, auth, offline mutations, and more.
+    Step-by-step guides: Service Worker, caching, auth, offline mutations.
   </Card>
   <Card
     title="API Reference"
     icon={<CodeIcon />}
     href="/docs/api"
   >
-    Every generated function: fetch, cache, mutation, auth, push, storage.
+    Generated API functions: fetch, cache, mutation, auth, push, storage.
   </Card>
   <Card
     title="Architecture"
     icon={<CogIcon />}
     href="/docs/architecture"
   >
-    Design decisions and system internals — hybrid model, caching, data sync.
+    Design decisions, hybrid model, and data sync internals.
   </Card>
   <Card
     title="CLI Reference"
     icon={<TerminalIcon />}
     href="/docs/cli"
   >
-    Commands, options, and how generation works.
+    CLI commands and generation workflow.
   </Card>
   <Card
     title="Config Reference"
@@ -61,6 +63,6 @@ import {
     icon={<CableIcon />}
     href="/docs/frameworks"
   >
-    Per-ecosystem setup — React, Laravel, Django, Flask, Rails, Go, HTMX, vanilla.
+    Per-ecosystem setup for React, Laravel, Django, Flask, Rails, Go, HTMX, and vanilla.
   </Card>
 </Cards>

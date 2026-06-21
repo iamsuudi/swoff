@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useMatch } from "@tanstack/react-router";
 import { ThemeToggle } from "./ThemeToggle";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
@@ -10,6 +10,10 @@ export function Navbar() {
   const linkClass =
     "text-[13px] font-medium text-fd-muted-foreground hover:text-fd-foreground transition-colors";
   const mobileLinkClass = "text-sm font-medium text-fd-foreground py-2";
+
+  const isDocsActive = !!useMatch({ from: "/docs/$", shouldThrow: false })();
+  const isShowcaseActive = !!useMatch({ from: "/showcase", shouldThrow: false })();
+  const isAboutActive = !!useMatch({ from: "/about", shouldThrow: false })();
 
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-fd-border bg-fd-background/80 backdrop-blur-xl">
@@ -31,16 +35,23 @@ export function Navbar() {
         </Link>
 
         <div className="hidden md:flex items-center gap-5">
-          <Link to="/docs/$" params={{ _splat: "" }} className={linkClass}>
+          <Link
+            to="/docs/$"
+            params={{ _splat: "" }}
+            className={`${linkClass} ${isDocsActive ? "text-fd-primary" : ""}`}
+          >
             Docs
           </Link>
-          <Link to="/docs/frameworks" className={linkClass}>
-            Frameworks
+          <Link
+            to="/showcase"
+            className={`${linkClass} ${isShowcaseActive ? "text-fd-primary" : ""}`}
+          >
+            Showcase
           </Link>
-          <Link to="/docs/cli" className={linkClass}>
-            CLI
-          </Link>
-          <Link to="/about" className={linkClass}>
+          <Link
+            to="/about"
+            className={`${linkClass} ${isAboutActive ? "text-fd-primary" : ""}`}
+          >
             About
           </Link>
         </div>
@@ -72,28 +83,21 @@ export function Navbar() {
           <Link
             to="/docs/$"
             params={{ _splat: "" }}
-            className={mobileLinkClass}
+            className={`${mobileLinkClass} ${isDocsActive ? "text-fd-primary" : ""}`}
             onClick={() => setIsOpen(false)}
           >
             Docs
           </Link>
           <Link
-            to="/docs/frameworks"
-            className={mobileLinkClass}
+            to="/showcase"
+            className={`${mobileLinkClass} ${isShowcaseActive ? "text-fd-primary" : ""}`}
             onClick={() => setIsOpen(false)}
           >
-            Frameworks
-          </Link>
-          <Link
-            to="/docs/cli"
-            className={mobileLinkClass}
-            onClick={() => setIsOpen(false)}
-          >
-            CLI
+            Showcase
           </Link>
           <Link
             to="/about"
-            className={mobileLinkClass}
+            className={`${mobileLinkClass} ${isAboutActive ? "text-fd-primary" : ""}`}
             onClick={() => setIsOpen(false)}
           >
             About

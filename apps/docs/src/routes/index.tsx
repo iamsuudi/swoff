@@ -9,20 +9,17 @@ import {
   Globe,
   Smartphone,
   Braces,
-  Container,
   Zap,
   Database,
   Radio,
   ArrowRight,
   Bell,
-  BookOpen,
   Command,
   Images,
   Blocks,
-  Cpu,
-  ExternalLink,
   PanelTopClose,
-  CircleDot,
+  Terminal,
+  Rocket,
 } from "lucide-react";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { Icons } from "@/components/icons";
@@ -249,10 +246,10 @@ function Home() {
                   className={buttonVariants({
                     variant: "outline",
                     className:
-                      "border-fd-border text-fd-foreground hover:bg-fd-muted/50 font-bold px-8 h-12 text-[15px] rounded-lg gap-2",
+                      "border-fd-border text-fd-foreground hover:bg-fd-muted/50 font-bold px-8 h-12 text-[15px] rounded-lg gap-2 shadow",
                   })}
                 >
-                  <Icons.gitHub className="size-4 text-fd-muted-foreground" />
+                  <Icons.gitHub className="size-4 text-fd-foreground" />
                   View on GitHub
                 </a>
               </div>
@@ -293,7 +290,7 @@ function Home() {
 
             <div className="text-center">
               <div className="w-14 h-14 rounded-xl bg-fd-primary/10 flex items-center justify-center mx-auto mb-5">
-                <Command className="size-7 text-fd-primary" />
+                <Terminal className="size-7 text-fd-primary" />
               </div>
               <h3 className="font-bold text-fd-foreground mb-2 text-lg">
                 2. Generate
@@ -309,7 +306,7 @@ function Home() {
 
             <div className="text-center">
               <div className="w-14 h-14 rounded-xl bg-fd-primary/10 flex items-center justify-center mx-auto mb-5">
-                <Cpu className="size-7 text-fd-primary" />
+                <Rocket className="size-7 text-fd-primary" />
               </div>
               <h3 className="font-bold text-fd-foreground mb-2 text-lg">
                 3. Deploy
@@ -475,170 +472,8 @@ function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-fd-border bg-fd-card/50">
-        <div className="max-w-5xl mx-auto px-6 py-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div>
-              <h4 className="font-bold text-fd-foreground text-sm mb-4">
-                Product
-              </h4>
-              <ul className="space-y-2.5 text-sm text-fd-muted-foreground">
-                <li>
-                  <Link
-                    to="/docs/$"
-                    params={{ _splat: "" }}
-                    className="hover:text-fd-foreground transition-colors"
-                  >
-                    Documentation
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/docs/comparisons"
-                    className="hover:text-fd-foreground transition-colors"
-                  >
-                    Comparisons
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/docs/architecture"
-                    className="hover:text-fd-foreground transition-colors"
-                  >
-                    Architecture
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/docs/config"
-                    className="hover:text-fd-foreground transition-colors"
-                  >
-                    Configuration
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold text-fd-foreground text-sm mb-4">
-                Resources
-              </h4>
-              <ul className="space-y-2.5 text-sm text-fd-muted-foreground">
-                <li>
-                  <Link
-                    to="/about"
-                    className="hover:text-fd-foreground transition-colors"
-                  >
-                    About
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/showcase"
-                    className="hover:text-fd-foreground transition-colors"
-                  >
-                    Showcase
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/templates"
-                    className="hover:text-fd-foreground transition-colors"
-                  >
-                    Templates
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/docs/guides"
-                    className="hover:text-fd-foreground transition-colors"
-                  >
-                    Guides
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold text-fd-foreground text-sm mb-4">
-                Community
-              </h4>
-              <ul className="space-y-2.5 text-sm text-fd-muted-foreground">
-                <li>
-                  <a
-                    href="https://github.com/iamsuudi/swoff"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="hover:text-fd-foreground transition-colors inline-flex items-center gap-1.5"
-                  >
-                    <Icons.gitHub className="size-3.5" />
-                    GitHub
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://github.com/iamsuudi/swoff/issues"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="hover:text-fd-foreground transition-colors inline-flex items-center gap-1.5"
-                  >
-                    <CircleDot className="size-3.5" />
-                    Issues
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://x.com/iamsuudi"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="hover:text-fd-foreground transition-colors inline-flex items-center gap-1.5"
-                  >
-                    <Icons.XIcon className="size-3.5" />
-                    Twitter
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://github.com/iamsuudi/swoff/discussions"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="hover:text-fd-foreground transition-colors inline-flex items-center gap-1.5"
-                  >
-                    <ExternalLink className="size-3.5" />
-                    Discussions
-                  </a>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold text-fd-foreground text-sm mb-4">
-                Legal
-              </h4>
-              <ul className="space-y-2.5 text-sm text-fd-muted-foreground">
-                <li className="text-fd-muted-foreground">MIT License</li>
-                <li className="text-fd-muted-foreground">
-                  &copy; {new Date().getFullYear()} Suudi
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        <div className="border-t border-fd-border py-6">
-          <div className="max-w-5xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-fd-muted-foreground">
-              Built by{" "}
-              <a
-                href="https://github.com/iamsuudi"
-                target="_blank"
-                rel="noreferrer"
-                className="hover:text-fd-foreground transition-colors font-bold"
-              >
-                Abdulfetah Suudi
-              </a>
-            </p>
-            <p className="text-sm text-fd-muted-foreground">
-              Offline Infrastructure
-            </p>
-          </div>
-        </div>
+      <footer className="border-t border-fd-border py-6 text-center text-xs text-fd-muted-foreground">
+        <p>&copy; {new Date().getFullYear()} Suudi</p>
       </footer>
     </div>
   );

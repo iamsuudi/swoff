@@ -1,10 +1,10 @@
 ---
 title: "Library Comparison"
 description: Comprehensive comparison with Workbox, Serwist, TanStack Query, and more.
-icon: Table
+icon: Scale
 ---
 
-Swoff operates at the **browser infrastructure layer** — the Service Worker + `fetch` event — not the application layer. This means it works with any backend, any frontend, and any rendering strategy. See [Ecosystem Compatibility](/docs/frameworks/ecosystem).
+Swoff operates at the **browser infrastructure layer** — the Service Worker + `fetch` event — making it work with any backend, frontend, or rendering strategy. See [Ecosystem Compatibility](/docs/frameworks/ecosystem).
 
 ## Libraries Compared
 
@@ -28,35 +28,35 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 
 ### Caching & Data Fetching
 
-| Feature                          | Swoff                    | Workbox            | Serwist / next-pwa | TanStack Query / SWR | Apollo | RxDB | TanStack DB  |
-| -------------------------------- | ------------------------ | ------------------ | ------------------ | -------------------- | ------ | ---- | ------------ |
-| SW code generation               | ✅ Full source           | 🟡 Partial runtime | 🟡 Partial runtime | ❌                   | ❌     | ❌   | ❌           |
-| Disk-backed cache storage        | ✅ Cache API             | ✅ Cache API       | ✅ Cache API       | ❌ In-memory          | ❌     | ❌   | ❌ IDB/SQLite |
-| Survives hard navigation         | ✅                        | ✅                 | ✅                 | ❌                   | ❌     | ✅   | ✅           |
-| Caching strategies               | ✅ 6                     | ✅ 5               | ✅ 5               | 🟡 SWR only          | 🟡 fetchPolicy | ❌   | 🟡 via Query |
-| Cache-first / Network-first      | ✅ both                  | ✅ both            | ✅ both            | ❌                   | ❌     | ❌   | ❌           |
-| Reactive strategy (staleTime)    | ✅                       | ❌                 | ❌                 | ✅                   | ❌     | ❌   | ✅ via Query |
-| Navigation modes                 | ✅ 3 (spa, default, ssr) | ❌                 | ❌                 | ❌                   | ❌     | ❌   | ❌           |
-| HTML cache isolation             | ✅ Content-Type routing  | ❌                 | ❌                 | ❌                   | ❌     | ❌   | ❌           |
-| Auto-prefetch on client nav      | ✅ pushState interceptor | ❌                 | ❌                 | ❌                   | ❌     | ❌   | ❌           |
-| Cache key normalization          | ✅                       | ❌                 | ❌                 | ❌                   | ❌     | ❌   | ❌           |
-| Request batching (coalescing)    | ✅ 50 ms window          | ❌                 | ❌                 | ✅ runtime dedup      | ❌     | ❌   | ❌           |
-| Precaching at install time       | ✅                       | ✅                 | ✅                 | ❌                   | ❌     | ❌   | ❌           |
-| Bundle impact                    | 0 kB                    | ~30 kB             | ~30–35 kB          | ~3–4 kB gzip         | ~32 kB | ~40 kB | ~6 kB + WASM |
+| Feature                       | Swoff                    | Workbox            | Serwist / next-pwa | TanStack Query / SWR | Apollo         | RxDB   | TanStack DB   |
+| ----------------------------- | ------------------------ | ------------------ | ------------------ | -------------------- | -------------- | ------ | ------------- |
+| SW code generation            | ✅ Full source           | 🟡 Partial runtime | 🟡 Partial runtime | ❌                   | ❌             | ❌     | ❌            |
+| Disk-backed cache storage     | ✅ Cache API             | ✅ Cache API       | ✅ Cache API       | ❌ In-memory         | ❌             | ❌     | ❌ IDB/SQLite |
+| Survives hard navigation      | ✅                       | ✅                 | ✅                 | ❌                   | ❌             | ✅     | ✅            |
+| Caching strategies            | ✅ 6                     | ✅ 5               | ✅ 5               | 🟡 SWR only          | 🟡 fetchPolicy | ❌     | 🟡 via Query  |
+| Cache-first / Network-first   | ✅ both                  | ✅ both            | ✅ both            | ❌                   | ❌             | ❌     | ❌            |
+| Reactive strategy (staleTime) | ✅                       | ❌                 | ❌                 | ✅                   | ❌             | ❌     | ✅ via Query  |
+| Navigation modes              | ✅ 3 (spa, default, ssr) | ❌                 | ❌                 | ❌                   | ❌             | ❌     | ❌            |
+| HTML cache isolation          | ✅ Content-Type routing  | ❌                 | ❌                 | ❌                   | ❌             | ❌     | ❌            |
+| Auto-prefetch on client nav   | ✅ pushState interceptor | ❌                 | ❌                 | ❌                   | ❌             | ❌     | ❌            |
+| Cache key normalization       | ✅                       | ❌                 | ❌                 | ❌                   | ❌             | ❌     | ❌            |
+| Request batching (coalescing) | ✅ 50 ms window          | ❌                 | ❌                 | ✅ runtime dedup     | ❌             | ❌     | ❌            |
+| Precaching at install time    | ✅                       | ✅                 | ✅                 | ❌                   | ❌             | ❌     | ❌            |
+| Bundle impact                 | 0 kB                     | ~30 kB             | ~30–35 kB          | ~3–4 kB gzip         | ~32 kB         | ~40 kB | ~6 kB + WASM  |
 
 ### Invalidation
 
-| Feature                                  | Swoff              | Workbox | TanStack Query | Apollo           | RxDB           | TanStack DB        |
-| ---------------------------------------- | ------------------ | ------- | -------------- | ---------------- | -------------- | ------------------ |
-| Tag-based invalidation                   | ✅ URL/op-name     | ❌      | ✅ query-key   | 🟡 custom        | ❌             | ❌ query-key only  |
-| Cascading tag dependencies               | ✅ client-expanded | ❌      | ❌             | ❌               | ❌             | ❌                 |
-| Glob-pattern invalidation                | ✅                 | ❌      | ❌             | ❌               | ❌             | ❌                 |
-| Tag introspection (urls↔tags)            | ✅                 | ❌      | ❌             | ❌               | ❌             | ❌                 |
-| Server push invalidation (SSE/WS)        | ✅ built-in        | ❌      | ❌             | ✅ subscriptions | ✅ replication | 🟡 via sync engine |
-| SW confirmation before event             | ✅                 | ❌      | ❌             | ❌               | ❌             | ❌                 |
-| De-duplicated refresh queue              | ✅ batch + Map     | ❌      | ❌             | ❌               | ❌             | ❌                 |
-| Cross-tab invalidation sync              | ✅ SW-broadcast    | ❌      | 🟡 limited     | ❌               | ❌             | 🟡 LocalStorage   |
-| Tag registry persistence                 | ✅ IndexedDB       | ❌      | ❌             | ❌               | ❌             | ❌                 |
+| Feature                           | Swoff              | Workbox | TanStack Query | Apollo           | RxDB           | TanStack DB        |
+| --------------------------------- | ------------------ | ------- | -------------- | ---------------- | -------------- | ------------------ |
+| Tag-based invalidation            | ✅ URL/op-name     | ❌      | ✅ query-key   | 🟡 custom        | ❌             | ❌ query-key only  |
+| Cascading tag dependencies        | ✅ client-expanded | ❌      | ❌             | ❌               | ❌             | ❌                 |
+| Glob-pattern invalidation         | ✅                 | ❌      | ❌             | ❌               | ❌             | ❌                 |
+| Tag introspection (urls↔tags)     | ✅                 | ❌      | ❌             | ❌               | ❌             | ❌                 |
+| Server push invalidation (SSE/WS) | ✅ built-in        | ❌      | ❌             | ✅ subscriptions | ✅ replication | 🟡 via sync engine |
+| SW confirmation before event      | ✅                 | ❌      | ❌             | ❌               | ❌             | ❌                 |
+| De-duplicated refresh queue       | ✅ batch + Map     | ❌      | ❌             | ❌               | ❌             | ❌                 |
+| Cross-tab invalidation sync       | ✅ SW-broadcast    | ❌      | 🟡 limited     | ❌               | ❌             | 🟡 LocalStorage    |
+| Tag registry persistence          | ✅ IndexedDB       | ❌      | ❌             | ❌               | ❌             | ❌                 |
 
 ### Offline & Background Sync
 
@@ -71,59 +71,59 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 
 ### Auth
 
-| Feature                        | Swoff                              | Workbox | TanStack Query | Apollo | RxDB | TanStack DB |
-| ------------------------------ | ----------------------------------- | ------- | -------------- | ------ | ---- | ----------- |
-| Auth header injection          | ✅ 3 types (bearer/cookie/custom)   | ❌      | ❌             | ❌     | ❌   | ❌          |
-| Auth-aware offline queue       | ✅ clearAuth() clears queue on logout | ❌    | ❌             | ❌     | ❌   | ❌          |
-| Token refresh on 401           | ✅ adapter.refresh()                | ❌      | ❌             | ❌     | ❌   | ❌          |
-| Memory-only token storage      | ✅ (bearer)                         | ❌      | ❌             | ❌     | ❌   | ❌          |
-| Offline user data cache        | ✅ IndexedDB                        | ❌      | ❌             | ❌     | ❌   | ✅          |
-| Full system reset              | ✅ resetSwoff()                     | ❌      | 🟡 queryClient.clear() | ❌ | ❌ | ❌          |
+| Feature                   | Swoff                                 | Workbox | TanStack Query         | Apollo | RxDB | TanStack DB |
+| ------------------------- | ------------------------------------- | ------- | ---------------------- | ------ | ---- | ----------- |
+| Auth header injection     | ✅ 3 types (bearer/cookie/custom)     | ❌      | ❌                     | ❌     | ❌   | ❌          |
+| Auth-aware offline queue  | ✅ clearAuth() clears queue on logout | ❌      | ❌                     | ❌     | ❌   | ❌          |
+| Token refresh on 401      | ✅ adapter.refresh()                  | ❌      | ❌                     | ❌     | ❌   | ❌          |
+| Memory-only token storage | ✅ (bearer)                           | ❌      | ❌                     | ❌     | ❌   | ❌          |
+| Offline user data cache   | ✅ IndexedDB                          | ❌      | ❌                     | ❌     | ❌   | ✅          |
+| Full system reset         | ✅ resetSwoff()                       | ❌      | 🟡 queryClient.clear() | ❌     | ❌   | ❌          |
 
 ### GraphQL & Real-time
 
-| Feature                      | Swoff           | Workbox | TanStack Query | Apollo           | RxDB           | TanStack DB        |
-| ---------------------------- | --------------- | ------- | -------------- | ---------------- | -------------- | ------------------ |
-| Body-hash GQL caching        | ✅ SHA-256       | ❌      | ❌             | 🟡 in-memory     | ❌             | 🟡 normalized cols |
-| GQL operation-name auto-tags | ✅               | ❌      | ❌             | 🟡 custom        | ❌             | ❌                 |
-| GQL offline mutation queue   | ✅               | ❌      | ❌             | ❌               | ❌             | ✅                 |
-| SSE/WS connection management | ✅ built-in      | ❌      | ❌             | 🟡 link          | ✅ replication | 🟡 via sync engine |
+| Feature                      | Swoff       | Workbox | TanStack Query | Apollo       | RxDB           | TanStack DB        |
+| ---------------------------- | ----------- | ------- | -------------- | ------------ | -------------- | ------------------ |
+| Body-hash GQL caching        | ✅ SHA-256  | ❌      | ❌             | 🟡 in-memory | ❌             | 🟡 normalized cols |
+| GQL operation-name auto-tags | ✅          | ❌      | ❌             | 🟡 custom    | ❌             | ❌                 |
+| GQL offline mutation queue   | ✅          | ❌      | ❌             | ❌           | ❌             | ✅                 |
+| SSE/WS connection management | ✅ built-in | ❌      | ❌             | 🟡 link      | ✅ replication | 🟡 via sync engine |
 
 ### PWA
 
-| Feature                     | Swoff                     | vite-plugin-pwa | Serwist        | next-pwa       | Workbox |
-| --------------------------- | ------------------------- | --------------- | -------------- | -------------- | ------- |
-| Config-driven setup         | ✅ single file             | ✅ Vite config   | 🟡 config+code | 🟡 config+code | ❌      |
-| Manifest generation         | ✅ from config             | ✅ from config   | 🟡 via Next.js | ❌              | ❌      |
-| Icon generation             | ✅ `npx @swoff/assets`    | ❌               | ❌              | ❌              | ❌      |
-| Install prompt management   | ✅ isInstallable/promptInstall | 🟡 registerSW | ❌          | ❌              | ❌      |
-| Push notifications          | ✅ built-in SW handler     | 🟡 manual       | 🟡 manual      | 🟡 manual      | 🟡 manual |
-| React hooks generated       | ✅ usePwaInstall           | 🟡 registerSW   | ❌              | ❌              | ❌      |
-| Framework-agnostic          | ✅ any                     | ❌ Vite-only     | ❌ Next.js      | ❌ Next.js      | ✅ any  |
-| Auditable generated code    | ✅ every file              | 🟡 only SW      | 🟡 only SW     | 🟡 only SW     | ❌      |
-| Runtime size added          | 0 kB                      | ~30 kB          | ~35 kB         | ~30 kB         | ~30 kB |
+| Feature                   | Swoff                          | vite-plugin-pwa | Serwist        | next-pwa       | Workbox   |
+| ------------------------- | ------------------------------ | --------------- | -------------- | -------------- | --------- |
+| Config-driven setup       | ✅ single file                 | ✅ Vite config  | 🟡 config+code | 🟡 config+code | ❌        |
+| Manifest generation       | ✅ from config                 | ✅ from config  | 🟡 via Next.js | ❌             | ❌        |
+| Icon generation           | ✅ `npx @swoff/assets`         | ❌              | ❌             | ❌             | ❌        |
+| Install prompt management | ✅ isInstallable/promptInstall | 🟡 registerSW   | ❌             | ❌             | ❌        |
+| Push notifications        | ✅ built-in SW handler         | 🟡 manual       | 🟡 manual      | 🟡 manual      | 🟡 manual |
+| React hooks generated     | ✅ usePwaInstall               | 🟡 registerSW   | ❌             | ❌             | ❌        |
+| Framework-agnostic        | ✅ any                         | ❌ Vite-only    | ❌ Next.js     | ❌ Next.js     | ✅ any    |
+| Auditable generated code  | ✅ every file                  | 🟡 only SW      | 🟡 only SW     | 🟡 only SW     | ❌        |
+| Runtime size added        | 0 kB                           | ~30 kB          | ~35 kB         | ~30 kB         | ~30 kB    |
 
 ### Resource Monitoring
 
-| Feature                        | Swoff                              | Workbox         | TanStack Query | Apollo | RxDB                 | TanStack DB |
-| ------------------------------ | ---------------------------------- | --------------- | -------------- | ------ | -------------------- | ----------- |
-| SW-level fetch timeout         | ✅ global                          | 🟡 per-strategy | ❌             | ❌     | ❌                   | ❌          |
-| Timeout broadcasts to window   | ✅                                 | ❌              | ❌             | ❌     | ❌                   | ❌          |
-| Storage quota monitoring       | ✅ getStorageEstimate()            | ❌              | ❌             | ❌     | 🟡 DB engine reports | ❌          |
-| Unified notification channel   | ✅ swoff:notification              | ❌              | ❌             | ❌     | ❌                   | ❌          |
-| Precache failure notifications | ✅ per-asset                       | ❌              | ❌             | ❌     | ❌                   | ❌          |
-| Full system reset              | ✅ resetSwoff()                    | ❌              | ❌             | ❌     | ❌                   | ❌          |
+| Feature                        | Swoff                   | Workbox         | TanStack Query | Apollo | RxDB                 | TanStack DB |
+| ------------------------------ | ----------------------- | --------------- | -------------- | ------ | -------------------- | ----------- |
+| SW-level fetch timeout         | ✅ global               | 🟡 per-strategy | ❌             | ❌     | ❌                   | ❌          |
+| Timeout broadcasts to window   | ✅                      | ❌              | ❌             | ❌     | ❌                   | ❌          |
+| Storage quota monitoring       | ✅ getStorageEstimate() | ❌              | ❌             | ❌     | 🟡 DB engine reports | ❌          |
+| Unified notification channel   | ✅ swoff:notification   | ❌              | ❌             | ❌     | ❌                   | ❌          |
+| Precache failure notifications | ✅ per-asset            | ❌              | ❌             | ❌     | ❌                   | ❌          |
+| Full system reset              | ✅ resetSwoff()         | ❌              | ❌             | ❌     | ❌                   | ❌          |
 
 ### Developer Experience
 
-| Feature                           | Swoff                      | Workbox             | TanStack Query                | Apollo                       | RxDB                      | TanStack DB                                            |
-| --------------------------------- | -------------------------- | ------------------- | ----------------------------- | ---------------------------- | ------------------------- | ------------------------------------------------------ |
-| Config-driven setup               | ✅ single file             | ✅ workbox-config   | ❌ code-only                  | ❌ code-only                 | ❌ code-only              | ❌ code-only + schema defs                             |
-| Build-tool agnostic               | ✅ any                     | ✅ any              | ✅ any                        | ✅ any                       | ✅ any                    | ✅ any                                                 |
-| React hooks                       | ✅ 10                      | 🟡 minimal          | ✅ extensive                  | ✅                           | ✅                        | ✅ useLiveQuery                                        |
-| TypeScript declarations generated | ✅                         | ❌                  | ✅ built-in                   | ✅ built-in                  | ✅ built-in               | ✅ built-in                                            |
-| Auditable generated code          | ✅ every file              | 🟡 only SW          | ❌                            | ❌                           | ❌                        | ❌                                                     |
-| Lines of setup code               | ✅ 0 (1 config)            | 🟡 config + imports | ❌ query client + hooks setup | ❌ ApolloClient + link chain | ❌ schema + RxDB creation | ❌ schema + DB + sync engine + server adapter          |
+| Feature                           | Swoff           | Workbox             | TanStack Query                | Apollo                       | RxDB                      | TanStack DB                                   |
+| --------------------------------- | --------------- | ------------------- | ----------------------------- | ---------------------------- | ------------------------- | --------------------------------------------- |
+| Config-driven setup               | ✅ single file  | ✅ workbox-config   | ❌ code-only                  | ❌ code-only                 | ❌ code-only              | ❌ code-only + schema defs                    |
+| Build-tool agnostic               | ✅ any          | ✅ any              | ✅ any                        | ✅ any                       | ✅ any                    | ✅ any                                        |
+| React hooks                       | ✅ 10           | 🟡 minimal          | ✅ extensive                  | ✅                           | ✅                        | ✅ useLiveQuery                               |
+| TypeScript declarations generated | ✅              | ❌                  | ✅ built-in                   | ✅ built-in                  | ✅ built-in               | ✅ built-in                                   |
+| Auditable generated code          | ✅ every file   | 🟡 only SW          | ❌                            | ❌                           | ❌                        | ❌                                            |
+| Lines of setup code               | ✅ 0 (1 config) | 🟡 config + imports | ❌ query client + hooks setup | ❌ ApolloClient + link chain | ❌ schema + RxDB creation | ❌ schema + DB + sync engine + server adapter |
 
 ## Deep-Dive Comparisons
 

@@ -4,7 +4,7 @@ description: Complete API documentation for every generated function in swoff/.
 icon: Plug
 ---
 
-Complete API documentation for every generated function in `swoff/`. Files are generated based on `swoff.config.json` — see [CLI Reference](/docs/cli) for generation commands and [Config Reference](/docs/config) for the full config schema.
+API documentation for all generated functions in `swoff/`. Files are generated based on `swoff.config.json` — see [CLI Reference](/docs/cli) for generation commands and [Config Reference](/docs/config) for the full schema.
 
 import {
   GlobeIcon,
@@ -21,14 +21,13 @@ import {
 
 <Cards>
   <Card title="fetch/core" icon={<GlobeIcon />} href="/docs/api/fetch">
-    fetchWithCache, prefetchCache — unified fetch with caching, auth, offline
-    queue, auto-invalidation.
+    fetchWithCache, prefetchCache — unified fetch with caching, auth, offline queue.
   </Card>
   <Card title="cache" icon={<HardDriveIcon />} href="/docs/api/cache">
     Cache invalidation and tag generation utilities.
   </Card>
   <Card title="mutation" icon={<GitBranchIcon />} href="/docs/api/mutation">
-    Offline write queue, per-mutation state tracking, background sync.
+    Offline write queue, state tracking, background sync.
   </Card>
   <Card title="auth" icon={<ShieldIcon />} href="/docs/api/auth">
     Auth provider bridge, token persistence, state detection.

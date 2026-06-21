@@ -3,7 +3,7 @@ title: Auth-Aware Caching
 description: Auth headers, 401 detection, token refresh, protected routes, cross-tab sync.
 ---
 
-> Swoff's auth layer is unique — no equivalent in general-purpose data fetching libraries. Auth headers are injected automatically into `fetchWithCache` calls, 401 responses trigger silent token refresh, and `clearAuth()` purges memory + IndexedDB + runtime caches + cross-tab in a single call.
+> Swoff's auth layer injects headers automatically, refreshes tokens on 401, and `clearAuth()` purges memory, IndexedDB, caches, and cross-tab state in one call.
 
 ## Preconditions
 

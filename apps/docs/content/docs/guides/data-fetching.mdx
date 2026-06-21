@@ -3,7 +3,7 @@ title: Data Fetching & Caching
 description: fetchWithCache, prefetchCache, and React hooks for reactive data fetching.
 ---
 
-> **If you're coming from TanStack Query:** `fetchWithCache` is Swoff's equivalent of `useQuery` — it returns `{ response, fromCache }` instead of `{ data, isLoading }`. The key difference: caching happens in the Service Worker, not in JavaScript memory. Cached responses survive hard navigation, tab close, and full page reload. No provider wrapper needed. See the [full comparison](/docs/comparisons#data-fetching).
+> **If you're coming from TanStack Query:** `fetchWithCache` returns `{ response, fromCache }` instead of `{ data, isLoading }`. Caching happens in the Service Worker — cached responses survive hard navigation, tab close, and full page reload. No provider wrapper needed. See the [full comparison](/docs/comparisons#data-fetching).
 
 > **This is the first guide that introduces a swoff API.** Caching Strategy and Navigation Caching (guides 2–3) require no imports — they work purely through `swoff.config.json`. Data fetching is where you start interacting with the cache programmatically.
 

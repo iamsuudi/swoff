@@ -42,3 +42,9 @@ yarn-error.log*
 
 # opencode
 .opencode
+
+# Examples (maintained separately)
+examples/
+
+# kilo
+.kilo/

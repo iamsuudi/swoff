@@ -57,23 +57,6 @@ export function generateSwoffApiBundleCode(
   var SINGULARIZATION = ${singularizationCode};
   var BATCH_WINDOW_MS = ${flags.requestBatchWindowMs};
 
-  // ── Fetch Count ──
-  var _fetchCount = 0;
-
-  function incrementFetchCount() {
-    _fetchCount++;
-    window.dispatchEvent(new CustomEvent("fetch-count-changed", { detail: { count: _fetchCount } }));
-  }
-
-  function decrementFetchCount() {
-    _fetchCount = Math.max(0, _fetchCount - 1);
-    window.dispatchEvent(new CustomEvent("fetch-count-changed", { detail: { count: _fetchCount } }));
-  }
-
-  function getFetchCount() {
-    return _fetchCount;
-  }
-
   // ── IndexedDB Helper ──
   function openDB(name, storeName, keyPath, upgradeCallback, version) {
     return new Promise(function (resolve, reject) {
@@ -421,7 +404,7 @@ ${flags.authEnabled && flags.authType === "cookie" ? "    fetchOptions.credentia
   }
 
   function prefetchCache(input, options) {
-    fetchWithCache(input, Object.assign({}, options, { skipFetchCount: true })).catch(function () {});
+    fetchWithCache(input, options).catch(function () {});
   }
 
   // ── Reset ──
@@ -566,9 +549,6 @@ ${flags.authEnabled && flags.authType === "cookie" ? "    fetchOptions.credentia
     getUrlsForTag: getUrlsForTag,
     getTagsForUrl: getTagsForUrl,
     generateTags: generateTags,
-    incrementFetchCount: incrementFetchCount,
-    decrementFetchCount: decrementFetchCount,
-    getFetchCount: getFetchCount,
     getStorageEstimate: getStorageEstimate,
     formatBytes: formatBytes,
     getCurrentOnlineStatus: getCurrentOnlineStatus,

@@ -70,6 +70,13 @@ export async function generateCommand(
 
   log.success("Generation complete!");
 
+  if (!config.build.precacheDirs || Object.keys(config.build.precacheDirs).length === 0) {
+    log.normal("");
+    log.warn("No directories configured for precaching. Only explicit fallback routes will be precached.");
+    log.help("  Add precacheDirs to your swoff.config.json build section to precache assets:");
+    log.help(`  "precacheDirs": { "${config.build.outputDir}": { "prefix": "/" } }`);
+  }
+
   if (config.features.pwa.enabled) {
     log.normal("");
     log.help(

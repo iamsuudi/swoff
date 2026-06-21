@@ -46,7 +46,6 @@ declare global {
     "mutation-sync-complete": CustomEvent<{ succeeded: number; failed: number }>;
     "mutation-queue-changed": CustomEvent;
     "cache-invalidated": CustomEvent<{ tags?: string[] }>;
-    "fetch-count-changed": CustomEvent<{ count: number }>;
     "mutation-state-changed": CustomEvent<{ id: string; status: string; error?: Error; data?: unknown }>;
     "background-sync-complete": CustomEvent<{ succeeded: number; failed: number }>;
     "swoff:reset-start": CustomEvent;

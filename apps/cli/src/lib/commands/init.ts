@@ -141,6 +141,21 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
       },
     },
   },
+  flask: {
+    build: {
+      outputDir: "static",
+    },
+    features: {
+      serviceWorker: {
+        navigation: {
+          mode: "ssr",
+        },
+        strategy: {
+          default: "network-first",
+        },
+      },
+    },
+  },
   rails: {
     build: {
       outputDir: "public",
@@ -199,6 +214,12 @@ export async function initCommand(projectRoot: string, framework?: string) {
 
   // Validate and adjust build output — ensure all build fields are present
   if (!config.build) config.build = defaultInitConfig.build;
+
+  // Auto-populate precacheDirs from outputDir so users get directory precaching out of the box
+  const cfgBuild = config.build;
+  if (!cfgBuild.precacheDirs || Object.keys(cfgBuild.precacheDirs).length === 0) {
+    cfgBuild.precacheDirs = { [cfgBuild.outputDir]: { prefix: "/" } };
+  }
 
   const configPath = join(projectRoot, "swoff.config.json");
   writeFileSync(configPath, JSON.stringify(config, null, 2));

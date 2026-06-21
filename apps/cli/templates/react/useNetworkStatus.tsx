@@ -3,7 +3,7 @@ import {
   CONNECTIVITY_EVENT,
   forceRetry,
   getCurrentOnlineStatus,
-} from "../connectivity-manager.ts";
+} from "../connectivity.ts";
 
 /**
  * Reactive network information: online status, connection type, and bandwidth.
@@ -45,7 +45,12 @@ export function useNetworkStatus() {
     // where the server defaults to online:true but the browser is offline.
     if (!getCurrentOnlineStatus()) {
       wasOfflineRef.current = true;
-      setState((s) => ({ ...s, online: false, wasOffline: true, lastChangedAt: Date.now() }));
+      setState((s) => ({
+        ...s,
+        online: false,
+        wasOffline: true,
+        lastChangedAt: Date.now(),
+      }));
     }
 
     const connection = navigator.connection;

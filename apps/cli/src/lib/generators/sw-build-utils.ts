@@ -44,9 +44,8 @@ export function scanPrecacheAssets(
   projectRoot: string,
   swFile: string,
 ): string[] {
-  const outputDir = config.build.outputDir;
   const dirsRaw = config.build.precacheDirs || {};
-  const dirs = Object.keys(dirsRaw).length > 0 ? dirsRaw : { [outputDir]: { prefix: "/" } };
+  const dirs = dirsRaw;
   const scanned: string[] = [];
   for (const [dir, raw] of Object.entries(dirs)) {
     const dirPath = join(projectRoot, dir);

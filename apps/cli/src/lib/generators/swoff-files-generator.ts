@@ -42,7 +42,6 @@ import { generateGuide } from "./file-generators/guide-generator.js";
 import { generateSwoffApiBundle } from "./file-generators/swoff-api-bundle.js";
 import { generateReset } from "./file-generators/reset.js";
 import { generateOpenDB } from "./file-generators/open-db.js";
-import { generateFetchState } from "./file-generators/fetch-state.js";
 import { generateStorage } from "./file-generators/storage.js";
 import { generateConnectivity } from "./file-generators/connectivity.js";
 import { generateAuthCheck } from "./file-generators/auth-check.js";
@@ -100,7 +99,6 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     },
     { name: "fetch/core", gen: () => generateFetchWrapper(ctx), enabled: true },
     { name: "cache/invalidate", gen: () => generateCache(ctx), enabled: true },
-    { name: "fetch/state", gen: () => generateFetchState(ctx), enabled: true },
     { name: "reset", gen: () => generateReset(ctx), enabled: true },
     { name: "db", gen: () => generateOpenDB(ctx), enabled: true },
     {

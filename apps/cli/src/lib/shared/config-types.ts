@@ -90,6 +90,7 @@ export interface SwoffConfig {
     | "svelte"
     | "laravel"
     | "django"
+    | "flask"
     | "rails"
     | "go"
     | "vanilla";

@@ -96,7 +96,7 @@ function collectAssets(dir, baseDir) {
 }
 
 const dirsRaw = config.build?.precacheDirs || {};
-const dirs = Object.keys(dirsRaw).length > 0 ? dirsRaw : { [outputDir]: { prefix: "/" } };
+const dirs = dirsRaw;
 const allAssets = [];
 for (const [dir, raw] of Object.entries(dirs)) {
   const dirPath = join(projectRoot, dir);
@@ -149,6 +149,10 @@ sw = sw.replace(/let AUTO_SKIP_WAITING = (?:true|false)/, () => \`let AUTO_SKIP_
 sw += \`\\nconst CACHE_NAME = "\${Date.now()}";\\n\`;
 
 writeFileSync(join(outDir, swFile), sw);
+const hasPrecache = Object.keys(config.build?.precacheDirs || {}).length > 0;
+if (!hasPrecache) {
+  console.warn('Warning: No precacheDirs configured. Only explicit fallback routes will be precached.');
+}
 console.log(\`Service worker built: \${outputDir}/\${swFile}\`);
 `;
 

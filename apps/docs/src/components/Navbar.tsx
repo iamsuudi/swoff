@@ -1,19 +1,19 @@
-import { Link, useMatch } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { ThemeToggle } from "./ThemeToggle";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Icons } from "./icons";
 
 export function Navbar() {
+  const location = useLocation();
+  const isDocsActive = location.pathname.startsWith("/docs/");
+  const isShowcaseActive = location.pathname.startsWith("/showcase");
+  const isAboutActive = location.pathname.startsWith("/about");
   const [isOpen, setIsOpen] = useState(false);
 
   const linkClass =
     "text-[13px] font-medium text-fd-muted-foreground hover:text-fd-foreground transition-colors";
   const mobileLinkClass = "text-sm font-medium text-fd-foreground py-2";
-
-  const isDocsActive = !!useMatch({ from: "/docs/$", shouldThrow: false })();
-  const isShowcaseActive = !!useMatch({ from: "/showcase", shouldThrow: false })();
-  const isAboutActive = !!useMatch({ from: "/about", shouldThrow: false })();
 
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-fd-border bg-fd-background/80 backdrop-blur-xl">

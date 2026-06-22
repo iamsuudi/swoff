@@ -1,0 +1,105 @@
+{
+  "$schema": "https://swoff.netlify.app/schema/v1.json",
+  "framework": "tanstack-start-react",
+  "features": {
+    "requestBatchWindowMs": 50,
+    "pwa": {
+      "enabled": false,
+      "preventDefaultInstall": false
+    },
+    "serviceWorker": {
+      "autoActivate": false,
+      "navigation": {
+        "mode": "ssr",
+        "preload": true,
+        "fallback": "",
+        "precacheRoutes": [],
+        "rules": []
+      },
+      "strategy": {
+        "default": "cache-first",
+        "maxRuntimeCacheAge": 2592000,
+        "normalizeKey": false,
+        "ignoreQueryParams": [],
+        "timeout": 10,
+        "patterns": {
+          "/static/*": "cache-first",
+          "/_serverFn/*": "network-only"
+        },
+        "reactive": {
+          "defaults": {
+            "staleTime": 0,
+            "refetchInterval": 0,
+            "refetchOnReconnect": false,
+            "refetchOnFocus": false
+          }
+        }
+      }
+    },
+    "refetchQueue": {
+      "batchSize": 5,
+      "batchDelayMs": 1000,
+      "retry": {
+        "maxRetries": 3,
+        "backoffMs": 1000,
+        "maxBackoffMs": 10000,
+        "jitterMs": 100
+      }
+    },
+    "mutationQueue": {
+      "enabled": false,
+      "batchSize": 1,
+      "batchDelayMs": 0,
+      "backgroundSync": false,
+      "retry": {
+        "maxRetries": 5,
+        "backoffMs": 1000,
+        "maxBackoffMs": 30000,
+        "jitterMs": 250
+      }
+    },
+    "auth": {
+      "enabled": false,
+      "type": "cookie",
+      "routePaths": []
+    },
+    "connectivity": {
+      "enabled": false,
+      "heartbeatIntervalMs": 30000
+    },
+    "tagInvalidation": {
+      "enabled": false,
+      "debounceMs": 0,
+      "skipPrefixes": ["api", "v1", "v2", "v3", "rest", "graphql", "gql"],
+      "patterns": {},
+      "singularization": {},
+      "cascading": {}
+    },
+    "graphql": {
+      "enabled": false,
+      "endpoints": ["/graphql"]
+    },
+    "pushNotifications": false,
+    "serverPush": {
+      "enabled": false,
+      "type": "sse",
+      "endpoint": "/api/events",
+      "reconnectDelayMs": 5000
+    }
+  },
+  "build": {
+    "outputDir": "dist/client",
+    "swFilename": "sw",
+    "precacheDirs": {
+      "dist/client": {
+        "prefix": "/",
+        "matchExtensions": [".html", ".ico", ".png"],
+        "stripExtensions": [".html"],
+        "stripSuffixes": ["index"]
+      },
+      "dist/client/assets": {
+        "prefix": "/assets"
+      }
+    }
+  }
+}

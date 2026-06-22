@@ -361,7 +361,7 @@ describe("validateConfig", () => {
         expect(errors[0]).toContain('precacheDirs[".next/static"] must be an object');
       });
 
-      it("accepts object config with prefix, extensions, stripExtension", () => {
+      it("accepts object config with prefix, matchExtensions, stripExtensions", () => {
         const config = {
           ...validConfig,
           build: {
@@ -370,8 +370,8 @@ describe("validateConfig", () => {
               ".next/static": { prefix: "/_next/static" },
               ".next/server/app": {
                 prefix: "",
-                extensions: [".html"],
-                stripExtension: true,
+                matchExtensions: [".html"],
+                stripExtensions: [".html"],
               },
             },
           },
@@ -395,35 +395,35 @@ describe("validateConfig", () => {
           ...validConfig,
           build: {
             ...validConfig.build,
-            precacheDirs: { "some-dir": { extensions: [".html"] } },
+            precacheDirs: { "some-dir": { matchExtensions: [".html"] } },
           },
         };
         const errors = validateConfig(config);
         expect(errors[0]).toContain('precacheDirs["some-dir"].prefix must be a string');
       });
 
-      it("rejects object config with non-array extensions", () => {
+      it("rejects object config with non-array matchExtensions", () => {
         const config = {
           ...validConfig,
           build: {
             ...validConfig.build,
-            precacheDirs: { "some-dir": { prefix: "", extensions: ".html" } },
+            precacheDirs: { "some-dir": { prefix: "", matchExtensions: ".html" } },
           },
         };
         const errors = validateConfig(config);
-        expect(errors[0]).toContain('precacheDirs["some-dir"].extensions must be an array of strings');
+        expect(errors[0]).toContain('precacheDirs["some-dir"].matchExtensions must be an array of strings');
       });
 
-      it("rejects object config with non-boolean stripExtension", () => {
+      it("rejects object config with non-array stripExtensions", () => {
         const config = {
           ...validConfig,
           build: {
             ...validConfig.build,
-            precacheDirs: { "some-dir": { prefix: "", stripExtension: "yes" } },
+            precacheDirs: { "some-dir": { prefix: "", stripExtensions: "yes" } },
           },
         };
         const errors = validateConfig(config);
-        expect(errors[0]).toContain('precacheDirs["some-dir"].stripExtension must be a boolean');
+        expect(errors[0]).toContain('precacheDirs["some-dir"].stripExtensions must be an array of strings');
       });
 
       it("accepts object config with stripSuffixes", () => {

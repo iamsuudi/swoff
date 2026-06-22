@@ -76,8 +76,8 @@ export interface ServerPushConfig {
 
 export interface PrecacheDirConfig {
   prefix: string;
-  extensions?: string[];
-  stripExtension?: boolean;
+  matchExtensions?: string[];
+  stripExtensions?: string[];
   stripSuffixes?: string[];
 }
 

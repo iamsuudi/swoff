@@ -98,19 +98,19 @@ function collectAssets(dir, baseDir) {
 const dirsRaw = config.build?.precacheDirs || {};
 const dirs = dirsRaw;
 const allAssets = [];
-for (const [dir, raw] of Object.entries(dirs)) {
-  const dirPath = join(projectRoot, dir);
-  if (existsSync(dirPath)) {
-    const cfg = raw;
-    const normPrefix = cfg.prefix.replace(/\\/+$/, '');
-    const extensions = cfg.extensions;
-    const stripExt = cfg.stripExtension;
-    const stripSuffixes = cfg.stripSuffixes;
-    for (const a of collectAssets(dirPath, dirPath)) {
-      if (extensions && !extensions.includes(extname(a))) continue;
-      let url = normPrefix + '/' + a.slice(1);
-      if (stripExt) url = url.replace(/\\.[^/.]+$/, '');
-      if (stripSuffixes) {
+  for (const [dir, raw] of Object.entries(dirs)) {
+    const dirPath = join(projectRoot, dir);
+    if (existsSync(dirPath)) {
+      const cfg = raw;
+      const normPrefix = cfg.prefix.replace(/\\/+$/, '');
+      const matchExtensions = cfg.matchExtensions;
+      const stripExtensions = cfg.stripExtensions;
+      const stripSuffixes = cfg.stripSuffixes;
+      for (const a of collectAssets(dirPath, dirPath)) {
+        if (matchExtensions && !matchExtensions.includes(extname(a))) continue;
+        let url = normPrefix + '/' + a.slice(1);
+        if (stripExtensions?.includes(extname(a))) url = url.replace(/\\.[^/.]+$/, '');
+        if (stripSuffixes) {
         for (const suffix of stripSuffixes) {
           if (url.endsWith('/' + suffix)) {
             url = url.slice(0, -suffix.length - 1) + '/';

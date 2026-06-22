@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getStorageEstimate, formatBytes } from "../storage-notify";
+import { getStorageEstimate, formatBytes } from "../storage";
 
 interface StorageEstimateState {
   usage: number;

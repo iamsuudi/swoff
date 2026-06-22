@@ -7,7 +7,6 @@ import { showHelp } from "./lib/cli/help.js";
 import { initCommand } from "./lib/commands/init.js";
 import { generateCommand } from "./lib/commands/generate.js";
 import { validateCommand } from "./lib/commands/validate.js";
-import { addCommand } from "./lib/commands/add.js";
 import { cleanCommand } from "./lib/commands/clean.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -61,17 +60,6 @@ async function main() {
     case "validate":
       await validateCommand(projectRoot);
       break;
-    case "add": {
-      const feature = positionals.slice(1).join(",");
-      if (!feature) {
-        log.error("Please specify a feature to add");
-        log.info("Usage: swoff add <feature1>[,<feature2>,...]");
-        log.info("Features: mutation-queue, pwa, cross-tab, auth, background-sync, graphql, push-notification, server-push, htmx, php");
-        process.exit(1);
-      }
-      await addCommand(projectRoot, feature);
-      break;
-    }
     case "clean":
       await cleanCommand(projectRoot, { yes: !!values.yes });
       break;

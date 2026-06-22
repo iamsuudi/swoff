@@ -52,10 +52,22 @@ describe("assembleSW", () => {
     expect(sw).toContain("SKIP_WAITING");
   });
 
-  it("includes tag management", () => {
-    const sw = assembleSW(config);
+  it("includes tag management when tagInvalidation enabled", () => {
+    const configWithTags: SwoffConfig = {
+      ...config,
+      features: {
+        ...config.features,
+        tagInvalidation: { ...config.features.tagInvalidation, enabled: true },
+      },
+    };
+    const sw = assembleSW(configWithTags);
     expect(sw).toContain("invalidateByTag");
     expect(sw).toContain("INVALIDATE_TAG");
+  });
+
+  it("excludes tag management when tagInvalidation disabled", () => {
+    const sw = assembleSW(config);
+    expect(sw).not.toContain("invalidateByTag");
   });
 
   it("includes background sync handler when enabled", () => {

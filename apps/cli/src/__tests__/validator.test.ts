@@ -284,10 +284,10 @@ describe("validateConfig", () => {
       expect(errors).toContain("features.mutationQueue.backgroundSync requires mutationQueue to be enabled");
     });
 
-    it("passes backgroundSync with mutationQueue enabled", () => {
+    it("passes backgroundSync with mutationQueue and tagInvalidation enabled", () => {
       const config = {
         ...validConfig,
-        features: { ...validConfig.features, mutationQueue: { enabled: true, batchSize: 5, batchDelayMs: 500, maxRetries: 3, retryBackoffMs: 2000, backgroundSync: true } },
+        features: { ...validConfig.features, tagInvalidation: { enabled: true }, mutationQueue: { enabled: true, batchSize: 5, batchDelayMs: 500, maxRetries: 3, retryBackoffMs: 2000, backgroundSync: true } },
       };
       const errors = validateConfig(config);
       expect(errors).toEqual([]);

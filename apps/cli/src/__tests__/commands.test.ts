@@ -11,7 +11,6 @@ vi.mock("readline", () => ({
 }));
 
 import { initCommand } from "../lib/commands/init.js";
-import { addCommand } from "../lib/commands/add.js";
 import { cleanCommand } from "../lib/commands/clean.js";
 import { generateCommand } from "../lib/commands/generate.js";
 import { validateCommand } from "../lib/commands/validate.js";
@@ -72,44 +71,9 @@ describe("initCommand", () => {
     expect(config.features).toHaveProperty("mutationQueue");
     expect(config.features).toHaveProperty("auth");
     expect(config.features).toHaveProperty("tagInvalidation");
+    expect(config.features).toHaveProperty("connectivity");
   });
 
-});
-
-describe("addCommand", () => {
-  it("rejects unknown features", async () => {
-    await addCommand(testDir, "unknown-feature");
-    expect(existsSync(join(testDir, "swoff.config.json"))).toBe(false);
-  });
-
-  it("creates config and enables a feature", async () => {
-    await addCommand(testDir, "mutation-queue");
-    expect(existsSync(join(testDir, "swoff.config.json"))).toBe(true);
-    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
-    expect(config.features.mutationQueue.enabled).toBe(true);
-  });
-
-  it("updates existing config with feature", async () => {
-    const base = { features: { auth: { enabled: false, type: "bearer" }, mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000 },         serviceWorker: { autoActivate: false, strategy: { default: "cache-first", mode: "all", patterns: {}, reactive: { defaults: {} } }, navigation: { mode: "spa", fallback: "/index.html" } }, pwa: { enabled: false, preventDefaultInstall: false }, tagInvalidation: {}, graphql: { enabled: false, endpoints: ["/graphql"] }, pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 }, refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 } }, build: { outputDir: "dist", swFilename: "sw" } };
-    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(base));
-    await addCommand(testDir, "auth");
-    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
-    expect(config.features.auth.enabled).toBe(true);
-    expect(config.features.mutationQueue.backgroundSync).toBe(false);
-  });
-
-  it("normalizes feature aliases", async () => {
-    await addCommand(testDir, "mutationqueue");
-    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
-    expect(config.features.mutationQueue.enabled).toBe(true);
-  });
-
-  it("adds multiple features", async () => {
-    await addCommand(testDir, "auth,graphql");
-    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
-    expect(config.features.auth.enabled).toBe(true);
-    expect(config.features.graphql.enabled).toBe(true);
-  });
 });
 
 describe("cleanCommand", () => {
@@ -144,12 +108,13 @@ describe("cleanCommand", () => {
 });
 
 describe("generateCommand", () => {
-  function writeDefaultConfig() {
+  function writeMinimalConfig() {
     const config = {
       $schema: "https://swoff.netlify.app/schema/v1.json",
       framework: "react-spa",
       features: {
-        pwa: { enabled: true, preventDefaultInstall: false },
+        pwa: { enabled: false, preventDefaultInstall: false },
+        connectivity: { enabled: false },
         serviceWorker: {
           autoActivate: false,
           strategy: {
@@ -163,7 +128,8 @@ describe("generateCommand", () => {
         refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
         mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000, backgroundSync: false },
         auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
-        tagInvalidation: {},
+        tagInvalidation: { enabled: false },
+        graphql: { enabled: false, endpoints: ["/graphql"] },
         pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
       },
       build: { outputDir: "dist", swFilename: "sw" },
@@ -171,19 +137,47 @@ describe("generateCommand", () => {
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config, null, 2));
   }
 
-  it("generates files when config exists", async () => {
+  it("generates core files when config exists", async () => {
     writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
-    writeDefaultConfig();
+    writeMinimalConfig();
     await generateCommand(testDir);
     expect(existsSync(join(testDir, "swoff"))).toBe(true);
     expect(existsSync(join(testDir, "swoff/config.js"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/client-injector.js"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/sw/template.js"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/sw/injector.js"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/sw/generator.js"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/cache/invalidate.js"))).toBe(false);
+    expect(existsSync(join(testDir, "swoff/storage.js"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/reset.js"))).toBe(true);
+  });
+
+  it("generates tag-invalidation files when tagInvalidation.enabled", async () => {
+    writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
+    writeMinimalConfig();
+    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
+    config.features.tagInvalidation.enabled = true;
+    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
+    await generateCommand(testDir);
     expect(existsSync(join(testDir, "swoff/cache/invalidate.js"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/cache/tags.js"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/fetch/core.js"))).toBe(true);
+  });
+
+  it("generates connectivity files when connectivity.enabled", async () => {
+    writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
+    writeMinimalConfig();
+    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
+    config.features.connectivity.enabled = true;
+    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
+    await generateCommand(testDir);
+    expect(existsSync(join(testDir, "swoff/connectivity.js"))).toBe(true);
   });
 
   it("generates files in TypeScript when project uses TS", async () => {
     writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
     writeFileSync(join(testDir, "tsconfig.json"), JSON.stringify({ compilerOptions: {} }));
-    writeDefaultConfig();
+    writeMinimalConfig();
     await generateCommand(testDir, { language: "ts" });
     expect(existsSync(join(testDir, "swoff/config.ts"))).toBe(true);
     expect(existsSync(join(testDir, "swoff/swoff.d.ts"))).toBe(true);
@@ -196,21 +190,17 @@ describe("generateCommand", () => {
     warnSpy.mockRestore();
   });
 
-  it("generates storage regardless of push config", async () => {
+  it("generates db and connectivity when auth enabled", async () => {
     writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
-    writeDefaultConfig();
-    await generateCommand(testDir);
-    expect(existsSync(join(testDir, "swoff/storage.js"))).toBe(true);
-  });
-
-  it("generates storage when push enabled", async () => {
-    writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
-    writeDefaultConfig();
+    writeMinimalConfig();
     const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
-    config.features.pushNotifications = true;
+    config.features.auth.enabled = true;
+    config.features.auth.type = "cookie";
+    config.features.connectivity = { enabled: true };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
     await generateCommand(testDir);
-    expect(existsSync(join(testDir, "swoff/storage.js"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/db.js"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/connectivity.js"))).toBe(true);
   });
 });
 
@@ -220,6 +210,7 @@ describe("validateCommand", () => {
       framework: "vanilla",
       features: {
         pwa: { enabled: false, preventDefaultInstall: false },
+        connectivity: { enabled: false },
         serviceWorker: {
           autoActivate: false,
           strategy: {
@@ -233,7 +224,7 @@ describe("validateCommand", () => {
         refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
         mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000, backgroundSync: false },
         auth: { enabled: false, type: "bearer" },
-        tagInvalidation: {},
+        tagInvalidation: { enabled: false },
         graphql: { enabled: false, endpoints: ["/graphql"] },
         pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
       },

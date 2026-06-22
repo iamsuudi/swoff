@@ -81,7 +81,9 @@ export function applySwSections(
   ));
 
   code = code.replace("// [[MESSAGE_HANDLER]]", () => generateMessageHandler(features.tagInvalidation.enabled, features.tagInvalidation.debounceMs ?? 0));
-  code = code.replace("// [[TAG_MANAGEMENT]]", () => generateTagManagement(maxCacheAge));
+  code = features.tagInvalidation.enabled
+    ? code.replace("// [[TAG_MANAGEMENT]]", () => generateTagManagement(maxCacheAge))
+    : code.replace("// [[TAG_MANAGEMENT]]", "");
 
   const endpoint = useApiBasePlaceholder
     ? "SWOFF_API_BASE" + spEndpoint

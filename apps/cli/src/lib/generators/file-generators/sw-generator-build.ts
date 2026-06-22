@@ -144,7 +144,7 @@ const combined = [...new Set([...fallback, ...filtered])];
 const assetsToCache = combined.map(url => ({ url, options: {} }));
 
 let sw = template;
-sw = sw.replace(/let ASSETS_TO_CACHE = \[\]/, () => \`let ASSETS_TO_CACHE = \${JSON.stringify(assetsToCache, null, 2)};\`);
+sw = sw.replace(/let ASSETS_TO_CACHE = \\[\\]/, () => \`let ASSETS_TO_CACHE = \${JSON.stringify(assetsToCache, null, 2)};\`);
 sw = sw.replace(/let AUTO_SKIP_WAITING = (?:true|false)/, () => \`let AUTO_SKIP_WAITING = \${config.features?.serviceWorker?.autoActivate || false};\`);
 sw += \`\\nconst CACHE_NAME = "\${Date.now()}";\\n\`;
 

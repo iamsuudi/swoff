@@ -62,6 +62,11 @@ export interface TagInvalidationConfig {
   cascading?: Record<string, string[]>;
 }
 
+export interface ConnectivityConfig {
+  enabled: boolean;
+  heartbeatIntervalMs: number;
+}
+
 export interface ServerPushConfig {
   enabled: boolean;
   type: "sse" | "websocket";
@@ -129,6 +134,7 @@ export interface SwoffConfig {
     refetchQueue: RefetchQueueConfig;
     mutationQueue: MutationQueueConfig;
     auth: AuthConfig;
+    connectivity: ConnectivityConfig;
     tagInvalidation: TagInvalidationConfig;
     graphql: GqlConfig;
     pushNotifications: boolean;
@@ -158,6 +164,7 @@ export const OBJECT_FEATURES = [
   "mutationQueue",
   "refetchQueue",
   "serverPush",
+  "connectivity",
 ] as const;
 
 export const VALID_STRATEGIES = [
@@ -203,8 +210,13 @@ export const defaultServerPushConfig: ServerPushConfig = {
   reconnectDelayMs: 5000,
 };
 
+export const defaultConnectivity: ConnectivityConfig = {
+  enabled: false,
+  heartbeatIntervalMs: 30000,
+};
+
 export const defaultTagInvalidation: TagInvalidationConfig = {
-  enabled: true,
+  enabled: false,
   debounceMs: 0,
   skipPrefixes: [...API_PREFIXES],
   patterns: {},
@@ -287,6 +299,11 @@ export function mergeConfigs(
         ...base.features.graphql,
         ...override.features?.graphql,
       },
+      connectivity: {
+        ...defaultConnectivity,
+        ...base.features.connectivity,
+        ...override.features?.connectivity,
+      },
       tagInvalidation: {
         ...defaultTagInvalidation,
         ...base.features.tagInvalidation,
@@ -313,7 +330,7 @@ export const defaultConfig: SwoffConfig = {
   features: {
     requestBatchWindowMs: 50,
     pwa: {
-      enabled: true,
+      enabled: false,
       preventDefaultInstall: false,
     },
     serviceWorker: {
@@ -345,6 +362,7 @@ export const defaultConfig: SwoffConfig = {
     refetchQueue: { ...defaultRefetchQueue },
     mutationQueue: { ...defaultMutationQueue },
     auth: { ...defaultAuth },
+    connectivity: { ...defaultConnectivity },
     tagInvalidation: { ...defaultTagInvalidation },
     graphql: { ...defaultGql },
     pushNotifications: false,
@@ -359,7 +377,7 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
   framework: "vanilla",
   features: {
     requestBatchWindowMs: 50,
-    pwa: { enabled: true, preventDefaultInstall: false },
+    pwa: { enabled: false, preventDefaultInstall: false },
     serviceWorker: {
       autoActivate: false,
       navigation: {
@@ -392,6 +410,7 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
     refetchQueue: { ...defaultRefetchQueue },
     mutationQueue: { ...defaultMutationQueue },
     auth: { ...defaultAuth },
+    connectivity: { ...defaultConnectivity },
     tagInvalidation: { ...defaultTagInvalidation },
     graphql: { ...defaultGql },
     pushNotifications: false,

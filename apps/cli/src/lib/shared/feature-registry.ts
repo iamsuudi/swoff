@@ -16,7 +16,6 @@ export interface FeatureDef {
   isCore: boolean;
 }
 
-const CORE = ["pwa", "push-notification"];
 const AUTH_INCOMPATIBLE: AuthType[] = ["bearer", "custom"];
 
 function buildCheck(
@@ -36,6 +35,26 @@ function buildCheck(
 }
 
 export const FEATURES: Record<string, FeatureDef> = {
+  "connectivity": {
+    id: "connectivity",
+    label: "Connectivity Heartbeat",
+    description: "Online/offline detection with periodic heartbeat",
+    requires: [],
+    incompatibleAuthTypes: [],
+    checkEnabled: buildCheck("features.connectivity.enabled"),
+    configUpdate: { connectivity: { enabled: true } },
+    isCore: false,
+  },
+  "tag-invalidation": {
+    id: "tag-invalidation",
+    label: "Tag Invalidation",
+    description: "Tag-based cache invalidation system with fetch wrapper",
+    requires: [],
+    incompatibleAuthTypes: [],
+    checkEnabled: buildCheck("features.tagInvalidation.enabled"),
+    configUpdate: { tagInvalidation: { enabled: true } },
+    isCore: false,
+  },
   pwa: {
     id: "pwa",
     label: "PWA Install Prompt",
@@ -44,13 +63,13 @@ export const FEATURES: Record<string, FeatureDef> = {
     incompatibleAuthTypes: [],
     checkEnabled: buildCheck("features.pwa.enabled"),
     configUpdate: { pwa: { enabled: true } },
-    isCore: true,
+    isCore: false,
   },
   auth: {
     id: "auth",
     label: "Authentication",
     description: "Auth token management, session refresh, and protected routes",
-    requires: [],
+    requires: ["connectivity"],
     incompatibleAuthTypes: [],
     checkEnabled: buildCheck("features.auth.enabled"),
     configUpdate: { auth: { enabled: true, type: "cookie" } },
@@ -60,7 +79,7 @@ export const FEATURES: Record<string, FeatureDef> = {
     id: "mutation-queue",
     label: "Mutation Queue",
     description: "Queue POST/PUT/DELETE mutations when offline and replay when online",
-    requires: [],
+    requires: ["tag-invalidation"],
     incompatibleAuthTypes: [],
     checkEnabled: buildCheck("features.mutationQueue.enabled"),
     configUpdate: {
@@ -93,7 +112,7 @@ export const FEATURES: Record<string, FeatureDef> = {
     id: "graphql",
     label: "GraphQL",
     description: "GraphQL endpoint integration with tag-based cache invalidation",
-    requires: [],
+    requires: ["tag-invalidation"],
     incompatibleAuthTypes: [],
     checkEnabled: buildCheck("features.graphql.enabled"),
     configUpdate: { graphql: { enabled: true, endpoints: ["/graphql"] } },
@@ -107,7 +126,7 @@ export const FEATURES: Record<string, FeatureDef> = {
     incompatibleAuthTypes: [],
     checkEnabled: buildCheck("features.pushNotifications"),
     configUpdate: { pushNotifications: true },
-    isCore: true,
+    isCore: false,
   },
   "server-push": {
     id: "server-push",

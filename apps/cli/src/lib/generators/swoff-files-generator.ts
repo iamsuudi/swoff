@@ -106,7 +106,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
   }
 
   const steps: Step[] = [
-    { name: "api-config", gen: () => generateApiConfig(ctx), enabled: true },
+    { name: "api-config", gen: () => generateApiConfig(ctx), enabled: f.serverPush },
     { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
     { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: true },
     {

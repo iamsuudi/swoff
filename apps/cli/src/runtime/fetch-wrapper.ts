@@ -10,10 +10,7 @@ export function generateFetchWrapperCode(
   const { ext, ts } = ctx;
 
   const importLines = [
-    `import { API_BASE } from "../config.${ext}";`,
-
     `import { generateTags } from "../cache/tags.${ext}";`,
-
     `import { invalidateByTags, invalidateUrl${mutationQueue ? ", expandCascading" : ""} } from "../cache/invalidate.${ext}";`,
 
     authEnabled
@@ -215,7 +212,7 @@ const BATCH_WINDOW_MS = ${requestBatchWindowMs};
 export async function fetchWithCache${G(ts, "T")}(input${T(ts, "RequestInfo")}, options${T(ts, "RequestInit & FetchWithCacheOptions")} = {})${R(ts, "Promise<FetchWithCacheResult<T>>")}{
   const method = (options.method || "GET").toUpperCase();
   const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD" || method === "OPTIONS"));
-  const resolvedInput = typeof input === "string" && !input.startsWith("http") && !input.startsWith("//") ? API_BASE + input : input;
+  const resolvedInput = input;
   const url = typeof resolvedInput === "string" ? resolvedInput : resolvedInput.url;
 
   const headers = new Headers(options.headers);

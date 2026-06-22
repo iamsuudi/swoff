@@ -114,8 +114,8 @@ The SW uses three fixed named caches:
       },
       ".next/server/app": {
         "prefix": "/",
-        "extensions": [".html"],
-        "stripExtension": true,
+        "matchExtensions": [".html"],
+        "stripExtensions": [".html"],
         "stripSuffixes": ["index"]
       }
     }
@@ -132,8 +132,8 @@ The SW uses three fixed named caches:
 - `build.swFilename` — service worker filename without `.js` extension. Default: `"sw"` (produces `sw.js`).
 - `build.precacheDirs` — directories to scan for precache assets. Keys are filesystem paths relative to project root. When empty, no directory scanning occurs — only explicit fallback routes are precached. Each entry supports:
   - `prefix` — URL prefix prepended to each matched file's path
-  - `extensions` — only include files with these extensions (e.g. `[".html"]`); omit for all
-  - `stripExtension` — remove file extension from cache key (`about.html` → `/about`)
+  - `matchExtensions` — only include files with these extensions (e.g. `[".html"]`); omit for all
+  - `stripExtensions` — remove listed extensions from cache key (e.g. `[".html"]` strips `.html`; `about.html` → `/about`)
   - `stripSuffixes` — remove segments like `index` before extension (`about/index.html` → `/about`)
 - `features.serviceWorker.autoActivate` — `true` to skip the waiting phase and activate the new SW immediately on install.
 

@@ -42,6 +42,24 @@
           "default": 50,
           "minimum": 0
         },
+        "connectivity": {
+          "type": "object",
+          "description": "Connectivity monitoring configuration (online/offline detection with heartbeat). Disabling this also disables storage estimation and reset utilities.",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable connectivity monitoring, storage estimation, and reset functionality",
+              "default": false
+            },
+            "heartbeatIntervalMs": {
+              "type": "integer",
+              "description": "Interval in ms between HEAD heartbeat requests to verify connectivity",
+              "default": 30000,
+              "minimum": 1000
+            }
+          },
+          "required": ["enabled", "heartbeatIntervalMs"]
+        },
         "pwa": {
           "type": "object",
           "description": "PWA installability configuration",
@@ -49,7 +67,7 @@
             "enabled": {
               "type": "boolean",
               "description": "Enable PWA installability",
-              "default": true
+              "default": false
             },
             "preventDefaultInstall": {
               "type": "boolean",
@@ -397,8 +415,13 @@
         },
         "tagInvalidation": {
           "type": "object",
-          "description": "Tag-based cache invalidation configuration. Always active when present (no enabled toggle).",
+          "description": "Tag-based cache invalidation configuration.",
           "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable tag-based cache invalidation system (fetch/core, cache/tags, cache/invalidate)",
+              "default": false
+            },
             "debounceMs": {
               "type": "integer",
               "description": "Debounce window (ms) for coalescing rapid invalidations.",
@@ -490,6 +513,7 @@
         }
       },
       "required": [
+        "connectivity",
         "pwa",
         "serviceWorker",
         "mutationQueue",
@@ -526,16 +550,17 @@
                 "type": "string",
                 "description": "URL prefix to serve assets under"
               },
-              "extensions": {
+              "matchExtensions": {
                 "type": "array",
-                "description": "Only include files with these extensions (e.g. [\".html\", \".json\"])",
+                "description": "Only include files with these extensions (e.g. [\".html\", \".json\"]). Omit to include all files.",
                 "items": { "type": "string" },
                 "uniqueItems": true
               },
-              "stripExtension": {
-                "type": "boolean",
-                "description": "Remove the file extension from the cached URL key",
-                "default": false
+              "stripExtensions": {
+                "type": "array",
+                "description": "Remove specific extensions from the cached URL key. Only extensions present in this list are stripped (e.g. [\".html\"] strips \".html\" but keeps \".json\"). Empty or omitted means no stripping.",
+                "items": { "type": "string" },
+                "uniqueItems": true
               },
               "stripSuffixes": {
                 "type": "array",

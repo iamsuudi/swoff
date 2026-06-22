@@ -25,15 +25,15 @@ interface AdapterDef {
 }
 
 const ADAPTERS: AdapterDef[] = [
-  { name: "useNetworkStatus" },
+  { name: "useNetworkStatus", condition: (c) => c.config.features.connectivity.enabled },
   { name: "useStorageEstimate" },
-  { name: "useCachedFetch" },
-  { name: "useMutation" },
-  { name: "usePrefetch" },
-  { name: "useMutationState" },
+  { name: "useCachedFetch", condition: (c) => c.config.features.tagInvalidation.enabled },
+  { name: "useMutation", condition: (c) => c.config.features.mutationQueue.enabled },
+  { name: "usePrefetch", condition: (c) => c.config.features.tagInvalidation.enabled },
+  { name: "useMutationState", condition: (c) => c.config.features.mutationQueue.enabled },
   { name: "useSwoffReset" },
   { name: "useOfflineAnalytics" },
-  { name: "useSWUpdate", condition: (c) => c.config.features.pwa.enabled },
+  { name: "useSWUpdate" },
   { name: "useAuth", condition: (c) => c.config.features.auth.enabled },
   { name: "useMutationQueue", condition: (c) => c.config.features.mutationQueue.enabled },
   { name: "usePwaInstall", condition: (c) => c.config.features.pwa.enabled },

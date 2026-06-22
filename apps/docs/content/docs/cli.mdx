@@ -42,8 +42,6 @@ swoff generate --files-only   # regenerate only supporting files (not SW)
 | `--language`             | `"ts"` \| `"js"` — override language auto-detection; forces `.tsx`/`.ts` or `.jsx`/`.js` output   |
 | `--continue-on-sw-error` | Proceed with generation even if the SW template build fails                                       |
 
-After generation, read `swoff/GUIDE.md` for documentation links.
-
 ### What is generated
 
 All files land in `swoff/`. See [API Reference](/docs/api) for the full reference.
@@ -52,11 +50,11 @@ All files land in `swoff/`. See [API Reference](/docs/api) for the full referenc
 | ---------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | `client-injector.{ts\|js}`         | always                                                                        | Single entry point — wires SW registration, PWA install, mutation queue, cross-tab sync |
 | `config.{ts\|js}`                  | always                                                                        | Project configuration — mirrors `swoff.config.json` at runtime                          |
-| `connectivity.{ts\|js}`            | always                                                                        | Online/offline detection with HEAD heartbeat                                            |
-| `db.{ts\|js}`                      | always                                                                        | IndexedDB database open/init helpers                                                    |
-| `fetch/core.{ts\|js}`              | always                                                                        | Unified fetch with caching, auth, offline queue, auto-invalidation                      |
-| `cache/invalidate.{ts\|js}`        | always                                                                        | `invalidateByTag()` / `invalidateByTags()`                                              |
-| `cache/tags.{ts\|js}`              | always                                                                        | Tag generation helpers from URL paths                                                   |
+| `connectivity.{ts\|js}`            | `features.connectivity.enabled`                                              | Online/offline detection with HEAD heartbeat                                            |
+| `db.{ts\|js}`                      | auto-enabled when auth, mutation queue, or push notifications is enabled      | IndexedDB database open/init helpers                                                    |
+| `fetch/core.{ts\|js}`              | `features.tagInvalidation.enabled`                                           | Unified fetch with caching, auth, offline queue, auto-invalidation                      |
+| `cache/invalidate.{ts\|js}`        | `features.tagInvalidation.enabled`                                           | `invalidateByTag()` / `invalidateByTags()`                                              |
+| `cache/tags.{ts\|js}`              | `features.tagInvalidation.enabled`                                           | Tag generation helpers from URL paths                                                   |
 | `storage.{ts\|js}`                 | always                                                                        | Storage estimation (`getStorageEstimate` / `formatBytes`)                               |
 | `reset.{ts\|js}`                   | always                                                                        | `resetSwoff()` — wipes caches, IndexedDB databases, localStorage, unregisters SW        |
 | `auth/adapter.{ts\|js}`            | `auth.enabled`                                                                | Auth provider adapter — generated template (cookie, bearer, or custom)                  |
@@ -76,7 +74,6 @@ All files land in `swoff/`. See [API Reference](/docs/api) for the full referenc
 | `sw/version.{ts\|js}`              | always                                                                        | `SW_VERSION` constant — embedded in SW for display / debugging                         |
 | `adapters/*.tsx`                   | React-based framework only                                                  | React hooks. Other frameworks use `window.addEventListener` (see [Blueprint](/docs/frameworks/blueprint)) |
 | `swoff.d.ts`                       | TypeScript                                                                    | TypeScript declarations                                                                 |
-| `GUIDE.md`                         | always                                                                        | Documentation links and quick-start info                                                |
 
 ### PWA assets
 
@@ -110,25 +107,7 @@ Generated assets by default:
 After generation, **manually reference these assets** in your app. Run `swoff assets --help`
 for a copy-paste guide with the exact `<link>` and `<meta>` tags for your HTML `<head>`.
 
----
 
-## `add <feature>`
-
-Enables a feature in `swoff.config.json` and immediately regenerates.
-
-```
-swoff add pwa
-swoff add mutation-queue
-swoff add auth
-swoff add graphql
-swoff add background-sync # enables mutationQueue.backgroundSync
-swoff add push-notification # enables pushNotifications
-```
-
-Each feature maps to a config path — run `swoff add` with the feature name, then
-tweak the config file afterwards for fine-grained options.
-
----
 
 ## `validate`
 

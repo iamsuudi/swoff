@@ -1,0 +1,125 @@
+---
+title: Connectivity
+description: Online/offline detection with HEAD heartbeat.
+---
+
+> **Requires `features.connectivity.enabled: true`.** Without this flag, no connectivity monitoring code is generated.
+
+The connectivity module provides real online/offline detection that goes beyond `navigator.onLine` — it performs a HEAD heartbeat every 30s to verify actual network reachability.
+
+## Preconditions
+
+- Swoff initialized (`swoff init` done)
+- Service worker registered and controlling the page
+- `features.connectivity.enabled: true` in `swoff.config.json`
+
+## Status
+
+**Off by default.** Enable it explicitly:
+
+```json
+{
+  "features": {
+    "connectivity": {
+      "enabled": true,
+      "heartbeatIntervalMs": 30000
+    }
+  }
+}
+```
+
+## How it works
+
+1. On app init, the client-injector calls `verifyAndNotify()` — performs a `HEAD /{timestamp}?hb=1` with a 5s timeout
+2. If the fetch succeeds and `navigator.onLine` is `true`, it dispatches `app-connectivity-change` with `{ online: true }` and notifies the SW via `postMessage({ type: "ONLINE" })`
+3. On failure, it dispatches `{ online: false }` and sends `OFFLINE` to the SW
+4. A `setInterval` heartbeat runs every 30s (only when the tab is visible) to re-verify
+5. On `window.online` / `window.offline` events, the heartbeat is restarted/stopped
+6. On `visibilitychange`, the heartbeat verifies when the tab becomes visible, stops when hidden
+
+## Generated files
+
+| File                      | What it does                                                                        | Import in your code? |
+| ------------------------- | ----------------------------------------------------------------------------------- | -------------------- |
+| `swoff/connectivity.ts`   | `getCurrentOnlineStatus()`, `startHeartbeat()`, `stopHeartbeat()`, `forceRetry()`   | Yes                  |
+
+## Exports
+
+### `CONNECTIVITY_EVENT`
+
+Constant: `"app-connectivity-change"`. Use this string or the constant to listen for verified connectivity changes.
+
+### `getCurrentOnlineStatus()`
+
+Returns `boolean` — the last verified online status (synchronous, no fetch needed).
+
+### `startHeartbeat()`
+
+Begins the 30s interval heartbeat. Called automatically by the client-injector. Only runs while the tab is visible (`document.hidden` check).
+
+### `stopHeartbeat()`
+
+Stops the interval heartbeat. Called automatically on `window.offline` and `visibilitychange` (hidden).
+
+### `verifyAndNotify()`
+
+Triggers an immediate HEAD request to verify connectivity, dispatches `CONNECTIVITY_EVENT`, and posts `ONLINE`/`OFFLINE` to the SW controller. Returns `Promise<boolean>`.
+
+### `forceRetry()`
+
+Stops the heartbeat, calls `verifyAndNotify()`, then restarts the heartbeat. Useful for retry buttons in your UI.
+
+## Window events
+
+| Event                     | Detail shape | Purpose                                      |
+| ------------------------- | ------------ | -------------------------------------------- |
+| `app-connectivity-change` | `{ online }` | Verified connectivity changed                |
+
+## Framework adapters
+
+### `useNetworkStatus`
+
+Exposes connectivity state: `{ online, wasOffline, lastChangedAt, effectiveType, downlink, isRetrying, retry }`.
+
+Uses the generated `connectivity.ts` module which runs a HEAD heartbeat every 30s to verify true connectivity (not just `navigator.onLine`). The module must be started at app init via `startHeartbeat()` — the client-injector does this automatically.
+
+**Events listened to:**
+
+| Event                           | Detail shape | Purpose                                                   |
+| ------------------------------- | ------------ | --------------------------------------------------------- |
+| `app-connectivity-change`       | `{ online }` | Verified connectivity changed (from connectivity module) |
+| `navigator.connection` `change` | —            | Network type / bandwidth changed                          |
+
+**Imports from `connectivity.ts`:** `CONNECTIVITY_EVENT`, `getCurrentOnlineStatus`, `forceRetry`.
+
+**Building the adapter:**
+
+```js
+import {
+  CONNECTIVITY_EVENT,
+  getCurrentOnlineStatus,
+  forceRetry,
+} from "./swoff/connectivity";
+
+// Reactive state: { online, wasOffline, lastChangedAt, effectiveType, downlink, isRetrying, retry }
+// 1. Initialize: online = true, wasOffline = false, lastChangedAt = null
+// 2. On mount, sync with actual status (avoids SSR hydration mismatch):
+if (!getCurrentOnlineStatus()) {
+  // Set online = false, wasOffline = true, lastChangedAt = Date.now()
+}
+// 3. Listen to verified connectivity events:
+window.addEventListener(CONNECTIVITY_EVENT, (e) => {
+  // Set online = e.detail.online
+  // Track wasOffline across transitions
+  // Set lastChangedAt = Date.now()
+});
+// 4. Listen for bandwidth changes (navigator.connection):
+navigator.connection?.addEventListener("change", () => {
+  // Set effectiveType = navigator.connection.effectiveType
+  // Set downlink = navigator.connection.downlink
+});
+// 5. retry(): call forceRetry() — immediately re-checks connectivity
+// 6. Return { online, wasOffline, lastChangedAt, effectiveType, downlink, isRetrying, retry }
+```
+
+**If your framework already has this adapter** (React): the CLI generates `useNetworkStatus` into `swoff/adapters/`. See the [React page](/docs/frameworks/react) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).

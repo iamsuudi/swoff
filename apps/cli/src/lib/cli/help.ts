@@ -27,11 +27,6 @@ export const commands: Record<string, CommandDef> = {
     usage: "swoff validate",
     examples: ["swoff validate"],
   },
-  add: {
-    description: "Add specific feature files (mutation-queue, pwa, cross-tab, auth, background-sync, graphql, push-notification)",
-    usage: "swoff add <feature1>[,<feature2>,...]",
-    examples: ["swoff add pwa", "swoff add auth,graphql", "swoff add htmx"],
-  },
   clean: {
     description: "Remove Swoff from the project (swoff/, config). Use --yes to skip confirmation",
     usage: "swoff clean [--yes|-y]",

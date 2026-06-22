@@ -1,7 +1,4 @@
-import { GeneratorContext, writeFile } from "./context.js";
-
-export function generateSwGeneratorBuild(ctx: GeneratorContext): void {
-  const code = `#!/usr/bin/env node
+#!/usr/bin/env node
 /**
  * Swoff SW Generator Build Script
  * Reads swoff/sw/template.js and generates the final SW output.
@@ -41,15 +38,15 @@ const swoffDir = join(projectRoot, 'swoff');
 const authCheckTsPath = join(swoffDir, 'auth', 'check.ts');
 const authCheckJsPath = join(swoffDir, 'auth', 'check.js');
 const authCheckPath = existsSync(authCheckTsPath) ? authCheckTsPath : authCheckJsPath;
-let authFailureFn = 'async function isAuthFailureResponse(response) {\\n  return response.status === 401;\\n}';
+let authFailureFn = 'async function isAuthFailureResponse(response) {\n  return response.status === 401;\n}';
 if (existsSync(authCheckPath)) {
   const authContent = readFileSync(authCheckPath, 'utf8');
-  const fnMatch = authContent.match(/export\\s+async\\s+function\\s+isAuthFailureResponse[\\s\\S]*?\\n\\}/);
+  const fnMatch = authContent.match(/export\s+async\s+function\s+isAuthFailureResponse[\s\S]*?\n\}/);
   if (fnMatch) {
-    authFailureFn = fnMatch[0].replace(/^export\\s+/, '');
+    authFailureFn = fnMatch[0].replace(/^export\s+/, '');
   }
 }
-template = authFailureFn + '\\n\\n' + template;
+template = authFailureFn + '\n\n' + template;
 
 // Resolve API_BASE for server push endpoint
 if (config.features?.serverPush?.enabled) {
@@ -65,7 +62,7 @@ if (config.features?.serverPush?.enabled) {
     const configTsPath = join(swoffDir, 'config.ts');
     if (existsSync(configTsPath)) {
       const content = readFileSync(configTsPath, 'utf8');
-      const match = content.match(/export\\s+const\\s+API_BASE\\s*=\\s*"([^"]+)"/);
+      const match = content.match(/export\s+const\s+API_BASE\s*=\s*"([^"]+)"/);
       apiBase = match ? match[1] : '';
     }
   }
@@ -102,14 +99,14 @@ const allAssets = [];
     const dirPath = join(projectRoot, dir);
     if (existsSync(dirPath)) {
       const cfg = raw;
-      const normPrefix = cfg.prefix.replace(/\\/+$/, '');
+      const normPrefix = cfg.prefix.replace(/\/+$/, '');
       const matchExtensions = cfg.matchExtensions;
       const stripExtensions = cfg.stripExtensions;
       const stripSuffixes = cfg.stripSuffixes;
       for (const a of collectAssets(dirPath, dirPath)) {
         if (matchExtensions?.length && !matchExtensions.includes(extname(a))) continue;
         let url = normPrefix + '/' + a.slice(1);
-        if (stripExtensions?.includes(extname(a))) url = url.replace(/\\.[^/.]+$/, '');
+        if (stripExtensions?.includes(extname(a))) url = url.replace(/\.[^/.]+$/, '');
         if (stripSuffixes) {
         for (const suffix of stripSuffixes) {
           if (url.endsWith('/' + suffix)) {
@@ -124,8 +121,8 @@ const allAssets = [];
     }
   }
 }
-const swFile = \`\${swFilename}.js\`;
-const filtered = allAssets.filter(a => a !== \`/\${swFile}\`);
+const swFile = `${swFilename}.js`;
+const filtered = allAssets.filter(a => a !== `/${swFile}`);
 const nav = config.features?.serviceWorker?.navigation || {};
 const fallback = [];
 if (nav.fallback) fallback.push(nav.fallback);
@@ -144,17 +141,13 @@ const combined = [...new Set([...fallback, ...filtered])];
 const assetsToCache = combined.map(url => ({ url, options: {} }));
 
 let sw = template;
-sw = sw.replace(/let ASSETS_TO_CACHE = \\[\\]/, () => \`let ASSETS_TO_CACHE = \${JSON.stringify(assetsToCache, null, 2)};\`);
-sw = sw.replace(/let AUTO_SKIP_WAITING = (?:true|false)/, () => \`let AUTO_SKIP_WAITING = \${config.features?.serviceWorker?.autoActivate || false};\`);
-sw += \`\\nconst CACHE_NAME = "\${Date.now()}";\\n\`;
+sw = sw.replace(/let ASSETS_TO_CACHE = \[\]/, () => `let ASSETS_TO_CACHE = ${JSON.stringify(assetsToCache, null, 2)};`);
+sw = sw.replace(/let AUTO_SKIP_WAITING = (?:true|false)/, () => `let AUTO_SKIP_WAITING = ${config.features?.serviceWorker?.autoActivate || false};`);
+sw += `\nconst CACHE_NAME = "${Date.now()}";\n`;
 
 writeFileSync(join(outDir, swFile), sw);
 const hasPrecache = Object.keys(config.build?.precacheDirs || {}).length > 0;
 if (!hasPrecache) {
   console.warn('Warning: No precacheDirs configured. Only explicit fallback routes will be precached.');
 }
-console.log(\`Service worker built: \${outputDir}/\${swFile}\`);
-`;
-
-  writeFile(ctx, "sw/generator.js", code);
-}
+console.log(`Service worker built: ${outputDir}/${swFile}`);

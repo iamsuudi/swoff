@@ -7,15 +7,18 @@ description: fetchWithCache, prefetchCache, and React hooks for reactive data fe
 
 > **This is the first guide that introduces a swoff API.** Caching Strategy and Navigation Caching (guides 2–3) require no imports — they work purely through `swoff.config.json`. Data fetching is where you start interacting with the cache programmatically.
 
+> **Requires `features.tagInvalidation.enabled: true`.** The `fetch/core`, `cache/tags`, and `cache/invalidate` modules are generated only when tag invalidation is enabled. Without it, the SW still intercepts requests and applies caching strategies — you just can't use `fetchWithCache()` or `prefetchCache()` programmatically.
+
 ## Preconditions
 
 - Swoff initialized (`swoff init` done)
 - Service worker registered and controlling the page
 - Caching strategies configured (see [Caching Strategy guide](/docs/guides/caching-strategy))
+- `features.tagInvalidation.enabled: true` in `swoff.config.json`
 
 ## Status
 
-**Already on by default.** After `swoff init`, the generated SW applies these default patterns:
+**Off by default** (gated behind `features.tagInvalidation.enabled: true`). When enabled, the generated SW applies these default patterns:
 
 | Pattern     | Strategy        | Behavior                                            |
 | ----------- | --------------- | --------------------------------------------------- |

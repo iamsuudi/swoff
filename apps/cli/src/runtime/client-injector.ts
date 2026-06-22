@@ -7,8 +7,11 @@ export function generateClientInjectorCode(
   serverPushEnabled: boolean,
   navMode?: string,
   authEnabled?: boolean,
+  connectivityEnabled?: boolean,
+  tagInvalidationEnabled?: boolean,
 ): string {
   const { ext, ts } = ctx;
+  const ssrNav = navMode === "ssr" && tagInvalidationEnabled;
 
   const pwaImport = pwaEnabled
     ? `import { setupPwaInstall } from "./pwa/prompt.${ext}";
@@ -38,10 +41,23 @@ export function generateClientInjectorCode(
 `
     : "";
 
-  const storageImport = `import { getStorageEstimate, formatBytes } from "./storage.${ext}";
-`;
+  const storageImport = connectivityEnabled
+    ? `import { getStorageEstimate, formatBytes } from "./storage.${ext}";
+`
+    : "";
 
-  const onlineListener = `
+  const connectivityImport = connectivityEnabled
+    ? `import {
+  dispatchState,
+  startHeartbeat,
+  stopHeartbeat,
+  verifyAndNotify,
+} from './connectivity.${ext}'
+`
+    : "";
+
+  const onlineListener = connectivityEnabled
+    ? `
 // --- Online Listener ---
 // When connectivity returns, the SW checks stale cache entries and refetches them.
 if (typeof window !== 'undefined') {
@@ -74,9 +90,11 @@ if (typeof window !== 'undefined') {
     queueMicrotask(() => dispatchState(false))
   }
 }
-`;
+`
+    : "";
 
-  const focusListener = `
+  const focusListener = tagInvalidationEnabled
+    ? `
 // --- Focus Listener for Reactive Strategy ---
 // Notifies the SW when the tab gains focus so it can refresh stale reactive entries.
 // Uses visibilitychange only (covers tab switch, window refocus, alt-tab) — single source avoids duplicate FOCUS messages.
@@ -87,9 +105,11 @@ if (typeof document !== "undefined") {
     }
   });
 }
-`;
+`
+    : "";
 
-  const invalidationHandler = `
+  const invalidationHandler = tagInvalidationEnabled
+    ? `
     if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
       window.dispatchEvent(
         new CustomEvent("cache-invalidated", {
@@ -97,20 +117,19 @@ if (typeof document !== "undefined") {
         })
       );
     }
-`;
+`
+    : "";
 
   const swImport = `import { initServiceWorker as swInit } from "./sw/injector.${ext}";
 `;
 
-  const autoPrefetchImport =
-    navMode === "ssr"
-      ? `import { prefetchCache } from "./fetch/core.${ext}";
+  const autoPrefetchImport = ssrNav
+    ? `import { prefetchCache } from "./fetch/core.${ext}";
 `
-      : "";
+    : "";
 
-  const autoPrefetchCode =
-    navMode === "ssr"
-      ? `
+  const autoPrefetchCode = ssrNav
+    ? `
 // --- Auto-prefetch HTML on client-side navigation (SSR mode) ---
 // Intercepts history.pushState/replaceState to warm the SW cache with HTML
 // for routes the user navigates to via client-side routing.
@@ -131,7 +150,24 @@ if (typeof history !== "undefined") {
   };
 }
 `
-      : "";
+    : "";
+
+  const storageInit = connectivityEnabled
+    ? `
+  const storage = await getStorageEstimate();
+  if (storage.percentUsed > 80) {
+    window.dispatchEvent(
+      new CustomEvent("swoff:notification", {
+        detail: {
+          level: "warn",
+          code: "STORAGE_QUOTA_HIGH",
+          message: \`Storage at \${storage.percentUsed}% capacity (\${formatBytes(storage.usage)} / \${formatBytes(storage.quota)})\`,
+        },
+      }),
+    );
+  }
+`
+    : "";
 
   return `/**
  * Swoff Client Injector
@@ -160,14 +196,7 @@ if (typeof history !== "undefined") {
  *   sw-auth-unauthorized  - 401 response received
  *   sw-auth-state-change  - Login or logout (detail: { authenticated: boolean })
  */
-${pwaImport}${mutationImport}${authImport}${swImport}${storageImport}${pushImport}${autoPrefetchImport}
-import {
-  dispatchState,
-  startHeartbeat,
-  stopHeartbeat,
-  verifyAndNotify,
-} from './connectivity.${ext}'
-
+${pwaImport}${mutationImport}${authImport}${swImport}${storageImport}${connectivityImport}${pushImport}${autoPrefetchImport}
 ${pwaCall}${pushCall}${onlineListener}${focusListener}${autoPrefetchCode}
 // --- SW Message Listener ---
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {
@@ -270,19 +299,7 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 
 /** Initialize SW registration and all client-side features (PWA install, mutation queue, cross-tab sync). Call once at app startup. */
 export async function initServiceWorker()${ts ? ": Promise<void>" : " "}{
-  await swInit();
-  const storage = await getStorageEstimate();
-  if (storage.percentUsed > 80) {
-    window.dispatchEvent(
-      new CustomEvent("swoff:notification", {
-        detail: {
-          level: "warn",
-          code: "STORAGE_QUOTA_HIGH",
-          message: \`Storage at \${storage.percentUsed}% capacity (\${formatBytes(storage.usage)} / \${formatBytes(storage.quota)})\`,
-        },
-      }),
-    );
-  }
+  await swInit();${storageInit}
 }
 `;
 }

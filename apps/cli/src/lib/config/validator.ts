@@ -378,13 +378,15 @@ export function validateConfig(config: Record<string, unknown>): string[] {
           if (typeof obj.prefix !== "string") {
             errors.push(`build.precacheDirs["${dir}"].prefix must be a string`);
           }
-          if (obj.extensions !== undefined) {
-            if (!Array.isArray(obj.extensions) || !obj.extensions.every((e: unknown) => typeof e === "string")) {
-              errors.push(`build.precacheDirs["${dir}"].extensions must be an array of strings`);
+          if (obj.matchExtensions !== undefined) {
+            if (!Array.isArray(obj.matchExtensions) || !obj.matchExtensions.every((e: unknown) => typeof e === "string")) {
+              errors.push(`build.precacheDirs["${dir}"].matchExtensions must be an array of strings`);
             }
           }
-          if (obj.stripExtension !== undefined && typeof obj.stripExtension !== "boolean") {
-            errors.push(`build.precacheDirs["${dir}"].stripExtension must be a boolean`);
+          if (obj.stripExtensions !== undefined) {
+            if (!Array.isArray(obj.stripExtensions) || !obj.stripExtensions.every((e: unknown) => typeof e === "string")) {
+              errors.push(`build.precacheDirs["${dir}"].stripExtensions must be an array of strings`);
+            }
           }
           if (obj.stripSuffixes !== undefined) {
             if (!Array.isArray(obj.stripSuffixes) || !obj.stripSuffixes.every((s: unknown) => typeof s === "string")) {

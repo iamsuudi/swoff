@@ -76,6 +76,7 @@ describe("generateSwTemplate", () => {
     const ctx = makeContext({
       features: {
         ...defaultConfig.features,
+        tagInvalidation: { ...defaultConfig.features.tagInvalidation, enabled: true },
         serviceWorker: {
           ...defaultConfig.features.serviceWorker,
           strategy: {
@@ -166,7 +167,10 @@ describe("generateSwInjector", () => {
 describe("generateClientInjector", () => {
   it("generates orchestrator with PWA setup and SW message listener when pwa enabled", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features },
+      features: {
+        ...defaultConfig.features,
+        pwa: { ...defaultConfig.features.pwa, enabled: true },
+      },
     });
     generateClientInjector(ctx);
     const content = readFileSync(
@@ -179,12 +183,13 @@ describe("generateClientInjector", () => {
     expect(content).toContain("BACKGROUND_SYNC_COMPLETE");
   });
 
-  it("includes TAG_INVALIDATED handler", () => {
+  it("includes TAG_INVALIDATED handler when tagInvalidation enabled", () => {
     const ctx = makeContext({
       features: {
         ...defaultConfig.features,
         tagInvalidation: {
           ...defaultConfig.features.tagInvalidation,
+          enabled: true,
         },
       },
     });
@@ -199,7 +204,10 @@ describe("generateClientInjector", () => {
 
   it("includes setupPwaInstall and beforeinstallprompt import when pwa enabled", () => {
     const ctx = makeContext({
-      features: { ...defaultConfig.features },
+      features: {
+        ...defaultConfig.features,
+        pwa: { ...defaultConfig.features.pwa, enabled: true },
+      },
     });
     generateClientInjector(ctx);
     const content = readFileSync(

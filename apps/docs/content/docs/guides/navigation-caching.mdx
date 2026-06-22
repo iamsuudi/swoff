@@ -56,50 +56,7 @@ For the internal mechanics of `serveFromCache`, the fallback chain, and per-mode
 
 ## Framework adapters
 
-### `useNetworkStatus`
-
-Exposes connectivity state: `{ online, wasOffline, lastChangedAt, effectiveType, downlink, isRetrying, retry }`.
-
-Uses the generated `connectivity-manager.ts` module which runs a HEAD heartbeat every 30s to verify true connectivity (not just `navigator.onLine`). The module must be started at app init via `startHeartbeat()` — the client-injector does this automatically.
-
-**Events listened to:**
-
-| Event                           | Detail shape | Purpose                                                   |
-| ------------------------------- | ------------ | --------------------------------------------------------- |
-| `app-connectivity-change`       | `{ online }` | Verified connectivity changed (from connectivity-manager) |
-| `navigator.connection` `change` | —            | Network type / bandwidth changed                          |
-
-**Imports from `connectivity-manager.ts`:** `CONNECTIVITY_EVENT`, `getCurrentOnlineStatus`, `forceRetry`.
-
-**Building the adapter:**
-
-```js
-import {
-  CONNECTIVITY_EVENT,
-  getCurrentOnlineStatus,
-  forceRetry,
-} from "./swoff/connectivity-manager";
-
-// Reactive state: { online, wasOffline, lastChangedAt, effectiveType, downlink, isRetrying, retry }
-// 1. Initialize: online = true, wasOffline = false, lastChangedAt = null
-// 2. On mount, sync with actual status (avoids SSR hydration mismatch):
-if (!getCurrentOnlineStatus()) {
-  // Set online = false, wasOffline = true, lastChangedAt = Date.now()
-}
-// 3. Listen to verified connectivity events:
-window.addEventListener(CONNECTIVITY_EVENT, (e) => {
-  // Set online = e.detail.online
-  // Track wasOffline across transitions
-  // Set lastChangedAt = Date.now()
-});
-// 4. Listen for bandwidth changes (navigator.connection):
-navigator.connection?.addEventListener("change", () => {
-  // Set effectiveType = navigator.connection.effectiveType
-  // Set downlink = navigator.connection.downlink
-});
-// 5. retry(): call forceRetry() — immediately re-checks connectivity
-// 6. Return { online, wasOffline, lastChangedAt, effectiveType, downlink, isRetrying, retry }
-```
+`useNetworkStatus` now lives in the [Connectivity & Storage guide](/docs/guides/connectivity#usenetworkstatus).
 
 ### `useOfflineAnalytics`
 
@@ -140,7 +97,7 @@ navigator.serviceWorker.addEventListener("message", (event) => {
 });
 ```
 
-**If your framework already has these adapters** (React): the CLI generates `useNetworkStatus` and `useOfflineAnalytics` into `swoff/adapters/`. See the [React page](/docs/frameworks/react) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has these adapters** (React): the CLI generates `useOfflineAnalytics` into `swoff/adapters/`. See the [React page](/docs/frameworks/react) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ## Related
 

@@ -107,7 +107,7 @@ const allAssets = [];
       const stripExtensions = cfg.stripExtensions;
       const stripSuffixes = cfg.stripSuffixes;
       for (const a of collectAssets(dirPath, dirPath)) {
-        if (matchExtensions && !matchExtensions.includes(extname(a))) continue;
+        if (matchExtensions?.length && !matchExtensions.includes(extname(a))) continue;
         let url = normPrefix + '/' + a.slice(1);
         if (stripExtensions?.includes(extname(a))) url = url.replace(/\\.[^/.]+$/, '');
         if (stripSuffixes) {

@@ -52,7 +52,7 @@ export function scanPrecacheAssets(
     const cfg = raw as PrecacheDirConfig;
     const normPrefix = cfg.prefix.replace(/\/+$/, "");
     for (const a of collectAssets(dirPath, dirPath)) {
-      if (cfg.matchExtensions && !cfg.matchExtensions.includes(extname(a))) continue;
+      if (cfg.matchExtensions?.length && !cfg.matchExtensions.includes(extname(a))) continue;
       let urlPath = normPrefix + "/" + a.slice(1);
       if (cfg.stripExtensions?.includes(extname(a))) {
         urlPath = urlPath.replace(/\.[^/.]+$/, "");

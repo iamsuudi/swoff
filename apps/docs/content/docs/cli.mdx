@@ -49,7 +49,7 @@ All files land in `swoff/`. See [API Reference](/docs/api) for the full referenc
 | File                               | Condition                                                                     | Purpose                                                                                 |
 | ---------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | `client-injector.{ts\|js}`         | always                                                                        | Single entry point — wires SW registration, PWA install, mutation queue, cross-tab sync |
-| `config.{ts\|js}`                  | always                                                                        | Project configuration — mirrors `swoff.config.json` at runtime                          |
+| `config.{ts\|js}`                  | `serverPush.enabled`                                                          | Project configuration — API_BASE for server-push endpoint                                |
 | `connectivity.{ts\|js}`            | `features.connectivity.enabled`                                              | Online/offline detection with HEAD heartbeat                                            |
 | `db.{ts\|js}`                      | auto-enabled when auth, mutation queue, or push notifications is enabled      | IndexedDB database open/init helpers                                                    |
 | `fetch/core.{ts\|js}`              | `features.tagInvalidation.enabled`                                           | Unified fetch with caching, auth, offline queue, auto-invalidation                      |

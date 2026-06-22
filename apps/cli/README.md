@@ -11,11 +11,21 @@ npx @swoff/cli init          # create swoff.config.json
 npx @swoff/cli generate      # generate swoff/ files
 ```
 
-Then wire it up:
+### With a bundler (React, Next.js, Vue, Svelte, Astro)
 
 ```js
-import { initServiceWorker } from "./swoff/client-injector";
-initServiceWorker();
+import { fetchWithCache } from "./swoff/fetch/core";
+const { response } = await fetchWithCache("/api/todos");
+```
+
+### Without a bundler (vanilla, Laravel, Django, Rails, Go)
+
+```html
+<script src="/swoff/client-injector.bundle.js"></script>
+<script src="/swoff/swoff-api.bundle.js"></script>
+<script>
+  swoff.fetchWithCache("/api/todos").then((r) => r.json());
+</script>
 ```
 
 ## Features
@@ -42,7 +52,6 @@ initServiceWorker();
 | ---------------- | ---------------------------------------------- |
 | `init`           | Create `swoff.config.json` with auto-detection |
 | `generate`       | Generate SW + all supporting files             |
-| `add <feature>`  | Enable a feature and regenerate                |
 | `validate`       | Validate `swoff.config.json`                   |
 | `info [feature]` | Show summary or per-feature details            |
 | `clean`          | Remove all generated files and config          |
@@ -56,15 +65,15 @@ npx @swoff/assets --source ./logo.svg
 
 ## Documentation
 
-| Guide                   | Description                                        |
-| ----------------------- | -------------------------------------------------- |
-| [Config](./docs/CONFIG.md)           | Full config schema and feature reference |
-| [API](./docs/API.md)                 | Client API reference (auth, cache, mutations) |
-| [CLI](./docs/CLI.md)                 | CLI commands and options |
-| [Guides](./docs/guides)              | Step-by-step guides for each feature |
-| [Architecture](./docs/ARCHITECTURE.md) | Design decisions and rationale |
-| [Comparison](./docs/COMPARISON.md)    | Swoff vs Workbox / Serwist / SWR / TanStack Query |
-| [Ecosystem](./docs/ECOSYSTEM.md)      | Framework integration guides |
+| Guide                                                            | Description                                       |
+| ---------------------------------------------------------------- | ------------------------------------------------- |
+| [Config](https://swoff.netlify.app/docs/config)                  | Full config schema and feature reference          |
+| [API](https://swoff.netlify.app/docs/api)                        | Client API reference (auth, cache, mutations)     |
+| [CLI](https://swoff.netlify.app/docs/cli)                        | CLI commands and options                          |
+| [Guides](https://swoff.netlify.app/docs/guides)                  | Step-by-step guides for each feature              |
+| [Architecture](https://swoff.netlify.app/docs/architecture)      | Design decisions and rationale                    |
+| [Comparison](https://swoff.netlify.app/docs/comparison)          | Swoff vs Workbox / Serwist / SWR / TanStack Query |
+| [Ecosystem](https://swoff.netlify.app/docs/frameworks/ecosystem) | Framework integration guides                      |
 
 ---
 

@@ -142,7 +142,6 @@ describe("generateCommand", () => {
     writeMinimalConfig();
     await generateCommand(testDir);
     expect(existsSync(join(testDir, "swoff"))).toBe(true);
-    expect(existsSync(join(testDir, "swoff/config.js"))).toBe(true);
     expect(existsSync(join(testDir, "swoff/client-injector.js"))).toBe(true);
     expect(existsSync(join(testDir, "swoff/sw/template.js"))).toBe(true);
     expect(existsSync(join(testDir, "swoff/sw/injector.js"))).toBe(true);
@@ -179,7 +178,8 @@ describe("generateCommand", () => {
     writeFileSync(join(testDir, "tsconfig.json"), JSON.stringify({ compilerOptions: {} }));
     writeMinimalConfig();
     await generateCommand(testDir, { language: "ts" });
-    expect(existsSync(join(testDir, "swoff/config.ts"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/sw/injector.ts"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/storage.ts"))).toBe(true);
     expect(existsSync(join(testDir, "swoff/swoff.d.ts"))).toBe(true);
   });
 

@@ -250,7 +250,7 @@ ${authCode}${mutationCode}${pwaCode}${gqlCode}${pushCode}${serverPushCode}
     options = options || {};
     var method = (options.method || "GET").toUpperCase();
     var isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD" || method === "OPTIONS"));
-    var resolvedInput = typeof input === "string" && input.indexOf("://") === -1 && input.indexOf("//") !== 0 ? API_BASE + input : input;
+    var resolvedInput = input;
     var url = typeof resolvedInput === "string" ? resolvedInput : resolvedInput.url;
 
     var headers = new Headers(options.headers);

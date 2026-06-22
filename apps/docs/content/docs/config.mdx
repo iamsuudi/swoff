@@ -20,8 +20,12 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
   },
   "features": {
     "requestBatchWindowMs": 50,
+    "connectivity": {
+      "enabled": false,
+      "heartbeatIntervalMs": 30000
+    },
     "pwa": {
-      "enabled": true,
+      "enabled": false,
       "preventDefaultInstall": false
     },
     "serviceWorker": {
@@ -44,13 +48,16 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
             "refetchOnFocus": false
           }
         },
+        "maxRuntimeCacheAge": 2592000,
         "normalizeKey": false,
-        "ignoreQueryParams": []
+        "ignoreQueryParams": [],
+        "timeout": 10
       },
       "navigation": {
         "mode": "spa",
         "preload": true,
         "fallback": "/index.html",
+        "precacheRoutes": [],
         "rules": []
       }
     },
@@ -94,7 +101,14 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
       "enabled": false,
       "endpoints": ["/graphql"]
     },
-    "tagInvalidation": {},
+    "tagInvalidation": {
+      "enabled": false,
+      "debounceMs": 0,
+      "skipPrefixes": ["api", "v1", "v2", "v3", "rest", "graphql", "gql"],
+      "patterns": {},
+      "singularization": {},
+      "cascading": {}
+    },
     "pushNotifications": false,
     "serverPush": {
       "enabled": false,
@@ -113,7 +127,7 @@ Full schema for `swoff.config.json` — every field, its type, default, and desc
 | Field                | Type                                                                                                                                                   | Default       | Description                                                                                                                                                                                                                                                                                                                                                                        |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `$schema`            | `string`                                                                                                                                               | —             | JSON Schema URL (for IDE autocomplete)                                                                                                                                                                                                                                                                                                                                             |
-| `framework`          | `"react-spa"` \| `"nextjs"` \| `"remix"` \| `"tanstack-start-react"` \| `"astro"` \| `"nuxt"` \| `"sveltekit"` \| `"vue"` \| `"svelte"` \| `"vanilla"` | auto-detected | Your UI framework. Meta-frameworks auto-configure navigation mode, strategy defaults, and build paths via `swoff init`.                                                                                                                                                                                                                                                            |
+| `framework`          | `"react-spa"` \| `"nextjs"` \| `"remix"` \| `"tanstack-start-react"` \| `"astro"` \| `"nuxt"` \| `"sveltekit"` \| `"vue"` \| `"svelte"` \| `"laravel"` \| `"django"` \| `"flask"` \| `"rails"` \| `"go"` \| `"vanilla"` | auto-detected | Your UI framework. Meta-frameworks auto-configure navigation mode, strategy defaults, and build paths via `swoff init`.                                                                                                                                                                                                                                                            |
 | `build.outputDir`    | `string`                                                                                                                                               | `"dist"`      | Build tool output directory                                                                                                                                                                                                                                                                                                                                                        |
 | `build.swFilename`   | `string`                                                                                                                                               | `"sw"`        | Service worker filename prefix (e.g. `sw-v1.2.3.js`)                                                                                                                                                                                                                                                                                                                               |
 | `build.precacheDirs` | `object`                                                                                                                                               | `{}`          | Directories to scan for precache assets. Keys are filesystem paths (relative to project root). Values are objects with `prefix` and optional filter/transform options. E.g. `{ "dist": { "prefix": "/" } }` precaches all files from `dist/` served at their relative paths. When empty, no directory scanning occurs — only explicit fallback routes are precached. See [PrecacheDirConfig](#precachedirconfig) below. |
@@ -127,8 +141,8 @@ Each `precacheDirs` value is an object with the following fields:
 | Field            | Type       | Default    | Description                                                                                                                                                                                                                                                                                                           |
 | ---------------- | ---------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `prefix`         | `string`   | (required) | URL prefix to serve assets under                                                                                                                                                                                                                                                                                      |
-| `extensions`     | `string[]` | —          | Only include files with these extensions (e.g. `[".html", ".json"]`). Omit to include all files.                                                                                                                                                                                                                      |
-| `stripExtension` | `boolean`  | `false`    | Remove the file extension from the cached URL key. E.g. `about.html` → `/about`                                                                                                                                                                                                                                       |
+| `matchExtensions`| `string[]` | —          | Only include files with these extensions (e.g. `[".html", ".json"]`). Omit to include all files.                                                                                                                                                                                                                      |
+| `stripExtensions`| `string[]` | —          | Remove specific extensions from the cached URL key. Only extensions present here are stripped — e.g. `[".html"]` strips `.html` from URLs but keeps `.json` intact. Empty or omitted means no stripping. E.g. `about.html` → `/about`                                                                                 |
 | `stripSuffixes`  | `string[]` | —          | Strip these path segments before the extension (e.g. `["index", "page"]`). After extension stripping, each matching suffix is removed: `index.html` → `/`, `about/index.html` → `/about`, `blog/page.html` → `/blog`. Trailing slashes are then cleaned for consistent cache key matching (unless the result is `/`). |
 
 Example — precache NextJS static HTML pages without the `.html` extension and normalize `index` to root:
@@ -138,8 +152,8 @@ Example — precache NextJS static HTML pages without the `.html` extension and 
   ".next/static": { "prefix": "/_next/static" },
   ".next/server/app": {
     "prefix": "",
-    "extensions": [".html"],
-    "stripExtension": true,
+    "matchExtensions": [".html"],
+    "stripExtensions": [".html"],
     "stripSuffixes": ["index"]
   }
 }
@@ -147,11 +161,20 @@ Example — precache NextJS static HTML pages without the `.html` extension and 
 
 ---
 
+## `features.connectivity`
+
+| Field                  | Type      | Default | Description                                                                                               |
+| ---------------------- | --------- | ------- | --------------------------------------------------------------------------------------------------------- |
+| `enabled`              | `boolean` | `false` | Enable connectivity monitoring (online/offline detection with HEAD heartbeat)                                 |
+| `heartbeatIntervalMs`  | `number`  | `30000` | Interval in ms between HEAD heartbeat requests to verify connectivity                                     |
+
+---
+
 ## `features.pwa`
 
 | Field                   | Type      | Default | Description                                                                                    |
 | ----------------------- | --------- | ------- | ---------------------------------------------------------------------------------------------- |
-| `enabled`               | `boolean` | `true`  | Enable PWA installability (generates `pwa/prompt.{ts\|js}`)                                    |
+| `enabled`               | `boolean` | `false` | Enable PWA installability (generates `pwa/prompt.{ts\|js}`)                                    |
 | `preventDefaultInstall` | `boolean` | `false` | Suppress browser's native install prompt. When true, dev must call `promptInstall()` manually. |
 
 ---
@@ -172,6 +195,7 @@ Example — precache NextJS static HTML pages without the `.html` extension and 
 | `reactive.defaults.refetchInterval`    | `number`   | `0`             | Global auto-refetch interval in seconds for reactive strategy. SW periodically re-fetches matching routes in the background. 0 disables.                                                                                                                                                       |
 | `reactive.defaults.refetchOnReconnect` | `boolean`  | `false`         | Global default — refetch reactive entries when the browser comes back online                                                                                                                                                                                                                   |
 | `reactive.defaults.refetchOnFocus`     | `boolean`  | `false`         | Global default — refetch reactive entries when the tab gains focus                                                                                                                                                                                                                             |
+| `maxRuntimeCacheAge`                  | `number`   | `2592000`       | Maximum age in seconds for runtime cache entries. 0 disables eviction. Default 2592000 (30 days).                                                                                                                                                                                               |
 | `normalizeKey`                         | `boolean`  | `false`         | When `true`, query params are sorted alphabetically in cache keys so `?b=1&a=2` and `?a=2&b=1` resolve to the same entry.                                                                                                                                                                      |
 | `ignoreQueryParams`                    | `string[]` | `[]`            | Query params to strip from cache keys (e.g. `["_t", "utm_source"]`). Prevents cache-busting params from creating duplicate cache entries.                                                                                                                                                      |
 | `timeout`                              | `number`   | `10`            | Network fetch timeout in seconds. The SW's `_fetch` wraps `fetch()` with an `AbortController` that aborts after this duration. On timeout or network error, a `SW_NOTIFICATION` is broadcast (level: `"error"`, code: `"FETCH_FAILED"`), and the strategy falls through to its cache fallback. |
@@ -225,6 +249,7 @@ When a strategy value is an object instead of a string:
 | `refetchInterval`    | `number`  | —          | Auto-refetch interval in seconds. **Reactive-only**. The SW periodically re-fetches this route in the background. 0 disables.                                                                                      |
 | `refetchOnReconnect` | `boolean` | `false`    | Refetch when the browser comes back online. **Reactive-only**.                                                                                                                                                     |
 | `refetchOnFocus`     | `boolean` | `false`    | Refetch when the browser tab gains focus. **Reactive-only**.                                                                                                                                                       |
+| `timeout`            | `number`  | —          | Override the global fetch timeout for this specific pattern (in seconds).                                                                                                                                          |
 
 ---
 
@@ -285,7 +310,7 @@ Object-only feature (boolean shorthand not supported).
 | Field        | Type                                   | Default                                                                                                       | Description                                                                                                                                                                                                       |
 | ------------ | -------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `enabled`    | `boolean`                              | `false`                                                                                                       | Enable auth module                                                                                                                                                                                                |
-| `type`       | `"bearer"` \| `"cookie"` \| `"custom"` | `"bearer"`                                                                                                    | Auth adapter type. Determines how Swoff communicates with your auth provider. See [auth/adapter.ts](/docs/api/auth) in API Reference.                                                                             |
+| `type`       | `"bearer"` \| `"cookie"` \| `"custom"` | `"cookie"`                                                                                                    | Auth adapter type. Determines how Swoff communicates with your auth provider. See [auth/adapter.ts](/docs/api/auth) in API Reference.                                                                             |
 | `routePaths` | `string[]`                             | `["/login", "/logout", "/register", "/api/login", "/api/logout", "/api/register", "/api/refresh", "/api/me"]` | URL path prefixes that bypass SW caching at build time. Requests matching any of these paths return immediately in the SW fetch handler, before strategy resolution. Auth endpoints must always reach the server. |
 
 > **Note:** Token refresh path and user endpoint are now configured inside the generated `auth/adapter.ts` file, not in `swoff.config.json`. The adapter provides `refresh()` and `fetchUser()` methods with well-known defaults (`/api/refresh`, `/api/me`) that you can edit per provider.
@@ -324,10 +349,11 @@ The VAPID public key is configured at runtime via `swoff.configure({ push: { vap
 
 ## `features.tagInvalidation`
 
-Object-only feature (boolean shorthand not supported). Tag invalidation is always active — the `enabled` field was removed in v1.0.
+Object-only feature (boolean shorthand not supported).
 
 | Field             | Type                       | Default                                         | Description                                                                                                                                                                             |
 | ----------------- | -------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enabled`         | `boolean`                  | `false`                                         | Enable the tag-based cache invalidation system (generates `fetch/core`, `cache/tags`, `cache/invalidate`)                                                                               |
 | `debounceMs`      | `number`                   | `0`                                             | Debounce window (ms) for coalescing rapid invalidations. When > 0, repeated `INVALIDATE_TAG` messages within the window are batched and processed once, reducing redundant cache scans. |
 | `skipPrefixes`    | `string[]`                 | `["api","v1","v2","v3","rest","graphql","gql"]` | URL path prefixes to skip during tag generation                                                                                                                                         |
 | `patterns`        | `object`                   | `{}`                                            | Custom glob patterns for tag generation. Keys are URL patterns (`/api/:id`), values are tag template arrays (`["{id}"]`)                                                                |

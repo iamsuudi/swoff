@@ -16,13 +16,7 @@ description: Install prompt, SW generation, versioning, manifest, icons, and sto
 
 ## Enable
 
-PWA is enabled by default after `swoff init`. To add it to an existing config:
-
-```bash
-npx @swoff/cli add pwa
-```
-
-Or set `features.pwa.enabled: true` in `swoff.config.json`.
+PWA is enabled by default after `swoff init`. To enable it in an existing config, set `features.pwa.enabled: true` in `swoff.config.json`.
 
 ## Generated files
 
@@ -31,7 +25,6 @@ Or set `features.pwa.enabled: true` in `swoff.config.json`.
 | `swoff/pwa/prompt.ts`   | Install prompt listener, `isInstallable()`, `promptInstall()`                         | Yes (bundler only)                    |
 | `swoff/sw/template.js`  | The SW source — reads cache strategies, auth, tags from config headers                | No, built into SW                     |
 | `swoff/sw/generator.js` | Build script that produces the final `sw.js`                                          | Run: `node swoff/sw/generator.js`     |
-| `swoff/connectivity.ts` | Network status tracking with HEAD heartbeat                                           | Yes, if you need online/offline state |
 | `swoff-api.bundle.js`   | Same PWA/storage APIs via `window.swoff.isInstallable()` etc. for no-bundler projects | No (auto-initializes)                 |
 
 ## Usage
@@ -66,12 +59,6 @@ Include the auto-initializing bundles, then use the API on `window.swoff`:
     const result = await swoff.promptInstall();
     // result.outcome === "accepted" | "dismissed"
   }
-
-  // Storage estimate
-  const { usage, quota, percentUsed } = await swoff.getStorageEstimate();
-
-  // Start connectivity heartbeat (required for useNetworkStatus adapters)
-  swoff.startHeartbeat();
 </script>
 ```
 
@@ -143,24 +130,9 @@ window.addEventListener("beforeinstallprompt", (e) => {
 
 See the [Service Worker guide](/docs/guides/service-worker#framework-adapters) for the adapter that exposes `{ updateStatus, progress, error, acceptUpdate, dismissUpdate }` from SW lifecycle events.
 
-### `useStorageEstimate`
+`useStorageEstimate` now lives in the [Connectivity & Storage guide](/docs/guides/connectivity#usestorageestimate).
 
-Exposes storage stats: `{ usage, quota, percentUsed }`.
-
-**Events listened to:** None. Calls `navigator.storage.estimate()` directly.
-
-**Building the adapter:**
-
-```js
-// Reactive state: { usage, quota, percentUsed }
-// 1. On mount, call navigator.storage.estimate()
-// 2. usage = result.usage, quota = result.quota
-// 3. percentUsed = (usage / quota) * 100
-// 4. Re-read on focus + visibilitychange for freshness
-// 5. Return { usage, quota, percentUsed }
-```
-
-**If your framework already has these adapters** (React): the CLI generates `usePwaInstall`, `useSWUpdate`, and `useStorageEstimate` into `swoff/adapters/`. See the [React page](/docs/frameworks/react) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has these adapters** (React): the CLI generates `usePwaInstall` and `useSWUpdate` into `swoff/adapters/`. See the [React page](/docs/frameworks/react) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ## Related
 

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ShowcaseRouteImport } from './routes/showcase'
+import { Route as OfflineRouteImport } from './routes/offline'
 import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as LlmsFullDottxtRouteImport } from './routes/llms-full[.]txt'
 import { Route as AboutRouteImport } from './routes/about'
@@ -22,6 +23,11 @@ import { Route as LlmsDotmdxDocsSplatRouteImport } from './routes/llms[.]mdx.doc
 const ShowcaseRoute = ShowcaseRouteImport.update({
   id: '/showcase',
   path: '/showcase',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OfflineRoute = OfflineRouteImport.update({
+  id: '/offline',
+  path: '/offline',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
+  '/offline': typeof OfflineRoute
   '/showcase': typeof ShowcaseRoute
   '/api/chat': typeof ApiChatRoute
   '/api/search': typeof ApiSearchRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
+  '/offline': typeof OfflineRoute
   '/showcase': typeof ShowcaseRoute
   '/api/chat': typeof ApiChatRoute
   '/api/search': typeof ApiSearchRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
+  '/offline': typeof OfflineRoute
   '/showcase': typeof ShowcaseRoute
   '/api/chat': typeof ApiChatRoute
   '/api/search': typeof ApiSearchRoute
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/llms-full.txt'
     | '/llms.txt'
+    | '/offline'
     | '/showcase'
     | '/api/chat'
     | '/api/search'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/llms-full.txt'
     | '/llms.txt'
+    | '/offline'
     | '/showcase'
     | '/api/chat'
     | '/api/search'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/llms-full.txt'
     | '/llms.txt'
+    | '/offline'
     | '/showcase'
     | '/api/chat'
     | '/api/search'
@@ -140,6 +152,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   LlmsFullDottxtRoute: typeof LlmsFullDottxtRoute
   LlmsDottxtRoute: typeof LlmsDottxtRoute
+  OfflineRoute: typeof OfflineRoute
   ShowcaseRoute: typeof ShowcaseRoute
   ApiChatRoute: typeof ApiChatRoute
   ApiSearchRoute: typeof ApiSearchRoute
@@ -154,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/showcase'
       fullPath: '/showcase'
       preLoaderRoute: typeof ShowcaseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/offline': {
+      id: '/offline'
+      path: '/offline'
+      fullPath: '/offline'
+      preLoaderRoute: typeof OfflineRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/llms.txt': {
@@ -220,6 +240,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   LlmsFullDottxtRoute: LlmsFullDottxtRoute,
   LlmsDottxtRoute: LlmsDottxtRoute,
+  OfflineRoute: OfflineRoute,
   ShowcaseRoute: ShowcaseRoute,
   ApiChatRoute: ApiChatRoute,
   ApiSearchRoute: ApiSearchRoute,

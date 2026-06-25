@@ -325,9 +325,9 @@ self.addEventListener("message", (event) => {
 // --- Mode & Strategy Configuration ---
 
 const NAV_MODE = "ssr";
-const FALLBACK_PATH = "";
+const FALLBACK_PATH = "/offline";
 const DEFAULT_STRATEGY = "cache-first";
-const CUSTOM_STRATEGIES = {"/static/*":"cache-first","/_serverFn/*":"network-only"};
+const CUSTOM_STRATEGIES = {"/_serverFn/*":"network-first"};
 const REACTIVE_STALE_DEFAULT = 0;
 const FETCH_TIMEOUT_MS = 10000;
 const SW_DEBUG = false;

@@ -13,9 +13,20 @@ export default defineConfig({
     mdx(await import("./source.config")),
     tailwindcss(),
     tanstackStart({
-      prerender: {
+      spa: {
         enabled: true,
+        prerender: {
+          enabled: true,
+          crawlLinks: true,
+        },
       },
+      pages: [
+        { path: "/" },
+        { path: "/docs" },
+        { path: "/about" },
+        { path: "/showcase" },
+        { path: "/offline" },
+      ],
     }),
     react(),
     // please see https://tanstack.com/start/latest/docs/framework/react/guide/hosting for guides on hosting

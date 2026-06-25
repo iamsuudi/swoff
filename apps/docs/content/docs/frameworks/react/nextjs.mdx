@@ -1,0 +1,170 @@
+---
+title: Next.js
+description: App Router and Pages Router — RSC payloads, prerendered pages, and static assets.
+icon: nextjs
+---
+
+Next.js has two routing systems, each with different caching needs. Both are supported; the key difference is how client-side navigation fetches page content.
+
+## How App Router works
+
+Next.js 13+ App Router uses the RSC (React Server Components) protocol. When a user clicks a link:
+
+1. The browser fetches `GET /page?_rsc=1` — an RSC Payload (binary stream), not HTML
+2. The server returns the RSC Payload
+3. The client router reconciles it into the DOM
+
+This means the same URL path (`/page`) can be requested in two ways:
+
+| Request                         | Purpose             | Type        |
+| ------------------------------- | ------------------- | ----------- |
+| `GET /page` (direct navigation) | Full page load      | HTML        |
+| `GET /page?_rsc=1` (client nav) | Partial page update | RSC Payload |
+
+The `_rsc` query param distinguishes them. Without special handling, the SW would cache them separately — or serve HTML when the client expects an RSC Payload.
+
+## How Pages Router works
+
+Next.js Pages Router (12.x and earlier) fetches page data as JSON via `/_next/data/...` endpoints during client-side navigation. These are distinct URL paths from the full HTML pages, so there's no URL collision — but they still need network access to work.
+
+## Configuration (App Router)
+
+```json
+{
+  "$schema": "https://swoff.netlify.app/schema/v1.json",
+  "framework": "nextjs",
+  "features": {
+    "serviceWorker": {
+      "autoActivate": true,
+      "navigation": {
+        "mode": "ssr",
+        "fallback": "/offline"
+      },
+      "strategy": {
+        "default": "network-first",
+        "ignoreQueryParams": ["_rsc"],
+        "patterns": {
+          "/_next/static*": "cache-first"
+        }
+      }
+    }
+  },
+  "build": {
+    "outputDir": "public",
+    "swFilename": "sw",
+    "precacheDirs": {
+      ".next/static": { "prefix": "/_next/static" },
+      ".next/server/app": {
+        "prefix": "/",
+        "matchExtensions": [".html"],
+        "stripExtensions": [".html"],
+        "stripSuffixes": ["index"]
+      }
+    }
+  }
+}
+```
+
+| Setting                         | Value           | Why                                                                                      |
+| ------------------------------- | --------------- | ---------------------------------------------------------------------------------------- |
+| `ignoreQueryParams`             | `["_rsc"]`      | Strips `_rsc` from cache keys. `GET /page` and `GET /page?_rsc=1` map to the same entry. |
+| `pattern./_next/static*`        | `cache-first`   | Hashed filenames — once cached, never stale.                                             |
+| `strategy.default`              | `network-first` | Dynamic SSR pages try the network first, fall back to cached HTML.                       |
+| `precacheDirs..next/static`     | `/_next/static` | Build assets (JS, CSS, images).                                                          |
+| `precacheDirs..next/server/app` | `/`             | Prerendered HTML pages with `.html` extension stripped.                                  |
+
+### How `ignoreQueryParams` works
+
+```js
+// Without: two different cache entries
+cacheKey("/notes")       → "/notes"
+cacheKey("/notes?_rsc=1") → "/notes?_rsc=1"
+
+// With ignoreQueryParams: same cache entry
+cacheKey("/notes")       → "/notes"
+cacheKey("/notes?_rsc=1") → "/notes"
+```
+
+When the user is offline and the client requests an RSC Payload (`GET /notes?_rsc=1`), the SW strips the `_rsc` param, looks up `/notes` in the cache, and serves the cached HTML. Next.js handles the mismatch gracefully by performing a full page load.
+
+## Configuration (Pages Router)
+
+```json
+{
+  "framework": "nextjs",
+  "features": {
+    "serviceWorker": {
+      "navigation": {
+        "mode": "ssr",
+        "fallback": "/offline"
+      },
+      "strategy": {
+        "default": "network-first",
+        "patterns": {
+          "/_next/static*": "cache-first"
+        }
+      }
+    }
+  },
+  "build": {
+    "outputDir": "public",
+    "precacheDirs": {
+      ".next/static": { "prefix": "/_next/static" },
+      ".next/server/pages": {
+        "prefix": "/",
+        "matchExtensions": [".html"],
+        "stripExtensions": [".html"],
+        "stripSuffixes": ["index"]
+      }
+    }
+  }
+}
+```
+
+- Pages Router uses `/_next/data/...` for client-side data fetching — these URLs don't collide with page URLs, so `ignoreQueryParams` isn't needed
+- Prerendered HTML is in `.next/server/pages` instead of `.next/server/app`
+- Everything else is the same
+
+## Offline fallback page
+
+```tsx
+// app/offline/page.tsx (App Router)
+// or pages/offline.tsx (Pages Router)
+export default function OfflinePage() {
+  return (
+    <div>
+      <h1>You're offline</h1>
+      <p>Please check your connection and try again.</p>
+    </div>
+  );
+}
+```
+
+## Build script
+
+```json
+{
+  "scripts": {
+    "build": "next build && node swoff/sw/generator.js"
+  }
+}
+```
+
+The SW generator must run after `next build` so it can scan the `.next` output directory.
+
+## Considerations
+
+| Aspect                   | Detail                                                                                                                         |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| **RSC vs HTML mismatch** | When offline, the SW returns HTML for an RSC request. Next.js handles this gracefully with a full page load.                   |
+| **Static assets**        | `/_next/static/*` are hashed — cache invalidation is automatic on rebuild.                                                     |
+| **Dynamic pages**        | Only prerendered static pages are precached. Pages with `dynamic = 'force-dynamic'` require runtime caching after first visit. |
+| **API routes**           | `pages/api/*` or `app/api/*` are network-first. They work offline only if visited before.                                      |
+| **Server Actions**       | Mutations always need network. Use [Offline Mutations](/docs/guides/offline-mutations) for queueing.                           |
+| **Middleware**           | Next.js Middleware runs on every request — it's transparent to the SW.                                                         |
+
+## Related
+
+- [Navigation Caching guide](/docs/guides/navigation-caching) — SPA/SSR modes, fallback, preload
+- [Caching Strategy guide](/docs/guides/caching-strategy) — default, network-first, cache-first
+- [Offline Mutations guide](/docs/guides/offline-mutations) — queue Server Actions when offline

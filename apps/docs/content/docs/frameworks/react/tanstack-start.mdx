@@ -1,0 +1,114 @@
+---
+title: TanStack Start
+description: SSR with client hydration — mostly offline, with one getcha.
+icon: tanstack
+---
+
+TanStack Start generates client JS bundles that can be precached, making most navigation work offline. The main edge case is page loaders that use `createServerFn` — these need network access to fetch server-side data.
+
+## How it works
+
+TanStack Start is a hybrid:
+
+- **Client JS bundles** are generated at build time and placed in the output directory — these can be precached like any static SPA
+- **Server functions** (`createServerFn`) create RPC endpoints at `/_serverFn/*` that run on the server
+- **Navigation** happens client-side (the router handles it) — the initial page content is fetched via the route loader
+
+The service worker precaches the JS bundles and assets. Navigation requests for pages that don't use server functions in their loaders work offline immediately. Pages that call `createServerFn` in the loader need a network-first or network-only strategy.
+
+## Configuration
+
+```json
+{
+  "$schema": "https://swoff.netlify.app/schema/v1.json",
+  "framework": "tanstack-start-react",
+  "features": {
+    "serviceWorker": {
+      "autoActivate": true,
+      "navigation": {
+        "mode": "ssr",
+        "fallback": "/offline"
+      },
+      "strategy": {
+        "default": "network-first",
+        "patterns": {
+          "/_serverFn/*": "network-only"
+        }
+      }
+    }
+  },
+  "build": {
+    "outputDir": ".output/public",
+    "swFilename": "sw",
+    "precacheDirs": {
+      ".output/public": { "prefix": "/" }
+    }
+  }
+}
+```
+
+| Setting                 | Value             | Why                                                                                    |
+| ----------------------- | ----------------- | -------------------------------------------------------------------------------------- |
+| `navigation.mode`       | `"ssr"`           | Pages are server-rendered with hydration. SW checks precache first, then runtime-html. |
+| `strategy.default`      | `"network-first"` | Try the network first; if offline, serve from precache or runtime cache.               |
+| `patterns./_serverFn/*` | `"network-only"`  | Server function calls must reach the server. Never serve stale cached responses.       |
+
+### Pre-rendered pages (SPA mode)
+
+If your app pre-renders all pages at build time (like a docs site), you can use SPA mode with `staticFunctionMiddleware`. This serializes `createServerFn` results into static JSON files, eliminating the need for live RPC calls:
+
+```json
+{
+  "strategy": {
+    "default": "cache-first"
+  }
+}
+```
+
+No `/_serverFn/*` pattern needed — the middleware generates static JSON files that are precached like any other asset. See the [TanStack Start SPA recipe walkthrough](/docs/architecture/caching#navigation-modes) for details.
+
+## Server function gotcha
+
+Page loaders that use `createServerFn` are the main reason navigation can fail offline:
+
+1. User clicks a link → client router starts navigation
+2. Route loader calls `createServerFn` → SW intercepts the `/_serverFn` request
+3. If offline, the network call fails → the loader throws → the user sees an error
+
+**Solutions:**
+
+| Approach                          | When to use                                                                                                                                |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `network-only` for `/_serverFn/*` | Dynamic content that must be fresh. Works offline only if the page was visited before and the server function response was runtime-cached. |
+| Prerender + SPA mode              | Static content (docs, marketing pages). All data is embedded at build time, no live RPC calls.                                             |
+| Client-side fallback              | Detect offline state and skip server function calls, rendering with cached data instead.                                                   |
+
+The example app at `examples/react/tanstack-start` uses the first approach — `network-only` for server functions with a network-first default for everything else.
+
+## Offline fallback page
+
+Create a route at `/offline` and add it to your Nitro prerender config:
+
+```ts
+// vite.config.ts
+nitro({
+  prerender: {
+    routes: ["/", "/offline"],
+  },
+});
+```
+
+## Build script
+
+```json
+{
+  "scripts": {
+    "build": "vite build && node swoff/sw/generator.js"
+  }
+}
+```
+
+## Related
+
+- [Navigation Caching guide](/docs/guides/navigation-caching) — SPA/SSR modes, fallback, preload
+- [Caching Strategy guide](/docs/guides/caching-strategy) — default, network-first, cache-first

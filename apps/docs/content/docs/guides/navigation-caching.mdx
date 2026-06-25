@@ -20,11 +20,11 @@ For the internal mechanics of `serveFromCache`, the fallback chain, and per-mode
 
 ## Navigation modes
 
-| Mode        | When to use                                                                                                |
-| ----------- | ---------------------------------------------------------------------------------------------------------- |
+| Mode        | When to use                                                                                                   |
+| ----------- | ------------------------------------------------------------------------------------------------------------- |
 | `"spa"`     | Single-page apps (React, Vue, Svelte). Client router handles routing. App shell pattern via offline fallback. |
-| `"ssr"`     | Server-rendered apps (Next.js pages, Laravel, Rails). Repeat visits can serve cached HTML.                     |
-| `"default"` | Static sites or mixed content.                                                                              |
+| `"ssr"`     | Server-rendered apps (Next.js pages, Laravel, Rails). Repeat visits can serve cached HTML.                    |
+| `"default"` | Static sites or mixed content.                                                                                |
 
 ## Config
 
@@ -97,7 +97,7 @@ navigator.serviceWorker.addEventListener("message", (event) => {
 });
 ```
 
-**If your framework already has these adapters** (React): the CLI generates `useOfflineAnalytics` into `swoff/adapters/`. See the [React page](/docs/frameworks/react) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has these adapters** (React): the CLI generates `useOfflineAnalytics` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ## Related
 

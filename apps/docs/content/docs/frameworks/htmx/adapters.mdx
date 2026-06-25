@@ -1,7 +1,7 @@
 ---
-title: HTMX
+title: Adapters
 description: Integrate Swoff with HTMX and HTML-over-wire patterns.
-icon: htmx
+icon: Usb
 ---
 
 # HTMX
@@ -52,14 +52,12 @@ Control caching strategy per-request using `hx-headers`:
 <button hx-get="/api/notes">Load Notes</button>
 
 <!-- Cache-first for static partials -->
-<button hx-get="/sidebar"
-        hx-headers='{"X-SW-Strategy": "cache-first"}'>
+<button hx-get="/sidebar" hx-headers='{"X-SW-Strategy": "cache-first"}'>
   Sidebar
 </button>
 
 <!-- Network-first for fresh data -->
-<button hx-get="/api/dashboard"
-        hx-headers='{"X-SW-Strategy": "network-first"}'>
+<button hx-get="/api/dashboard" hx-headers='{"X-SW-Strategy": "network-first"}'>
   Dashboard
 </button>
 ```
@@ -72,9 +70,7 @@ Swoff's Server Push (SSE) runs in the Service Worker. For real-time UI updates, 
 
 ```html
 <div hx-sse="connect:/api/events swap:message">
-  <div hx-get="/api/notes" hx-trigger="sse:invalidate">
-    Loading...
-  </div>
+  <div hx-get="/api/notes" hx-trigger="sse:invalidate">Loading...</div>
 </div>
 ```
 
@@ -102,4 +98,4 @@ node swoff/sw/generator.js
 - [Navigation caching](/docs/guides/navigation-caching)
 - [Caching strategies](/docs/guides/caching-strategy)
 - [Server push](/docs/guides/server-push)
-- [Ecosystem compatibility](/docs/frameworks/ecosystem)
+- [Ecosystem compatibility](/docs/framework-adapters/ecosystem)

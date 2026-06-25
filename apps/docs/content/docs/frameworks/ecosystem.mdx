@@ -83,13 +83,13 @@ The final image contains only static JS files — no Node.js runtime required in
 
 | Stack                      | How to serve generated files                                                                   | Guide                                    |
 | -------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| **Laravel / PHP**          | Place `swoff/` under `public/`, reference in Blade template                                    | [Laravel guide](/docs/frameworks/laravel) |
-| **Django**                 | Place under `static/`, use `{% static %}` tag, or collect via `python manage.py collectstatic` | [Django & Flask guide](/docs/frameworks/django)   |
-| **Flask**                  | Place under `static/`, reference via `url_for('static', ...)`                                   | [Django & Flask guide](/docs/frameworks/django)   |
-| **Rails**                  | Place under `app/assets/` or `public/` with asset pipeline                                     | [Rails guide](/docs/frameworks/rails)     |
-| **Go / net/http**          | Embed via `//go:embed swoff/*` or serve from a `static/` directory                             | [Go guide](/docs/frameworks/go)           |
-| **HTMX**                   | Include `<script>` tag, control via `hx-headers`                                               | [HTMX guide](/docs/frameworks/htmx)       |
-| **Plain HTML / Static**    | Serve from document root and reference with a `<script>` tag                                   | [Vanilla guide](/docs/frameworks/vanilla) |
+| **Laravel / PHP**          | Place `swoff/` under `public/`, reference in Blade template                                    | [Laravel guide](/docs/framework-adapters/laravel) |
+| **Django**                 | Place under `static/`, use `{% static %}` tag, or collect via `python manage.py collectstatic` | [Django & Flask guide](/docs/framework-adapters/django)   |
+| **Flask**                  | Place under `static/`, reference via `url_for('static', ...)`                                   | [Django & Flask guide](/docs/framework-adapters/django)   |
+| **Rails**                  | Place under `app/assets/` or `public/` with asset pipeline                                     | [Rails guide](/docs/framework-adapters/rails)     |
+| **Go / net/http**          | Embed via `//go:embed swoff/*` or serve from a `static/` directory                             | [Go guide](/docs/framework-adapters/go)           |
+| **HTMX**                   | Include `<script>` tag, control via `hx-headers`                                               | [HTMX guide](/docs/framework-adapters/htmx)       |
+| **Plain HTML / Static**    | Serve from document root and reference with a `<script>` tag                                   | [Vanilla guide](/docs/framework-adapters/vanilla) |
 
 The only thing your project needs is Node.js during development or CI to run the CLI and generator. No `package.json`, no `npm install` — just `npx @swoff/cli` commands. Version mode defaults to `"hash"`, which has no dependency on `package.json`.
 

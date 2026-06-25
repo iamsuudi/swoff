@@ -149,7 +149,7 @@ window.addEventListener("swoff:cache-updated", (e) => {
 
 No GraphQL-specific adapter is needed — the same `useCachedFetch` pattern handles both REST and GraphQL. Body-hash caching and operation-name auto-tags happen automatically in the SW.
 
-**If your framework already has this** (React): the CLI generates `useCachedFetch` into `swoff/adapters/`. See the [React page](/docs/frameworks/react) or the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has this** (React): the CLI generates `useCachedFetch` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) or the [Blueprint](/docs/frameworks/blueprint).
 
 For a dedicated GraphQL API with operation-name auto-tags, use the generated `queryGql`/`mutateGql` functions instead.
 

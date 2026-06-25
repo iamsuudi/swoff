@@ -1,7 +1,7 @@
 ---
-title: Astro
+title: Adapters
 description: Integrate Swoff with Astro, including islands architecture and static/SSR output.
-icon: astro
+icon: Usb
 ---
 
 # Astro
@@ -10,14 +10,14 @@ Swoff works with both static and SSR Astro projects. The Service Worker runs in 
 
 ## Config per flavor
 
-| Setting | Astro (static) | Astro (SSR) |
-|---|---|---|
-| `build.outputDir` | `"dist"` | `"dist"` |
-| `build.swFilename` | `"sw"` | `"sw"` |
-| `navigation.mode` | `"spa"` | `"ssr"` |
-| `navigation.fallback` | `"/404"` or `"/index.html"` | `"/offline"` |
-| `navigation.preload` | `false` | `true` |
-| `strategy.default` | `"cache-first"` | `"network-first"` |
+| Setting               | Astro (static)              | Astro (SSR)       |
+| --------------------- | --------------------------- | ----------------- |
+| `build.outputDir`     | `"dist"`                    | `"dist"`          |
+| `build.swFilename`    | `"sw"`                      | `"sw"`            |
+| `navigation.mode`     | `"spa"`                     | `"ssr"`           |
+| `navigation.fallback` | `"/404"` or `"/index.html"` | `"/offline"`      |
+| `navigation.preload`  | `false`                     | `true`            |
+| `strategy.default`    | `"cache-first"`             | `"network-first"` |
 
 - **Static**: use `navigation.mode: "spa"` — all pages are pre-rendered, cached at install time via `precacheRoutes`
 - **SSR**: use `navigation.mode: "ssr"` — individually cached server-rendered pages, offline fallback for unvisited routes
@@ -65,7 +65,9 @@ import { useEffect } from "react";
 import { initServiceWorker } from "../swoff/client-injector";
 
 export default function SwoffInit() {
-  useEffect(() => { initServiceWorker(); }, []);
+  useEffect(() => {
+    initServiceWorker();
+  }, []);
   return null;
 }
 ```
@@ -104,4 +106,4 @@ For Astro SSR with cookie-based auth:
 - [Service Worker setup](/docs/guides/service-worker)
 - [Navigation caching](/docs/guides/navigation-caching)
 - [Caching strategies](/docs/guides/caching-strategy)
-- [Ecosystem compatibility](/docs/frameworks/ecosystem)
+- [Ecosystem compatibility](/docs/framework-adapters/ecosystem)

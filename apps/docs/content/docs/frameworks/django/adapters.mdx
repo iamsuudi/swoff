@@ -1,7 +1,7 @@
 ---
-title: Django & Flask / Python
+title: Adapters
 description: Integrate Swoff with Django, Flask, or Python-based backends.
-icon: python
+icon: Usb
 ---
 
 # Django & Flask / Python
@@ -10,14 +10,14 @@ Swoff works with any Python backend. The generated files are static — serve th
 
 ## Config per flavor
 
-| Setting               | Django                 | Flask                 |
-| --------------------- | ---------------------- | --------------------- |
-| `build.outputDir`     | `"static"`             | `"static"`            |
-| `build.swFilename`    | `"sw"`                 | `"sw"`                |
-| `navigation.mode`     | `"ssr"`                | `"ssr"`               |
-| `navigation.fallback` | `"/offline"`           | `"/offline"`          |
-| `navigation.preload`  | `true`                 | `true`                |
-| `strategy.default`    | `"network-first"`      | `"network-first"`     |
+| Setting               | Django            | Flask             |
+| --------------------- | ----------------- | ----------------- |
+| `build.outputDir`     | `"static"`        | `"static"`        |
+| `build.swFilename`    | `"sw"`            | `"sw"`            |
+| `navigation.mode`     | `"ssr"`           | `"ssr"`           |
+| `navigation.fallback` | `"/offline"`      | `"/offline"`      |
+| `navigation.preload`  | `true`            | `true`            |
+| `strategy.default`    | `"network-first"` | `"network-first"` |
 
 - **`navigation.mode: "ssr"`** — server-rendered HTML pages get cached individually
 
@@ -125,4 +125,4 @@ Both Django and Flask use cookie-based session auth — the generated `auth/adap
 - [Service Worker setup](/docs/guides/service-worker)
 - [Navigation caching for SSR](/docs/guides/navigation-caching)
 - [Auth guide](/docs/guides/auth)
-- [Ecosystem compatibility](/docs/frameworks/ecosystem)
+- [Ecosystem compatibility](/docs/framework-adapters/ecosystem)

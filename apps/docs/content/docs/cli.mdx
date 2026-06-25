@@ -19,8 +19,8 @@ swoff init
 swoff init --framework react-spa   # override auto-detection
 ```
 
-| Flag          | Type                                                                                                                                                   | Description                       |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
+| Flag          | Type                                                                                                                                                                                                                    | Description                       |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
 | `--framework` | `"react-spa"` \| `"nextjs"` \| `"remix"` \| `"tanstack-start-react"` \| `"astro"` \| `"nuxt"` \| `"sveltekit"` \| `"vue"` \| `"svelte"` \| `"laravel"` \| `"django"` \| `"flask"` \| `"rails"` \| `"go"` \| `"vanilla"` | Override framework auto-detection |
 
 ---
@@ -46,34 +46,34 @@ swoff generate --files-only   # regenerate only supporting files (not SW)
 
 All files land in `swoff/`. See [API Reference](/docs/api) for the full reference.
 
-| File                               | Condition                                                                     | Purpose                                                                                 |
-| ---------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `client-injector.{ts\|js}`         | always                                                                        | Single entry point — wires SW registration, PWA install, mutation queue, cross-tab sync |
-| `config.{ts\|js}`                  | `serverPush.enabled`                                                          | Project configuration — API_BASE for server-push endpoint                                |
-| `connectivity.{ts\|js}`            | `features.connectivity.enabled`                                              | Online/offline detection with HEAD heartbeat                                            |
-| `db.{ts\|js}`                      | auto-enabled when auth, mutation queue, or push notifications is enabled      | IndexedDB database open/init helpers                                                    |
-| `fetch/core.{ts\|js}`              | `features.tagInvalidation.enabled`                                           | Unified fetch with caching, auth, offline queue, auto-invalidation                      |
-| `cache/invalidate.{ts\|js}`        | `features.tagInvalidation.enabled`                                           | `invalidateByTag()` / `invalidateByTags()`                                              |
-| `cache/tags.{ts\|js}`              | `features.tagInvalidation.enabled`                                           | Tag generation helpers from URL paths                                                   |
-| `storage.{ts\|js}`                 | always                                                                        | Storage estimation (`getStorageEstimate` / `formatBytes`)                               |
-| `reset.{ts\|js}`                   | always                                                                        | `resetSwoff()` — wipes caches, IndexedDB databases, localStorage, unregisters SW        |
-| `auth/adapter.{ts\|js}`            | `auth.enabled`                                                                | Auth provider adapter — generated template (cookie, bearer, or custom)                  |
-| `auth/store.{ts\|js}`              | `auth.enabled`                                                                | Token/user persistence + cascading clearAuth + cross-tab sync                           |
-| `auth/state.{ts\|js}`              | `auth.enabled`                                                                | Online/offline × auth state detection (connectivity manager)                            |
-| `auth/check.{ts\|js}`              | `auth.enabled`                                                                | Custom auth failure response detection                                                  |
-| `graphql/index.{ts\|js}`           | `graphql.enabled`                                                             | GraphQL wrapper with body-hash caching                                                  |
-| `mutation/queue.{ts\|js}`          | `mutationQueue.enabled`                                                       | Offline write queue in IndexedDB                                                        |
-| `mutation/state.{ts\|js}`          | `mutationQueue.enabled`                                                       | Per-mutation status tracking                                                            |
-| `mutation/sync.{ts\|js}`           | `mutationQueue.backgroundSync`                                                | Background Sync API registration                                                        |
-| `push-notification/index.{ts\|js}` | `pushNotifications`                                                           | Push notification subscription management                                               |
-| `pwa/prompt.{ts\|js}`              | `pwa.enabled`                                                                 | Install prompt handling (`isInstallable`, `promptInstall`)                              |
-| `server-push/client.{ts\|js}`      | `serverPush.enabled`                                                          | SSE/WebSocket connection manager (runs in SW)                                           |
-| `sw/template.js`                   | always                                                                        | Service worker source — runs in SW scope                                                |
-| `sw/injector.{ts\|js}`             | always                                                                        | SW registration logic                                                                   |
-| `sw/generator.js`                  | always                                                                        | Build-time script — embeds asset hashes                                                 |
-| `sw/version.{ts\|js}`              | always                                                                        | `SW_VERSION` constant — embedded in SW for display / debugging                         |
-| `adapters/*.tsx`                   | React-based framework only                                                  | React hooks. Other frameworks use `window.addEventListener` (see [Blueprint](/docs/frameworks/blueprint)) |
-| `swoff.d.ts`                       | TypeScript                                                                    | TypeScript declarations                                                                 |
+| File                               | Condition                                                                | Purpose                                                                                                   |
+| ---------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `client-injector.{ts\|js}`         | always                                                                   | Single entry point — wires SW registration, PWA install, mutation queue, cross-tab sync                   |
+| `config.{ts\|js}`                  | `serverPush.enabled`                                                     | Project configuration — API_BASE for server-push endpoint                                                 |
+| `connectivity.{ts\|js}`            | `features.connectivity.enabled`                                          | Online/offline detection with HEAD heartbeat                                                              |
+| `db.{ts\|js}`                      | auto-enabled when auth, mutation queue, or push notifications is enabled | IndexedDB database open/init helpers                                                                      |
+| `fetch/core.{ts\|js}`              | `features.tagInvalidation.enabled`                                       | Unified fetch with caching, auth, offline queue, auto-invalidation                                        |
+| `cache/invalidate.{ts\|js}`        | `features.tagInvalidation.enabled`                                       | `invalidateByTag()` / `invalidateByTags()`                                                                |
+| `cache/tags.{ts\|js}`              | `features.tagInvalidation.enabled`                                       | Tag generation helpers from URL paths                                                                     |
+| `storage.{ts\|js}`                 | always                                                                   | Storage estimation (`getStorageEstimate` / `formatBytes`)                                                 |
+| `reset.{ts\|js}`                   | always                                                                   | `resetSwoff()` — wipes caches, IndexedDB databases, localStorage, unregisters SW                          |
+| `auth/adapter.{ts\|js}`            | `auth.enabled`                                                           | Auth provider adapter — generated template (cookie, bearer, or custom)                                    |
+| `auth/store.{ts\|js}`              | `auth.enabled`                                                           | Token/user persistence + cascading clearAuth + cross-tab sync                                             |
+| `auth/state.{ts\|js}`              | `auth.enabled`                                                           | Online/offline × auth state detection (connectivity manager)                                              |
+| `auth/check.{ts\|js}`              | `auth.enabled`                                                           | Custom auth failure response detection                                                                    |
+| `graphql/index.{ts\|js}`           | `graphql.enabled`                                                        | GraphQL wrapper with body-hash caching                                                                    |
+| `mutation/queue.{ts\|js}`          | `mutationQueue.enabled`                                                  | Offline write queue in IndexedDB                                                                          |
+| `mutation/state.{ts\|js}`          | `mutationQueue.enabled`                                                  | Per-mutation status tracking                                                                              |
+| `mutation/sync.{ts\|js}`           | `mutationQueue.backgroundSync`                                           | Background Sync API registration                                                                          |
+| `push-notification/index.{ts\|js}` | `pushNotifications`                                                      | Push notification subscription management                                                                 |
+| `pwa/prompt.{ts\|js}`              | `pwa.enabled`                                                            | Install prompt handling (`isInstallable`, `promptInstall`)                                                |
+| `server-push/client.{ts\|js}`      | `serverPush.enabled`                                                     | SSE/WebSocket connection manager (runs in SW)                                                             |
+| `sw/template.js`                   | always                                                                   | Service worker source — runs in SW scope                                                                  |
+| `sw/injector.{ts\|js}`             | always                                                                   | SW registration logic                                                                                     |
+| `sw/generator.js`                  | always                                                                   | Build-time script — embeds asset hashes                                                                   |
+| `sw/version.{ts\|js}`              | always                                                                   | `SW_VERSION` constant — embedded in SW for display / debugging                                            |
+| `adapters/*.tsx`                   | React-based framework only                                               | React hooks. Other frameworks use `window.addEventListener` (see [Blueprint](/docs/frameworks/blueprint)) |
+| `swoff.d.ts`                       | TypeScript                                                               | TypeScript declarations                                                                                   |
 
 ### PWA assets
 
@@ -106,8 +106,6 @@ Generated assets by default:
 
 After generation, **manually reference these assets** in your app. Run `swoff assets --help`
 for a copy-paste guide with the exact `<link>` and `<meta>` tags for your HTML `<head>`.
-
-
 
 ## `validate`
 

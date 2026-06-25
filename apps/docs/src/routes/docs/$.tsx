@@ -25,6 +25,7 @@ import {
 import { MessageCircleIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
+import { NotFound } from "@/components/not-found";
 
 export const Route = createFileRoute("/docs/$")({
   component: Page,
@@ -34,6 +35,7 @@ export const Route = createFileRoute("/docs/$")({
     await clientLoader.preload(data.path);
     return data;
   },
+  notFoundComponent: NotFound,
 });
 
 const loader = createServerFn({
@@ -105,7 +107,9 @@ function Page() {
         </AISearchTrigger>
       </AISearch>
 
-      <Suspense>{clientLoader.useContent(path, { markdownUrl, path })}</Suspense>
+      <Suspense>
+        {clientLoader.useContent(path, { markdownUrl, path })}
+      </Suspense>
     </DocsLayout>
   );
 }

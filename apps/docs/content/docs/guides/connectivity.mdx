@@ -39,9 +39,9 @@ The connectivity module provides real online/offline detection that goes beyond 
 
 ## Generated files
 
-| File                      | What it does                                                                        | Import in your code? |
-| ------------------------- | ----------------------------------------------------------------------------------- | -------------------- |
-| `swoff/connectivity.ts`   | `getCurrentOnlineStatus()`, `startHeartbeat()`, `stopHeartbeat()`, `forceRetry()`   | Yes                  |
+| File                    | What it does                                                                      | Import in your code? |
+| ----------------------- | --------------------------------------------------------------------------------- | -------------------- |
+| `swoff/connectivity.ts` | `getCurrentOnlineStatus()`, `startHeartbeat()`, `stopHeartbeat()`, `forceRetry()` | Yes                  |
 
 ## Exports
 
@@ -71,9 +71,9 @@ Stops the heartbeat, calls `verifyAndNotify()`, then restarts the heartbeat. Use
 
 ## Window events
 
-| Event                     | Detail shape | Purpose                                      |
-| ------------------------- | ------------ | -------------------------------------------- |
-| `app-connectivity-change` | `{ online }` | Verified connectivity changed                |
+| Event                     | Detail shape | Purpose                       |
+| ------------------------- | ------------ | ----------------------------- |
+| `app-connectivity-change` | `{ online }` | Verified connectivity changed |
 
 ## Framework adapters
 
@@ -85,10 +85,10 @@ Uses the generated `connectivity.ts` module which runs a HEAD heartbeat every 30
 
 **Events listened to:**
 
-| Event                           | Detail shape | Purpose                                                   |
-| ------------------------------- | ------------ | --------------------------------------------------------- |
+| Event                           | Detail shape | Purpose                                                  |
+| ------------------------------- | ------------ | -------------------------------------------------------- |
 | `app-connectivity-change`       | `{ online }` | Verified connectivity changed (from connectivity module) |
-| `navigator.connection` `change` | —            | Network type / bandwidth changed                          |
+| `navigator.connection` `change` | —            | Network type / bandwidth changed                         |
 
 **Imports from `connectivity.ts`:** `CONNECTIVITY_EVENT`, `getCurrentOnlineStatus`, `forceRetry`.
 
@@ -122,4 +122,4 @@ navigator.connection?.addEventListener("change", () => {
 // 6. Return { online, wasOffline, lastChangedAt, effectiveType, downlink, isRetrying, retry }
 ```
 
-**If your framework already has this adapter** (React): the CLI generates `useNetworkStatus` into `swoff/adapters/`. See the [React page](/docs/frameworks/react) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has this adapter** (React): the CLI generates `useNetworkStatus` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).

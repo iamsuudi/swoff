@@ -1,0 +1,91 @@
+---
+title: React SPA
+description: react-router-dom, TanStack Router — fully offline out of the box.
+icon: react
+---
+
+Single-page applications built with React (react-router-dom, TanStack Router, etc.) work offline immediately with minimal configuration.
+
+## How it works
+
+A React SPA downloads a single HTML shell, then all routing happens client-side. The browser only needs the JS bundles and assets — no server calls for navigation. Swoff precaches these files, so the app loads and navigates without a network.
+
+## Configuration
+
+```json
+{
+  "$schema": "https://swoff.netlify.app/schema/v1.json",
+  "framework": "react",
+  "features": {
+    "serviceWorker": {
+      "autoActivate": true,
+      "navigation": {
+        "mode": "spa",
+        "fallback": "/offline"
+      },
+      "strategy": {
+        "default": "cache-first",
+        "patterns": {
+          "/api/*": "network-first"
+        }
+      }
+    }
+  },
+  "build": {
+    "outputDir": "dist",
+    "swFilename": "sw",
+    "precacheDirs": {
+      "dist": { "prefix": "/" }
+    }
+  }
+}
+```
+
+| Setting            | Value           | Why                                                                                        |
+| ------------------ | --------------- | ------------------------------------------------------------------------------------------ |
+| `navigation.mode`  | `"spa"`         | Client router handles all navigation. SW serves app shell from precache for any route.     |
+| `strategy.default` | `"cache-first"` | All JS bundles and assets are hashed filenames — once cached, they never need the network. |
+| `precacheDirs`     | `dist` → `/`    | Precache the entire build output so everything is available on first load.                 |
+
+### Offline fallback page
+
+Create a route at `/offline` and include it in your build output so the SW can serve it when the user has no connection:
+
+```tsx
+// pages/offline.tsx or app/offline/page.tsx
+export default function OfflinePage() {
+  return (
+    <div>
+      <h1>You're offline</h1>
+      <p>Please check your connection and try again.</p>
+    </div>
+  );
+}
+```
+
+Points to it via `fallback: "/offline"` in the config.
+
+## API routes
+
+React SPAs often have API routes (`/api/*`) for data fetching. These use `network-first` — they work offline only if visited before and cached in runtime. Mutations (POST/PUT/DELETE) always need the network — see [Offline Mutations](/docs/guides/offline-mutations) for queueing.
+
+## Router-specific notes
+
+Both react-router-dom and TanStack Router work identically from the SW's perspective — they're purely client-side routing. The SW doesn't need to know which router you use. The `spa` navigation mode serves the app shell for any route, and your router renders the correct component.
+
+## Build script
+
+Add the SW generator to your build:
+
+```json
+{
+  "scripts": {
+    "build": "vite build && node swoff/sw/generator.js"
+  }
+}
+```
+
+## Related
+
+- [Navigation Caching guide](/docs/guides/navigation-caching) — SPA/SSR modes, fallback, preload
+- [Caching Strategy guide](/docs/guides/caching-strategy) — default, network-first, cache-first

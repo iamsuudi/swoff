@@ -1,0 +1,5 @@
+{
+  "title": "React",
+  "icon": "react",
+  "pages": ["adapters", "spa", "tanstack-start", "nextjs"]
+}

@@ -131,9 +131,9 @@ window.addEventListener("cache-invalidated", (e) => {
 });
 ```
 
-No additional events are needed — the adapter pattern is identical to the one described in the [Tag Invalidation guide](/docs/guides/tag-invalidation#framework-adapters). The only difference is the source of invalidation: server push instead of manual calls.
+No additional events are needed — the adapter pattern is identical to the one described in the [Tag Invalidation guide](/docs/guides/tag-invalidation#frameworks). The only difference is the source of invalidation: server push instead of manual calls.
 
-**If your framework already has this** (React): the CLI generates `useCachedFetch` into `swoff/adapters/` which handles `cache-invalidated` automatically. See the [React page](/docs/frameworks/react) or the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has this** (React): the CLI generates `useCachedFetch` into `swoff/adapters/` which handles `cache-invalidated` automatically. See the [React page](/docs/frameworks/react/adapters) or the [Blueprint](/docs/frameworks/blueprint).
 
 ### Important: tagInvalidation is required
 

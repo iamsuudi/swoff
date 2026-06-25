@@ -1,7 +1,7 @@
 ---
-title: Vue
+title: Adapters
 description: Swoff config for Vue-based frameworks.
-icon: vue
+icon: Usb
 ---
 
 # Vue
@@ -10,13 +10,13 @@ Swoff works with any Vue-based project. Vue adapters (composables) are not yet g
 
 ## Config per flavor
 
-| Setting | Vue + Vite | Nuxt |
-|---|---|---|
-| `build.outputDir` | `"dist"` | `"dist"` |
-| `build.swFilename` | `"sw"` | `"sw"` |
-| `navigation.mode` | `"spa"` | `"spa"` |
+| Setting               | Vue + Vite      | Nuxt            |
+| --------------------- | --------------- | --------------- |
+| `build.outputDir`     | `"dist"`        | `"dist"`        |
+| `build.swFilename`    | `"sw"`          | `"sw"`          |
+| `navigation.mode`     | `"spa"`         | `"spa"`         |
 | `navigation.fallback` | `"/index.html"` | `"/index.html"` |
-| `navigation.preload` | `true` | `true` |
+| `navigation.preload`  | `true`          | `true`          |
 
 Nuxt generates a client-side bundle in `.nuxt/dist/client/`. Set `build.precacheDirs` to include that directory if you want to precache the app shell.
 
@@ -25,7 +25,9 @@ Nuxt generates a client-side bundle in `.nuxt/dist/client/`. Set `build.precache
 ```ts
 import { initServiceWorker } from "./swoff/client-injector";
 
-onMounted(() => { initServiceWorker(); });
+onMounted(() => {
+  initServiceWorker();
+});
 ```
 
 For Nuxt, call `initServiceWorker` in a client-only plugin or in `app.vue` wrapped in `onMounted`.
@@ -40,7 +42,9 @@ import { onMounted, onUnmounted, ref } from "vue";
 
 const swReady = ref(false);
 
-function onSwReady() { swReady.value = true; }
+function onSwReady() {
+  swReady.value = true;
+}
 
 onMounted(() => {
   window.addEventListener("sw-ready", onSwReady);

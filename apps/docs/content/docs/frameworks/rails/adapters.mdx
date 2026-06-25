@@ -1,7 +1,7 @@
 ---
-title: Ruby on Rails
+title: Adapters
 description: Integrate Swoff with Ruby on Rails.
-icon: rails
+icon: Usb
 ---
 
 # Ruby on Rails
@@ -10,14 +10,14 @@ Swoff works with any Rails backend. The generated files are static — serve the
 
 ## Config per flavor
 
-| Setting | Rails (ERB) |
-|---|---|
-| `build.outputDir` | `"public"` |
-| `build.swFilename` | `"sw"` |
-| `navigation.mode` | `"ssr"` |
-| `navigation.fallback` | `"/offline"` |
-| `navigation.preload` | `true` |
-| `strategy.default` | `"network-first"` |
+| Setting               | Rails (ERB)       |
+| --------------------- | ----------------- |
+| `build.outputDir`     | `"public"`        |
+| `build.swFilename`    | `"sw"`            |
+| `navigation.mode`     | `"ssr"`           |
+| `navigation.fallback` | `"/offline"`      |
+| `navigation.preload`  | `true`            |
+| `strategy.default`    | `"network-first"` |
 
 - **`navigation.mode: "ssr"`** — server-rendered HTML pages get cached individually
 

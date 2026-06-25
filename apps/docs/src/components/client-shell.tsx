@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { initServiceWorker } from "../../swoff/client-injector";
+import SWUpdatePrompt from "./SWUpdatePrompt";
 
 export default function ClientShell() {
   useEffect(() => {
@@ -14,5 +15,5 @@ export default function ClientShell() {
     return () => window.removeEventListener("swoff:notification", listener);
   }, []);
 
-  return null;
+  return <SWUpdatePrompt />;
 }

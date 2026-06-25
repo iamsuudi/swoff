@@ -16,16 +16,16 @@ The only framework-specific surface is **view adapters** (React hooks, future Vu
 
 ## Compatible with everything
 
-| Category                   | Examples                                             | Config Hint                                                                      |
-| -------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Category                   | Examples                                                    | Config Hint                                                                      |
+| -------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | **Backend**                | PHP, Laravel, Django, Flask, Rails, ASP.NET, Go, Java, Node | `navigation.mode: "ssr"`                                                         |
-| **HTML-over-wire**         | HTMX, Turbo Hotwire, Unpoly, Livewire                | `navigation.mode: "ssr"`                                                         |
-| **SSG**                    | Astro, Hugo, 11ty, Jekyll                            | `navigation.mode: "default"`, strategy `cache-first`                             |
-| **SPA frameworks**         | React, Vue, Svelte, Solid, Angular, Alpine           | `navigation.mode: "spa"` (default)                                               |
-| **Meta-frameworks**        | Next.js, Remix, Nuxt, SvelteKit, TanStack Start      | Auto-detected; `navigation.mode: "ssr"` + framework-specific `ignoreQueryParams` |
-| **RSC-based**              | Next.js App Router                                   | `navigation.mode: "ssr"` + `ignoreQueryParams: ["_rsc"]` (auto-detected)         |
-| **Edge / Serverless**      | Cloudflare Workers, Deno Deploy, Vercel Edge         | Edge runs on CDN, Swoff runs in browser — independent layers, no conflict        |
-| **Islands / Resumability** | Astro islands, Qwik, Marko                           | SW runs in its own thread regardless of component hydration                      |
+| **HTML-over-wire**         | HTMX, Turbo Hotwire, Unpoly, Livewire                       | `navigation.mode: "ssr"`                                                         |
+| **SSG**                    | Astro, Hugo, 11ty, Jekyll                                   | `navigation.mode: "default"`, strategy `cache-first`                             |
+| **SPA frameworks**         | React, Vue, Svelte, Solid, Angular, Alpine                  | `navigation.mode: "spa"` (default)                                               |
+| **Meta-frameworks**        | Next.js, Remix, Nuxt, SvelteKit, TanStack Start             | Auto-detected; `navigation.mode: "ssr"` + framework-specific `ignoreQueryParams` |
+| **RSC-based**              | Next.js App Router                                          | `navigation.mode: "ssr"` + `ignoreQueryParams: ["_rsc"]` (auto-detected)         |
+| **Edge / Serverless**      | Cloudflare Workers, Deno Deploy, Vercel Edge                | Edge runs on CDN, Swoff runs in browser — independent layers, no conflict        |
+| **Islands / Resumability** | Astro islands, Qwik, Marko                                  | SW runs in its own thread regardless of component hydration                      |
 
 ## No package.json required
 
@@ -81,15 +81,15 @@ The final image contains only static JS files — no Node.js runtime required in
 
 ### Per-ecosystem examples
 
-| Stack                      | How to serve generated files                                                                   | Guide                                    |
-| -------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| **Laravel / PHP**          | Place `swoff/` under `public/`, reference in Blade template                                    | [Laravel guide](/docs/frameworks/laravel) |
-| **Django**                 | Place under `static/`, use `{% static %}` tag, or collect via `python manage.py collectstatic` | [Django & Flask guide](/docs/frameworks/django)   |
-| **Flask**                  | Place under `static/`, reference via `url_for('static', ...)`                                   | [Django & Flask guide](/docs/frameworks/django)   |
-| **Rails**                  | Place under `app/assets/` or `public/` with asset pipeline                                     | [Rails guide](/docs/frameworks/rails)     |
-| **Go / net/http**          | Embed via `//go:embed swoff/*` or serve from a `static/` directory                             | [Go guide](/docs/frameworks/go)           |
-| **HTMX**                   | Include `<script>` tag, control via `hx-headers`                                               | [HTMX guide](/docs/frameworks/htmx)       |
-| **Plain HTML / Static**    | Serve from document root and reference with a `<script>` tag                                   | [Vanilla guide](/docs/frameworks/vanilla) |
+| Stack                   | How to serve generated files                                                                   | Guide                                                    |
+| ----------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| **Laravel / PHP**       | Place `swoff/` under `public/`, reference in Blade template                                    | [Laravel guide](/docs/frameworks/laravel/adapters)       |
+| **Django**              | Place under `static/`, use `{% static %}` tag, or collect via `python manage.py collectstatic` | [Django & Flask guide](/docs/frameworks/django/adapters) |
+| **Flask**               | Place under `static/`, reference via `url_for('static', ...)`                                  | [Django & Flask guide](/docs/frameworks/django/adapters) |
+| **Rails**               | Place under `app/assets/` or `public/` with asset pipeline                                     | [Rails guide](/docs/frameworks/rails/adapters)           |
+| **Go / net/http**       | Embed via `//go:embed swoff/*` or serve from a `static/` directory                             | [Go guide](/docs/frameworks/go/adapters)                 |
+| **HTMX**                | Include `<script>` tag, control via `hx-headers`                                               | [HTMX guide](/docs/frameworks/htmx/adapters)             |
+| **Plain HTML / Static** | Serve from document root and reference with a `<script>` tag                                   | [Vanilla guide](/docs/frameworks/vanilla/adapters)       |
 
 The only thing your project needs is Node.js during development or CI to run the CLI and generator. No `package.json`, no `npm install` — just `npx @swoff/cli` commands. Version mode defaults to `"hash"`, which has no dependency on `package.json`.
 

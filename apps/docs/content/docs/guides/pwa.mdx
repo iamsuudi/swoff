@@ -20,12 +20,12 @@ PWA is enabled by default after `swoff init`. To enable it in an existing config
 
 ## Generated files
 
-| File                    | What it does                                                                          | Import in your code?                  |
-| ----------------------- | ------------------------------------------------------------------------------------- | ------------------------------------- |
-| `swoff/pwa/prompt.ts`   | Install prompt listener, `isInstallable()`, `promptInstall()`                         | Yes (bundler only)                    |
-| `swoff/sw/template.js`  | The SW source — reads cache strategies, auth, tags from config headers                | No, built into SW                     |
-| `swoff/sw/generator.js` | Build script that produces the final `sw.js`                                          | Run: `node swoff/sw/generator.js`     |
-| `swoff-api.bundle.js`   | Same PWA/storage APIs via `window.swoff.isInstallable()` etc. for no-bundler projects | No (auto-initializes)                 |
+| File                    | What it does                                                                          | Import in your code?              |
+| ----------------------- | ------------------------------------------------------------------------------------- | --------------------------------- |
+| `swoff/pwa/prompt.ts`   | Install prompt listener, `isInstallable()`, `promptInstall()`                         | Yes (bundler only)                |
+| `swoff/sw/template.js`  | The SW source — reads cache strategies, auth, tags from config headers                | No, built into SW                 |
+| `swoff/sw/generator.js` | Build script that produces the final `sw.js`                                          | Run: `node swoff/sw/generator.js` |
+| `swoff-api.bundle.js`   | Same PWA/storage APIs via `window.swoff.isInstallable()` etc. for no-bundler projects | No (auto-initializes)             |
 
 ## Usage
 
@@ -132,7 +132,7 @@ See the [Service Worker guide](/docs/guides/service-worker#framework-adapters) f
 
 `useStorageEstimate` now lives in the [Connectivity & Storage guide](/docs/guides/connectivity#usestorageestimate).
 
-**If your framework already has these adapters** (React): the CLI generates `usePwaInstall` and `useSWUpdate` into `swoff/adapters/`. See the [React page](/docs/frameworks/react) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has these adapters** (React): the CLI generates `usePwaInstall` and `useSWUpdate` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ## Related
 

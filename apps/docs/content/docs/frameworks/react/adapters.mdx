@@ -1,27 +1,29 @@
 ---
-title: React
+title: Adapters
 description: Swoff config and adapters for all React-based frameworks.
-icon: react
+icon: Usb
 ---
 
 # React
 
 All React-based frameworks (Vite, Next.js, Remix, TanStack Start) share the same adapter layer — the CLI generates 16 React hooks into `swoff/adapters/`. The only differences are config values in `swoff.config.json`.
 
-> **Astro with React islands:** See the [dedicated Astro page](/docs/frameworks/astro) if you're using Astro (with or without React). The React hooks are still available for `client:load` React components.
+> **Astro with React islands:** See the [dedicated Astro page](/docs/frameworks/astro/adapters) if you're using Astro (with or without React). The React hooks are still available for `client:load` React components.
 
 ## Config per flavor
 
-| Setting | React + Vite | Next.js (static) | Remix | TanStack Start |
-|---|---|---|---|---|
-| `build.outputDir` | `"dist"` | `"out"` | `"build/client"` | `"dist"` |
-| `build.swFilename` | `"sw"` | `"sw"` | `"sw"` | `"sw"` |
-| `navigation.mode` | `"spa"` | `"spa"` | `"spa"` | `"spa"` |
-| `navigation.fallback` | `"/index.html"` | `"/index.html"` | `"/index.html"` | `"/index.html"` |
-| `navigation.preload` | `true` | `true` | `true` | `true` |
-| `strategy.ignoreQueryParams` | `[]` | `["_rsc"]` | `["_data"]` | `[]` |
+| Setting                      | React + Vite    | Next.js (static) | Remix            | TanStack Start  |
+| ---------------------------- | --------------- | ---------------- | ---------------- | --------------- |
+| `build.outputDir`            | `"dist"`        | `"out"`          | `"build/client"` | `"dist"`        |
+| `build.swFilename`           | `"sw"`          | `"sw"`           | `"sw"`           | `"sw"`          |
+| `navigation.mode`            | `"spa"`         | `"spa"`          | `"spa"`          | `"spa"`         |
+| `navigation.fallback`        | `"/index.html"` | `"/index.html"`  | `"/index.html"`  | `"/index.html"` |
+| `navigation.preload`         | `true`          | `true`           | `true`           | `true`          |
+| `strategy.ignoreQueryParams` | `[]`            | `["_rsc"]`       | `["_data"]`      | `[]`            |
 
 All other config fields (`strategy.default`, `strategy.patterns`, `features.*`) are the same across flavors.
+
+> For detailed setup guides, see [React SPA](/docs/frameworks/react/spa), [TanStack Start](/docs/frameworks/react/tanstack-start), and [Next.js](/docs/frameworks/react/nextjs).
 
 ## Generated adapters
 
@@ -31,22 +33,22 @@ The CLI generates these hooks into `swoff/adapters/`. Import them directly:
 import { useCachedFetch } from "./swoff/adapters/useCachedFetch";
 ```
 
-| Hook | Condition | Purpose |
-|---|---|---|---|
-| `useCachedFetch` | always | Reactive fetch with caching and auth |
-| `useMutation` | always | Mutate data with SW awareness |
-| `usePrefetch` | always | Prefetch resources before navigation |
-| `useSwoffReset` | always | Wipe all caches, IDB, SW |
-| `useMutationState` | always | Per-mutation lifecycle tracking |
-| `useMutationQueue` | `mutationQueue.enabled` | Offline write queue |
-| `useNetworkStatus` | always | Online/offline state, connection type, retry |
-| `useAuth` | `auth.enabled` | Auth state, login/logout |
-| `useSWUpdate` | `pwa.enabled` | SW update lifecycle |
-| `usePushSubscription` | `pushNotifications` | Push notification subscription |
-| `useBackgroundSync` | `mutationQueue.backgroundSync` | Background sync registration |
-| `usePwaInstall` | `pwa.enabled` | Install prompt handler |
-| `useOfflineAnalytics` | always | Track offline fallback events |
-| `useStorageEstimate` | always | Storage quota and usage |
+| Hook                  | Condition                      | Purpose                                      |
+| --------------------- | ------------------------------ | -------------------------------------------- |
+| `useCachedFetch`      | always                         | Reactive fetch with caching and auth         |
+| `useMutation`         | always                         | Mutate data with SW awareness                |
+| `usePrefetch`         | always                         | Prefetch resources before navigation         |
+| `useSwoffReset`       | always                         | Wipe all caches, IDB, SW                     |
+| `useMutationState`    | always                         | Per-mutation lifecycle tracking              |
+| `useMutationQueue`    | `mutationQueue.enabled`        | Offline write queue                          |
+| `useNetworkStatus`    | always                         | Online/offline state, connection type, retry |
+| `useAuth`             | `auth.enabled`                 | Auth state, login/logout                     |
+| `useSWUpdate`         | `pwa.enabled`                  | SW update lifecycle                          |
+| `usePushSubscription` | `pushNotifications`            | Push notification subscription               |
+| `useBackgroundSync`   | `mutationQueue.backgroundSync` | Background sync registration                 |
+| `usePwaInstall`       | `pwa.enabled`                  | Install prompt handler                       |
+| `useOfflineAnalytics` | always                         | Track offline fallback events                |
+| `useStorageEstimate`  | always                         | Storage quota and usage                      |
 
 ### Hook API
 
@@ -92,7 +94,9 @@ const {
   auth: true,
   onSuccess: (data) => navigate(`/item/${data.id}`),
   onError: (err) => console.error(err),
-  onMutate: () => { /* optimistic update */ },
+  onMutate: () => {
+    /* optimistic update */
+  },
 });
 mutate(JSON.stringify({ title: "New" }));
 ```
@@ -146,7 +150,9 @@ const { reset, isResetting, error } = useSwoffReset();
 
 ```ts
 const mutation = useMutationState(mutationId);
-if (mutation?.status === "error") { /* show error */ }
+if (mutation?.status === "error") {
+  /* show error */
+}
 ```
 
 Returns `MutationState | null`. Subscribes to a specific mutation's state changes. Pass `null` or empty string to disable.
@@ -183,7 +189,16 @@ const { online, wasOffline, lastChangedAt, effectiveType, downlink } =
 #### `useAuth()`
 
 ```ts
-const { authenticated, auth, online, isLoading, error, setAuth, clearAuth, ensureValid } = useAuth();
+const {
+  authenticated,
+  auth,
+  online,
+  isLoading,
+  error,
+  setAuth,
+  clearAuth,
+  ensureValid,
+} = useAuth();
 ```
 
 | Field           | Type                                | Description                                                                   |
@@ -210,7 +225,14 @@ const { status, progress, error } = useSWUpdate();
 #### `usePushSubscription()`
 
 ```ts
-const { subscribed, subscription, permission, loading, subscribe, unsubscribe } = usePushSubscription();
+const {
+  subscribed,
+  subscription,
+  permission,
+  loading,
+  subscribe,
+  unsubscribe,
+} = usePushSubscription();
 ```
 
 Generated when `features.pushNotifications` is `true`.
@@ -242,7 +264,15 @@ Tracks offline navigation fallback events. Optionally pass a callback that fires
 #### `useStorageEstimate()`
 
 ```ts
-const { usage, quota, percentUsed, formattedUsage, formattedQuota, loading, error } = useStorageEstimate();
+const {
+  usage,
+  quota,
+  percentUsed,
+  formattedUsage,
+  formattedQuota,
+  loading,
+  error,
+} = useStorageEstimate();
 ```
 
 | Field            | Type             | Description                                      |
@@ -266,13 +296,14 @@ import { useEffect } from "react";
 import { initServiceWorker } from "./swoff/client-injector";
 
 function App() {
-  useEffect(() => { initServiceWorker(); }, []);
+  useEffect(() => {
+    initServiceWorker();
+  }, []);
   return <YourApp />;
 }
 ```
 
-Next.js App Router: add `"use client"` and call in `app/layout.tsx`.
-Next.js Pages Router: call in `pages/_app.tsx`.
+See the [Next.js guide](/docs/frameworks/react/nextjs) for App Router and Pages Router setup.
 Remix: call in `app/root.tsx` client entry.
 
 ## Build script

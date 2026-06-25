@@ -1,7 +1,7 @@
 ---
-title: Go
+title: Adapters
 description: Integrate Swoff with Go backends (net/http, chi, gin).
-icon: go
+icon: Usb
 ---
 
 # Go
@@ -10,14 +10,14 @@ Swoff works with any Go backend. The generated files are static — embed them o
 
 ## Config per flavor
 
-| Setting | Go (net/http / chi / gin) |
-|---|---|
-| `build.outputDir` | `"static"` or `"public"` |
-| `build.swFilename` | `"sw"` |
-| `navigation.mode` | `"ssr"` |
-| `navigation.fallback` | `"/offline"` |
-| `navigation.preload` | `true` |
-| `strategy.default` | `"network-first"` |
+| Setting               | Go (net/http / chi / gin) |
+| --------------------- | ------------------------- |
+| `build.outputDir`     | `"static"` or `"public"`  |
+| `build.swFilename`    | `"sw"`                    |
+| `navigation.mode`     | `"ssr"`                   |
+| `navigation.fallback` | `"/offline"`              |
+| `navigation.preload`  | `true`                    |
+| `strategy.default`    | `"network-first"`         |
 
 ## Where to place generated files
 

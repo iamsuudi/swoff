@@ -1,5 +1,17 @@
 {
-  "title": "Framework Integration",
-  "icon": "Cable",
-  "pages": ["ecosystem", "blueprint", "react", "astro", "vue", "svelte", "laravel", "django", "rails", "go", "htmx", "vanilla"]
+  "title": "Frameworks",
+  "pages": [
+    "ecosystem",
+    "blueprint",
+    "react",
+    "astro",
+    "vue",
+    "svelte",
+    "laravel",
+    "django",
+    "rails",
+    "go",
+    "htmx",
+    "vanilla"
+  ]
 }

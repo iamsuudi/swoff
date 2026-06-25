@@ -13,6 +13,7 @@ import {
 } from "fumadocs-ui/layouts/docs/page";
 import { baseOptions } from "@/lib/layout.shared";
 import { gitConfig } from "@/lib/shared";
+import { staticFunctionMiddleware } from "@tanstack/start-static-server-functions";
 import { useFumadocsLoader } from "fumadocs-core/source/client";
 import { Suspense } from "react";
 import { useMDXComponents } from "@/components/mdx";
@@ -29,16 +30,17 @@ export const Route = createFileRoute("/docs/$")({
   component: Page,
   loader: async ({ params }) => {
     const slugs = params._splat?.split("/") ?? [];
-    const data = await serverLoader({ data: slugs });
+    const data = await loader({ data: slugs });
     await clientLoader.preload(data.path);
     return data;
   },
 });
 
-const serverLoader = createServerFn({
+const loader = createServerFn({
   method: "GET",
 })
   .inputValidator((slugs: string[]) => slugs)
+  .middleware([staticFunctionMiddleware])
   .handler(async ({ data: slugs }) => {
     const page = source.getPage(slugs);
     if (!page) throw notFound();
@@ -53,7 +55,6 @@ const serverLoader = createServerFn({
 const clientLoader = browserCollections.docs.createClientLoader({
   component(
     { toc, frontmatter, default: MDX },
-    // you can define props for the component
     {
       markdownUrl,
       path,
@@ -82,12 +83,12 @@ const clientLoader = browserCollections.docs.createClientLoader({
 });
 
 function Page() {
-  const { path, pageTree, markdownUrl } = useFumadocsLoader(
+  const { pageTree, path, markdownUrl } = useFumadocsLoader(
     Route.useLoaderData(),
   );
 
   return (
-    <DocsLayout {...baseOptions()} tree={pageTree}>
+    <DocsLayout {...baseOptions()} tree={pageTree as never}>
       <AISearch>
         <AISearchPanel />
         <AISearchTrigger
@@ -104,9 +105,7 @@ function Page() {
         </AISearchTrigger>
       </AISearch>
 
-      <Suspense>
-        {clientLoader.useContent(path, { markdownUrl, path })}
-      </Suspense>
+      <Suspense>{clientLoader.useContent(path, { markdownUrl, path })}</Suspense>
     </DocsLayout>
   );
 }

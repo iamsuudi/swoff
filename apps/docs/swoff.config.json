@@ -12,7 +12,7 @@
       "navigation": {
         "mode": "ssr",
         "preload": true,
-        "fallback": "",
+        "fallback": "/offline",
         "precacheRoutes": [],
         "rules": []
       },
@@ -22,10 +22,6 @@
         "normalizeKey": false,
         "ignoreQueryParams": [],
         "timeout": 10,
-        "patterns": {
-          "/static/*": "cache-first",
-          "/_serverFn/*": "network-only"
-        },
         "reactive": {
           "defaults": {
             "staleTime": 0,
@@ -93,12 +89,9 @@
     "precacheDirs": {
       "dist/client": {
         "prefix": "/",
-        "matchExtensions": [".html", ".ico", ".png"],
+        "matchExtensions": [],
         "stripExtensions": [".html"],
         "stripSuffixes": ["index"]
-      },
-      "dist/client/assets": {
-        "prefix": "/assets"
       }
     }
   }

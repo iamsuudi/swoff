@@ -164,7 +164,7 @@ async function checkCacheVersion() {
 
   if (prev !== null && prev !== current) {
     await Promise.all(
-      ["precache", "swoff-runtime", "swoff-runtime-html"].map(function(n) { return caches.delete(n); })
+      ["swoff-runtime", "swoff-runtime-html"].map(function(n) { return caches.delete(n); })
     );
   }
 
@@ -327,7 +327,7 @@ self.addEventListener("message", (event) => {
 const NAV_MODE = "ssr";
 const FALLBACK_PATH = "/offline";
 const DEFAULT_STRATEGY = "cache-first";
-const CUSTOM_STRATEGIES = {"/_serverFn/*":"network-first"};
+const CUSTOM_STRATEGIES = {};
 const REACTIVE_STALE_DEFAULT = 0;
 const FETCH_TIMEOUT_MS = 10000;
 const SW_DEBUG = false;

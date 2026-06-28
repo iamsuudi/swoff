@@ -1,0 +1,99 @@
+---
+title: Service Worker
+description: Full schema for swoff.config.json features.serviceWorker — every field, its type, default, and description.
+---
+
+## `features.serviceWorker`
+
+| Field          | Type      | Default | Description                                                                                                                                                      |
+| -------------- | --------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `autoActivate` | `boolean` | `false` | Automatically activate newly registered service workers (`skipWaiting()`). When `false`, the SW activates on next navigation or browser reload — no user prompt. |
+| `precache`     | `object`  | —       | Controls how assets are precached (see below).                                                                                                                   |
+
+### `features.serviceWorker.precache`
+
+Controls the background precache behavior.
+
+| Field         | Type     | Default | Description                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `concurrency` | `number` | `1`     | Number of assets to download simultaneously during background precaching. Higher values (e.g. `3`) speed up large precaches but may increase bandwidth contention. Default `1` downloads assets sequentially. Only fallback routes (offline page, `precacheRoutes`, per-route fallbacks) are cached during SW install — all other assets are cached progressively in the background. |
+| `delayMs`     | `number` | `0`     | Delay in milliseconds between starting individual asset requests within a batch. Spaces out requests to avoid network saturation.                                                                                                                                                                                                                                                    |
+
+### `features.serviceWorker.strategy`
+
+| Field                         | Type       | Default         | Description                                                                                                                                                                                                                                                                                    |
+| ----------------------------- | ---------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `default`                     | `string`   | `"cache-first"` | Default caching strategy (lowest priority in 3-tier resolution). One of: `cache-first`, `network-first`, `stale-while-revalidate`, `cache-only`, `network-only`, `reactive`                                                                                                                    |
+| `patterns`                    | `object`   | `{}`            | Per-route strategy overrides. Keys are URL patterns (e.g. `/api/*`). Values can be a strategy name string or a `StrategyEntry` object                                                                                                                                                          |
+| `reactive.staleTime`          | `number`   | `0`             | Global stale time in seconds for reactive strategy. Data is considered fresh for this long; after expiry, SW serves cached but triggers a background refresh. 0 = always stale.                                                                                                                |
+| `reactive.refetchInterval`    | `number`   | `0`             | Global auto-refetch interval in seconds for reactive strategy. SW periodically re-fetches matching routes in the background. 0 disables.                                                                                                                                                       |
+| `reactive.refetchOnReconnect` | `boolean`  | `false`         | Global default — refetch reactive entries when the browser comes back online                                                                                                                                                                                                                   |
+| `reactive.refetchOnFocus`     | `boolean`  | `false`         | Global default — refetch reactive entries when the tab gains focus                                                                                                                                                                                                                             |
+| `maxRuntimeCacheAge`          | `number`   | `2592000`       | Maximum age in seconds for runtime cache entries. 0 disables eviction. Default 2592000 (30 days).                                                                                                                                                                                              |
+| `normalizeKey`                | `boolean`  | `false`         | When `true`, query params are sorted alphabetically in cache keys so `?b=1&a=2` and `?a=2&b=1` resolve to the same entry.                                                                                                                                                                      |
+| `ignoreQueryParams`           | `string[]` | `[]`            | Query params to strip from cache keys (e.g. `["_t", "utm_source"]`). Prevents cache-busting params from creating duplicate cache entries.                                                                                                                                                      |
+| `timeout`                     | `number`   | `10`            | Network fetch timeout in seconds. The SW's `_fetch` wraps `fetch()` with an `AbortController` that aborts after this duration. On timeout or network error, a `SW_NOTIFICATION` is broadcast (level: `"error"`, code: `"FETCH_FAILED"`), and the strategy falls through to its cache fallback. |
+
+### `features.serviceWorker.navigation`
+
+| Field            | Type                              | Default | Description                                                                                                                                                                                                                                                                                                                                                                                       |
+| ---------------- | --------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mode`           | `"spa"` \| `"default"` \| `"ssr"` | `"spa"` | Navigation mode. `"spa"`: runtime serves global fallback directly from precache (no runtime HTML caching). `"default"`: no special navigation handling — strategies handle all requests equally. `"ssr"`: runtime checks HTML cache → per-route fallback → global fallback; adds auto-prefetch that intercepts `history.pushState`/`replaceState` to warm the SW cache on client-side navigation. |
+| `preload`        | `boolean`                         | `true`  | Enable Navigation Preload API — reduces SW startup latency                                                                                                                                                                                                                                                                                                                                        |
+| `fallback`       | `string`                          | `""`    | Global fallback HTML path for offline navigation. For SPA mode, set to `"/index.html"` to serve the SPA shell from precache when offline. For SSR mode, checked after per-route fallback if the runtime HTML cache misses.                                                                                                                                                                        |
+| `precacheRoutes` | `string[]`                        | `[]`    | Additional routes to fetch + cache during SW install (e.g. `["/", "/about"]`). Useful for SSG or critical pages.                                                                                                                                                                                                                                                                                  |
+| `rules`          | `NavigationRule[]`                | `[]`    | Per-route offline fallback pages (see below). Rules provide the fallback path used when strategy dispatch fails; they do not override the caching strategy.                                                                                                                                                                                                                                       |
+
+#### `NavigationRule`
+
+| Field      | Type     | Default    | Description                                                                                                    |
+| ---------- | -------- | ---------- | -------------------------------------------------------------------------------------------------------------- |
+| `match`    | `string` | (required) | Glob pattern matching request paths (supports `*`, `**`, `?`, `{a,b}`).                                        |
+| `fallback` | `string` | —          | Per-route offline fallback HTML path. Used in the ultimate fallback chain, checked before the global fallback. |
+
+#### Example — per-route fallback rules
+
+```json
+"navigation": {
+  "mode": "ssr",
+  "fallback": "/offline.html",
+  "rules": [
+    { "match": "/blog/*", "fallback": "/blog-offline.html" },
+    { "match": "/dashboard/**", "fallback": "/dashboard-offline.html" }
+  ]
+}
+```
+
+### `StrategyEntry` object
+
+When a strategy value is an object instead of a string:
+
+```json
+"/api/*": {
+  "strategy": "reactive",
+  "staleTime": 30,
+  "refetchOnFocus": true
+}
+```
+
+| Field                | Type      | Default    | Description                                                                                                                                                                                                        |
+| -------------------- | --------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `strategy`           | `string`  | (required) | Caching strategy name. One of: `cache-first`, `network-first`, `stale-while-revalidate`, `cache-only`, `network-only`, `reactive`                                                                                  |
+| `staleTime`          | `number`  | —          | Stale time in seconds. **Reactive-only** — only valid when `strategy` is `"reactive"`. Data is considered fresh for this long; after expiry, SW serves cached but triggers a background refresh. 0 = always stale. |
+| `refetchInterval`    | `number`  | —          | Auto-refetch interval in seconds. **Reactive-only**. The SW periodically re-fetches this route in the background. 0 disables.                                                                                      |
+| `refetchOnReconnect` | `boolean` | `false`    | Refetch when the browser comes back online. **Reactive-only**.                                                                                                                                                     |
+| `refetchOnFocus`     | `boolean` | `false`    | Refetch when the browser tab gains focus. **Reactive-only**.                                                                                                                                                       |
+| `timeout`            | `number`  | —          | Override the global fetch timeout for this specific pattern (in seconds).                                                                                                                                          |
+
+### Resolution tiers
+
+`strategy` and `staleTime` resolve in 3 tiers (highest to lowest priority):
+
+1. **Per-request** — passed as options to `fetchWithCache({ strategy })` or `useCachedFetch()`, or via `X-SW-Strategy` / `X-SW-Stale-Time` headers
+2. **Route pattern** — configured in `features.serviceWorker.strategy.patterns`
+3. **Global default** — configured at `features.serviceWorker.strategy.reactive.*` (for `staleTime`) or `features.serviceWorker.strategy.default` (for `strategy`)
+
+`refetchInterval`, `refetchOnReconnect`, and `refetchOnFocus` are SW-initiated (interval timers, online/focus event handlers) and resolve in 2 tiers only:
+
+1. **Route pattern** — configured in the pattern entry
+2. **Global default** — configured at `features.serviceWorker.strategy.reactive.*`

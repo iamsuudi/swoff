@@ -1,0 +1,17 @@
+---
+title: Tag Invalidation
+description: Full schema for swoff.config.json features.tagInvalidation — every field, its type, default, and description.
+---
+
+## `features.tagInvalidation`
+
+Object-only feature (boolean shorthand not supported).
+
+| Field             | Type                       | Default                                         | Description                                                                                                                                                                             |
+| ----------------- | -------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enabled`         | `boolean`                  | `false`                                         | Enable the tag-based cache invalidation system (generates `fetch/core`, `cache/tags`, `cache/invalidate`)                                                                               |
+| `debounceMs`      | `number`                   | `0`                                             | Debounce window (ms) for coalescing rapid invalidations. When > 0, repeated `INVALIDATE_TAG` messages within the window are batched and processed once, reducing redundant cache scans. |
+| `skipPrefixes`    | `string[]`                 | `["api","v1","v2","v3","rest","graphql","gql"]` | URL path prefixes to skip during tag generation                                                                                                                                         |
+| `patterns`        | `object`                   | `{}`                                            | Custom glob patterns for tag generation. Keys are URL patterns (`/api/:id`), values are tag template arrays (`["{id}"]`)                                                                |
+| `singularization` | `object`                   | `{}`                                            | Custom plural→singular mapping (e.g. `{"categories": "category"}`). Default: strips trailing `s`.                                                                                       |
+| `cascading`       | `Record<string, string[]>` | `{}`                                            | Cascading tag dependencies. `{"todos": ["categories"]}` — invalidating `todos` also invalidates `categories`                                                                            |

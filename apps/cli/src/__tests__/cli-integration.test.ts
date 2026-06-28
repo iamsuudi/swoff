@@ -29,9 +29,7 @@ describe("CLI commands integration", () => {
             strategy: {
               default: "cache-first",
               patterns: { "/api/*": "network-first", "/static/*": "cache-first" },
-              reactive: {
-                defaults: { staleTime: 0, refetchInterval: 0, refetchOnReconnect: false, refetchOnFocus: false },
-              },
+              reactive: { staleTime: 0, refetchInterval: 0, refetchOnReconnect: false, refetchOnFocus: false },
             },
             navigation: {
               mode: "spa",

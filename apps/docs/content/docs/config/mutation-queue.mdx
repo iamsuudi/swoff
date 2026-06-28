@@ -1,0 +1,19 @@
+---
+title: Mutation Queue
+description: Full schema for swoff.config.json features.mutationQueue — every field, its type, default, and description.
+---
+
+## `features.mutationQueue`
+
+Object-only feature (boolean shorthand not supported).
+
+| Field                | Type      | Default | Description                                               |
+| -------------------- | --------- | ------- | --------------------------------------------------------- |
+| `enabled`            | `boolean` | `false` | Enable offline write queue                                |
+| `batchSize`          | `number`  | `1`     | Mutations per progress event                              |
+| `batchDelayMs`       | `number`  | `0`     | Delay between mutations (rate limiting)                   |
+| `retry.maxRetries`   | `number`  | `5`     | Max retries before dropping a mutation                    |
+| `retry.backoffMs`    | `number`  | `1000`  | Base delay in ms for retry backoff (delay × 2^retryCount) |
+| `retry.maxBackoffMs` | `number`  | `30000` | Maximum delay cap for backoff (30s)                       |
+| `retry.jitterMs`     | `number`  | `250`   | Random jitter in ms added to each backoff delay           |
+| `backgroundSync`     | `boolean` | `false` | Enable Background Sync API (Chrome/Edge only)             |

@@ -1,0 +1,11 @@
+---
+title: PWA
+description: Full schema for swoff.config.json features.pwa — every field, its type, default, and description.
+---
+
+## `features.pwa`
+
+| Field                   | Type      | Default | Description                                                                                    |
+| ----------------------- | --------- | ------- | ---------------------------------------------------------------------------------------------- |
+| `enabled`               | `boolean` | `false` | Enable PWA installability (generates `pwa/prompt.{ts\|js}`)                                    |
+| `preventDefaultInstall` | `boolean` | `false` | Suppress browser's native install prompt. When true, dev must call `promptInstall()` manually. |

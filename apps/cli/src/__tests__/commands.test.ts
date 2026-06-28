@@ -1,14 +1,45 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { existsSync, rmSync, readFileSync, mkdirSync, writeFileSync, readdirSync } from "fs";
+import { existsSync, rmSync, readFileSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { generateFiles } from "../lib/generators/swoff-files-generator.js";
 
-vi.mock("readline", () => ({
-  createInterface: () => ({
-    question: (_q: string, cb: (a: string) => void) => cb(""),
-    close: () => {},
-  }),
-}));
+vi.mock("@clack/prompts", () => {
+  let callCount = 0;
+  const mockValues: Record<string, unknown> = {
+    framework: "react-spa",
+    outputDir: "dist",
+    swFilename: "sw",
+    navMode: "spa",
+    fallback: "/offline",
+    defaultStrategy: "cache-first",
+    pwaEnabled: false,
+    authEnabled: false,
+    mutationEnabled: false,
+    tagInvalidationEnabled: false,
+    graphqlEnabled: false,
+    serverPushEnabled: false,
+    pushNotificationsEnabled: false,
+    precacheDir: "dist",
+    precachePrefix: "/",
+    write: true,
+    shouldRemove: true,
+  };
+  return {
+    intro: vi.fn(),
+    outro: vi.fn(),
+    log: { info: vi.fn(), warn: vi.fn(), success: vi.fn() },
+    isCancel: vi.fn(() => false),
+    text: vi.fn((opts) => mockValues[opts.name || Object.keys(mockValues).find(k => k === opts.initialValue) || ""] ?? opts.initialValue ?? ""),
+    confirm: vi.fn((opts) => {
+      callCount++;
+      return mockValues[opts.name || Object.keys(mockValues).find(k => {
+        const v = mockValues[k];
+        return typeof v === "boolean";
+      }) || ""] ?? true;
+    }),
+    select: vi.fn((opts) => opts.initialValue || opts.options[0].value),
+  };
+});
 
 import { initCommand } from "../lib/commands/init.js";
 import { cleanCommand } from "../lib/commands/clean.js";
@@ -29,7 +60,7 @@ afterEach(() => {
 
 describe("initCommand", () => {
   it("creates swoff.config.json when none exists", async () => {
-    await initCommand(testDir);
+    await initCommand(testDir, true);
     expect(existsSync(join(testDir, "swoff.config.json"))).toBe(true);
     const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
     expect(config.$schema).toBe("https://swoff.netlify.app/schema/v1.json");
@@ -37,51 +68,42 @@ describe("initCommand", () => {
 
   it("skips when swoff.config.json already exists", async () => {
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify({ enabled: true }));
-    await initCommand(testDir);
+    await initCommand(testDir, true);
     const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
     expect(config.$schema).toBeUndefined();
   });
 
   it("skips when swoff.config.js already exists", async () => {
     writeFileSync(join(testDir, "swoff.config.js"), "module.exports = {}");
-    await initCommand(testDir);
+    await initCommand(testDir, true);
     expect(existsSync(join(testDir, "swoff.config.json"))).toBe(false);
   });
 
   it("detects framework from package.json", async () => {
     writeFileSync(join(testDir, "package.json"), JSON.stringify({ dependencies: { react: "^18.0.0" } }));
-    await initCommand(testDir);
+    await initCommand(testDir, true);
     const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
     expect(config.framework).toBe("react-spa");
   });
 
-  it("accepts explicit framework argument", async () => {
-    await initCommand(testDir, "vue");
-    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
-    expect(config.framework).toBe("vue");
-  });
-
-  it("creates config with correct structure", async () => {
-    await initCommand(testDir);
+  it("creates minimal config with only serviceWorker feature", async () => {
+    await initCommand(testDir, true);
     const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
     expect(config).toHaveProperty("build");
     expect(config).toHaveProperty("features");
-    expect(config.features).toHaveProperty("pwa");
     expect(config.features).toHaveProperty("serviceWorker");
-    expect(config.features).toHaveProperty("mutationQueue");
-    expect(config.features).toHaveProperty("auth");
-    expect(config.features).toHaveProperty("tagInvalidation");
-    expect(config.features).toHaveProperty("connectivity");
+    expect(config.features).not.toHaveProperty("pwa");
+    expect(config.features).not.toHaveProperty("mutationQueue");
+    expect(config.features).not.toHaveProperty("auth");
+    expect(config.features).not.toHaveProperty("tagInvalidation");
+    expect(config.features).not.toHaveProperty("connectivity");
   });
-
 });
 
 describe("cleanCommand", () => {
   it("does nothing when no swoff directory or config", async () => {
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     await cleanCommand(testDir, { yes: true });
-    expect(logSpy).toHaveBeenCalled();
-    logSpy.mockRestore();
+    expect(existsSync(join(testDir, "swoff"))).toBe(false);
   });
 
   it("removes swoff/ directory with --yes", async () => {
@@ -113,24 +135,12 @@ describe("generateCommand", () => {
       $schema: "https://swoff.netlify.app/schema/v1.json",
       framework: "react-spa",
       features: {
-        pwa: { enabled: false, preventDefaultInstall: false },
-        connectivity: { enabled: false },
         serviceWorker: {
-          autoActivate: false,
           strategy: {
             default: "cache-first",
-            patterns: {},
-            mode: "all",
-            reactive: { defaults: {} },
           },
           navigation: { mode: "spa", fallback: "/index.html" },
         },
-        refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
-        mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000, backgroundSync: false },
-        auth: { enabled: false, type: "bearer", refreshPath: "/api/refresh", userEndpoint: "/api/me" },
-        tagInvalidation: { enabled: false },
-        graphql: { enabled: false, endpoints: ["/graphql"] },
-        pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
       },
       build: { outputDir: "dist", swFilename: "sw" },
     };
@@ -155,7 +165,7 @@ describe("generateCommand", () => {
     writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
     writeMinimalConfig();
     const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
-    config.features.tagInvalidation.enabled = true;
+    config.features.tagInvalidation = { enabled: true };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
     await generateCommand(testDir);
     expect(existsSync(join(testDir, "swoff/cache/invalidate.js"))).toBe(true);
@@ -167,7 +177,7 @@ describe("generateCommand", () => {
     writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
     writeMinimalConfig();
     const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
-    config.features.connectivity.enabled = true;
+    config.features.connectivity = { enabled: true };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
     await generateCommand(testDir);
     expect(existsSync(join(testDir, "swoff/connectivity.js"))).toBe(true);
@@ -194,8 +204,7 @@ describe("generateCommand", () => {
     writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
     writeMinimalConfig();
     const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
-    config.features.auth.enabled = true;
-    config.features.auth.type = "cookie";
+    config.features.auth = { enabled: true, type: "cookie" };
     config.features.connectivity = { enabled: true };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
     await generateCommand(testDir);
@@ -209,24 +218,10 @@ describe("validateCommand", () => {
     const config = {
       framework: "vanilla",
       features: {
-        pwa: { enabled: false, preventDefaultInstall: false },
-        connectivity: { enabled: false },
         serviceWorker: {
-          autoActivate: false,
-          strategy: {
-            default: "cache-first",
-            patterns: {},
-            mode: "all",
-            reactive: { defaults: {} },
-          },
+          strategy: { default: "cache-first" },
           navigation: { mode: "spa", fallback: "/index.html" },
         },
-        refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
-        mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000, backgroundSync: false },
-        auth: { enabled: false, type: "bearer" },
-        tagInvalidation: { enabled: false },
-        graphql: { enabled: false, endpoints: ["/graphql"] },
-        pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
       },
       build: { outputDir: "dist", swFilename: "sw" },
     };

@@ -1,0 +1,11 @@
+---
+title: Connectivity
+description: Full schema for swoff.config.json features.connectivity — every field, its type, default, and description.
+---
+
+## `features.connectivity`
+
+| Field                 | Type      | Default | Description                                                                   |
+| --------------------- | --------- | ------- | ----------------------------------------------------------------------------- |
+| `enabled`             | `boolean` | `false` | Enable connectivity monitoring (online/offline detection with HEAD heartbeat) |
+| `heartbeatIntervalMs` | `number`  | `30000` | Interval in ms between HEAD heartbeat requests to verify connectivity         |

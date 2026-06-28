@@ -465,11 +465,11 @@ self.addEventListener("message", (event) => {
 const NAV_MODE = "ssr";
 const FALLBACK_PATH = "/offline";
 const DEFAULT_STRATEGY = "network-first";
-const CUSTOM_STRATEGIES = {};
+const CUSTOM_STRATEGIES = {"/_serverFn/*":"network-only"};
 const REACTIVE_STALE_DEFAULT = 0;
 const FETCH_TIMEOUT_MS = 10000;
 const SW_DEBUG = false;
-
+const AUTH_ROUTES = ["/login","/logout","/register","/api/login","/api/logout","/api/register","/api/refresh","/api/me"];
 
 
 // --- Debug Logging ---
@@ -1064,6 +1064,10 @@ function applyStrategy(event, request, config) {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   swLog("fetch", "INCOMING", request.url, 0);
+  if (AUTH_ROUTES.some(function(route) { return new URL(request.url).pathname.includes(route); })) {
+    swLog("fetch", "auth-route-bypass", request.url, 0);
+    return;
+  }
   if (request.headers.get("X-SW-Strategy") === "network-only") {
     swLog("fetch", "strategy=network-only", request.url, 0);
     return;

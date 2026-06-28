@@ -129,20 +129,17 @@ export function validateConfig(config: Record<string, unknown>): string[] {
         }
         const reactive = strategy.reactive as Record<string, unknown> | undefined;
         if (reactive && typeof reactive === "object") {
-          const defaults = reactive.defaults as Record<string, unknown> | undefined;
-          if (defaults && typeof defaults === "object") {
-            if (defaults.staleTime !== undefined && (typeof defaults.staleTime !== "number" || defaults.staleTime < 0)) {
-              errors.push("features.serviceWorker.strategy.reactive.defaults.staleTime must be a non-negative number");
-            }
-            if (defaults.refetchInterval !== undefined && (typeof defaults.refetchInterval !== "number" || defaults.refetchInterval < 0 || !Number.isInteger(defaults.refetchInterval))) {
-              errors.push("features.serviceWorker.strategy.reactive.defaults.refetchInterval must be a non-negative integer");
-            }
-            if (defaults.refetchOnReconnect !== undefined && typeof defaults.refetchOnReconnect !== "boolean") {
-              errors.push("features.serviceWorker.strategy.reactive.defaults.refetchOnReconnect must be a boolean");
-            }
-            if (defaults.refetchOnFocus !== undefined && typeof defaults.refetchOnFocus !== "boolean") {
-              errors.push("features.serviceWorker.strategy.reactive.defaults.refetchOnFocus must be a boolean");
-            }
+          if (reactive.staleTime !== undefined && (typeof reactive.staleTime !== "number" || reactive.staleTime < 0)) {
+            errors.push("features.serviceWorker.strategy.reactive.staleTime must be a non-negative number");
+          }
+          if (reactive.refetchInterval !== undefined && (typeof reactive.refetchInterval !== "number" || reactive.refetchInterval < 0 || !Number.isInteger(reactive.refetchInterval))) {
+            errors.push("features.serviceWorker.strategy.reactive.refetchInterval must be a non-negative integer");
+          }
+          if (reactive.refetchOnReconnect !== undefined && typeof reactive.refetchOnReconnect !== "boolean") {
+            errors.push("features.serviceWorker.strategy.reactive.refetchOnReconnect must be a boolean");
+          }
+          if (reactive.refetchOnFocus !== undefined && typeof reactive.refetchOnFocus !== "boolean") {
+            errors.push("features.serviceWorker.strategy.reactive.refetchOnFocus must be a boolean");
           }
         }
       }

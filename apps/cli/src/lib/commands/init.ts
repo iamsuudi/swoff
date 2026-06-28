@@ -1,233 +1,271 @@
-/**
- * init command - creates swoff.config.json.
- */
-
 import { writeFileSync, existsSync } from "fs";
 import { join } from "path";
-import { log } from "../cli/logger.js";
-import {
-  defaultInitConfig,
-  deepMerge,
-  type SwoffConfig,
-} from "../shared/config-types.js";
-import {
-  detectFramework,
-  type FrameworkName,
-} from "../utils/detect-framework.js";
+import { intro, outro, text, confirm, select, isCancel, log } from "@clack/prompts";
+import { detectFramework, type FrameworkName } from "../utils/detect-framework.js";
+import { buildMinimalConfig, type WizardAnswers } from "../config/minimal-config.js";
 
 const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
   nextjs: {
-    build: {
-      outputDir: "public",
-    },
-    features: {
-      serviceWorker: {
-        strategy: {
-          default: "network-first",
-          patterns: {
-            "/_next/static/*": "cache-first",
-          },
-          ignoreQueryParams: ["_rsc"],
-        },
-        navigation: {
-          mode: "ssr",
-        },
-      },
-    },
+    outputDir: "public",
+    navMode: "ssr",
+    defaultStrategy: "network-first",
+    patterns: { "/_next/static/*": "cache-first" },
+    ignoreQueryParams: ["_rsc"],
   },
   remix: {
-    features: {
-      serviceWorker: {
-        strategy: {
-          default: "network-first",
-          ignoreQueryParams: ["_data"],
-        },
-        navigation: {
-          mode: "ssr",
-        },
-      },
-    },
+    navMode: "ssr",
+    defaultStrategy: "network-first",
+    ignoreQueryParams: ["_data"],
   },
   astro: {
-    features: {
-      serviceWorker: {
-        navigation: {
-          mode: "ssr",
-        },
-      },
-    },
+    navMode: "ssr",
   },
   nuxt: {
-    features: {
-      serviceWorker: {
-        strategy: {
-          default: "network-first",
-        },
-        navigation: {
-          mode: "ssr",
-        },
-      },
-    },
+    navMode: "ssr",
+    defaultStrategy: "network-first",
   },
   sveltekit: {
-    features: {
-      serviceWorker: {
-        strategy: {
-          default: "network-first",
-        },
-        navigation: {
-          mode: "ssr",
-        },
-      },
-    },
+    navMode: "ssr",
+    defaultStrategy: "network-first",
   },
   "react-spa": {
-    build: {
-      outputDir: "dist",
-    },
-    features: {
-      serviceWorker: {
-        navigation: {
-          mode: "spa",
-        },
-      },
-    },
+    outputDir: "dist",
+    navMode: "spa",
   },
   "tanstack-start-react": {
-    build: {
-      outputDir: ".output/public",
-    },
-    features: {
-      serviceWorker: {
-        strategy: {
-          default: "network-first",
-          patterns: {
-            "/_serverFn/*": "network-only",
-          },
-        },
-        navigation: {
-          mode: "ssr",
-        },
-      },
-    },
+    outputDir: ".output/public",
+    navMode: "ssr",
+    defaultStrategy: "network-first",
+    patterns: { "/_serverFn/*": "network-only" },
   },
   laravel: {
-    build: {
-      outputDir: "public",
-    },
-    features: {
-      serviceWorker: {
-        navigation: {
-          mode: "ssr",
-        },
-        strategy: {
-          default: "network-first",
-        },
-      },
-    },
+    outputDir: "public",
+    navMode: "ssr",
+    defaultStrategy: "network-first",
   },
   django: {
-    build: {
-      outputDir: "static",
-    },
-    features: {
-      serviceWorker: {
-        navigation: {
-          mode: "ssr",
-        },
-        strategy: {
-          default: "network-first",
-        },
-      },
-    },
+    outputDir: "static",
+    navMode: "ssr",
+    defaultStrategy: "network-first",
   },
   flask: {
-    build: {
-      outputDir: "static",
-    },
-    features: {
-      serviceWorker: {
-        navigation: {
-          mode: "ssr",
-        },
-        strategy: {
-          default: "network-first",
-        },
-      },
-    },
+    outputDir: "static",
+    navMode: "ssr",
+    defaultStrategy: "network-first",
   },
   rails: {
-    build: {
-      outputDir: "public",
-    },
-    features: {
-      serviceWorker: {
-        navigation: {
-          mode: "ssr",
-        },
-        strategy: {
-          default: "network-first",
-        },
-      },
-    },
+    outputDir: "public",
+    navMode: "ssr",
+    defaultStrategy: "network-first",
   },
   go: {
-    build: {
-      outputDir: "static",
-    },
-    features: {
-      serviceWorker: {
-        navigation: {
-          mode: "ssr",
-        },
-        strategy: {
-          default: "network-first",
-        },
-      },
-    },
+    outputDir: "static",
+    navMode: "ssr",
+    defaultStrategy: "network-first",
   },
 };
 
-export async function initCommand(projectRoot: string, framework?: string) {
+const STRATEGIES = [
+  { value: "cache-first", label: "Cache First" },
+  { value: "network-first", label: "Network First" },
+  { value: "stale-while-revalidate", label: "Stale While Revalidate" },
+  { value: "cache-only", label: "Cache Only" },
+  { value: "network-only", label: "Network Only" },
+  { value: "reactive", label: "Reactive" },
+] as const;
+
+const ALL_FRAMEWORKS = [
+  "nextjs", "remix", "tanstack-start-react", "astro", "nuxt",
+  "sveltekit", "react-spa", "vue", "svelte",
+  "laravel", "django", "flask", "rails", "go", "vanilla",
+] as const;
+
+export async function initCommand(projectRoot: string, yesMode?: boolean) {
   const configFiles = ["swoff.config.json", "swoff.config.js"];
-  const existingConfig = configFiles.find((f) =>
-    existsSync(join(projectRoot, f)),
-  );
+  const existingConfig = configFiles.find((f) => existsSync(join(projectRoot, f)));
 
   if (existingConfig) {
-    log.warn(`Found existing ${existingConfig}. Skipping init.`);
-    log.info("To reinitialize, delete the config file first.");
+    log.warn(`Found existing ${existingConfig}. Aborting.`);
+    log.info("Delete it first or run in a different directory.");
     return;
   }
 
-  const detected = (framework || detectFramework(projectRoot)) as FrameworkName;
+  const detected = detectFramework(projectRoot);
   const preset = FRAMEWORK_PRESETS[detected] || {};
 
-  // Start with default config, deep-merge the preset
-  const config = deepMerge(
-    {
-      ...defaultInitConfig,
-      framework: detected as SwoffConfig["framework"],
-    } as unknown as Record<string, unknown>,
-    preset as unknown as Record<string, unknown>,
-  ) as unknown as SwoffConfig;
-
-  // Validate and adjust build output — ensure all build fields are present
-  if (!config.build) config.build = defaultInitConfig.build;
-
-  // Auto-populate precacheDirs from outputDir so users get directory precaching out of the box
-  const cfgBuild = config.build;
-  if (!cfgBuild.precacheDirs || Object.keys(cfgBuild.precacheDirs).length === 0) {
-    cfgBuild.precacheDirs = { [cfgBuild.outputDir]: { prefix: "/" } };
+  if (yesMode) {
+    const answers: WizardAnswers = {
+      framework: detected,
+      outputDir: (preset.outputDir as string) || "dist",
+      swFilename: "sw",
+      navMode: (preset.navMode as "spa" | "ssr" | "default") || "default",
+      fallback: "/offline",
+      defaultStrategy: (preset.defaultStrategy as string) || "cache-first",
+      patterns: preset.patterns as Record<string, string> | undefined,
+      pwaEnabled: false,
+      authEnabled: false,
+      mutationEnabled: false,
+      tagInvalidationEnabled: false,
+      graphqlEnabled: false,
+      serverPushEnabled: false,
+      pushNotificationsEnabled: false,
+      precacheDir: preset.outputDir ? (preset.outputDir as string) : "dist",
+      precachePrefix: "/",
+    };
+    writeConfig(projectRoot, answers);
+    return;
   }
 
+  intro("swoff configuration");
+
+  const framework = await select({
+    message: "Framework",
+    options: ALL_FRAMEWORKS.map((f) => ({
+      value: f,
+      label: f === detected ? `${f} (detected)` : f,
+    })),
+    initialValue: detected,
+  });
+  if (isCancel(framework)) process.exit(0);
+
+  const activePreset = FRAMEWORK_PRESETS[framework as string] || {};
+
+  const outputDir = await text({
+    message: "Output directory",
+    initialValue: (activePreset.outputDir as string) || "dist",
+  });
+  if (isCancel(outputDir)) process.exit(0);
+
+  const swFilename = await text({
+    message: "Service worker filename",
+    initialValue: "sw",
+  });
+  if (isCancel(swFilename)) process.exit(0);
+
+  const navMode = await select({
+    message: "Navigation mode",
+    options: [
+      { value: "spa", label: "SPA" },
+      { value: "ssr", label: "SSR" },
+      { value: "default", label: "Default" },
+    ],
+    initialValue: (activePreset.navMode as string) || "default",
+  });
+  if (isCancel(navMode)) process.exit(0);
+
+  const fallback = await text({
+    message: "Offline fallback path",
+    initialValue: "/offline",
+  });
+  if (isCancel(fallback)) process.exit(0);
+
+  const defaultStrategy = await select({
+    message: "Default caching strategy",
+    options: STRATEGIES,
+    initialValue: (activePreset.defaultStrategy as string) || "cache-first",
+  });
+  if (isCancel(defaultStrategy)) process.exit(0);
+
+  const pwaEnabled = await confirm({ message: "Enable PWA install prompt?", initialValue: false });
+  if (isCancel(pwaEnabled)) process.exit(0);
+
+  let authType: string | undefined;
+  const authEnabled = await confirm({ message: "Enable authentication?", initialValue: false });
+  if (isCancel(authEnabled)) process.exit(0);
+  if (authEnabled) {
+    authType = await select({
+      message: "Authentication type",
+      options: [
+        { value: "cookie", label: "Cookie" },
+        { value: "bearer", label: "Bearer" },
+        { value: "custom", label: "Custom" },
+      ],
+      initialValue: "cookie",
+    });
+    if (isCancel(authType)) process.exit(0);
+  }
+
+  const mutationEnabled = await confirm({ message: "Enable mutation queue (offline mutations)?", initialValue: false });
+  if (isCancel(mutationEnabled)) process.exit(0);
+
+  const tagInvalidationEnabled = await confirm({ message: "Enable tag invalidation?", initialValue: false });
+  if (isCancel(tagInvalidationEnabled)) process.exit(0);
+
+  const graphqlEnabled = await confirm({ message: "Enable GraphQL support?", initialValue: false });
+  if (isCancel(graphqlEnabled)) process.exit(0);
+
+  const serverPushEnabled = await confirm({ message: "Enable server push?", initialValue: false });
+  if (isCancel(serverPushEnabled)) process.exit(0);
+
+  const pushNotificationsEnabled = await confirm({ message: "Enable push notifications?", initialValue: false });
+  if (isCancel(pushNotificationsEnabled)) process.exit(0);
+
+  const precacheDir = await text({
+    message: "Directory to precache (leave empty to skip)",
+    initialValue: (activePreset.outputDir as string) || "dist",
+  });
+  if (isCancel(precacheDir)) process.exit(0);
+
+  let precachePrefix = "/";
+  if (precacheDir) {
+    precachePrefix = await text({
+      message: "Precache URL prefix",
+      initialValue: "/",
+    });
+    if (isCancel(precachePrefix)) process.exit(0);
+  }
+
+  log.info("");
+  log.info("─".repeat(40));
+  log.info("Summary");
+  log.info(`  Framework:    ${framework}`);
+  log.info(`  Output:       ${outputDir}/${swFilename}.js`);
+  log.info(`  Fallback:     ${fallback}`);
+  log.info(`  Navigation:   ${navMode}`);
+  log.info(`  Strategy:     ${defaultStrategy}`);
+  if (pwaEnabled) log.info("  PWA:          enabled");
+  if (authEnabled) log.info(`  Auth:         ${authType}`);
+  if (mutationEnabled) log.info("  Mutation Q:   enabled");
+  if (tagInvalidationEnabled) log.info("  Tag Inval:    enabled");
+  if (graphqlEnabled) log.info("  GraphQL:      enabled");
+  if (serverPushEnabled) log.info("  Server Push:  enabled");
+  if (pushNotificationsEnabled) log.info("  Push Notif:   enabled");
+  if (precacheDir) log.info(`  Precache:     ${precacheDir} → ${precachePrefix}`);
+  log.info("─".repeat(40));
+  log.info("");
+
+  const write = await confirm({ message: "Write swoff.config.json?", initialValue: true });
+  if (isCancel(write) || !write) {
+    outro("Aborted.");
+    return;
+  }
+
+  const answers: WizardAnswers = {
+    framework: framework as string,
+    outputDir: outputDir as string,
+    swFilename: swFilename as string,
+    navMode: navMode as "spa" | "ssr" | "default",
+    fallback: fallback as string,
+    defaultStrategy: defaultStrategy as string,
+    patterns: activePreset.patterns as Record<string, string> | undefined,
+    pwaEnabled: pwaEnabled as boolean,
+    authEnabled: authEnabled as boolean,
+    authType,
+    mutationEnabled: mutationEnabled as boolean,
+    tagInvalidationEnabled: tagInvalidationEnabled as boolean,
+    graphqlEnabled: graphqlEnabled as boolean,
+    serverPushEnabled: serverPushEnabled as boolean,
+    pushNotificationsEnabled: pushNotificationsEnabled as boolean,
+    precacheDir: precacheDir as string | undefined,
+    precachePrefix: precachePrefix as string | undefined,
+  };
+
+  writeConfig(projectRoot, answers);
+}
+
+function writeConfig(projectRoot: string, answers: WizardAnswers) {
+  const config = buildMinimalConfig(answers);
   const configPath = join(projectRoot, "swoff.config.json");
   writeFileSync(configPath, JSON.stringify(config, null, 2));
-  log.info("Created swoff.config.json");
-
-  log.success("Swoff initialized successfully!");
-  log.normal("\nNext steps:");
-  log.help("1. Review swoff.config.json and customize as needed");
-  log.help("2. Run: npx @swoff/cli generate");
-  log.help("3. Read the docs: https://swoff.netlify.app/docs");
+  outro(`Config written to swoff.config.json (${Object.keys(config).length} top-level keys)`);
 }

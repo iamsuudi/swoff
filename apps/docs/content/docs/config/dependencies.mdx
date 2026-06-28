@@ -1,0 +1,26 @@
+---
+title: Dependencies
+description: Feature dependencies and boolean sub-features in swoff.config.json.
+---
+
+## Boolean sub-features
+
+These boolean flags nest under their parent object feature:
+
+| Feature            | Config path                             | Default |
+| ------------------ | --------------------------------------- | ------- |
+| Background Sync    | `features.mutationQueue.backgroundSync` | `false` |
+| Push Notifications | `features.pushNotifications`            | `false` |
+
+---
+
+## Feature dependencies
+
+Some features work best together:
+
+| Feature                        | Recommended combo                     | Why                                                                                      |
+| ------------------------------ | ------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `mutationQueue.backgroundSync` | + `mutationQueue`                     | Background Sync processes mutations even after tab close                                 |
+| `serverPush`                   | + `tagInvalidation`                   | Server push triggers `invalidateByTag()` — requires tag invalidation to function         |
+| `auth` + `mutationQueue`       | —                                     | `clearAuth()` also clears the mutation queue — no manual `clearQueue()` needed on logout |
+| `graphql`                      | + `mutationQueue` + `tagInvalidation` | Offline GQL mutations queue in IndexedDB; mutations auto-invalidate operation-name tags  |

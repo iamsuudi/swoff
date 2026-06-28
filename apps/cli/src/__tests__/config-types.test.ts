@@ -66,19 +66,19 @@ describe("config-types", () => {
 
     it("has reactive defaults", () => {
       expect(
-        defaultConfig.features.serviceWorker.strategy.reactive.defaults
+        defaultConfig.features.serviceWorker.strategy.reactive
           .staleTime,
       ).toBe(0);
       expect(
-        defaultConfig.features.serviceWorker.strategy.reactive.defaults
+        defaultConfig.features.serviceWorker.strategy.reactive
           .refetchInterval,
       ).toBe(0);
       expect(
-        defaultConfig.features.serviceWorker.strategy.reactive.defaults
+        defaultConfig.features.serviceWorker.strategy.reactive
           .refetchOnReconnect,
       ).toBe(false);
       expect(
-        defaultConfig.features.serviceWorker.strategy.reactive.defaults
+        defaultConfig.features.serviceWorker.strategy.reactive
           .refetchOnFocus,
       ).toBe(false);
     });

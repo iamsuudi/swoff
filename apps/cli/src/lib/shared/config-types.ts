@@ -116,13 +116,11 @@ export interface SwoffConfig {
         default: "cache-first" | "network-first" | "stale-while-revalidate" | "cache-only" | "network-only" | "reactive";
         patterns: Record<string, string | StrategyEntry>;
         reactive: {
-          defaults: {
             staleTime?: number;
             refetchInterval?: number;
             refetchOnReconnect?: boolean;
             refetchOnFocus?: boolean;
           };
-        };
         maxRuntimeCacheAge?: number;
         normalizeKey?: boolean;
         ignoreQueryParams?: string[];
@@ -279,10 +277,8 @@ export function mergeConfigs(
           ...base.features.serviceWorker.strategy,
           ...override.features?.serviceWorker?.strategy,
           reactive: {
-            defaults: {
-              ...base.features.serviceWorker.strategy.reactive.defaults,
-              ...override.features?.serviceWorker?.strategy?.reactive?.defaults,
-            },
+            ...base.features.serviceWorker.strategy.reactive,
+            ...override.features?.serviceWorker?.strategy?.reactive,
           },
         },
         navigation: {
@@ -355,12 +351,10 @@ export const defaultConfig: SwoffConfig = {
         timeout: 10,
         patterns: {},
         reactive: {
-          defaults: {
-            staleTime: 0,
-            refetchInterval: 0,
-            refetchOnReconnect: false,
-            refetchOnFocus: false,
-          },
+          staleTime: 0,
+          refetchInterval: 0,
+          refetchOnReconnect: false,
+          refetchOnFocus: false,
         },
       },
       navigation: {
@@ -411,12 +405,10 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
           "/static/*": "cache-first",
         },
         reactive: {
-          defaults: {
-            staleTime: 0,
-            refetchInterval: 0,
-            refetchOnReconnect: false,
-            refetchOnFocus: false,
-          },
+          staleTime: 0,
+          refetchInterval: 0,
+          refetchOnReconnect: false,
+          refetchOnFocus: false,
         },
       },
     },

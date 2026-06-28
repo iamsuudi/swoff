@@ -1,0 +1,15 @@
+---
+title: Refetch Queue
+description: Full schema for swoff.config.json features.refetchQueue — every field, its type, default, and description.
+---
+
+## `features.refetchQueue`
+
+| Field                | Type     | Default | Description                                                                |
+| -------------------- | -------- | ------- | -------------------------------------------------------------------------- |
+| `batchSize`          | `number` | `5`     | Max stale cache entries to refetch per batch                               |
+| `batchDelayMs`       | `number` | `1000`  | Delay in ms between batch cycles (rate limiting)                           |
+| `retry.maxRetries`   | `number` | `3`     | Max retries for background refetches before dropping                       |
+| `retry.backoffMs`    | `number` | `1000`  | Base delay in ms for retry backoff (delay × 2^retryCount)                  |
+| `retry.maxBackoffMs` | `number` | `10000` | Maximum delay cap for backoff (10s)                                        |
+| `retry.jitterMs`     | `number` | `100`   | Random jitter in ms added to each backoff delay to prevent thundering herd |

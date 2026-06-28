@@ -1,0 +1,10 @@
+---
+title: Request Batching
+description: Full schema for swoff.config.json features.requestBatchWindowMs — field, type, default, and description.
+---
+
+## `features.requestBatchWindowMs`
+
+| Field                  | Type     | Default | Description                                                                                                              |
+| ---------------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `requestBatchWindowMs` | `number` | `50`    | Time window in ms to coalesce concurrent GET requests to the same URL before dispatching to the SW. 0 disables batching. |

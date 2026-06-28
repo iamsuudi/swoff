@@ -1,0 +1,13 @@
+---
+title: Server Push
+description: Full schema for swoff.config.json features.serverPush — every field, its type, default, and description.
+---
+
+## `features.serverPush`
+
+| Field              | Type                     | Default         | Description                                                                                        |
+| ------------------ | ------------------------ | --------------- | -------------------------------------------------------------------------------------------------- |
+| `enabled`          | `boolean`                | `false`         | Enable real-time cache invalidation via SSE or WebSocket. Generates `swoff/server-push/client.ts`. |
+| `type`             | `"sse"` \| `"websocket"` | `"sse"`         | Transport protocol                                                                                 |
+| `endpoint`         | `string`                 | `"/api/events"` | Push endpoint URL                                                                                  |
+| `reconnectDelayMs` | `number`                 | `5000`          | Initial reconnect delay on connection loss (exponential backoff, capped at 30s)                    |

@@ -1,31 +1,11 @@
 import { rmSync, existsSync } from "fs";
 import { join } from "path";
-import { createInterface } from "readline";
-import { log } from "../cli/logger.js";
+import { intro, outro, confirm, isCancel, log } from "@clack/prompts";
 
-function ask(question: string): Promise<string> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => {
-    rl.question(`  ${question} `, (answer) => {
-      rl.close();
-      resolve(answer.trim());
-    });
-  });
-}
-
-export interface CleanOptions {
-  yes?: boolean;
-}
-
-export async function cleanCommand(
-  projectRoot: string,
-  options: CleanOptions = {},
-) {
+export async function cleanCommand(projectRoot: string, options?: { yes?: boolean }) {
   const swoffDir = join(projectRoot, "swoff");
   const configFiles = ["swoff.config.json", "swoff.config.js"];
-  const existingConfig = configFiles.find((f) =>
-    existsSync(join(projectRoot, f)),
-  );
+  const existingConfig = configFiles.find((f) => existsSync(join(projectRoot, f)));
 
   const hasSwoffDir = existsSync(swoffDir);
   if (!hasSwoffDir && !existingConfig) {
@@ -33,10 +13,11 @@ export async function cleanCommand(
     return;
   }
 
-  if (!options.yes) {
-    const answer = await ask("Remove Swoff files? [y/N]");
-    if (answer.toLowerCase() !== "y" && answer.toLowerCase() !== "yes") {
-      log.info("Aborted.");
+  if (!options?.yes) {
+    intro("swoff clean");
+    const shouldRemove = await confirm({ message: "Really remove all swoff files?" });
+    if (isCancel(shouldRemove) || !shouldRemove) {
+      outro("Aborted.");
       return;
     }
   }
@@ -49,5 +30,5 @@ export async function cleanCommand(
     rmSync(join(projectRoot, existingConfig));
   }
 
-  log.success("Cleaned");
+  outro("Cleaned");
 }

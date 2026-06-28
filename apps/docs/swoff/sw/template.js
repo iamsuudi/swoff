@@ -1,4 +1,5 @@
-let ASSETS_TO_CACHE = [];
+let PRECACHE_FALLBACKS = [];
+let PRECACHE_CONCURRENCY = 1;
 let AUTO_SKIP_WAITING = false;
 
 // --- Shared IndexedDB Utility ---
@@ -60,38 +61,156 @@ function broadcastToClients(type, payload) {
 }
 
 
+// --- Background Precaching ---
+
+const PRECACHE_DB_NAME = "swoff-precache";
+const PRECACHE_DB_VERSION = 1;
+
+async function getPrecacheCheckpoint() {
+  try {
+    const db = await openDB(PRECACHE_DB_NAME, PRECACHE_DB_VERSION, function(db) {
+      if (!db.objectStoreNames.contains("progress"))
+        db.createObjectStore("progress", { keyPath: "key" });
+    });
+    const tx = db.transaction("progress", "readonly");
+    const store = tx.objectStore("progress");
+    const entry = await new Promise(function(resolve, reject) {
+      const req = store.get("checkpoint");
+      req.onsuccess = function() { resolve(req.result); };
+      req.onerror = function() { reject(req.error); };
+    });
+    db.close();
+    return entry ? entry.value : 0;
+  } catch(e) {
+    return 0;
+  }
+}
+
+async function setPrecacheCheckpoint(index) {
+  try {
+    const db = await openDB(PRECACHE_DB_NAME, PRECACHE_DB_VERSION);
+    const tx = db.transaction("progress", "readwrite");
+    const store = tx.objectStore("progress");
+    store.put({ key: "checkpoint", value: index });
+    await new Promise(function(resolve, reject) {
+      tx.oncomplete = function() { resolve(); };
+      tx.onerror = function() { reject(tx.error); };
+    });
+    db.close();
+  } catch(e) {}
+}
+
+async function resetPrecacheCheckpoint() {
+  try {
+    const db = await openDB(PRECACHE_DB_NAME, PRECACHE_DB_VERSION);
+    const tx = db.transaction("progress", "readwrite");
+    const store = tx.objectStore("progress");
+    store.put({ key: "checkpoint", value: 0 });
+    await new Promise(function(resolve, reject) {
+      tx.oncomplete = function() { resolve(); };
+      tx.onerror = function() { reject(tx.error); };
+    });
+    db.close();
+  } catch(e) {}
+}
+
+async function startBackgroundPrecache() {
+  var cache = await caches.open("precache");
+  var total = ASSETS_TO_CACHE.length;
+  if (total === 0) return;
+
+  var checkpoint = await getPrecacheCheckpoint();
+  if (checkpoint >= total) return;
+
+  var downloaded = 0;
+  var attempted = 0;
+  var allClients = await self.clients.matchAll({ includeUncontrolled: true });
+  var i;
+
+  for (i = 0; i < checkpoint && i < total; i++) {
+    var m = await cache.match(ASSETS_TO_CACHE[i].url);
+    if (m) downloaded++;
+  }
+  attempted = checkpoint;
+
+  for (i = checkpoint; i < total; i += PRECACHE_CONCURRENCY) {
+    var batchEnd = Math.min(i + PRECACHE_CONCURRENCY, total);
+    var batch = [];
+    for (var j = i; j < batchEnd; j++) batch.push(ASSETS_TO_CACHE[j]);
+
+    await Promise.all(batch.map(async function(asset) {
+      attempted++;
+      try {
+        var cached = await cache.match(asset.url);
+        if (cached) { downloaded++; return; }
+        var request = new Request(asset.url, asset.options || {});
+        await cache.add(request);
+        downloaded++;
+      } catch(err) {
+        console.error("Failed to precache " + asset.url + ":", err);
+        allClients.forEach(function(client) {
+          client.postMessage({
+            type: "SW_NOTIFICATION",
+            level: "warn",
+            code: "PRECACHE_FAILED",
+            message: "Failed to precache " + asset.url,
+          });
+        });
+      }
+    }));
+
+    await setPrecacheCheckpoint(batchEnd);
+
+    var pct = Math.round((attempted / total) * 100);
+    allClients.forEach(function(client) {
+      client.postMessage({
+        type: "SW_PROGRESS",
+        percent: pct,
+        downloaded: downloaded,
+        total: total,
+      });
+    });
+
+    await new Promise(function(resolve) { setTimeout(resolve, 0); });
+  }
+
+  await setPrecacheCheckpoint(total);
+}
+
+
 async function precacheAssets() {
   const cache = await caches.open("precache");
-  // Clear stale entries from previous builds before repopulating
   const stale = await cache.keys();
   await Promise.all(stale.map(function(req) { return cache.delete(req); }));
   let downloaded = 0;
   let attempted = 0;
+  const total = PRECACHE_FALLBACKS.length;
+  if (total === 0) return;
   const allClients = await self.clients.matchAll({ includeUncontrolled: true });
-  for (const asset of ASSETS_TO_CACHE) {
+  for (const url of PRECACHE_FALLBACKS) {
     attempted++;
     try {
-      const request = new Request(asset.url, asset.options);
+      const request = new Request(url);
       await cache.add(request);
       downloaded++;
     } catch (err) {
-      console.error(`Failed to cache ${asset.url}:`, err);
+      console.error(`Failed to cache ${url}:`, err);
       allClients.forEach((client) => {
         client.postMessage({
           type: "SW_NOTIFICATION",
           level: "warn",
           code: "PRECACHE_FAILED",
-          message: `Failed to precache ${asset.url}`,
+          message: `Failed to precache ${url}`,
         });
       });
     }
-    const percent = Math.round((attempted / ASSETS_TO_CACHE.length) * 100);
+    const percent = Math.round((attempted / total) * 100);
     allClients.forEach((client) => {
       client.postMessage({
         type: "SW_PROGRESS",
         percent,
         downloaded,
-        total: ASSETS_TO_CACHE.length,
+        total,
       });
     });
   }
@@ -193,6 +312,9 @@ self.addEventListener("activate", (event) => {
       await evictStaleRuntimeCache();
     })()
   );
+  startBackgroundPrecache().catch(function(err) {
+    console.error("Background precache error:", err);
+  });
 });
 
 // --- Refetch Retry Config ---
@@ -313,10 +435,14 @@ self.addEventListener("message", (event) => {
         const keys = await caches.keys();
         await Promise.all(keys.map((k) => caches.delete(k)));
         await precacheAssets();
+        await resetPrecacheCheckpoint();
         const port = event.ports?.[0];
         port?.postMessage({ type: "RESET_CACHE_COMPLETE" });
       })(),
     );
+    startBackgroundPrecache().catch(function(err) {
+      console.error("Background precache error:", err);
+    });
   }
   if (event.data.type === "AUTH_CLEARED") {
     event.waitUntil(broadcastToClients("AUTH_CLEARED"));
@@ -326,7 +452,7 @@ self.addEventListener("message", (event) => {
 
 const NAV_MODE = "ssr";
 const FALLBACK_PATH = "/offline";
-const DEFAULT_STRATEGY = "cache-first";
+const DEFAULT_STRATEGY = "network-first";
 const CUSTOM_STRATEGIES = {};
 const REACTIVE_STALE_DEFAULT = 0;
 const FETCH_TIMEOUT_MS = 10000;
@@ -613,7 +739,7 @@ async function fallback(request) {
 
 function inline503Response() {
   return new Response(
-    `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Offline</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f5f5f5}div{text-align:center}h1{font-size:2rem;color:#333}p{color:#666}</style></head><body><div><h1>You\'re offline</h1><p>Please check your connection and try again.</p></div></body></html>`,
+    `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Offline</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f5f5f5}div{text-align:center}h1{font-size:2rem;color:#333}p{color:#666}.sbtn{display:inline-block;margin-top:1.5rem;padding:.75rem 1.5rem;background:#4a90d9;color:#fff;border:none;border-radius:6px;font-size:1rem;cursor:pointer}.sbtn:hover{background:#357abd}.sbtn:disabled{opacity:.6;cursor:not-allowed}.sst{margin-top:.75rem;font-size:.875rem;color:#999}</style></head><body><div><h1>You&#39;re offline</h1><p>Please check your connection and try again.</p><button class="sbtn" id="sbtn">Reset &amp; Recover</button><p class="sst" id="sst"></p></div><script>document.getElementById("sbtn").onclick=async function(){var b=this,s=document.getElementById("sst"),i;b.disabled=true;s.textContent="Clearing data...";try{if(typeof caches!="undefined"){var k=await caches.keys();await Promise.all(k.map(function(x){return caches.delete(x)}))}var d=["swoff-auth","swoff-queue","swoff-cache-tags","swoff-push"];try{var a=await indexedDB.databases();if(a)for(i=0;i<a.length;i++){if(a[i].name&&a[i].name.indexOf("swoff-")===0&&d.indexOf(a[i].name)===-1)d.push(a[i].name)}}catch(e){}for(i=0;i<d.length;i++){try{indexedDB.deleteDatabase(d[i])}catch(e){}}try{localStorage.removeItem("swRegisteredVersion")}catch(e){}if("serviceWorker"in navigator&&navigator.serviceWorker.controller){var r=await navigator.serviceWorker.ready;if(r.active){await new Promise(function(rs){var c=new MessageChannel(),t=setTimeout(function(){c.port1.close();rs()},1e4);c.port1.onmessage=function(e){if(e.data.type==="RESET_CACHE_COMPLETE"){clearTimeout(t);rs()}};r.active.postMessage({type:"RESET_CACHE"},[c.port2])})}}s.textContent="Done! Reloading...";location.href="/"}catch(e){s.textContent="Reset failed: "+e.message;b.disabled=false}};</script></body></html>`,
     { status: 503, headers: { "Content-Type": "text/html", "Cache-Control": "no-store" } }
   );
 }
@@ -942,3 +1068,5 @@ self.addEventListener("fetch", (event) => {
 });
 
 
+
+let ASSETS_TO_CACHE = [];

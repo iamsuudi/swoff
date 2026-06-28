@@ -303,9 +303,12 @@ describe("assembleSW", () => {
       expect(sw).toContain("route-fallback");
     });
 
-    it("generates inline-503 fallback level in fromUltimateFallback", () => {
+    it("generates inline-503 fallback with reset button", () => {
       const sw = assembleSW(config);
       expect(sw).toContain("inline-503");
+      expect(sw).toContain("sbtn");
+      expect(sw).toContain("RESET_CACHE");
+      expect(sw).toContain("Reset &amp; Recover");
     });
   });
 });

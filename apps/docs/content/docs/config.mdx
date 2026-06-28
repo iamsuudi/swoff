@@ -181,6 +181,15 @@ Example — precache NextJS static HTML pages without the `.html` extension and 
 | Field          | Type      | Default | Description                                                                                                                                                      |
 | -------------- | --------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `autoActivate` | `boolean` | `false` | Automatically activate newly registered service workers (`skipWaiting()`). When `false`, the SW activates on next navigation or browser reload — no user prompt. |
+| `precache`     | `object`  | —       | Controls how assets are precached (see below).                                                                                                                   |
+
+### `features.serviceWorker.precache`
+
+Controls the background precache behavior.
+
+| Field         | Type     | Default | Description                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `concurrency` | `number` | `1`     | Number of assets to download simultaneously during background precaching. Higher values (e.g. `3`) speed up large precaches but may increase bandwidth contention. Default `1` downloads assets sequentially. Only fallback routes (offline page, `precacheRoutes`, per-route fallbacks) are cached during SW install — all other assets are cached progressively in the background. |
 
 ### `features.serviceWorker.strategy`
 

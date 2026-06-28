@@ -13,13 +13,16 @@ export function assembleSW(config: SwoffConfig, projectRoot?: string, debug?: bo
   const scanned = projectRoot ? scanPrecacheAssets(config, projectRoot, swFile) : [];
   const assetsToCache = [...new Set([...fallback, ...scanned])];
   const formattedAssets = assetsToCache.map((url) => ({ url, options: {} }));
+  const concurrency = serviceWorker.precache?.concurrency ?? 1;
 
   let sw = getDefaultTemplate();
 
   sw = applySwSections(sw, config, true, debug);
 
-  sw = sw.replace(/let ASSETS_TO_CACHE = \[\]/, () => `let ASSETS_TO_CACHE = ${JSON.stringify(formattedAssets, null, 2)};`);
-  sw = sw.replace(/let AUTO_SKIP_WAITING = (?:true|false)/, () => `let AUTO_SKIP_WAITING = ${serviceWorker.autoActivate};`);
+  sw = sw.replace(/let ASSETS_TO_CACHE = \[\];?/, () => `let ASSETS_TO_CACHE = ${JSON.stringify(formattedAssets, null, 2)};`);
+  sw = sw.replace(/let PRECACHE_FALLBACKS = \[\];?/, () => `let PRECACHE_FALLBACKS = ${JSON.stringify(fallback)};`);
+  sw = sw.replace(/let PRECACHE_CONCURRENCY = \d+;?/, () => `let PRECACHE_CONCURRENCY = ${concurrency};`);
+  sw = sw.replace(/let AUTO_SKIP_WAITING = (?:true|false);?/, () => `let AUTO_SKIP_WAITING = ${serviceWorker.autoActivate};`);
   sw += `\nconst CACHE_NAME = "${Date.now()}";\n`;
   sw = `${generateConfigHeader(config)}\n\n${sw}`;
 

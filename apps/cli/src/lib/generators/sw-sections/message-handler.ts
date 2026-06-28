@@ -49,10 +49,14 @@ self.addEventListener("message", (event) => {
         const keys = await caches.keys();
         await Promise.all(keys.map((k) => caches.delete(k)));
         await precacheAssets();
+        await resetPrecacheCheckpoint();
         const port = event.ports?.[0];
         port?.postMessage({ type: "RESET_CACHE_COMPLETE" });
       })(),
     );
+    startBackgroundPrecache().catch(function(err) {
+      console.error("Background precache error:", err);
+    });
   }`;
 
   if (tagInvalidation) {

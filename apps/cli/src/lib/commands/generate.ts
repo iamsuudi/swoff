@@ -25,7 +25,9 @@ export async function generateCommand(
     return;
   }
 
-  const cfgErrors = validateConfig(config as unknown as Record<string, unknown>);
+  const cfgErrors = validateConfig(
+    config as unknown as Record<string, unknown>,
+  );
   if (cfgErrors.length > 0) {
     log.error("Configuration validation failed:");
     for (const err of cfgErrors) {
@@ -70,11 +72,20 @@ export async function generateCommand(
 
   log.success("Generation complete!");
 
-  if (!config.build.precacheDirs || Object.keys(config.build.precacheDirs).length === 0) {
+  if (
+    !config.build.precacheDirs ||
+    Object.keys(config.build.precacheDirs).length === 0
+  ) {
     log.normal("");
-    log.warn("No directories configured for precaching. Only explicit fallback routes will be precached.");
-    log.help("  Add precacheDirs to your swoff.config.json build section to precache assets:");
-    log.help(`  "precacheDirs": { "${config.build.outputDir}": { "prefix": "/" } }`);
+    log.warn(
+      "No directories configured for precaching. Only explicit fallback routes will be precached.",
+    );
+    log.help(
+      "  Add precacheDirs to your swoff.config.json build section to precache assets:",
+    );
+    log.help(
+      `  "precacheDirs": { "${config.build.outputDir}": { "prefix": "/" } }`,
+    );
   }
 
   if (config.features.pwa.enabled) {
@@ -93,12 +104,14 @@ export async function generateCommand(
       log.normal("    - refresh(): implement token/session refresh");
     }
     log.normal("    - fetchUser(): implement fetching current user (/api/me)");
-    log.normal("  Use { auth: true } in fetchWithCache for authenticated requests");
+    log.normal(
+      "  Use { auth: true } in fetchWithCache for authenticated requests",
+    );
   }
 
   log.normal("");
-  log.normal("1. After each build, run the SW generator:");
+  log.normal("After each build, run the SW generator:");
   log.normal(
-    "   node swoff/sw/generator.js (Add this to your build script if you want it automated)",
+    "  node swoff/sw/generator.js (Add this to your build script if you want it automated)",
   );
 }

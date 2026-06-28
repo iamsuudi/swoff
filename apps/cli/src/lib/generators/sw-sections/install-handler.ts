@@ -8,36 +8,37 @@ export function generateInstallHandler(): string {
   return `
 async function precacheAssets() {
   const cache = await caches.open("precache");
-  // Clear stale entries from previous builds before repopulating
   const stale = await cache.keys();
   await Promise.all(stale.map(function(req) { return cache.delete(req); }));
   let downloaded = 0;
   let attempted = 0;
+  const total = PRECACHE_FALLBACKS.length;
+  if (total === 0) return;
   const allClients = await self.clients.matchAll({ includeUncontrolled: true });
-  for (const asset of ASSETS_TO_CACHE) {
+  for (const url of PRECACHE_FALLBACKS) {
     attempted++;
     try {
-      const request = new Request(asset.url, asset.options);
+      const request = new Request(url);
       await cache.add(request);
       downloaded++;
     } catch (err) {
-      console.error(\`Failed to cache \${asset.url}:\`, err);
+      console.error(\`Failed to cache \${url}:\`, err);
       allClients.forEach((client) => {
         client.postMessage({
           type: "SW_NOTIFICATION",
           level: "warn",
           code: "PRECACHE_FAILED",
-          message: \`Failed to precache \${asset.url}\`,
+          message: \`Failed to precache \${url}\`,
         });
       });
     }
-    const percent = Math.round((attempted / ASSETS_TO_CACHE.length) * 100);
+    const percent = Math.round((attempted / total) * 100);
     allClients.forEach((client) => {
       client.postMessage({
         type: "SW_PROGRESS",
         percent,
         downloaded,
-        total: ASSETS_TO_CACHE.length,
+        total,
       });
     });
   }

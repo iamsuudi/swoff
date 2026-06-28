@@ -8,6 +8,7 @@ import { generateBatchRefreshQueue } from "./batch-refresh-queue.js";
 import { generateSwPushHandlers } from "./sw-push.js";
 import { generateServerPushHandler } from "./server-push-handler.js";
 import { generateBackgroundSyncHandler } from "./background-sync-handler.js";
+import { generateBackgroundPrecache } from "./background-precache.js";
 
 const COOKIE_AUTH_TYPES = ["cookie"];
 
@@ -73,6 +74,7 @@ export function applySwSections(
     () => generateActivateHandler(navigation.preload, maxCacheAge),
   );
 
+  code = code.replace("// [[BACKGROUND_PRECACHE]]", () => generateBackgroundPrecache());
   code = code.replace("// [[INSTALL_HANDLER]]", () => generateInstallHandler());
   code = code.replace("// [[BATCH_REFRESH_QUEUE]]", () => generateBatchRefreshQueue(
     refetchQueue.retry,

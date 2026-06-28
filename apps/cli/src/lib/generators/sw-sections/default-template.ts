@@ -4,7 +4,9 @@
  */
 
 export function getDefaultTemplate(): string {
-  return `let ASSETS_TO_CACHE = [];
+  return `let PRECACHE_FALLBACKS = [];
+let PRECACHE_CONCURRENCY = 1;
+let PRECACHE_DELAY_MS = 0;
 let AUTO_SKIP_WAITING = false;
 
 // --- Shared IndexedDB Utility ---
@@ -65,6 +67,7 @@ function broadcastToClients(type, payload) {
   });
 }
 
+// [[BACKGROUND_PRECACHE]]
 // [[INSTALL_HANDLER]]
 // [[ACTIVATE_HANDLER]]
 // [[BATCH_REFRESH_QUEUE]]
@@ -72,5 +75,6 @@ function broadcastToClients(type, payload) {
 // [[FETCH_HANDLER]]
 // [[TAG_MANAGEMENT]]
 // [[PUSH_HANDLERS]]
-// [[SERVER_PUSH_HANDLER]]`;
+// [[SERVER_PUSH_HANDLER]]
+let ASSETS_TO_CACHE = [];`;
 }

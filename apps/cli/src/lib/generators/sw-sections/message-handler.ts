@@ -43,16 +43,25 @@ self.addEventListener("message", (event) => {
     // Client went offline — the SW already serves from cache transparently.
     // No action needed; reactive refetches will resume on next ONLINE signal.
   }
+  if (event.data.type === "RESUME_PRECACHE") {
+    startBackgroundPrecache().catch(function(err) {
+      console.error("Background precache error:", err);
+    });
+  }
   if (event.data.type === "RESET_CACHE") {
     event.waitUntil(
       (async () => {
         const keys = await caches.keys();
         await Promise.all(keys.map((k) => caches.delete(k)));
         await precacheAssets();
+        await resetPrecacheCheckpoint();
         const port = event.ports?.[0];
         port?.postMessage({ type: "RESET_CACHE_COMPLETE" });
       })(),
     );
+    startBackgroundPrecache().catch(function(err) {
+      console.error("Background precache error:", err);
+    });
   }`;
 
   if (tagInvalidation) {

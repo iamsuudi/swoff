@@ -74,6 +74,11 @@ export interface ServerPushConfig {
   reconnectDelayMs: number;
 }
 
+export interface PrecacheConfig {
+  concurrency: number;
+  delayMs?: number;
+}
+
 export interface PrecacheDirConfig {
   prefix: string;
   matchExtensions?: string[];
@@ -106,6 +111,7 @@ export interface SwoffConfig {
     };
     serviceWorker: {
       autoActivate: boolean;
+      precache?: PrecacheConfig;
       strategy: {
         default: "cache-first" | "network-first" | "stale-while-revalidate" | "cache-only" | "network-only" | "reactive";
         patterns: Record<string, string | StrategyEntry>;
@@ -264,6 +270,11 @@ export function mergeConfigs(
       serviceWorker: {
         ...base.features.serviceWorker,
         ...override.features?.serviceWorker,
+        precache: {
+          ...base.features.serviceWorker.precache,
+          ...override.features?.serviceWorker?.precache,
+          concurrency: override.features?.serviceWorker?.precache?.concurrency ?? base.features.serviceWorker.precache?.concurrency ?? 1,
+        },
         strategy: {
           ...base.features.serviceWorker.strategy,
           ...override.features?.serviceWorker?.strategy,
@@ -335,6 +346,7 @@ export const defaultConfig: SwoffConfig = {
     },
     serviceWorker: {
       autoActivate: false,
+      precache: { concurrency: 1 },
       strategy: {
         default: "cache-first",
         maxRuntimeCacheAge: 2592000,
@@ -380,6 +392,7 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
     pwa: { enabled: false, preventDefaultInstall: false },
     serviceWorker: {
       autoActivate: false,
+      precache: { concurrency: 1 },
       navigation: {
         mode: "spa",
         preload: true,

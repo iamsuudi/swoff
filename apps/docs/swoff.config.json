@@ -9,6 +9,9 @@
     },
     "serviceWorker": {
       "autoActivate": false,
+      "precache": {
+        "concurrency": 3
+      },
       "navigation": {
         "mode": "ssr",
         "preload": true,
@@ -17,7 +20,7 @@
         "rules": []
       },
       "strategy": {
-        "default": "cache-first",
+        "default": "network-first",
         "maxRuntimeCacheAge": 2592000,
         "normalizeKey": false,
         "ignoreQueryParams": [],

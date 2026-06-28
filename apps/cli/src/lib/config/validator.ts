@@ -51,6 +51,12 @@ export function validateConfig(config: Record<string, unknown>): string[] {
       if (sw.autoActivate !== undefined && typeof sw.autoActivate !== "boolean") {
         errors.push("features.serviceWorker.autoActivate must be a boolean");
       }
+      const precache = sw.precache as Record<string, unknown> | undefined;
+      if (precache && typeof precache === "object") {
+        if (precache.concurrency !== undefined && (typeof precache.concurrency !== "number" || precache.concurrency < 1 || !Number.isInteger(precache.concurrency))) {
+          errors.push("features.serviceWorker.precache.concurrency must be a positive integer");
+        }
+      }
       const strategy = sw.strategy as Record<string, unknown> | undefined;
       if (strategy && typeof strategy === "object") {
         if (strategy.default !== undefined && !VALID_STRATEGIES.includes(strategy.default as (typeof VALID_STRATEGIES)[number])) {

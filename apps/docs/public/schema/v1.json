@@ -34,7 +34,7 @@
     },
     "features": {
       "type": "object",
-      "description": "Feature toggles — enable/disable specific functionality",
+      "description": "Feature toggles — enable/disable specific functionality. Only serviceWorker is required; all others are optional.",
       "properties": {
         "requestBatchWindowMs": {
           "type": "integer",
@@ -58,7 +58,7 @@
               "minimum": 1000
             }
           },
-          "required": ["enabled", "heartbeatIntervalMs"]
+          "required": ["enabled"]
         },
         "pwa": {
           "type": "object",
@@ -75,7 +75,7 @@
               "default": false
             }
           },
-          "required": ["enabled", "preventDefaultInstall"]
+          "required": ["enabled"]
         },
         "serviceWorker": {
           "type": "object",
@@ -85,6 +85,24 @@
               "type": "boolean",
               "description": "Automatically activate newly registered service workers (skipWaiting).",
               "default": false
+            },
+            "precache": {
+              "type": "object",
+              "description": "Precaching configuration",
+              "properties": {
+                "concurrency": {
+                  "type": "integer",
+                  "description": "Number of assets to precache in parallel batches",
+                  "default": 1,
+                  "minimum": 1
+                },
+                "delayMs": {
+                  "type": "integer",
+                  "description": "Delay in ms between individual asset requests within a batch. Spreads out network requests to avoid saturation.",
+                  "default": 0,
+                  "minimum": 0
+                }
+              }
             },
             "strategy": {
               "type": "object",
@@ -168,33 +186,27 @@
                   "type": "object",
                   "description": "Reactive strategy global defaults.",
                   "properties": {
-                    "defaults": {
-                      "type": "object",
-                      "description": "Default values for reactive strategy fields",
-                      "properties": {
-                        "staleTime": {
-                          "type": "integer",
-                          "description": "Global default stale time in seconds.",
-                          "default": 0,
-                          "minimum": 0
-                        },
-                        "refetchInterval": {
-                          "type": "integer",
-                          "description": "Global default auto-refetch interval in seconds.",
-                          "default": 0,
-                          "minimum": 0
-                        },
-                        "refetchOnReconnect": {
-                          "type": "boolean",
-                          "description": "Global default — refetch reactive entries when the browser comes back online.",
-                          "default": false
-                        },
-                        "refetchOnFocus": {
-                          "type": "boolean",
-                          "description": "Global default — refetch reactive entries when the tab gains focus.",
-                          "default": false
-                        }
-                      }
+                    "staleTime": {
+                      "type": "integer",
+                      "description": "Global default stale time in seconds.",
+                      "default": 0,
+                      "minimum": 0
+                    },
+                    "refetchInterval": {
+                      "type": "integer",
+                      "description": "Global default auto-refetch interval in seconds.",
+                      "default": 0,
+                      "minimum": 0
+                    },
+                    "refetchOnReconnect": {
+                      "type": "boolean",
+                      "description": "Global default — refetch reactive entries when the browser comes back online.",
+                      "default": false
+                    },
+                    "refetchOnFocus": {
+                      "type": "boolean",
+                      "description": "Global default — refetch reactive entries when the tab gains focus.",
+                      "default": false
                     }
                   }
                 },
@@ -270,8 +282,7 @@
                 }
               }
             }
-          },
-          "required": ["autoActivate"]
+          }
         },
         "refetchQueue": {
           "type": "object",
@@ -512,17 +523,7 @@
           "required": ["enabled", "type", "endpoint"]
         }
       },
-      "required": [
-        "connectivity",
-        "pwa",
-        "serviceWorker",
-        "mutationQueue",
-        "auth",
-        "tagInvalidation",
-        "graphql",
-        "pushNotifications",
-        "serverPush"
-      ]
+      "required": ["serviceWorker"]
     },
     "build": {
       "type": "object",

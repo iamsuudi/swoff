@@ -1,8 +1,8 @@
 {
   "name": "@swoff/cli",
-  "version": "0.3.14",
+  "version": "0.3.15",
   "type": "module",
-  "description": "CLI for Swoff - Offline-first web apps made easy",
+  "description": "CLI for Swoff - Offline Infrastructure Platform",
   "bin": {
     "swoff": "bin/swoff"
   },
@@ -29,7 +29,9 @@
   ],
   "author": "Swoff",
   "license": "MIT",
-  "dependencies": {},
+  "dependencies": {
+    "@clack/prompts": "^1.6.0"
+  },
   "devDependencies": {
     "@types/node": "^25.9.1",
     "typescript": "^5.0.0",

@@ -11,12 +11,10 @@ describe("validateConfig", () => {
           default: "cache-first",
           patterns: {},
           reactive: {
-            defaults: {
-              staleTime: 0,
-              refetchInterval: 0,
-              refetchOnReconnect: false,
-              refetchOnFocus: false,
-            },
+            staleTime: 0,
+            refetchInterval: 0,
+            refetchOnReconnect: false,
+            refetchOnFocus: false,
           },
         },
         navigation: {

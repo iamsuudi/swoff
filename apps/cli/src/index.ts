@@ -27,7 +27,6 @@ const { values, positionals } = parseArgs({
   options: {
     version: { type: "boolean", short: "v" },
     help: { type: "boolean", short: "h" },
-    framework: { type: "string" },
     language: { type: "string" },
     debug: { type: "boolean" },
     yes: { type: "boolean", short: "y" },
@@ -50,7 +49,7 @@ async function main() {
 
   switch (command) {
     case "init": {
-      await initCommand(projectRoot, values.framework);
+      await initCommand(projectRoot, !!values.yes);
       break;
     }
     case "generate": {

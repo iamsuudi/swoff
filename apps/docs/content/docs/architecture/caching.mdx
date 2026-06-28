@@ -236,10 +236,10 @@ The `strategy` field resolves through three priority levels:
 
 | Field                | Tier 1 (per-request)                                          | Tier 2 (route pattern) | Tier 3 (global default)                  |
 | -------------------- | ------------------------------------------------------------- | ---------------------- | ---------------------------------------- |
-| `staleTime`          | ✅ `X-SW-Stale-Time` header or `fetchWithCache({ staleTime })` | ✅ pattern entry       | ✅ `reactive.defaults.staleTime`          |
-| `refetchInterval`    | ❌ SW-initiated timer — not per-request                       | ✅ pattern entry       | ✅ `reactive.defaults.refetchInterval`    |
-| `refetchOnReconnect` | ❌ SW-initiated — not per-request                             | ✅ pattern entry       | ✅ `reactive.defaults.refetchOnReconnect` |
-| `refetchOnFocus`     | ❌ SW-initiated — not per-request                             | ✅ pattern entry       | ✅ `reactive.defaults.refetchOnFocus`     |
+| `staleTime`          | ✅ `X-SW-Stale-Time` header or `fetchWithCache({ staleTime })` | ✅ pattern entry       | ✅ `reactive.staleTime`          |
+| `refetchInterval`    | ❌ SW-initiated timer — not per-request                       | ✅ pattern entry       | ✅ `reactive.refetchInterval`    |
+| `refetchOnReconnect` | ❌ SW-initiated — not per-request                             | ✅ pattern entry       | ✅ `reactive.refetchOnReconnect` |
+| `refetchOnFocus`     | ❌ SW-initiated — not per-request                             | ✅ pattern entry       | ✅ `reactive.refetchOnFocus`     |
 
 **Example resolution flow:**
 

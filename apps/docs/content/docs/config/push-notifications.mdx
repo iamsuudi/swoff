@@ -1,0 +1,12 @@
+---
+title: Push Notifications
+description: Full schema for swoff.config.json features.pushNotifications — field, type, default, and description.
+---
+
+## `features.pushNotifications`
+
+| Field               | Type      | Default | Description                                                                                                                                        |
+| ------------------- | --------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pushNotifications` | `boolean` | `false` | Enable push notification subscription management. Generates `swoff/push-notification/index.ts` with `subscribeToPush()` / `unsubscribeFromPush()`. |
+
+The VAPID public key is configured at runtime via `swoff.configure({ push: { vapidPublicKey: "..." } })` for no-bundler projects, or directly in `swoff/push-notification/index.ts` for bundler projects.

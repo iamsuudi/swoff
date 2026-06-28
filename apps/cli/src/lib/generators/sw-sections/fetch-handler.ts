@@ -66,7 +66,7 @@ export function generateFetchHandler(
   } = swConfig;
 
   const debugMode = debug === true;
-  const globalStaleTime = swConfig.strategy.reactive?.defaults?.staleTime;
+  const globalStaleTime = swConfig.strategy.reactive?.staleTime;
   const refetchRetry = swConfig.refetchQueue.retry;
 
   const hasRules = navRules.length > 0;

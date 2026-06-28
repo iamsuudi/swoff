@@ -1,0 +1,70 @@
+---
+title: connectivity
+description: Online/offline detection, heartbeat monitoring, storage estimation, and system reset.
+---
+
+From `swoff/connectivity.ts`.
+
+Generated when `features.connectivity.enabled` is `true`.
+
+<Cards>
+  <Card title="getCurrentOnlineStatus" href="#getcurrentonlinestatus">
+    Get current online/offline state.
+  </Card>
+  <Card title="verifyAndNotify" href="#verifyandnotify">
+    Check connectivity and dispatch change event.
+  </Card>
+  <Card title="startHeartbeat" href="#startheartbeat">
+    Start periodic connectivity checks.
+  </Card>
+  <Card title="stopHeartbeat" href="#stopheartbeat">
+    Stop periodic connectivity checks.
+  </Card>
+  <Card title="forceRetry" href="#forceretry">
+    Force an immediate connectivity check.
+  </Card>
+</Cards>
+
+---
+
+## `CONNECTIVITY_EVENT`
+
+`"app-connectivity-change"` — custom event dispatched on `window` when connectivity status changes.
+
+```ts
+window.addEventListener("app-connectivity-change", (e) => {
+  console.log("Online:", e.detail.online);
+});
+```
+
+---
+
+## `getCurrentOnlineStatus()`
+
+Returns the last known online status (`boolean`). Uses `navigator.onLine` initially, then tracks verified connectivity via heartbeat.
+
+---
+
+## `verifyAndNotify()`
+
+Sends a HEAD request to the current origin to verify actual connectivity (beyond `navigator.onLine`). Dispatches `CONNECTIVITY_EVENT` with the result. Also notifies the service worker via `postMessage` (`ONLINE` / `OFFLINE`).
+
+Returns `true` if online, `false` otherwise.
+
+---
+
+## `startHeartbeat()`
+
+Starts a 30-second interval that calls `verifyAndNotify()` when the tab is visible. Idempotent — safe to call multiple times.
+
+---
+
+## `stopHeartbeat()`
+
+Stops the heartbeat interval.
+
+---
+
+## `forceRetry()`
+
+Stops the current heartbeat, calls `verifyAndNotify()` immediately, then restarts the heartbeat. Useful for manual refresh after a detected reconnect.

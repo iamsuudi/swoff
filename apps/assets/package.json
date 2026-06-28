@@ -45,6 +45,7 @@
     "web-app-manifest",
     "android-adaptive-icons"
   ],
+  "sideEffects": false,
   "author": "Swoff",
   "license": "MIT",
   "dependencies": {

@@ -80,7 +80,7 @@ const ALL_FRAMEWORKS = [
   "laravel", "django", "flask", "rails", "go", "vanilla",
 ] as const;
 
-export async function initCommand(projectRoot: string, yesMode?: boolean) {
+export async function initCommand(projectRoot: string, yesMode?: boolean, frameworkOverride?: string) {
   const configFiles = ["swoff.config.json", "swoff.config.js"];
   const existingConfig = configFiles.find((f) => existsSync(join(projectRoot, f)));
 
@@ -90,7 +90,12 @@ export async function initCommand(projectRoot: string, yesMode?: boolean) {
     return;
   }
 
-  const detected = detectFramework(projectRoot);
+  const detected = frameworkOverride && ALL_FRAMEWORKS.includes(frameworkOverride as never)
+    ? (frameworkOverride as (typeof ALL_FRAMEWORKS)[number])
+    : detectFramework(projectRoot);
+  if (frameworkOverride && detected === frameworkOverride) {
+    log.info(`Framework: ${detected} (override)`);
+  }
   const preset = FRAMEWORK_PRESETS[detected] || {};
 
   if (yesMode) {

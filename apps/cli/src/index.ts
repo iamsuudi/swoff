@@ -30,6 +30,7 @@ const { values, positionals } = parseArgs({
     language: { type: "string" },
     debug: { type: "boolean" },
     yes: { type: "boolean", short: "y" },
+    framework: { type: "string" },
   },
   allowPositionals: true,
 });
@@ -49,7 +50,7 @@ async function main() {
 
   switch (command) {
     case "init": {
-      await initCommand(projectRoot, !!values.yes);
+      await initCommand(projectRoot, !!values.yes, values.framework as string | undefined);
       break;
     }
     case "generate": {

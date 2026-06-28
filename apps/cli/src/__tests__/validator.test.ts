@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { validateConfig } from "../lib/config/validator.js";
+import type { SwoffConfig } from "../lib/shared/config-types.js";
+
+type DeepPartial<T> = { [P in keyof T]?: DeepPartial<T[P]> };
 
 describe("validateConfig", () => {
-  const validConfig: Record<string, any> = {
+  const validConfig: DeepPartial<SwoffConfig> = {
     features: {
       pwa: { enabled: true, preventDefaultInstall: false },
       serviceWorker: {
@@ -44,13 +47,13 @@ describe("validateConfig", () => {
 
     it("fails when features is missing", () => {
       const { features: _, ...rest } = validConfig;
-      const errors = validateConfig(rest as Record<string, unknown>);
+      const errors = validateConfig(rest as unknown as SwoffConfig);
       expect(errors[0]).toContain("Missing required fields");
     });
 
     it("fails when build is missing", () => {
       const { build: _, ...rest } = validConfig;
-      const errors = validateConfig(rest as Record<string, unknown>);
+      const errors = validateConfig(rest as unknown as SwoffConfig);
       expect(errors[0]).toContain("Missing required fields");
     });
   });
@@ -61,7 +64,7 @@ describe("validateConfig", () => {
         ...validConfig,
         features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, autoActivate: 1 } },
       };
-      const errors = validateConfig(cfg as unknown as Record<string, unknown>);
+      const errors = validateConfig(cfg as unknown as SwoffConfig);
       expect(errors).toContain("features.serviceWorker.autoActivate must be a boolean");
     });
 
@@ -165,7 +168,7 @@ describe("validateConfig", () => {
         ...validConfig,
         features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", precacheRoutes: "/about" } } },
       };
-      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      const errors = validateConfig(config as unknown as SwoffConfig);
       expect(errors[0]).toContain("precacheRoutes must be an array");
     });
 
@@ -174,7 +177,7 @@ describe("validateConfig", () => {
         ...validConfig,
         features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", precacheRoutes: [123] } } },
       };
-      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      const errors = validateConfig(config as unknown as SwoffConfig);
       expect(errors[0]).toContain("precacheRoutes must be an array");
     });
 
@@ -183,7 +186,7 @@ describe("validateConfig", () => {
         ...validConfig,
         features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", rules: "not-an-array" } } },
       };
-      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      const errors = validateConfig(config as unknown as SwoffConfig);
       expect(errors[0]).toContain("navigation.rules must be an array");
     });
 
@@ -192,7 +195,7 @@ describe("validateConfig", () => {
         ...validConfig,
         features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", rules: [{ match: "" }] } } },
       };
-      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      const errors = validateConfig(config as unknown as SwoffConfig);
       expect(errors[0]).toContain("match must be a non-empty string");
     });
 
@@ -201,7 +204,7 @@ describe("validateConfig", () => {
         ...validConfig,
         features: { ...validConfig.features, serviceWorker: { ...validConfig.features.serviceWorker, navigation: { mode: "spa", fallback: "/index.html", rules: [{ match: "/blog/*", fallback: 123 }] } } },
       };
-      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      const errors = validateConfig(config as unknown as SwoffConfig);
       expect(errors[0]).toContain("fallback must be a string");
     });
 
@@ -305,7 +308,7 @@ describe("validateConfig", () => {
         ...validConfig,
         features: { ...validConfig.features, mutationQueue: { enabled: true, retry: { maxRetries: -1 } } },
       };
-      const errors = validateConfig(config as unknown as Record<string, unknown>);
+      const errors = validateConfig(config as unknown as SwoffConfig);
       expect(errors[0]).toContain("mutationQueue.retry.maxRetries must be a non-negative integer");
     });
 

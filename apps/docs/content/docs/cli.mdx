@@ -31,16 +31,12 @@ Generates the service worker and all supporting files into `swoff/`.
 
 ```
 swoff generate
-swoff generate --sw-only      # regenerate only the service worker
-swoff generate --files-only   # regenerate only supporting files (not SW)
+swoff generate --language js
 ```
 
-| Flag                     | Description                                                                                       |
-| ------------------------ | ------------------------------------------------------------------------------------------------- |
-| `--sw-only`              | Skip all client-side files; regenerate only `sw/template.js`, `sw/injector.ts`, `sw/generator.js` |
-| `--files-only`           | Skip SW regeneration; regenerate all client-side files (fetch/core, adapters, etc.)               |
-| `--language`             | `"ts"` \| `"js"` — override language auto-detection; forces `.tsx`/`.ts` or `.jsx`/`.js` output   |
-| `--continue-on-sw-error` | Proceed with generation even if the SW template build fails                                       |
+| Flag         | Description                                                                                     |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| `--language` | `"ts"` \| `"js"` — override language auto-detection; forces `.tsx`/`.ts` or `.jsx`/`.js` output |
 
 ### What is generated
 

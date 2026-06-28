@@ -5,6 +5,7 @@
     "mutation",
     "cache",
     "auth",
+    "connectivity",
     "server-push",
     "graphql",
     "pwa",

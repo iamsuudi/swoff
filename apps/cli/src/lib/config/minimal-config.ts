@@ -1,3 +1,5 @@
+import type { AuthType } from "../shared/config-types.js";
+
 export interface WizardAnswers {
   framework: string;
   outputDir: string;
@@ -20,6 +22,8 @@ export interface WizardAnswers {
 }
 
 export function buildMinimalConfig(answers: WizardAnswers): Record<string, unknown> {
+  const features: Record<string, unknown> = {};
+
   const sw: Record<string, unknown> = {
     strategy: {
       default: answers.defaultStrategy,
@@ -34,16 +38,17 @@ export function buildMinimalConfig(answers: WizardAnswers): Record<string, unkno
     (sw.strategy as Record<string, unknown>).patterns = answers.patterns;
   }
 
-  const features: Record<string, unknown> = {
-    serviceWorker: sw,
-  };
+  features.serviceWorker = sw;
 
   if (answers.pwaEnabled) {
     features.pwa = { enabled: true };
   }
 
   if (answers.authEnabled) {
-    features.auth = { enabled: true, type: answers.authType || "cookie" };
+    features.auth = {
+      enabled: true,
+      type: (answers.authType || "cookie") as AuthType,
+    };
   }
 
   if (answers.mutationEnabled) {
@@ -63,7 +68,11 @@ export function buildMinimalConfig(answers: WizardAnswers): Record<string, unkno
   }
 
   if (answers.serverPushEnabled) {
-    features.serverPush = { enabled: true, type: "sse", endpoint: "/api/events" };
+    features.serverPush = {
+      enabled: true,
+      type: "sse",
+      endpoint: "/api/events",
+    };
   }
 
   if (answers.pushNotificationsEnabled) {

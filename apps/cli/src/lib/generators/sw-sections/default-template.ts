@@ -6,6 +6,7 @@
 export function getDefaultTemplate(): string {
   return `let PRECACHE_FALLBACKS = [];
 let PRECACHE_CONCURRENCY = 1;
+let PRECACHE_DELAY_MS = 0;
 let AUTO_SKIP_WAITING = false;
 
 // --- Shared IndexedDB Utility ---

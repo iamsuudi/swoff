@@ -127,6 +127,21 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
     }  });
 }
 
+// --- Background Precache Resume ---
+// Tells the SW to resume background precaching when the page becomes visible
+// or the browser comes back online. The SW tracks progress via IndexedDB
+// checkpoint so it safely picks up where it left off.
+if (typeof document !== "undefined" && "serviceWorker" in navigator) {
+  var _resumeP = function() {
+    if (navigator.serviceWorker.controller)
+      navigator.serviceWorker.controller.postMessage({ type: "RESUME_PRECACHE" });
+  };
+  document.addEventListener("visibilitychange", function() {
+    if (document.visibilityState === "visible") _resumeP();
+  });
+  window.addEventListener("online", _resumeP);
+}
+
 /** Initialize SW registration and all client-side features (PWA install, mutation queue, cross-tab sync). Call once at app startup. */
 export async function initServiceWorker(): Promise<void>{
   await swInit();

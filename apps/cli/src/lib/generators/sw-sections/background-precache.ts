@@ -67,37 +67,43 @@ async function startBackgroundPrecache() {
   var i;
 
   for (i = 0; i < checkpoint && i < total; i++) {
-    var m = await cache.match(ASSETS_TO_CACHE[i].url);
+    var m = await cache.match(ASSETS_TO_CACHE[i]);
     if (m) downloaded++;
   }
   attempted = checkpoint;
 
   for (i = checkpoint; i < total; i += PRECACHE_CONCURRENCY) {
     var batchEnd = Math.min(i + PRECACHE_CONCURRENCY, total);
-    var batch = [];
-    for (var j = i; j < batchEnd; j++) batch.push(ASSETS_TO_CACHE[j]);
-
-    await Promise.all(batch.map(async function(asset) {
-      attempted++;
-      try {
-        var cached = await cache.match(asset.url);
-        if (cached) { downloaded++; return; }
-        var request = new Request(asset.url, asset.options || {});
-        await cache.add(request);
-        downloaded++;
-      } catch(err) {
-        console.error("Failed to precache " + asset.url + ":", err);
-        allClients.forEach(function(client) {
-          client.postMessage({
-            type: "SW_NOTIFICATION",
-            level: "warn",
-            code: "PRECACHE_FAILED",
-            message: "Failed to precache " + asset.url,
-          });
-        });
+    var promises = [];
+    for (var j = i; j < batchEnd; j++) {
+      promises.push((function(url) {
+        attempted++;
+        return (async function() {
+          try {
+            var cached = await cache.match(url);
+            if (cached) { downloaded++; return; }
+            var request = new Request(url);
+            await cache.add(request);
+            downloaded++;
+          } catch(err) {
+            console.error("Failed to precache " + url + ":", err);
+            allClients.forEach(function(client) {
+              client.postMessage({
+                type: "SW_NOTIFICATION",
+                level: "warn",
+                code: "PRECACHE_FAILED",
+                message: "Failed to precache " + url,
+              });
+            });
+          }
+        })();
+      })(ASSETS_TO_CACHE[j]));
+      if (PRECACHE_DELAY_MS > 0) {
+        await new Promise(function(resolve) { setTimeout(resolve, PRECACHE_DELAY_MS); });
       }
-    }));
+    }
 
+    await Promise.all(promises);
     await setPrecacheCheckpoint(batchEnd);
 
     var pct = Math.round((attempted / total) * 100);

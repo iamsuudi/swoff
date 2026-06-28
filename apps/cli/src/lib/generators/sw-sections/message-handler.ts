@@ -43,6 +43,11 @@ self.addEventListener("message", (event) => {
     // Client went offline — the SW already serves from cache transparently.
     // No action needed; reactive refetches will resume on next ONLINE signal.
   }
+  if (event.data.type === "RESUME_PRECACHE") {
+    startBackgroundPrecache().catch(function(err) {
+      console.error("Background precache error:", err);
+    });
+  }
   if (event.data.type === "RESET_CACHE") {
     event.waitUntil(
       (async () => {

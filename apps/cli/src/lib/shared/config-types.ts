@@ -76,6 +76,7 @@ export interface ServerPushConfig {
 
 export interface PrecacheConfig {
   concurrency: number;
+  delayMs?: number;
 }
 
 export interface PrecacheDirConfig {
@@ -270,6 +271,8 @@ export function mergeConfigs(
         ...base.features.serviceWorker,
         ...override.features?.serviceWorker,
         precache: {
+          ...base.features.serviceWorker.precache,
+          ...override.features?.serviceWorker?.precache,
           concurrency: override.features?.serviceWorker?.precache?.concurrency ?? base.features.serviceWorker.precache?.concurrency ?? 1,
         },
         strategy: {

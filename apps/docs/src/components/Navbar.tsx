@@ -7,7 +7,8 @@ import { Icons } from "./icons";
 export function Navbar() {
   const location = useLocation();
   const isDocsActive = location.pathname.startsWith("/docs/");
-  const isShowcaseActive = location.pathname.startsWith("/showcase");
+  const isApiActive = location.pathname.startsWith("/docs/api");
+  const isFrameworksActive = location.pathname.startsWith("/docs/frameworks");
   const isAboutActive = location.pathname.startsWith("/about");
   const [isOpen, setIsOpen] = useState(false);
 
@@ -43,10 +44,18 @@ export function Navbar() {
             Docs
           </Link>
           <Link
-            to="/showcase"
-            className={`${linkClass} ${isShowcaseActive ? "text-fd-primary" : ""}`}
+            to="/docs/$"
+            params={{ _splat: "api" }}
+            className={`${linkClass} ${isApiActive ? "text-fd-primary" : ""}`}
           >
-            Showcase
+            API
+          </Link>
+          <Link
+            to="/docs/$"
+            params={{ _splat: "frameworks" }}
+            className={`${linkClass} ${isFrameworksActive ? "text-fd-primary" : ""}`}
+          >
+            Frameworks
           </Link>
           <Link
             to="/about"
@@ -89,11 +98,20 @@ export function Navbar() {
             Docs
           </Link>
           <Link
-            to="/showcase"
-            className={`${mobileLinkClass} ${isShowcaseActive ? "text-fd-primary" : ""}`}
+            to="/docs/$"
+            params={{ _splat: "api" }}
+            className={`${mobileLinkClass} ${isApiActive ? "text-fd-primary" : ""}`}
             onClick={() => setIsOpen(false)}
           >
-            Showcase
+            API
+          </Link>
+          <Link
+            to="/docs/$"
+            params={{ _splat: "frameworks" }}
+            className={`${mobileLinkClass} ${isFrameworksActive ? "text-fd-primary" : ""}`}
+            onClick={() => setIsOpen(false)}
+          >
+            Frameworks
           </Link>
           <Link
             to="/about"

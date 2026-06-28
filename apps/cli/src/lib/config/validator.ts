@@ -1,7 +1,7 @@
 import { KNOWN_FEATURES, OBJECT_FEATURES, VALID_STRATEGIES, REACTIVE_FIELDS, type SwoffConfig } from "../shared/config-types.js";
 import { FEATURES } from "../shared/feature-registry.js";
 
-export function validateConfig(config: Record<string, unknown>): string[] {
+export function validateConfig(config: SwoffConfig): string[] {
   const errors: string[] = [];
 
   const requiredFields = ["features", "build"];
@@ -401,8 +401,9 @@ export function validateConfig(config: Record<string, unknown>): string[] {
     }
   }
 
-  const swoffConfig = config as unknown as SwoffConfig;
-  if (swoffConfig.features) {
+  const swoffConfig = config;
+
+  if (config.features) {
     const auth = swoffConfig.features.auth;
     for (const [, feature] of Object.entries(FEATURES)) {
       if (!feature.checkEnabled(swoffConfig)) continue;

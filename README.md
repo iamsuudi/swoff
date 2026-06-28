@@ -32,8 +32,8 @@ Swoff needs Node.js only for the toolchain — the output is plain JavaScript yo
 ## Quick Start
 
 ```bash
-# 1. Init config
-npx @swoff/cli init --framework vanilla
+# 1. Init config (interactive or --yes for defaults)
+npx @swoff/cli init
 
 # 2. Generate all files
 npx @swoff/cli generate
@@ -52,11 +52,9 @@ See the [documentation](https://swoff.dev/docs) for per-ecosystem guides.
 ```
 swoff/
 ├── apps/
-│   └── docs/           # Documentation site (Fumadocs + TanStack Start)
-├── packages/
 │   ├── cli/            # @swoff/cli — the code generation tool
-│   ├── eslint-config/  # Shared ESLint config
-│   └── typescript-config/ # Shared TypeScript config
+│   ├── assets/         # @swoff/assets — PWA icon generator
+│   └── docs/           # Documentation site (Fumadocs + TanStack Start)
 ```
 
 ## What Swoff is NOT

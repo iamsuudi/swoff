@@ -10,13 +10,10 @@ import {
   Smartphone,
   Braces,
   Zap,
-  Database,
   Radio,
-  ArrowRight,
   Bell,
-  Command,
+  Timer,
   Images,
-  Blocks,
   PanelTopClose,
   Terminal,
   Rocket,
@@ -31,31 +28,52 @@ export const Route = createFileRoute("/")({
 const features = [
   {
     icon: Settings,
-    title: "Config-Driven Code Gen",
-    desc: "Define caching strategies, auth type, offline queue, and more in a single swoff.config.json. The CLI generates the full SW + client code.",
+    title: "Config-Driven",
+    desc: "Define strategies, auth, offline queue, push, and PWA in a single swoff.config.json. The CLI generates the full SW + client runtime from it.",
     color: "text-sky-500",
     bg: "bg-sky-500/10",
   },
   {
     icon: Layers,
     title: "6 Caching Strategies",
-    desc: "Cache-first, network-first, stale-while-revalidate, cache-only, network-only, and reactive with staleTime + refetchInterval.",
+    desc: "Cache-first, network-first, stale-while-revalidate, cache-only, network-only, and reactive. Per-route pattern overrides with 3-tier resolution.",
     color: "text-emerald-500",
     bg: "bg-emerald-500/10",
   },
   {
+    icon: Timer,
+    title: "Reactive Strategy",
+    desc: "StaleTime + refetchInterval for automatic background refreshes. Refetch on reconnect, refetch on focus — data stays fresh without manual invalidation.",
+    color: "text-teal-500",
+    bg: "bg-teal-500/10",
+  },
+  {
+    icon: Globe,
+    title: "HTML Cache Isolation",
+    desc: "HTML stored in a separate cache from JSON/API payloads. Prevents Content-Type corruption on hard refresh — no framework-specific hacks needed.",
+    color: "text-orange-500",
+    bg: "bg-orange-500/10",
+  },
+  {
     icon: Tags,
     title: "Tag-Based Invalidation",
-    desc: "Auto-tags from URL paths. Glob matching, cascading dependencies, and cross-tab sync via SW broadcast — no query key management.",
+    desc: "Auto-tags from URL paths with glob matching, cascading dependencies, and cross-tab sync via SW message hub. No query-key management.",
     color: "text-violet-500",
     bg: "bg-violet-500/10",
   },
   {
-    icon: Shield,
-    title: "Auth Adapters",
-    desc: "Cookie, bearer, and custom auth with token refresh, 401 detection, memory-only tokens, and cross-tab logout sync via clearAuth().",
-    color: "text-rose-500",
-    bg: "bg-rose-500/10",
+    icon: PanelTopClose,
+    title: "Cross-Tab Sync",
+    desc: "Invalidation, auth state, and mutation events broadcast to all open tabs through the SW — no BroadcastChannel or manual coordination needed.",
+    color: "text-blue-500",
+    bg: "bg-blue-500/10",
+  },
+  {
+    icon: Zap,
+    title: "Request Batching",
+    desc: "50ms coalescing window merges concurrent identical GET requests into a single fetch. In-flight dedup via promise cloning. Configurable and auto-discoverable.",
+    color: "text-yellow-500",
+    bg: "bg-yellow-500/10",
   },
   {
     icon: RefreshCw,
@@ -65,30 +83,37 @@ const features = [
     bg: "bg-amber-500/10",
   },
   {
-    icon: Globe,
-    title: "Framework-Agnostic",
-    desc: "Works with any frontend (React, Vue, Svelte, HTMX) and any backend (Laravel, Django, Rails, Go). No bundler or build-tool lock-in.",
-    color: "text-cyan-500",
-    bg: "bg-cyan-500/10",
+    icon: Shield,
+    title: "Auth-Aware Caching",
+    desc: "Cookie, bearer, and custom auth with token refresh and 401 detection. Auth routes bypass the SW automatically. clearAuth() cascades across all tabs.",
+    color: "text-rose-500",
+    bg: "bg-rose-500/10",
   },
   {
-    icon: Smartphone,
-    title: "PWA Installability",
-    desc: "Install prompt management, icon generation, storage estimation, and manifest generation — all generated from config.",
-    color: "text-fuchsia-500",
-    bg: "bg-fuchsia-500/10",
+    icon: Radio,
+    title: "Server Push (SSE / WebSocket)",
+    desc: "Real-time cache invalidation via SSE or WebSocket. Connections live in the SW scope — survive navigation, tab close, and page refresh.",
+    color: "text-indigo-500",
+    bg: "bg-indigo-500/10",
   },
   {
     icon: Bell,
     title: "Push Notifications",
-    desc: "Built-in push notification subscription management, VAPID key configuration, and SW push event handler — no manual service worker wiring.",
+    desc: "Built-in subscription management, VAPID key configuration, and SW push handler. Generated from config — no manual SW wiring for push events.",
     color: "text-purple-500",
     bg: "bg-purple-500/10",
   },
   {
+    icon: Smartphone,
+    title: "PWA Installability",
+    desc: "Install prompt management with configurable suppression. Storage estimation, manifest generation, and service worker lifecycle handled by generated code.",
+    color: "text-fuchsia-500",
+    bg: "bg-fuchsia-500/10",
+  },
+  {
     icon: Images,
     title: "PWA Asset Generation",
-    desc: "Generate icons, splash screens, favicons, Apple touch icons, and OG images from a single SVG source. Includes HTML meta-tag copy-paste guide for your <head>.",
+    desc: "Generate icons, splash screens, favicons, Apple touch icons, and OG images from a single SVG source. Includes HTML meta-tag guide for your <head>.",
     color: "text-green-500",
     bg: "bg-green-500/10",
   },
@@ -100,90 +125,28 @@ const features = [
     bg: "bg-pink-500/10",
   },
   {
-    icon: Database,
-    title: "HTML Cache Isolation",
-    desc: "HTML responses stored in a separate cache container from JSON/RSC payloads — prevents Content-Type corruption on hard refresh without framework-specific logic.",
-    color: "text-orange-500",
-    bg: "bg-orange-500/10",
-  },
-  {
-    icon: Radio,
-    title: "Server Push (SSE / WebSocket)",
-    desc: "Real-time cache invalidation via SSE or WebSocket. Connections run in the SW scope — survive navigation, tab close, and page refresh.",
-    color: "text-indigo-500",
-    bg: "bg-indigo-500/10",
-  },
-  {
-    icon: PanelTopClose,
-    title: "Cross-Tab Sync",
-    desc: "Cache invalidation, auth state changes, and mutation queue events broadcast to all open tabs via SW message hub — no BroadcastChannel needed.",
-    color: "text-blue-500",
-    bg: "bg-blue-500/10",
-  },
-  {
-    icon: Command,
-    title: "Request Batching",
-    desc: "50ms coalescing window merges concurrent identical GET requests into a single fetch. In-flight dedup via promise cloning. Configurable and auto-discoverable.",
-    color: "text-teal-500",
-    bg: "bg-teal-500/10",
-  },
-  {
-    icon: Zap,
-    title: "Zero Runtime Deps",
-    desc: "Generated code uses only browser APIs — Service Worker, Cache Storage, IndexedDB. Zero KB added to your bundle. You own every line.",
-    color: "text-yellow-500",
-    bg: "bg-yellow-500/10",
+    icon: Globe,
+    title: "Framework-Agnostic",
+    desc: "Works with any frontend (React, Vue, Svelte, HTMX) and any backend (Laravel, Django, Rails, Go). No bundler or build-tool lock-in — output is plain JS.",
+    color: "text-cyan-500",
+    bg: "bg-cyan-500/10",
   },
 ];
 
 const frontendFrameworks = [
-  "React",
-  "Vue",
-  "Svelte",
-  "Solid",
-  "Preact",
-  "Angular",
-  "Alpine",
-  "HTMX",
-  "Lit",
-  "Qwik",
-  "Marko",
-  "Stimulus",
-  "jQuery",
+  "React", "Vue", "Svelte", "Solid", "Preact", "Angular",
+  "Alpine", "HTMX", "Lit", "Qwik", "Marko", "Stimulus", "jQuery",
 ];
 
 const metaFrameworks = [
-  "Next.js",
-  "Remix",
-  "Nuxt",
-  "SvelteKit",
-  "TanStack Start",
-  "Astro",
-  "Gatsby",
-  "Eleventy",
-  "Hugo",
-  "Jekyll",
+  "Next.js", "Remix", "Nuxt", "SvelteKit", "TanStack Start",
+  "Astro", "Gatsby", "Eleventy", "Hugo", "Jekyll",
 ];
 
 const backendFrameworks = [
-  "Laravel",
-  "Django",
-  "Rails",
-  "Express",
-  "Fastify",
-  "Hono",
-  "Go",
-  "PHP",
-  "Python",
-  "Ruby",
-  "Java",
-  "Spring",
-  "ASP.NET",
-  "Rust",
-  "Phoenix",
-  "Deno",
-  "Bun",
-  "Node.js",
+  "Laravel", "Django", "Rails", "Express", "Fastify", "Hono",
+  "Go", "PHP", "Python", "Ruby", "Java", "Spring", "ASP.NET",
+  "Rust", "Phoenix", "Deno", "Bun", "Node.js",
 ];
 
 function SectionGlow({ className }: { className?: string }) {
@@ -207,24 +170,24 @@ function Home() {
         <div className="container mx-auto px-6 relative">
           <div className="flex flex-col items-center max-w-5xl mx-auto">
             <div className="flex items-center gap-2 px-4 py-1 rounded-full border border-fd-border bg-fd-card text-sm text-fd-muted-foreground mb-8">
-              <Blocks className="size-3 text-fd-primary" />
+              <Rocket className="size-3 text-fd-primary" />
               <span className="text-xs">MIT License — Open Source</span>
             </div>
 
             <div className="text-center">
               <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tight text-fd-foreground leading-[1.05] text-center">
-                Offline Infrastructure
+                Offline-First
                 <br />
                 <span className="bg-linear-to-r from-fd-primary via-orange-400 to-amber-500 bg-clip-text text-transparent text-center">
-                  Zero Dependencies
+                  For Any Stack
                 </span>
               </h1>
 
               <p className="text-lg md:text-xl text-fd-muted-foreground max-w-2xl mt-6 mb-10 leading-relaxed mx-auto">
-                Swoff generates an auditable Service Worker and client code that
-                uses only native browser APIs — no runtime deps, no plugins, no
-                bundler hooking, no framework coupling. Just a CLI command and
-                you own the code.
+                Swoff is a config-driven code generation toolchain for offline-first web apps.
+                An interactive wizard builds your config, the CLI generates an auditable
+                service worker and client runtime, and you own every line — zero runtime
+                dependencies, no framework coupling.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -237,7 +200,7 @@ function Home() {
                   })}
                 >
                   Get Started
-                  <ArrowRight className="size-4 text-fd-primary group-hover:translate-x-0.5 transition-transform" />
+                  <Rocket className="size-4 text-fd-primary group-hover:translate-x-0.5 transition-transform" />
                 </Link>
                 <a
                   href="https://github.com/iamsuudi/swoff"
@@ -267,30 +230,31 @@ function Home() {
               How It Works
             </h2>
             <p className="text-fd-muted-foreground text-lg max-w-xl mx-auto">
-              One config, one CLI command, and you own the generated output.
+              One interactive session, one CLI command, one build step — and you own the output.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-4 gap-6">
             <div className="text-center">
               <div className="w-14 h-14 rounded-xl bg-fd-primary/10 flex items-center justify-center mx-auto mb-5">
-                <Settings className="size-7 text-fd-primary" />
+                <Terminal className="size-7 text-fd-primary" />
               </div>
               <h3 className="font-bold text-fd-foreground mb-2 text-lg">
-                1. Configure
+                1. Init
               </h3>
               <p className="text-[14px] text-fd-muted-foreground leading-relaxed">
-                Define strategies, auth, queue, and PWA in a single
-                <br />
+                Run{" "}
                 <code className="text-xs bg-fd-muted px-1 py-0.5 rounded">
-                  swoff.config.json
+                  swoff init
                 </code>
+                <br />
+                — interactive wizard builds your config
               </p>
             </div>
 
             <div className="text-center">
               <div className="w-14 h-14 rounded-xl bg-fd-primary/10 flex items-center justify-center mx-auto mb-5">
-                <Terminal className="size-7 text-fd-primary" />
+                <Settings className="size-7 text-fd-primary" />
               </div>
               <h3 className="font-bold text-fd-foreground mb-2 text-lg">
                 2. Generate
@@ -298,9 +262,25 @@ function Home() {
               <p className="text-[14px] text-fd-muted-foreground leading-relaxed">
                 Run{" "}
                 <code className="text-xs bg-fd-muted px-1 py-0.5 rounded">
-                  npx @swoff/cli generate
+                  swoff generate
                 </code>
                 <br />— CLI produces auditable TS/JS source files
+              </p>
+            </div>
+
+            <div className="text-center">
+              <div className="w-14 h-14 rounded-xl bg-fd-primary/10 flex items-center justify-center mx-auto mb-5">
+                <Zap className="size-7 text-fd-primary" />
+              </div>
+              <h3 className="font-bold text-fd-foreground mb-2 text-lg">
+                3. Build
+              </h3>
+              <p className="text-[14px] text-fd-muted-foreground leading-relaxed">
+                Run{" "}
+                <code className="text-xs bg-fd-muted px-1 py-0.5 rounded">
+                  node swoff/sw/generator.js
+                </code>
+                <br />— inlines built assets into the final SW
               </p>
             </div>
 
@@ -309,12 +289,12 @@ function Home() {
                 <Rocket className="size-7 text-fd-primary" />
               </div>
               <h3 className="font-bold text-fd-foreground mb-2 text-lg">
-                3. Deploy
+                4. Deploy
               </h3>
               <p className="text-[14px] text-fd-muted-foreground leading-relaxed">
                 Serve as static assets — no runtime library,
                 <br />
-                no framework dependency, no backend coupling
+                no backend coupling, no framework lock-in
               </p>
             </div>
           </div>
@@ -440,11 +420,11 @@ function Home() {
           </h2>
           <p className="text-fd-muted-foreground text-lg max-w-lg mx-auto mb-10">
             No runtime deps, no framework lock-in, no package.json required.
-            Just a single config and a CLI command, you own the code.
+            Just an interactive session and a CLI command — you own the code.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              to="/docs"
+              to="/docs/$"
               params={{ _splat: "" }}
               className={buttonVariants({
                 className:
@@ -452,7 +432,7 @@ function Home() {
               })}
             >
               Get Started
-              <ArrowRight className="size-4 text-fd-primary group-hover:translate-x-0.5 transition-transform" />
+              <Rocket className="size-4 text-fd-primary group-hover:translate-x-0.5 transition-transform" />
             </Link>
             <a
               href="https://github.com/iamsuudi/swoff"

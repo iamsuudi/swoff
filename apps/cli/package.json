@@ -27,6 +27,7 @@
     "pwa",
     "caching"
   ],
+  "sideEffects": false,
   "author": "Swoff",
   "license": "MIT",
   "dependencies": {

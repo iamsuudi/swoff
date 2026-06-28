@@ -24,7 +24,7 @@ export function assembleSW(config: SwoffConfig, projectRoot?: string, debug?: bo
   sw = sw.replace(/let PRECACHE_CONCURRENCY = \d+;?/, () => `let PRECACHE_CONCURRENCY = ${concurrency};`);
   sw = sw.replace(/let PRECACHE_DELAY_MS = \d+;?/, () => `let PRECACHE_DELAY_MS = ${delayMs};`);
   sw = sw.replace(/let AUTO_SKIP_WAITING = (?:true|false);?/, () => `let AUTO_SKIP_WAITING = ${serviceWorker.autoActivate};`);
-  sw += `\nconst CACHE_NAME = "${Date.now()}";\n`;
+  sw += `\nlet CACHE_NAME = "";\n`;
   sw = `${generateConfigHeader(config)}\n\n${sw}`;
 
   if (shouldIncludeBackgroundSync(config)) {

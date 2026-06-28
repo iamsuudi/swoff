@@ -4,26 +4,87 @@ description: Getting started with Swoff.
 icon: Rocket
 ---
 
-# Introduction
+# Getting Started
 
-Swoff generates offline-first infrastructure from a single config file — a service worker, client utilities, and React hooks. No runtime dependencies.
+This guide walks you through setting up Swoff in your project — from zero to an offline-capable app.
 
-## Why Swoff?
+## Prerequisites
 
-- **Config-driven** — features controlled via config, code is generated
-- **Zero runtime deps** — generated files are all you need, no library conflicts
-- **Two output modes** — ES modules + hooks for bundlers, auto-initializing bundle otherwise
-- **Framework-agnostic** — React, Vue, Svelte, Laravel, Django, Rails, Go, HTMX, vanilla
+- Node.js 18+
+- A built project with static output (e.g. `dist/`, `public/`, `static/`)
+- No existing service worker (or one you're ready to replace)
 
-## Next Steps
+## 1. Install and init
 
-- [Service Worker Setup](/docs/guides/service-worker)
-- [Config Reference](/docs/config)
-- [Framework Guides](/docs/frameworks)
-- [Architecture](/docs/architecture)
+```bash
+npx @swoff/cli init
+```
 
-## Community
+This starts an interactive wizard that asks about your:
 
-- [GitHub](https://github.com/iamsuudi/swoff)
-- [Issues](https://github.com/iamsuudi/swoff/issues)
-- MIT License
+- **Framework** — auto-detected from `package.json` (react-spa, nextjs, remix, etc.)
+- **Output directory** — where your built assets live (`dist`, `public`, etc.)
+- **Navigation mode** — SPA (app shell) or SSR (individual pages)
+- **Caching strategy** — cache-first, network-first, stale-while-revalidate, reactive, etc.
+- **Features** — PWA install, auth, offline mutation queue, GraphQL, tag invalidation, server push, push notifications
+
+After answering, it writes `swoff.config.json`.
+
+> Want defaults? Use `npx @swoff/cli init --yes` to skip prompts.
+
+## 2. Generate files
+
+```bash
+npx @swoff/cli generate
+```
+
+This creates a `swoff/` directory with:
+
+| File | Purpose |
+|------|---------|
+| `sw/template.js` | Service worker source code |
+| `sw/injector.{ts,js}` | SW registration logic |
+| `sw/generator.js` | Build-time script to produce the final SW |
+| `client-injector.{ts,js}` | Entry point — wires registration, PWA, mutation queue |
+| `storage.{ts,js}` | Storage estimation utilities |
+| `reset.{ts,js}` | `resetSwoff()` — wipes caches, DBs, unregisters SW |
+| `swoff.d.ts` | TypeScript declarations (when using TS) |
+
+Feature-specific files (auth adapters, fetch wrappers, etc.) are generated only for enabled features.
+
+## 3. Add build step
+
+The SW generator must run after each build to embed the latest assets and cache name. Add it to your `package.json` build script:
+
+```json
+"build": "vite build && node swoff/sw/generator.js"
+```
+
+Or run it manually:
+
+```bash
+node swoff/sw/generator.js
+```
+
+This reads `sw/template.js`, inlines your built assets, and writes the final service worker to your output directory (e.g. `dist/sw.js`).
+
+## 4. Include in your HTML
+
+Add the client injector to your HTML `<head>`:
+
+```html
+<script src="/swoff/client-injector.js"></script>
+```
+
+This registers the service worker, sets up PWA install handling, and initializes any enabled features (auth, mutation queue, etc.).
+
+## 5. Verify
+
+Open your app in Chrome, go to **Application > Service Workers**. You should see your SW registered and activated. Check **Application > Cache Storage** for `swoff-cache-v1` (precached assets) and `swoff-runtime-v1` (strategy cache entries).
+
+## What's next?
+
+- [Config Reference](/docs/config) — all config fields explained
+- [Caching Strategies](/docs/guides/caching-strategy) — choose the right strategy per route
+- [Service Worker Setup](/docs/guides/service-worker) — deep dive into SW behavior
+- [Framework Guides](/docs/frameworks) — per-ecosystem setup (React, Vue, Laravel, etc.)

@@ -19,7 +19,7 @@ export async function validateCommand(projectRoot: string) {
 
   log.info(`Validating ${configPath}...`);
 
-  const errors = validateConfig(config as unknown as Record<string, unknown>);
+  const errors = validateConfig(config);
 
   if (errors.length > 0) {
     log.error(`Validation failed with ${errors.length} error(s):`);

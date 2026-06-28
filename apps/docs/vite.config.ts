@@ -24,7 +24,6 @@ export default defineConfig({
         { path: "/" },
         { path: "/docs" },
         { path: "/about" },
-        { path: "/showcase" },
         { path: "/offline" },
       ],
     }),

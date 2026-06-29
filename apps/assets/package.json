@@ -45,6 +45,10 @@
     "web-app-manifest",
     "android-adaptive-icons"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "sideEffects": false,
   "author": "Swoff",
   "license": "MIT",

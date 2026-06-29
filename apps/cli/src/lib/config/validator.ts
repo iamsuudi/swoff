@@ -4,7 +4,7 @@ import { FEATURES } from "../shared/feature-registry.js";
 export function validateConfig(config: SwoffConfig): string[] {
   const errors: string[] = [];
 
-  const requiredFields = ["features", "build"];
+  const requiredFields: (keyof SwoffConfig)[] = ["features", "build"];
   const missingFields = requiredFields.filter(
     (field) => config[field] === undefined || config[field] === null,
   );

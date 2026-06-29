@@ -15,12 +15,10 @@ export function generateFetchHandler(
           }
       >;
       reactive?: {
-        defaults: {
-          staleTime?: number;
-          refetchInterval?: number;
-          refetchOnReconnect?: boolean;
-          refetchOnFocus?: boolean;
-        };
+        staleTime?: number;
+        refetchInterval?: number;
+        refetchOnReconnect?: boolean;
+        refetchOnFocus?: boolean;
       };
       normalizeKey?: boolean;
       ignoreQueryParams?: string[];

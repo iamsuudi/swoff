@@ -166,7 +166,7 @@ export async function initCommand(projectRoot: string, yesMode?: boolean, framew
 
   const defaultStrategy = await select({
     message: "Default caching strategy",
-    options: STRATEGIES,
+    options: [...STRATEGIES],
     initialValue: (activePreset.defaultStrategy as string) || "cache-first",
   });
   if (isCancel(defaultStrategy)) process.exit(0);
@@ -178,7 +178,7 @@ export async function initCommand(projectRoot: string, yesMode?: boolean, framew
   const authEnabled = await confirm({ message: "Enable authentication?", initialValue: false });
   if (isCancel(authEnabled)) process.exit(0);
   if (authEnabled) {
-    authType = await select({
+    authType = (await select({
       message: "Authentication type",
       options: [
         { value: "cookie", label: "Cookie" },
@@ -186,7 +186,7 @@ export async function initCommand(projectRoot: string, yesMode?: boolean, framew
         { value: "custom", label: "Custom" },
       ],
       initialValue: "cookie",
-    });
+    })) as string | undefined;
     if (isCancel(authType)) process.exit(0);
   }
 
@@ -213,10 +213,10 @@ export async function initCommand(projectRoot: string, yesMode?: boolean, framew
 
   let precachePrefix = "/";
   if (precacheDir) {
-    precachePrefix = await text({
+    precachePrefix = (await text({
       message: "Precache URL prefix",
       initialValue: "/",
-    });
+    })) as string;
     if (isCancel(precachePrefix)) process.exit(0);
   }
 

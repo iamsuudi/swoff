@@ -28,8 +28,7 @@
     "caching"
   ],
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "sideEffects": false,
   "author": "Swoff",

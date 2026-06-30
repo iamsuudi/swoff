@@ -84,7 +84,7 @@ The SW registers these event listeners based on your config:
 
 | Event      | Purpose                                                                              |
 | ---------- | ------------------------------------------------------------------------------------ |
-| `install`  | Precache fallback routes only (offline page, `precacheRoutes`, per-route fallbacks)  |
+| `install`  | `skipWaiting()` if auto-activate is enabled — no caching during install              |
 | `activate` | Claim clients, wipe stale caches, start background precache of remaining assets      |
 | `fetch`    | Intercept requests — runtime cache, strategies, navigation                          |
 | `message`  | Reactive cache refresh, auth state sync, mutation control                           |
@@ -95,10 +95,7 @@ The SW registers these event listeners based on your config:
 
 ### Background precaching
 
-To avoid blocking SW activation on large asset downloads, Swoff uses a two-tier precaching strategy:
-
-1. **Install tier** — only the fallback routes (offline page, `precacheRoutes`, per-route fallbacks) are cached during the `install` event. The SW activates immediately once these are done, typically in under a second.
-2. **Background tier** — after activation, the SW progressively downloads the remaining assets (from `precacheDirs`) using IndexedDB checkpointing. If the SW is terminated mid-way, it resumes from the last checkpoint on the next visit. Progress is reported via the same `sw-progress` event.
+After activation, the SW progressively downloads all configured assets (build output, fallback routes, per-route fallbacks, and manifest) using `startBackgroundPrecache()`. Downloads proceed in batches with IndexedDB checkpointing — if the SW is terminated mid-way, it resumes from the last checkpoint on the next visit. Progress is reported via the `sw-progress` event.
 
 Configure concurrency in `swoff.config.json`:
 
@@ -113,6 +110,8 @@ Configure concurrency in `swoff.config.json`:
 ```
 
 See [Config Reference → precache](/docs/config/service-worker#features-serviceworker-precache) for all options.
+
+The install event is minimal — it only calls `skipWaiting()` if auto-activate is enabled. No caching happens during install, so the SW activates immediately and begins background precaching.
 
 The SW uses three fixed named caches:
 

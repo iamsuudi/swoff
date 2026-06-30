@@ -12,7 +12,6 @@ Swoff broadcasts resource-level events from the Service Worker to the client win
 ```
 SW scope:
   _fetchWithTimeout() catch     → postMessage(SW_NOTIFICATION, level: "error", code: "FETCH_FAILED")
-  precacheAssets()               → postMessage(SW_NOTIFICATION, level: "warn", code: "PRECACHE_FAILED")
   bg sync catch                  → postMessage(SW_NOTIFICATION, level: "error", code: "BACKGROUND_SYNC_FAILED")
   refetchEntry 401               → postMessage({ type: "AUTH_FAILURE" })
   refetchEntry ok                → postMessage({ type: "CACHE_UPDATED", fetchUrl })

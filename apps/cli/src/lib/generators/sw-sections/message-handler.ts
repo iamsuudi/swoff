@@ -53,7 +53,6 @@ self.addEventListener("message", (event) => {
       (async () => {
         const keys = await caches.keys();
         await Promise.all(keys.map((k) => caches.delete(k)));
-        await precacheAssets();
         await resetPrecacheCheckpoint();
         const port = event.ports?.[0];
         port?.postMessage({ type: "RESET_CACHE_COMPLETE" });

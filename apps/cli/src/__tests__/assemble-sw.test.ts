@@ -14,7 +14,7 @@ describe("assembleSW", () => {
     expect(sw).toContain('"swoff-runtime-html"');
   });
 
-  it("includes install handler", () => {
+  it("includes install skipWaiting and background precache progress", () => {
     const sw = assembleSW(config);
     expect(sw).toContain('self.addEventListener("install"');
     expect(sw).toContain("SW_PROGRESS");

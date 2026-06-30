@@ -1,7 +1,6 @@
 import type { SwoffConfig } from "../../shared/config-types.js";
 import { generateFetchHandler } from "./fetch-handler.js";
 import { generateActivateHandler } from "./activate-handler.js";
-import { generateInstallHandler } from "./install-handler.js";
 import { generateMessageHandler } from "./message-handler.js";
 import { generateTagManagement } from "./tag-management.js";
 import { generateBatchRefreshQueue } from "./batch-refresh-queue.js";
@@ -75,7 +74,6 @@ export function applySwSections(
   );
 
   code = code.replace("// [[BACKGROUND_PRECACHE]]", () => generateBackgroundPrecache());
-  code = code.replace("// [[INSTALL_HANDLER]]", () => generateInstallHandler());
   code = code.replace("// [[BATCH_REFRESH_QUEUE]]", () => generateBatchRefreshQueue(
     refetchQueue.retry,
     refetchQueue.batchSize,

@@ -35,7 +35,7 @@ Swoff needs Node.js only for the **toolchain** — the CLI (`@swoff/cli`) genera
 
 ```bash
 # 1. Generate config (no package.json needed)
-npx @swoff/cli init --framework vanilla
+npx @swoff/cli init --framework no-bundler
 
 # 2. Generate all files
 npx @swoff/cli generate
@@ -68,7 +68,7 @@ In Docker, Node.js is only needed in the build stage:
 # Multi-stage Docker build
 FROM node:20-alpine AS swoff-build
 WORKDIR /app
-RUN npx @swoff/cli init --framework laravel \&\& npx @swoff/cli generate
+RUN npx @swoff/cli init --framework no-bundler \&\& npx @swoff/cli generate
 RUN node swoff/sw/generator.js
 
 FROM php:8.2-apache AS runtime
@@ -81,15 +81,11 @@ The final image contains only static JS files — no Node.js runtime required in
 
 ### Per-ecosystem examples
 
-| Stack                   | How to serve generated files                                                                   | Guide                                                    |
-| ----------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| **Laravel / PHP**       | Place `swoff/` under `public/`, reference in Blade template                                    | [Laravel guide](/docs/frameworks/laravel/adapters)       |
-| **Django**              | Place under `static/`, use `{% static %}` tag, or collect via `python manage.py collectstatic` | [Django & Flask guide](/docs/frameworks/django/adapters) |
-| **Flask**               | Place under `static/`, reference via `url_for('static', ...)`                                  | [Django & Flask guide](/docs/frameworks/django/adapters) |
-| **Rails**               | Place under `app/assets/` or `public/` with asset pipeline                                     | [Rails guide](/docs/frameworks/rails/adapters)           |
-| **Go / net/http**       | Embed via `//go:embed swoff/*` or serve from a `static/` directory                             | [Go guide](/docs/frameworks/go/adapters)                 |
-| **HTMX**                | Include `<script>` tag, control via `hx-headers`                                               | [HTMX guide](/docs/frameworks/htmx/adapters)             |
-| **Plain HTML / Static** | Serve from document root and reference with a `<script>` tag                                   | [Vanilla guide](/docs/frameworks/vanilla/adapters)       |
+| Stack                                                                  | How to serve generated files                                                                          | Guide                                              |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| **No-bundler (Go, Laravel, Django, Flask, Rails, PHP, plain HTML/JS)** | Serve from your public/static directory and include `<script src="/swoff/client-injector.bundle.js">` | [No-bundler guide](/docs/frameworks/no-bundler)    |
+| **HTMX**                                                               | Include `<script>` tag, control via `hx-headers`                                                      | [HTMX guide](/docs/frameworks/htmx/adapters)       |
+| **Plain HTML / Static**                                                | Serve from document root and reference with a `<script>` tag                                          | [Vanilla guide](/docs/frameworks/vanilla/adapters) |
 
 The only thing your project needs is Node.js during development or CI to run the CLI and generator. No `package.json`, no `npm install` — just `npx @swoff/cli` commands. Version mode defaults to `"hash"`, which has no dependency on `package.json`.
 

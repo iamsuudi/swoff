@@ -35,7 +35,7 @@ The SW handles all `fetch` events — no manual route registration needed.
 | `swoff/cache/invalidate.ts` | `invalidateByTag()`, `invalidateByTags()`      | Yes, for manual invalidation          |
 | `swoff/config.ts`           | `API_BASE` — base URL for relative fetch paths | Edit if your API is on another origin |
 
-> **No-bundler projects** (vanilla, Laravel, Django, Flask, Rails, Go, HTMX) do not generate `fetch/core.ts` or `cache/invalidate.ts`. Instead, the `swoff-api.bundle.js` IIFE provides `window.swoff.fetchWithCache()` and related APIs. Use native `fetch()` with `X-SW-*` headers to control caching per request (see below), or use the `window.swoff` API for programmatic cache access. The SW still intercepts all requests and applies your configured strategy.
+> **No-bundler projects** (no-bundler, HTMX) do not generate `fetch/core.ts` or `cache/invalidate.ts`. Instead, the `swoff-api.bundle.js` IIFE provides `window.swoff.fetchWithCache()` and related APIs. Use native `fetch()` with `X-SW-*` headers to control caching per request (see below), or use the `window.swoff` API for programmatic cache access. The SW still intercepts all requests and applies your configured strategy.
 
 ## Usage
 

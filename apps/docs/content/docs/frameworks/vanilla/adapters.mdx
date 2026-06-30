@@ -1,20 +1,18 @@
 ---
 title: Adapters
-description: Integrate Swoff with plain HTML, SSG, or no build tool.
+description: Integrate Swoff with vanilla JS projects using a bundler (Vite, esbuild, etc.).
 icon: Usb
 ---
 
-# Vanilla HTML / Static Sites
+# Vanilla JS (with Bundler)
 
-Swoff works without Node.js, npm, or `package.json`. The CLI generates a self-contained bundle you include via a `<script>` tag. No import or function call needed — the bundle auto-initializes on load.
+Swoff works with vanilla JS projects that use a bundler like Vite, esbuild, webpack, or Bun. The CLI generates ESM modules you import in your app code. For projects without a bundler (Go, Laravel, Rails, Django, Flask, plain HTML/JS), see the [No-Bundler guide](/docs/frameworks/no-bundler).
 
 ## Quick start
 
 ```bash
-# No package.json needed — npx downloads the CLI on the fly
+npm install --save-dev @swoff/cli
 npx @swoff/cli init --framework vanilla
-
-# Generate all swoff files
 npx @swoff/cli generate
 ```
 
@@ -24,7 +22,7 @@ npx @swoff/cli generate
 {
   "framework": "vanilla",
   "build": {
-    "outputDir": "public",
+    "outputDir": "dist",
     "swFilename": "sw"
   },
   "features": {
@@ -59,29 +57,22 @@ cp -r swoff public/swoff
 
 ## Entry point
 
-Include via `<script>` tag:
+Import and call `initServiceWorker` in your app entry:
 
-```html
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>My Site</title>
-  </head>
-  <body>
-    <h1>Hello</h1>
+```ts
+import { initServiceWorker } from "./swoff/client-injector";
 
-    <script src="/swoff/client-injector.bundle.js"></script>
-  </body>
-</html>
+initServiceWorker();
 ```
+
+For projects without a bundler, see the [No-Bundler guide](/docs/frameworks/no-bundler).
 
 ## Build script
 
-Run the generator after you build your static site:
+Add the generator to your build chain:
 
 ```bash
-# Build your site, then:
-node swoff/sw/generator.js
+vite build && node swoff/sw/generator.js
 ```
 
 The generator reads `build.outputDir` from config and writes the final SW there.

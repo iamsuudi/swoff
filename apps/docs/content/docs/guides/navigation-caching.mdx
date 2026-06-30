@@ -5,7 +5,7 @@ description: SPA/SSR navigation modes, preload, fallback, precache routes.
 
 How Swoff handles page navigation — what happens when a user clicks a link or types a URL.
 
-> **Works automatically.** Navigation caching is active the moment you call `initServiceWorker()` — no other imports, no API calls, no framework-specific code. Configured entirely through `swoff.config.json`. Every ecosystem (React, PHP, HTMX, Django, Flask, Rails, vanilla HTML) gets this for free.
+> **Works automatically.** Navigation caching is active the moment you call `initServiceWorker()` — no other imports, no API calls, no framework-specific code. Configured entirely through `swoff.config.json`. Every ecosystem (React, vanilla, no-bundler, HTMX) gets this for free.
 
 For the internal mechanics of `serveFromCache`, the fallback chain, and per-mode lookup rules, see the [Caching System architecture](/docs/architecture/caching#navigation-modes).
 

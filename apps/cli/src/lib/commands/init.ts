@@ -77,7 +77,7 @@ const STRATEGIES = [
 const ALL_FRAMEWORKS = [
   "nextjs", "remix", "tanstack-start-react", "astro", "nuxt",
   "sveltekit", "react-spa", "vue", "svelte",
-  "laravel", "django", "flask", "rails", "go", "vanilla",
+  "vanilla", "no-bundler",
 ] as const;
 
 export async function initCommand(projectRoot: string, yesMode?: boolean, frameworkOverride?: string) {

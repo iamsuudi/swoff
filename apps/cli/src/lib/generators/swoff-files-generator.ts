@@ -246,7 +246,7 @@ if (
       const swoffDir = join(projectRoot, "swoff");
       const generatedFiles: string[] = [];
 
-      const fwName = config.framework ?? "vanilla";
+      const fwName = config.framework ?? "no-bundler";
       const ctx: GeneratorContext = {
         config,
         projectRoot,

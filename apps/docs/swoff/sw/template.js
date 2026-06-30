@@ -147,15 +147,7 @@ async function startBackgroundPrecache() {
             await cache.add(request);
             downloaded++;
           } catch(err) {
-            console.error("Failed to precache " + url + ":", err);
-            allClients.forEach(function(client) {
-              client.postMessage({
-                type: "SW_NOTIFICATION",
-                level: "warn",
-                code: "PRECACHE_FAILED",
-                message: "Failed to precache " + url,
-              });
-            });
+            console.warn("Failed to precache " + url + ":", err);
           }
         })();
       })(ASSETS_TO_CACHE[j]));

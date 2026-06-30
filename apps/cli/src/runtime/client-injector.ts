@@ -180,8 +180,6 @@ if (typeof history !== "undefined") {
  *
  * Window events (dispatched by this module):
  *   sw-progress              - Download progress (detail: { percent, downloaded, total })
- *   sw-ready                 - SW active and controlling page
- *   sw-error                 - SW registration failed
  *   cache-invalidated        - Cache entries cleared on SW confirmation (detail: { tags })
  *   swoff:cache-updated         - Background refresh completed (detail: { url })
  *   swoff:offline-fallback      - Offline fallback page served (detail: { route, fallbackLevel, timestamp })

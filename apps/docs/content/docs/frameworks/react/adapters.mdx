@@ -43,7 +43,7 @@ import { useCachedFetch } from "./swoff/adapters/useCachedFetch";
 | `useMutationQueue`    | `mutationQueue.enabled`        | Offline write queue                          |
 | `useNetworkStatus`    | always                         | Online/offline state, connection type, retry |
 | `useAuth`             | `auth.enabled`                 | Auth state, login/logout                     |
-| `useSWUpdate`         | `pwa.enabled`                  | SW update lifecycle                          |
+| `usePrecacheProgress` | always                         | Background precaching progress               |
 | `usePushSubscription` | `pushNotifications`            | Push notification subscription               |
 | `useBackgroundSync`   | `mutationQueue.backgroundSync` | Background sync registration                 |
 | `usePwaInstall`       | `pwa.enabled`                  | Install prompt handler                       |
@@ -214,13 +214,13 @@ const {
 
 Reacts to `sw-auth-state-change` events dispatched by `clearAuth()`, `setAuth()`, or the SW's AUTH_CLEARED broadcast for cross-tab sync.
 
-#### `useSWUpdate()`
+#### `usePrecacheProgress()`
 
 ```ts
-const { status, progress, error } = useSWUpdate();
+const { status, progress } = usePrecacheProgress();
 ```
 
-`status` follows a state machine: `"idle"` → `"installing"` → `"idle"`. Returns `progress` (0–100) while installing.
+`status` is `"installing"` during background precaching, `"idle"` otherwise. Returns `progress` (0–100) while installing.
 
 #### `usePushSubscription()`
 

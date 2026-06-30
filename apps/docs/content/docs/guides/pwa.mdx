@@ -126,13 +126,13 @@ window.addEventListener("beforeinstallprompt", (e) => {
 // 4. Return { isInstallable, promptInstall }
 ```
 
-### `useSWUpdate`
+### `usePrecacheProgress`
 
-See the [Service Worker guide](/docs/guides/service-worker#framework-adapters) for the adapter that exposes `{ updateStatus, progress, error, acceptUpdate, dismissUpdate }` from SW lifecycle events.
+See the [Service Worker guide](/docs/guides/service-worker#framework-adapters) for the adapter that exposes `{ status, progress }` from background precaching progress.
 
 `useStorageEstimate` now lives in the [Connectivity & Storage guide](/docs/guides/connectivity#usestorageestimate).
 
-**If your framework already has these adapters** (React): the CLI generates `usePwaInstall` and `useSWUpdate` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has these adapters** (React): the CLI generates `usePwaInstall` and `usePrecacheProgress` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ## Related
 

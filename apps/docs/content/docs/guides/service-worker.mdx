@@ -163,49 +163,29 @@ Caching strategies and navigation have their own config sections — see [Cachin
 
 This section has one adapter:
 
-### `useSWUpdate`
+### `usePrecacheProgress`
 
-Exposes SW lifecycle state: `{ updateStatus, progress, error, acceptUpdate, dismissUpdate }`.
+Exposes background precaching state: `{ status, progress }`.
 
 **Events listened to:**
 
-| Event                 | Detail shape                               | Purpose                               |
-| --------------------- | ------------------------------------------ | ------------------------------------- |
-| `sw-update-available` | `{ version, currentVersion, forceUpdate }` | New SW version detected on server     |
-| `sw-progress`         | `{ percent }`                              | During SW download / install          |
-| `sw-ready`            | —                                          | SW activated and controlling the page |
-| `sw-error`            | `{ error }`                                | SW registration or update failed      |
-
-**Window properties read:** `currentSWVersion`, `latestSWVersion`, `swMinSupportedVersion`, `swUpdateRequired`.
+| Event         | Detail shape | Purpose                      |
+| ------------- | ------------ | ---------------------------- |
+| `sw-progress` | `{ percent }` | During background precaching |
 
 **Building the adapter:**
 
 ```js
-// Reactive state shape: { updateStatus, progress, error, acceptUpdate, dismissUpdate }
-// 1. Initialize: updateStatus = "idle", progress = 0, error = null
-// 2. On mount, read window.*Version properties for version info
-// 3. Listen to events:
-window.addEventListener("sw-update-available", (e) => {
-  // Set updateStatus = "available"
-  // Store e.detail for use in acceptUpdate / dismissUpdate
-});
+// Reactive state shape: { status, progress }
+// 1. Initialize: status = "idle", progress = 0
+// 2. Listen to events:
 window.addEventListener("sw-progress", (e) => {
-  // Set progress = e.detail.percent
+  // Set status = "installing", progress = e.detail.percent
 });
-window.addEventListener("sw-ready", () => {
-  // Set updateStatus = "ready"
-});
-window.addEventListener("sw-error", (e) => {
-  // Set updateStatus = "error"
-  // Set error = e.detail.error
-});
-// 4. acceptUpdate: set window.__SWOFF_FORCE_RETRY = true,
-//    then post { type: "SKIP_WAITING" } to the SW registration
-// 5. dismissUpdate: set updateStatus = "dismissed" (client-side only)
-// 6. Return { updateStatus, progress, error, acceptUpdate, dismissUpdate }
+// 3. Return { status, progress }
 ```
 
-**If your framework already has this adapter** (React): the CLI generates `useSWUpdate` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has this adapter** (React): the CLI generates `usePrecacheProgress` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ## Related
 

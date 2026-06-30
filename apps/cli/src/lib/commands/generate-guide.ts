@@ -45,13 +45,11 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push(`    <link rel="manifest" href="/manifest.json">`);
     if (isReact) {
       lines.push("");
-      lines.push("  React hooks generated in swoff/adapters/useSWUpdate.tsx:");
-      lines.push(`    import { useSWUpdate, useSWProgress } from "../swoff/adapters/useSWUpdate.${ext}x";`);
+      lines.push("  React hooks generated in swoff/adapters/usePrecacheProgress.tsx:");
+      lines.push(`    import { usePrecacheProgress } from "../swoff/adapters/usePrecacheProgress.${ext}x";`);
       lines.push("");
       lines.push("    function App() {");
-      lines.push("      const { updateStatus, progress, acceptUpdate, dismissUpdate } = useSWUpdate();");
-      lines.push("      const { status } = useSWProgress();");
-      lines.push("      if (updateStatus === 'available') return <UpdatePrompt ... />;");
+      lines.push("      const { status, progress } = usePrecacheProgress();");
       lines.push("      if (status === 'installing') return <SWProgressBar progress={progress} />;");
       lines.push("      return <MainApp />;");
       lines.push("    }");

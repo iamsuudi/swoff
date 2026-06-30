@@ -35,7 +35,7 @@ export async function generateCommand(
   }
 
   log.dim(`Config: ${configPath}`);
-  log.dim(`Framework: ${config.framework ?? "vanilla"}`);
+  log.dim(`Framework: ${config.framework ?? "no-bundler"}`);
 
   const detectedLang = (language ?? detectProjectLanguage(projectRoot)) as
     | "ts"
@@ -46,7 +46,7 @@ export async function generateCommand(
   const swoffDir = join(projectRoot, "swoff");
   const generatedFiles: string[] = [];
 
-  const fwName = config.framework ?? "vanilla";
+  const fwName = config.framework ?? "no-bundler";
   const ctx: GeneratorContext = {
     config,
     projectRoot,

@@ -73,29 +73,18 @@ export function generateClientInjectorBundleCode(
     }
     try {
       var registration = await navigator.serviceWorker.register("/${swFilename}.js");
-      var swReadyDispatched = false;
       if (registration.installing) {
-        var installingWorker = registration.installing;
-        installingWorker.addEventListener("statechange", function () {
-          if (installingWorker.state === "installed") {
-            if (AUTO_ACTIVATE) {
-              if (registration.waiting) {
-                registration.waiting.postMessage({ type: "SKIP_WAITING" });
-              }
+        registration.installing.addEventListener("statechange", function () {
+          if (registration.installing?.state === "installed" && AUTO_ACTIVATE) {
+            if (registration.waiting) {
+              registration.waiting.postMessage({ type: "SKIP_WAITING" });
             }
-            swReadyDispatched = true;
-            window.dispatchEvent(new CustomEvent("sw-ready"));
           }
         });
       }
       await waitForController();
-      if (!swReadyDispatched) {
-        window.dispatchEvent(new CustomEvent("sw-ready"));
-      }
     } catch (error) {
       console.error("Service Worker registration failed:", error);
-      window.swError = true;
-      window.dispatchEvent(new CustomEvent("sw-error"));
     }
   }
 

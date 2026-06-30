@@ -1,0 +1,362 @@
+---
+title: No-Bundler
+description: Comprehensive integration guide for Go, Laravel, Rails, Django, Flask, plain HTML/JS, and any no-bundler project.
+icon: Package
+---
+
+# No-Bundler
+
+Swoff works with any project that doesn't use a JavaScript bundler. The generated files are static — drop them in your public directory and include a `<script>` tag. No Node.js runtime needed in production.
+
+## Config per flavor
+
+| Setting               | Go              | Laravel / PHP   | Rails           | Django / Flask  | Plain HTML/JS   |
+| --------------------- | --------------- | --------------- | --------------- | --------------- | --------------- |
+| `build.outputDir`     | `"static"`      | `"public"`      | `"public"`      | `"static"`      | `"dist"`        |
+| `build.swFilename`    | `"sw"`          | `"sw"`          | `"sw"`          | `"sw"`          | `"sw"`          |
+| `navigation.mode`     | `"ssr"`         | `"ssr"`         | `"ssr"`         | `"ssr"`         | `"spa"`         |
+| `navigation.fallback` | `"/offline"`    | `"/offline"`    | `"/offline"`    | `"/offline"`    | `"/index.html"` |
+| `strategy.default`    | `"cache-first"` | `"cache-first"` | `"cache-first"` | `"cache-first"` | `"cache-first"` |
+
+---
+
+## Go
+
+### Where to place generated files
+
+```bash
+npx @swoff/cli generate
+cp -r swoff static/swoff
+```
+
+### Embed in binary
+
+```go
+package main
+
+import (
+  "embed"
+  "net/http"
+)
+
+//go:embed static/swoff/*
+var swoffFS embed.FS
+
+func main() {
+  http.Handle("/swoff/", http.FileServer(http.FS(swoffFS)))
+  http.ListenAndServe(":8080", nil)
+}
+```
+
+### Serve from disk (chi / gin)
+
+```go
+// chi
+r.Handle("/swoff/*", http.StripPrefix("/swoff/",
+  http.FileServer(http.Dir("static/swoff"))))
+
+// gin
+r.Static("/swoff", "./static/swoff")
+```
+
+### Entry point
+
+```html
+<body>
+  {{template "content" .}}
+  <script src="/swoff/client-injector.bundle.js"></script>
+</body>
+```
+
+### Build (Makefile)
+
+```makefile
+build:
+	go build -o app .
+	node swoff/sw/generator.js
+```
+
+### Auth
+
+Cookie-based session middleware (e.g., `gorilla/sessions`):
+
+```json
+{
+  "features": {
+    "auth": {
+      "enabled": true,
+      "type": "cookie",
+      "routePaths": ["/login", "/logout", "/api/auth/*"]
+    }
+  }
+}
+```
+
+---
+
+## Laravel / PHP
+
+### Where to place generated files
+
+```bash
+npx @swoff/cli generate
+ln -s ../swoff public/swoff
+# or: cp -r swoff public/swoff
+```
+
+### Entry point (Blade)
+
+```blade
+{{-- resources/views/layouts/app.blade.php --}}
+<body>
+  @yield('content')
+  <script src="{{ asset('swoff/client-injector.bundle.js') }}"></script>
+</body>
+```
+
+### Build
+
+Add to your `composer.json` scripts or CI pipeline:
+
+```bash
+node swoff/sw/generator.js
+```
+
+If using Vite or Laravel Mix:
+
+```bash
+npm run build && node swoff/sw/generator.js
+```
+
+### Auth (Laravel Sanctum)
+
+```json
+{
+  "features": {
+    "auth": {
+      "enabled": true,
+      "type": "cookie",
+      "routePaths": ["/login", "/logout", "/api/*"]
+    }
+  }
+}
+```
+
+The generated `auth/adapter.ts` works with Laravel's session-based auth out of the box — cookies are sent automatically, no token management needed.
+
+---
+
+## Rails
+
+### Where to place generated files
+
+```bash
+npx @swoff/cli generate
+ln -s ../swoff public/swoff
+# or: cp -r swoff public/swoff
+# or (Rails < 7): cp -r swoff app/assets/javascripts/swoff
+```
+
+### Entry point (ERB)
+
+```erb
+<body>
+  <%= yield %>
+  <script src="/swoff/client-injector.bundle.js"></script>
+</body>
+```
+
+### Build
+
+```bash
+# In your Rakefile or CI:
+node swoff/sw/generator.js
+```
+
+If using a JS build tool (Vite, esbuild, Bun):
+
+```bash
+bun run build && node swoff/sw/generator.js
+```
+
+### Auth (cookie sessions)
+
+```json
+{
+  "features": {
+    "auth": {
+      "enabled": true,
+      "type": "cookie",
+      "routePaths": ["/login", "/logout", "/session/*"]
+    }
+  }
+}
+```
+
+Rails uses httpOnly session cookies by default — the browser sends them automatically.
+
+---
+
+## Django
+
+### Where to place generated files
+
+```bash
+npx @swoff/cli generate
+cp -r swoff your_app/static/swoff/
+# or symlink:
+ln -s /full/path/to/swoff your_app/static/swoff
+
+# Then collect:
+python manage.py collectstatic
+```
+
+### Entry point (Jinja)
+
+```jinja
+{% load static %}
+<body>
+  {% block content %}{% endblock %}
+  <script src="{% static 'swoff/client-injector.bundle.js' %}"></script>
+</body>
+```
+
+### Build
+
+```bash
+# In CI or deployment:
+node swoff/sw/generator.js
+python manage.py collectstatic
+```
+
+Without a JS build step:
+
+```bash
+node swoff/sw/generator.js
+python manage.py collectstatic
+```
+
+### Auth (Django session)
+
+```json
+{
+  "features": {
+    "auth": {
+      "enabled": true,
+      "type": "cookie",
+      "routePaths": ["/login", "/logout", "/admin/*"]
+    }
+  }
+}
+```
+
+---
+
+## Flask
+
+### Where to place generated files
+
+Flask serves `static/` automatically — copy or generate directly into it:
+
+```bash
+npx @swoff/cli generate
+cp -r swoff static/swoff/
+
+# Or configure outputDir to point into your Flask app:
+# "outputDir": "your_app/static"
+```
+
+### Entry point (Jinja)
+
+```html
+<body>
+  {% block content %}{% endblock %}
+  <script src="{{ url_for('static', filename='swoff/client-injector.bundle.js') }}"></script>
+</body>
+```
+
+### Build
+
+No `collectstatic` equivalent — generated files go straight into `static/`:
+
+```bash
+node swoff/sw/generator.js
+```
+
+If `outputDir` points to Flask's static folder, run only the generator.
+
+### Auth (Flask session)
+
+```json
+{
+  "features": {
+    "auth": {
+      "enabled": true,
+      "type": "cookie",
+      "routePaths": ["/login", "/logout", "/api/auth/*"]
+    }
+  }
+}
+```
+
+---
+
+## Plain HTML / JS
+
+### Where to place generated files
+
+```bash
+npx @swoff/cli generate
+cp -r swoff public/swoff   # or your document root
+```
+
+### Entry point
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My Site</title>
+  </head>
+  <body>
+    <h1>Hello</h1>
+    <script src="/swoff/client-injector.bundle.js"></script>
+  </body>
+</html>
+```
+
+### Build
+
+```bash
+# After building your static site:
+node swoff/sw/generator.js
+```
+
+For projects without a build step, run the generator manually or add it to your deployment script.
+
+---
+
+## Auth (general)
+
+Cookie-based session auth works with all backend frameworks. The browser sends cookies automatically:
+
+```json
+{
+  "features": {
+    "auth": {
+      "enabled": true,
+      "type": "cookie",
+      "routePaths": ["/login", "/logout", "/api/auth/*"]
+    }
+  }
+}
+```
+
+Cookie auth is compatible with background sync and server push.
+
+## Related
+
+- [Service Worker setup](/docs/guides/service-worker)
+- [Navigation caching for SSR](/docs/guides/navigation-caching)
+- [Auth guide](/docs/guides/auth)
+- [Ecosystem compatibility](/docs/frameworks/ecosystem)

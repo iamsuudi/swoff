@@ -145,11 +145,10 @@ const delayMs = swConfig.precache?.delayMs ?? 0;
 
 let sw = template;
 sw = sw.replace(/let ASSETS_TO_CACHE = \[\];?/, () => `let ASSETS_TO_CACHE = ${JSON.stringify(assetsToCache, null, 2)};`);
-sw = sw.replace(/let PRECACHE_FALLBACKS = \[\];?/, () => `let PRECACHE_FALLBACKS = ${JSON.stringify(fallback)};`);
 sw = sw.replace(/let PRECACHE_CONCURRENCY = \d+;?/, () => `let PRECACHE_CONCURRENCY = ${concurrency};`);
 sw = sw.replace(/let PRECACHE_DELAY_MS = \d+;?/, () => `let PRECACHE_DELAY_MS = ${delayMs};`);
 sw = sw.replace(/let AUTO_SKIP_WAITING = (?:true|false);?/, () => `let AUTO_SKIP_WAITING = ${swConfig.autoActivate || false};`);
-sw += `\nconst CACHE_NAME = "${Date.now()}";\n`;
+sw = sw.replace(/let CACHE_NAME = "";?/, `const CACHE_NAME = "${Date.now()}";`);
 
 writeFileSync(join(outDir, swFile), sw);
 const hasPrecache = Object.keys(config.build?.precacheDirs || {}).length > 0;

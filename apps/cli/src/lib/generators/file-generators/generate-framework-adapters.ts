@@ -33,7 +33,7 @@ const ADAPTERS: AdapterDef[] = [
   { name: "useMutationState", condition: (c) => c.config.features.mutationQueue.enabled },
   { name: "useSwoffReset" },
   { name: "useOfflineAnalytics" },
-  { name: "useSWUpdate" },
+  { name: "usePrecacheProgress" },
   { name: "useAuth", condition: (c) => c.config.features.auth.enabled },
   { name: "useMutationQueue", condition: (c) => c.config.features.mutationQueue.enabled },
   { name: "usePwaInstall", condition: (c) => c.config.features.pwa.enabled },

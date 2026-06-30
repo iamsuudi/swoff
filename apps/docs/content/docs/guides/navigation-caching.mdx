@@ -5,7 +5,7 @@ description: SPA/SSR navigation modes, preload, fallback, precache routes.
 
 How Swoff handles page navigation — what happens when a user clicks a link or types a URL.
 
-> **Works automatically.** Navigation caching is active the moment you call `initServiceWorker()` — no other imports, no API calls, no framework-specific code. Configured entirely through `swoff.config.json`. Every ecosystem (React, PHP, HTMX, Django, Flask, Rails, vanilla HTML) gets this for free.
+> **Works automatically.** Navigation caching is active the moment you call `initServiceWorker()` — no other imports, no API calls, no framework-specific code. Configured entirely through `swoff.config.json`. Every ecosystem (React, vanilla, no-bundler, HTMX) gets this for free.
 
 For the internal mechanics of `serveFromCache`, the fallback chain, and per-mode lookup rules, see the [Caching System architecture](/docs/architecture/caching#navigation-modes).
 
@@ -47,7 +47,7 @@ For the internal mechanics of `serveFromCache`, the fallback chain, and per-mode
 - `navigation.mode` — `"spa"`, `"ssr"`, or `"default"`. Controls how navigation requests are served from cache and what fallback chain applies. See the [architecture page](/docs/architecture/caching#navigation-modes) for per-mode lookup and fallback details.
 - `navigation.preload` — when `true`, the SW enables Navigation Preload during activation. The browser starts the network request in parallel with SW startup; the SW races the preload response against half the fetch timeout.
 - `navigation.fallback` — URL path of an HTML page to serve as the offline fallback. In SPA mode, `serveFromCache()` serves it for any navigation request (app shell pattern). In SSR/default mode, used only in `fallback()` after everything else has been tried. Empty string means no fallback (browser shows its own offline page).
-- `navigation.precacheRoutes` — array of URL paths to fetch and cache during SW install for offline access from the first visit. Example: `["/", "/about", "/offline"]`.
+- `navigation.precacheRoutes` — array of URL paths to precache in the background after activation. Example: `["/", "/about", "/offline"]`. Cached alongside scanned build assets from `precacheDirs`.
 - `navigation.rules` — per-route fallback paths, checked inside `fallback()` after precache and runtime-html but before the global fallback path. Each entry has:
   - `match` — glob pattern for navigation URLs
   - `fallback` — URL path from precache to serve as fallback

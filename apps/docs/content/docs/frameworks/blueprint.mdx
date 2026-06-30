@@ -23,10 +23,7 @@ These are the "sockets" Swoff provides. Listen with `window.addEventListener(eve
 
 | Event                       | Detail shape                                                        | When dispatched                                                     |
 | --------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `sw-update-available`       | `{ version: string, currentVersion: string, forceUpdate: boolean }` | New SW version detected on the server                               |
-| `sw-progress`               | `{ percent: number }`                                               | During SW download/install                                          |
-| `sw-ready`                  | —                                                                   | SW activated and controlling the page                               |
-| `sw-error`                  | `{ error: string }`                                                 | SW registration or update failed                                    |
+| `sw-progress`               | `{ percent: number }`                                               | During background precaching                                        |
 | `sw-auth-state-change`      | `{ type: "login" \| "logout" \| "refresh" \| "clear" }`             | Auth state changed                                                  |
 | `cache-invalidated`         | `{ tags: string[] }`                                                | Cache entries invalidated (locally or from another tab)             |
 | `mutation-sync-complete`    | `{ succeeded: number, failed: number }`                             | Offline mutation queue sync finished                                |
@@ -84,7 +81,7 @@ These are the standard adapters. Each maps directly to the events above:
 | --------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `useNetworkStatus`    | `app-connectivity-change`, `navigator.connection` `change`            | `online`, `wasOffline`, `lastChangedAt`, `effectiveType`, `downlink`, `isRetrying`, `retry` |
 | `useCachedFetch`      | `cache-invalidated`                                                   | `data`, `isLoading`, `error`, `fromCache`, `refetch`                                        |
-| `useSWUpdate`         | `sw-update-available`, `sw-progress`, `sw-ready`, `sw-error`          | `updateStatus`, `progress`, `acceptUpdate`, `dismissUpdate`                                 |
+| `usePrecacheProgress` | `sw-progress`                                                         | `status`, `progress`                                                                        |
 | `useAuth`             | `sw-auth-state-change`                                                | `authenticated`, `auth`, `online`, `setAuth`, `clearAuth`                                   |
 | `useMutationQueue`    | `mutation-queue-changed`                                              | `pending`, `items`, `isProcessing`, `retryAll`                                              |
 | `usePushSubscription` | `push-subscription-changed`, `push-permission-changed`                | `subscribed`, `permission`, `subscribe`, `unsubscribe`                                      |

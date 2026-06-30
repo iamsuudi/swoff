@@ -25,7 +25,7 @@ import { initServiceWorker } from "./swoff/client-injector";
 initServiceWorker();
 ```
 
-**No bundler (vanilla, Laravel, Django, Flask, Rails, Go, HTMX)** — include the auto-initializing bundle:
+**No bundler (no-bundler, HTMX)** — include the auto-initializing bundle:
 
 ```html
 <script src="/swoff/client-injector.bundle.js"></script>
@@ -84,7 +84,7 @@ The SW registers these event listeners based on your config:
 
 | Event      | Purpose                                                                              |
 | ---------- | ------------------------------------------------------------------------------------ |
-| `install`  | Precache fallback routes only (offline page, `precacheRoutes`, per-route fallbacks)  |
+| `install`  | `skipWaiting()` if auto-activate is enabled — no caching during install              |
 | `activate` | Claim clients, wipe stale caches, start background precache of remaining assets      |
 | `fetch`    | Intercept requests — runtime cache, strategies, navigation                          |
 | `message`  | Reactive cache refresh, auth state sync, mutation control                           |
@@ -95,10 +95,7 @@ The SW registers these event listeners based on your config:
 
 ### Background precaching
 
-To avoid blocking SW activation on large asset downloads, Swoff uses a two-tier precaching strategy:
-
-1. **Install tier** — only the fallback routes (offline page, `precacheRoutes`, per-route fallbacks) are cached during the `install` event. The SW activates immediately once these are done, typically in under a second.
-2. **Background tier** — after activation, the SW progressively downloads the remaining assets (from `precacheDirs`) using IndexedDB checkpointing. If the SW is terminated mid-way, it resumes from the last checkpoint on the next visit. Progress is reported via the same `sw-progress` event.
+After activation, the SW progressively downloads all configured assets (build output, fallback routes, per-route fallbacks, and manifest) using `startBackgroundPrecache()`. Downloads proceed in batches with IndexedDB checkpointing — if the SW is terminated mid-way, it resumes from the last checkpoint on the next visit. Progress is reported via the `sw-progress` event.
 
 Configure concurrency in `swoff.config.json`:
 
@@ -113,6 +110,8 @@ Configure concurrency in `swoff.config.json`:
 ```
 
 See [Config Reference → precache](/docs/config/service-worker#features-serviceworker-precache) for all options.
+
+The install event is minimal — it only calls `skipWaiting()` if auto-activate is enabled. No caching happens during install, so the SW activates immediately and begins background precaching.
 
 The SW uses three fixed named caches:
 
@@ -164,49 +163,29 @@ Caching strategies and navigation have their own config sections — see [Cachin
 
 This section has one adapter:
 
-### `useSWUpdate`
+### `usePrecacheProgress`
 
-Exposes SW lifecycle state: `{ updateStatus, progress, error, acceptUpdate, dismissUpdate }`.
+Exposes background precaching state: `{ status, progress }`.
 
 **Events listened to:**
 
-| Event                 | Detail shape                               | Purpose                               |
-| --------------------- | ------------------------------------------ | ------------------------------------- |
-| `sw-update-available` | `{ version, currentVersion, forceUpdate }` | New SW version detected on server     |
-| `sw-progress`         | `{ percent }`                              | During SW download / install          |
-| `sw-ready`            | —                                          | SW activated and controlling the page |
-| `sw-error`            | `{ error }`                                | SW registration or update failed      |
-
-**Window properties read:** `currentSWVersion`, `latestSWVersion`, `swMinSupportedVersion`, `swUpdateRequired`.
+| Event         | Detail shape | Purpose                      |
+| ------------- | ------------ | ---------------------------- |
+| `sw-progress` | `{ percent }` | During background precaching |
 
 **Building the adapter:**
 
 ```js
-// Reactive state shape: { updateStatus, progress, error, acceptUpdate, dismissUpdate }
-// 1. Initialize: updateStatus = "idle", progress = 0, error = null
-// 2. On mount, read window.*Version properties for version info
-// 3. Listen to events:
-window.addEventListener("sw-update-available", (e) => {
-  // Set updateStatus = "available"
-  // Store e.detail for use in acceptUpdate / dismissUpdate
-});
+// Reactive state shape: { status, progress }
+// 1. Initialize: status = "idle", progress = 0
+// 2. Listen to events:
 window.addEventListener("sw-progress", (e) => {
-  // Set progress = e.detail.percent
+  // Set status = "installing", progress = e.detail.percent
 });
-window.addEventListener("sw-ready", () => {
-  // Set updateStatus = "ready"
-});
-window.addEventListener("sw-error", (e) => {
-  // Set updateStatus = "error"
-  // Set error = e.detail.error
-});
-// 4. acceptUpdate: set window.__SWOFF_FORCE_RETRY = true,
-//    then post { type: "SKIP_WAITING" } to the SW registration
-// 5. dismissUpdate: set updateStatus = "dismissed" (client-side only)
-// 6. Return { updateStatus, progress, error, acceptUpdate, dismissUpdate }
+// 3. Return { status, progress }
 ```
 
-**If your framework already has this adapter** (React): the CLI generates `useSWUpdate` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has this adapter** (React): the CLI generates `usePrecacheProgress` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ## Related
 

@@ -24,12 +24,8 @@
         "react-spa",
         "vue",
         "svelte",
-        "laravel",
-        "django",
-        "flask",
-        "rails",
-        "go",
-        "vanilla"
+        "vanilla",
+        "no-bundler"
       ]
     },
     "features": {

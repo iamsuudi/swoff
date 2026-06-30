@@ -20,12 +20,8 @@ export type FrameworkName =
   | "react-spa"
   | "vue"
   | "svelte"
-  | "laravel"
-  | "django"
-  | "flask"
-  | "rails"
-  | "go"
-  | "vanilla";
+  | "vanilla"
+  | "no-bundler";
 
 const META_FRAMEWORKS: [string, FrameworkName][] = [
   ["next", "nextjs"],
@@ -42,26 +38,10 @@ const BASE_FRAMEWORKS: [string, FrameworkName][] = [
   ["svelte", "svelte"],
 ];
 
-function probeBackend(projectRoot: string): FrameworkName | null {
-  if (existsSync(join(projectRoot, "composer.json"))) return "laravel";
-  if (existsSync(join(projectRoot, "manage.py"))) return "django";
-  if (existsSync(join(projectRoot, "app.py"))) return "flask";
-  const reqPath = join(projectRoot, "requirements.txt");
-  if (existsSync(reqPath)) {
-    const req = readFileSync(reqPath, "utf8");
-    if (/^flask\b/im.test(req)) return "flask";
-    if (/^django\b/im.test(req)) return "django";
-  }
-  if (existsSync(join(projectRoot, "Gemfile"))) return "rails";
-  if (existsSync(join(projectRoot, "go.mod"))) return "go";
-  return null;
-}
-
 export function detectFramework(projectRoot: string): FrameworkName {
   const pkgPath = join(projectRoot, "package.json");
   if (!existsSync(pkgPath)) {
-    const backend = probeBackend(projectRoot);
-    return backend ?? "vanilla";
+    return "no-bundler";
   }
 
   let deps: Record<string, string> = {};
@@ -71,8 +51,7 @@ export function detectFramework(projectRoot: string): FrameworkName {
     deps = pkg.dependencies || {};
     devDeps = pkg.devDependencies || {};
   } catch {
-    const backend = probeBackend(projectRoot);
-    return backend ?? "vanilla";
+    return "no-bundler";
   }
 
   const allDeps = { ...deps, ...devDeps };
@@ -87,6 +66,5 @@ export function detectFramework(projectRoot: string): FrameworkName {
 
   if (REACT_DEPS.some((d) => allDeps[d])) return "react-spa";
 
-  const backend = probeBackend(projectRoot);
-  return backend ?? "vanilla";
+  return "vanilla";
 }

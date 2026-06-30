@@ -42,21 +42,21 @@ The SW broadcasts lifecycle events as `window` custom events. Listen for them di
   import { onMount, onDestroy } from "svelte";
   import { writable } from "svelte/store";
 
-  export let swReady = writable(false);
+  export let swProgress = writable(0);
 
-  function onSwReady() { $swReady = true; }
+  function onProgress(e) { $swProgress = e.detail.percent; }
 
   onMount(() => {
-    window.addEventListener("sw-ready", onSwReady);
+    window.addEventListener("sw-progress", onProgress);
   });
 
   onDestroy(() => {
-    window.removeEventListener("sw-ready", onSwReady);
+    window.removeEventListener("sw-progress", onProgress);
   });
 </script>
 ```
 
-All [Blueprint events](/docs/frameworks/blueprint#window-events) work the same way — `sw-update-available`, `sw-auth-state-change`, `cache-invalidated`, `mutation-queue-changed`, and more.
+All [Blueprint events](/docs/frameworks/blueprint#window-events) work the same way — `sw-auth-state-change`, `cache-invalidated`, `mutation-queue-changed`, and more.
 
 ## Build script
 

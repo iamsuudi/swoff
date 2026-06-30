@@ -98,11 +98,7 @@ export interface SwoffConfig {
     | "react-spa"
     | "vue"
     | "svelte"
-    | "laravel"
-    | "django"
-    | "flask"
-    | "rails"
-    | "go"
+    | "no-bundler"
     | "vanilla";
   features: {
     pwa: {

@@ -7,11 +7,8 @@
     "astro",
     "vue",
     "svelte",
-    "laravel",
-    "django",
-    "rails",
-    "go",
     "htmx",
-    "vanilla"
+    "vanilla",
+    "no-bundler"
   ]
 }

@@ -1,6 +1,6 @@
 /**
  * Swoff SW Injector
- * Registers the service worker and tracks installation progress.
+ * Registers the service worker.
  *
  * Usage:
  *   import { initServiceWorker } from './swoff/sw/injector.ts';
@@ -8,8 +8,6 @@
  *
  * Window events:
  *   sw-progress          - Download progress (detail: { percent, downloaded, total })
- *   sw-ready             - SW active and controlling page
- *   sw-error             - SW registration failed
  */
 const AUTO_ACTIVATE = false;
 
@@ -37,28 +35,17 @@ export async function initServiceWorker(): Promise<void> {
   try {
     const registration = await navigator.serviceWorker.register("/sw.js");
 
-    var swReadyDispatched = false;
     if (registration.installing) {
-      const installingWorker = registration.installing;
-      installingWorker.addEventListener("statechange", () => {
-        if (installingWorker.state === "installed") {
-          if (AUTO_ACTIVATE) {
-            registration.waiting?.postMessage({ type: "SKIP_WAITING" });
-          }
-          swReadyDispatched = true;
-          window.dispatchEvent(new CustomEvent("sw-ready"));
+      registration.installing.addEventListener("statechange", () => {
+        if (registration.installing?.state === "installed" && AUTO_ACTIVATE) {
+          registration.waiting?.postMessage({ type: "SKIP_WAITING" });
         }
       });
     }
 
     await waitForController();
-    if (!swReadyDispatched) {
-      window.dispatchEvent(new CustomEvent("sw-ready"));
-    }
   } catch (error) {
     console.error("Service Worker registration failed:", error);
-    window.swError = true;
-    window.dispatchEvent(new CustomEvent("sw-error"));
   }
 }
 

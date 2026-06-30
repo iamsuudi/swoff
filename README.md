@@ -1,4 +1,4 @@
-# Swoff — Offline-First PWA Toolchain
+# Swoff — Offline Infrastructure
 
 A config-driven code generation toolchain for offline-first, installable PWAs. Swoff generates an auditable service worker and client code from a single config file — zero runtime dependencies.
 
@@ -21,7 +21,7 @@ Most tools either lock you into a framework (TanStack Query), only handle the SW
 - **SSE/WebSocket server push** — real-time cache invalidation from the SW
 - **Push notifications** — subscription management + SW push handler
 - **PWA install prompt** — configurable, plus storage estimation
-- **React hooks** — 16 generated adapters (`useCachedFetch`, `useAuth`, `useMutation`, etc.)
+- **React hooks** — 14 generated adapters (`useCachedFetch`, `useAuth`, `usePrecacheProgress`, etc.)
 
 All configurable from a single `swoff.config.json`.
 

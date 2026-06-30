@@ -4,8 +4,7 @@
  */
 
 export function getDefaultTemplate(): string {
-  return `let PRECACHE_FALLBACKS = [];
-let PRECACHE_CONCURRENCY = 1;
+  return `let PRECACHE_CONCURRENCY = 1;
 let PRECACHE_DELAY_MS = 0;
 let AUTO_SKIP_WAITING = false;
 
@@ -68,7 +67,11 @@ function broadcastToClients(type, payload) {
 }
 
 // [[BACKGROUND_PRECACHE]]
-// [[INSTALL_HANDLER]]
+self.addEventListener("install", (event) => {
+  event.waitUntil((async () => {
+    if (AUTO_SKIP_WAITING) self.skipWaiting();
+  })());
+});
 // [[ACTIVATE_HANDLER]]
 // [[BATCH_REFRESH_QUEUE]]
 // [[MESSAGE_HANDLER]]

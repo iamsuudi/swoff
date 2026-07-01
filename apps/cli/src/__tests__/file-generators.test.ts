@@ -308,7 +308,7 @@ describe("generateSwGeneratorBuild", () => {
     const ctx = makeContext();
     generateSwGeneratorBuild(ctx);
     const content = readFileSync(
-      join(ctx.swoffDir, "sw", "generator.js"),
+      join(ctx.swoffDir, "sw", "generator.mjs"),
       "utf8",
     );
     expect(content).toContain("#!/usr/bin/env node");

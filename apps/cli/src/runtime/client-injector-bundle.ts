@@ -4,10 +4,13 @@ export function generateClientInjectorBundleCode(
   ctx: RuntimeContext,
   autoActivate: boolean,
   swFilename: string,
+  swUrl: string | undefined,
   pwaEnabled: boolean,
   navMode?: string,
   authEnabled?: boolean,
   mutationQueueEnabled?: boolean,
+  connectivityEnabled?: boolean,
+  tagInvalidationEnabled?: boolean,
 ): string {
   const pwaCode = pwaEnabled ? `
   // ── PWA Install Prompt ──
@@ -72,7 +75,7 @@ export function generateClientInjectorBundleCode(
       return;
     }
     try {
-      var registration = await navigator.serviceWorker.register("/${swFilename}.js");
+      var registration = await navigator.serviceWorker.register("${swUrl || '/' + swFilename + '.js'}");
       if (registration.installing) {
         registration.installing.addEventListener("statechange", function () {
           if (registration.installing?.state === "installed" && AUTO_ACTIVATE) {
@@ -88,6 +91,7 @@ export function generateClientInjectorBundleCode(
     }
   }
 
+${connectivityEnabled ? `
   // ── Connectivity ──
   var CONNECTIVITY_EVENT = "app-connectivity-change";
   var heartbeatIntervalId = null;
@@ -203,8 +207,8 @@ export function generateClientInjectorBundleCode(
     } else {
       queueMicrotask(function () { dispatchState(false); });
     }
-  }
-
+  }` : ""}
+${tagInvalidationEnabled ? `
   // ── Focus Listener (reactive strategy) ──
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", function () {
@@ -212,7 +216,7 @@ export function generateClientInjectorBundleCode(
         navigator.serviceWorker.controller.postMessage({ type: "FOCUS" });
       }
     });
-  }
+  }` : ""}
 ${pwaCode}${ssrPrefetch}
   // ── SW Message Listener ──
   if (typeof window !== "undefined" && "serviceWorker" in navigator) {
@@ -275,17 +279,19 @@ ${authEnabled ? `
           }
         })();
       }` : ""}
+${tagInvalidationEnabled ? `
       if (event.data.type === "TAG_INVALIDATED" && event.data.tag) {
         window.dispatchEvent(new CustomEvent("cache-invalidated", {
           detail: { tags: [event.data.tag] },
         }));
-      }
+      }` : ""}
     });
   }
 
   // ── Main Entry ──
   async function initServiceWorker() {
     await registerSW();
+${connectivityEnabled ? `
     var storage = await getStorageEstimate();
     if (storage.percentUsed > 80) {
       window.dispatchEvent(new CustomEvent("swoff:notification", {
@@ -295,13 +301,14 @@ ${authEnabled ? `
           message: "Storage at " + storage.percentUsed + "% capacity (" + formatBytes(storage.usage) + " / " + formatBytes(storage.quota) + ")",
         },
       }));
-    }
+    }` : ""}
   }
 
+${connectivityEnabled ? `
   // ── Bridge for swoff-api-bundle ──
   if (typeof window !== "undefined") {
     window.__SWOFF_FORCE_RETRY = forceRetry;
-  }
+  }` : ""}
 
   // ── Auto-initialize ──
   if (typeof window !== "undefined" && "serviceWorker" in navigator) {

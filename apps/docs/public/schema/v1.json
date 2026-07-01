@@ -525,16 +525,26 @@
       "type": "object",
       "description": "Build output configuration",
       "properties": {
-        "outputDir": {
+        "swOutput": {
           "type": "string",
-          "description": "Output directory for generated files (e.g. 'dist', 'public', 'static')",
+          "description": "Output directory for the generated service worker file (e.g. 'dist', 'public', 'static')",
           "default": "dist"
+        },
+        "swoffPath": {
+          "type": "string",
+          "description": "Output directory for generated swoff helper files (relative to project root)",
+          "default": "swoff"
         },
         "swFilename": {
           "type": "string",
           "description": "Service worker output filename (without .js extension, e.g. 'sw' produces sw.js)",
           "default": "sw",
           "pattern": "^[a-zA-Z0-9-_]+$"
+        },
+        "swUrl": {
+          "type": "string",
+          "description": "Override the service worker registration URL. Use when the SW is served from a non-standard path (e.g. behind a CDN or reverse proxy). Defaults to /<swFilename>.js",
+          "default": ""
         },
         "precacheDirs": {
           "type": "object",
@@ -564,13 +574,25 @@
                 "description": "Strip these path segments before the extension (e.g. [\"index\", \"page\"])",
                 "items": { "type": "string" },
                 "uniqueItems": true
+              },
+              "excludeDirs": {
+                "type": "array",
+                "description": "Skip these directories during asset scanning (exact directory name match, e.g. [\"node_modules\", \".git\"])",
+                "items": { "type": "string" },
+                "uniqueItems": true
+              },
+              "excludeFiles": {
+                "type": "array",
+                "description": "Skip files matching these patterns during asset scanning (supports *.ext glob, e.g. [\"*.map\", \"*.ts\"])",
+                "items": { "type": "string" },
+                "uniqueItems": true
               }
             },
             "required": ["prefix"]
           }
         }
       },
-      "required": ["outputDir", "swFilename"]
+      "required": ["swOutput", "swFilename"]
     }
   },
   "required": ["features", "build"],

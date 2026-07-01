@@ -36,7 +36,7 @@ describe("validateConfig", () => {
       tagInvalidation: {},
       graphql: { enabled: false, endpoints: ["/graphql"] },
     },
-    build: { outputDir: "dist", swFilename: "sw" },
+    build: { swOutput: "dist", swFilename: "sw" },
   };
 
   describe("required fields", () => {
@@ -334,13 +334,13 @@ describe("validateConfig", () => {
   });
 
   describe("build validation", () => {
-    it("rejects non-string outputDir", () => {
+    it("rejects non-string swOutput", () => {
       const config = {
         ...validConfig,
-        build: { ...validConfig.build, outputDir: 123 },
+        build: { ...validConfig.build, swOutput: 123 },
       };
       const errors = validateConfig(config);
-      expect(errors).toContain("build.outputDir must be a non-empty string");
+      expect(errors).toContain("build.swOutput must be a non-empty string");
     });
 
     it("rejects non-string swFilename", () => {

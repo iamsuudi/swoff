@@ -84,6 +84,8 @@ export interface PrecacheDirConfig {
   matchExtensions?: string[];
   stripExtensions?: string[];
   stripSuffixes?: string[];
+  excludeDirs?: string[];
+  excludeFiles?: string[];
 }
 
 export interface SwoffConfig {
@@ -141,8 +143,10 @@ export interface SwoffConfig {
     serverPush: ServerPushConfig;
   };
   build: {
-    outputDir: string;
+    swOutput: string;
+    swoffPath?: string;
     swFilename: string;
+    swUrl?: string;
     precacheDirs?: Record<string, PrecacheDirConfig>;
   };
 }
@@ -326,7 +330,8 @@ export function mergeConfigs(
 
 export const defaultConfig: SwoffConfig = {
   build: {
-    outputDir: "dist",
+    swOutput: "dist",
+    swoffPath: "swoff",
     swFilename: "sw",
     precacheDirs: {},
   },
@@ -417,5 +422,5 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
     pushNotifications: false,
     serverPush: { ...defaultServerPushConfig },
   },
-  build: { outputDir: "dist", swFilename: "sw", precacheDirs: {} },
+  build: { swOutput: "dist", swoffPath: "swoff", swFilename: "sw", precacheDirs: {} },
 };

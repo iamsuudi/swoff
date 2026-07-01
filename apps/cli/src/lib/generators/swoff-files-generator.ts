@@ -243,7 +243,7 @@ if (
   loadConfigAsync(projectRoot, configPath)
     .then(({ config }) => {
       const ext = language === "ts" ? "ts" : "js";
-      const swoffDir = join(projectRoot, "swoff");
+      const swoffDir = join(projectRoot, config.build?.swoffPath || "swoff");
       const generatedFiles: string[] = [];
 
       const fwName = config.framework ?? "no-bundler";

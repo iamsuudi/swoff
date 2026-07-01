@@ -354,14 +354,24 @@ export function validateConfig(config: SwoffConfig): string[] {
 
   if (config.build) {
     const build = config.build as Record<string, unknown>;
-    if (build.outputDir !== undefined) {
-      if (typeof build.outputDir !== "string" || !build.outputDir) {
-        errors.push("build.outputDir must be a non-empty string");
+    if (build.swOutput !== undefined) {
+      if (typeof build.swOutput !== "string" || !build.swOutput) {
+        errors.push("build.swOutput must be a non-empty string");
+      }
+    }
+    if (build.swoffPath !== undefined) {
+      if (typeof build.swoffPath !== "string" || !build.swoffPath) {
+        errors.push("build.swoffPath must be a non-empty string");
       }
     }
     if (build.swFilename !== undefined) {
       if (typeof build.swFilename !== "string" || !build.swFilename) {
         errors.push("build.swFilename must be a non-empty string");
+      }
+    }
+    if (build.swUrl !== undefined) {
+      if (typeof build.swUrl !== "string" || !build.swUrl) {
+        errors.push("build.swUrl must be a non-empty string");
       }
     }
     if (build.precacheDirs !== undefined) {
@@ -394,6 +404,16 @@ export function validateConfig(config: SwoffConfig): string[] {
           if (obj.stripSuffixes !== undefined) {
             if (!Array.isArray(obj.stripSuffixes) || !obj.stripSuffixes.every((s: unknown) => typeof s === "string")) {
               errors.push(`build.precacheDirs["${dir}"].stripSuffixes must be an array of strings`);
+            }
+          }
+          if (obj.excludeDirs !== undefined) {
+            if (!Array.isArray(obj.excludeDirs) || !obj.excludeDirs.every((d: unknown) => typeof d === "string")) {
+              errors.push(`build.precacheDirs["${dir}"].excludeDirs must be an array of strings`);
+            }
+          }
+          if (obj.excludeFiles !== undefined) {
+            if (!Array.isArray(obj.excludeFiles) || !obj.excludeFiles.every((f: unknown) => typeof f === "string")) {
+              errors.push(`build.precacheDirs["${dir}"].excludeFiles must be an array of strings`);
             }
           }
         }

@@ -43,14 +43,14 @@ describe("loadConfig", () => {
         },
         tagInvalidation: {},
       },
-      build: { outputDir: "build", swFilename: "service-worker" },
+      build: { swOutput: "build", swFilename: "service-worker" },
     };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
 
     const result = loadConfig(testDir);
     expect(result.configPath).toContain("swoff.config.json");
     expect(result.configSource).toBe("JSON");
-    expect(result.config.build.outputDir).toBe("build");
+    expect(result.config.build.swOutput).toBe("build");
   });
 
   it("merges user config with defaults", () => {

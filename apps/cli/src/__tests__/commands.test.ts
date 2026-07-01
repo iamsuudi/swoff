@@ -7,7 +7,7 @@ vi.mock("@clack/prompts", () => {
   let callCount = 0;
   const mockValues: Record<string, unknown> = {
     framework: "react-spa",
-    outputDir: "dist",
+    swOutput: "dist",
     swFilename: "sw",
     navMode: "spa",
     fallback: "/offline",
@@ -142,7 +142,7 @@ describe("generateCommand", () => {
           navigation: { mode: "spa", fallback: "/index.html" },
         },
       },
-      build: { outputDir: "dist", swFilename: "sw" },
+      build: { swOutput: "dist", swFilename: "sw" },
     };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config, null, 2));
   }
@@ -155,7 +155,7 @@ describe("generateCommand", () => {
     expect(existsSync(join(testDir, "swoff/client-injector.js"))).toBe(true);
     expect(existsSync(join(testDir, "swoff/sw/template.js"))).toBe(true);
     expect(existsSync(join(testDir, "swoff/sw/injector.js"))).toBe(true);
-    expect(existsSync(join(testDir, "swoff/sw/generator.js"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/sw/generator.mjs"))).toBe(true);
     expect(existsSync(join(testDir, "swoff/cache/invalidate.js"))).toBe(false);
     expect(existsSync(join(testDir, "swoff/storage.js"))).toBe(true);
     expect(existsSync(join(testDir, "swoff/reset.js"))).toBe(true);
@@ -223,7 +223,7 @@ describe("validateCommand", () => {
           navigation: { mode: "spa", fallback: "/index.html" },
         },
       },
-      build: { outputDir: "dist", swFilename: "sw" },
+      build: { swOutput: "dist", swFilename: "sw" },
     };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config, null, 2));
   }

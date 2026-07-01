@@ -6,7 +6,7 @@ import { buildMinimalConfig, type WizardAnswers } from "../config/minimal-config
 
 const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
   nextjs: {
-    outputDir: "public",
+    swOutput: "public",
     navMode: "ssr",
     defaultStrategy: "network-first",
     patterns: { "/_next/static/*": "cache-first" },
@@ -29,39 +29,14 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
     defaultStrategy: "network-first",
   },
   "react-spa": {
-    outputDir: "dist",
+    swOutput: "dist",
     navMode: "spa",
   },
   "tanstack-start-react": {
-    outputDir: ".output/public",
+    swOutput: ".output/public",
     navMode: "ssr",
     defaultStrategy: "network-first",
     patterns: { "/_serverFn/*": "network-only" },
-  },
-  laravel: {
-    outputDir: "public",
-    navMode: "ssr",
-    defaultStrategy: "network-first",
-  },
-  django: {
-    outputDir: "static",
-    navMode: "ssr",
-    defaultStrategy: "network-first",
-  },
-  flask: {
-    outputDir: "static",
-    navMode: "ssr",
-    defaultStrategy: "network-first",
-  },
-  rails: {
-    outputDir: "public",
-    navMode: "ssr",
-    defaultStrategy: "network-first",
-  },
-  go: {
-    outputDir: "static",
-    navMode: "ssr",
-    defaultStrategy: "network-first",
   },
 };
 
@@ -101,7 +76,7 @@ export async function initCommand(projectRoot: string, yesMode?: boolean, framew
   if (yesMode) {
     const answers: WizardAnswers = {
       framework: detected,
-      outputDir: (preset.outputDir as string) || "dist",
+      swOutput: (preset.swOutput as string) || "dist",
       swFilename: "sw",
       navMode: (preset.navMode as "spa" | "ssr" | "default") || "default",
       fallback: "/offline",
@@ -114,7 +89,7 @@ export async function initCommand(projectRoot: string, yesMode?: boolean, framew
       graphqlEnabled: false,
       serverPushEnabled: false,
       pushNotificationsEnabled: false,
-      precacheDir: preset.outputDir ? (preset.outputDir as string) : "dist",
+      precacheDir: preset.swOutput ? (preset.swOutput as string) : "dist",
       precachePrefix: "/",
     };
     writeConfig(projectRoot, answers);
@@ -135,11 +110,11 @@ export async function initCommand(projectRoot: string, yesMode?: boolean, framew
 
   const activePreset = FRAMEWORK_PRESETS[framework as string] || {};
 
-  const outputDir = await text({
-    message: "Output directory",
-    initialValue: (activePreset.outputDir as string) || "dist",
+  const swOutput = await text({
+    message: "SW output directory",
+    initialValue: (activePreset.swOutput as string) || "dist",
   });
-  if (isCancel(outputDir)) process.exit(0);
+  if (isCancel(swOutput)) process.exit(0);
 
   const swFilename = await text({
     message: "Service worker filename",
@@ -207,7 +182,7 @@ export async function initCommand(projectRoot: string, yesMode?: boolean, framew
 
   const precacheDir = await text({
     message: "Directory to precache (leave empty to skip)",
-    initialValue: (activePreset.outputDir as string) || "dist",
+    initialValue: (activePreset.swOutput as string) || "dist",
   });
   if (isCancel(precacheDir)) process.exit(0);
 
@@ -224,7 +199,7 @@ export async function initCommand(projectRoot: string, yesMode?: boolean, framew
   log.info("─".repeat(40));
   log.info("Summary");
   log.info(`  Framework:    ${framework}`);
-  log.info(`  Output:       ${outputDir}/${swFilename}.js`);
+  log.info(`  SW output:    ${swOutput}/${swFilename}.js`);
   log.info(`  Fallback:     ${fallback}`);
   log.info(`  Navigation:   ${navMode}`);
   log.info(`  Strategy:     ${defaultStrategy}`);
@@ -247,7 +222,7 @@ export async function initCommand(projectRoot: string, yesMode?: boolean, framew
 
   const answers: WizardAnswers = {
     framework: framework as string,
-    outputDir: outputDir as string,
+    swOutput: swOutput as string,
     swFilename: swFilename as string,
     navMode: navMode as "spa" | "ssr" | "default",
     fallback: fallback as string,

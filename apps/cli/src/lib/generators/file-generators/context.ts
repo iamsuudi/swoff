@@ -35,5 +35,6 @@ export function writeFile(ctx: GeneratorContext, filename: string, code: string)
   const fullPath = join(ctx.swoffDir, filename);
   ensureDir(dirname(fullPath));
   writeFileSync(fullPath, code);
-  ctx.generatedFiles.push(`swoff/${filename}`);
+  const relPath = join(ctx.config.build?.swoffPath || "swoff", filename);
+  ctx.generatedFiles.push(relPath);
 }

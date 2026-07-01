@@ -38,18 +38,18 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ outp
     sw = sw.replace(/SWOFF_API_BASE/g, apiBase);
   }
 
-  const outputDir = join(optProjectRoot, config.build.outputDir);
+  const swOutput = join(optProjectRoot, config.build.swOutput);
 
-  if (!existsSync(outputDir)) {
-    mkdirSync(outputDir, { recursive: true });
+  if (!existsSync(swOutput)) {
+    mkdirSync(swOutput, { recursive: true });
   }
 
   const swFilename = config.build.swFilename;
   const outputFile = `${swFilename}.js`;
 
   try {
-    writeFileSync(join(outputDir, outputFile), sw);
-    console.log(`${outputDir}/${outputFile}`);
+    writeFileSync(join(swOutput, outputFile), sw);
+    console.log(`${swOutput}/${outputFile}`);
   } catch (err) {
     console.log(`Error writing files: ${err instanceof Error ? err.message : String(err)}`);
   }

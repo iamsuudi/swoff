@@ -42,7 +42,7 @@ describe("CLI commands integration", () => {
           tagInvalidation: { enabled: true },
           connectivity: { enabled: false },
         },
-        build: { outputDir: "dist", swFilename: "sw" },
+        build: { swOutput: "dist", swFilename: "sw" },
       };
       writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config, null, 2));
 
@@ -166,7 +166,7 @@ describe("CLI commands integration", () => {
           graphql: { enabled: false, endpoints: ["/graphql"] },
           pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
         },
-        build: { outputDir: "dist", swFilename: "sw" },
+        build: { swOutput: "dist", swFilename: "sw" },
         ...overrides,
       };
       writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config, null, 2));

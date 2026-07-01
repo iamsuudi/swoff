@@ -7,7 +7,7 @@ export function generateSwGeneratorBuild(ctx: GeneratorContext): void {
  * Reads swoff/sw/template.js and generates the final SW output.
  *
  * Add to package.json:
- *   "build": "your-build && node swoff/sw/generator.js"
+   *   "build": "your-build && node swoff/sw/generator.mjs"
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
@@ -35,7 +35,7 @@ if (!existsSync(templatePath)) {
 const config = JSON.parse(readFileSync(configPath, 'utf8'));
 let template = readFileSync(templatePath, 'utf8');
 
-const swoffDir = join(projectRoot, 'swoff');
+const swoffDir = join(projectRoot, config.build?.swoffPath || 'swoff');
 
 // Prepend isAuthFailureResponse from user's auth/check, or use default fallback
 const authCheckTsPath = join(swoffDir, 'auth', 'check.ts');
@@ -72,10 +72,10 @@ if (config.features?.serverPush?.enabled) {
   template = template.replace(/SWOFF_API_BASE/g, apiBase);
 }
 
-const outputDir = config.build?.outputDir || 'dist';
+const swOutput = config.build?.swOutput || 'dist';
 const swFilename = config.build?.swFilename || 'sw';
 
-const outDir = join(projectRoot, outputDir);
+const outDir = join(projectRoot, swOutput);
 if (!existsSync(outDir)) {
   mkdirSync(outDir, { recursive: true });
 }
@@ -158,8 +158,8 @@ const hasPrecache = Object.keys(config.build?.precacheDirs || {}).length > 0;
 if (!hasPrecache) {
   console.warn('Warning: No precacheDirs configured. Only explicit fallback routes will be precached.');
 }
-console.log(\`Service worker built: \${outputDir}/\${swFile}\`);
+console.log(\`Service worker built: \${swOutput}/\${swFile}\`);
 `;
 
-  writeFile(ctx, "sw/generator.js", code);
+  writeFile(ctx, "sw/generator.mjs", code);
 }

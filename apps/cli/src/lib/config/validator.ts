@@ -354,9 +354,14 @@ export function validateConfig(config: SwoffConfig): string[] {
 
   if (config.build) {
     const build = config.build as Record<string, unknown>;
-    if (build.outputDir !== undefined) {
-      if (typeof build.outputDir !== "string" || !build.outputDir) {
-        errors.push("build.outputDir must be a non-empty string");
+    if (build.swOutput !== undefined) {
+      if (typeof build.swOutput !== "string" || !build.swOutput) {
+        errors.push("build.swOutput must be a non-empty string");
+      }
+    }
+    if (build.swoffPath !== undefined) {
+      if (typeof build.swoffPath !== "string" || !build.swoffPath) {
+        errors.push("build.swoffPath must be a non-empty string");
       }
     }
     if (build.swFilename !== undefined) {

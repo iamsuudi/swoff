@@ -43,7 +43,7 @@ export async function generateCommand(
   log.dim(`Language: ${detectedLang}`);
 
   const ext = detectedLang === "ts" ? "ts" : "js";
-  const swoffDir = join(projectRoot, "swoff");
+  const swoffDir = join(projectRoot, config.build?.swoffPath || "swoff");
   const generatedFiles: string[] = [];
 
   const fwName = config.framework ?? "no-bundler";
@@ -82,7 +82,7 @@ export async function generateCommand(
       "  Add precacheDirs to your swoff.config.json build section to precache assets:",
     );
     log.help(
-      `  "precacheDirs": { "${config.build.outputDir}": { "prefix": "/" } }`,
+      `  "precacheDirs": { "${config.build.swOutput}": { "prefix": "/" } }`,
     );
   }
 
@@ -108,8 +108,9 @@ export async function generateCommand(
   }
 
   log.normal("");
+  const genPath = join(config.build?.swoffPath || "swoff", "sw", "generator.mjs");
   log.normal("After each build, run the SW generator:");
   log.normal(
-    "  node swoff/sw/generator.js (Add this to your build script if you want it automated)",
+    `  node ${genPath} (Add this to your build script if you want it automated)`,
   );
 }

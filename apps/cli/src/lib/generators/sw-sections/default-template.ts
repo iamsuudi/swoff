@@ -79,5 +79,6 @@ self.addEventListener("install", (event) => {
 // [[TAG_MANAGEMENT]]
 // [[PUSH_HANDLERS]]
 // [[SERVER_PUSH_HANDLER]]
+let CACHE_NAME = "";
 let ASSETS_TO_CACHE = [];`;
 }

@@ -27,7 +27,7 @@ describe("config-types", () => {
       expect(defaultConfig.features.serviceWorker.navigation.fallback).toBe("");
       expect(defaultConfig.features.serviceWorker.navigation.rules).toEqual([]);
       expect(defaultConfig.features.serviceWorker.navigation.mode).toBe("spa");
-      expect(defaultConfig.build.outputDir).toBe("dist");
+      expect(defaultConfig.build.swOutput).toBe("dist");
       expect(defaultConfig.build.swFilename).toBe("sw");
       expect(defaultConfig.features.pwa.enabled).toBe(false);
       expect(defaultConfig.features.pwa.preventDefaultInstall).toBe(false);

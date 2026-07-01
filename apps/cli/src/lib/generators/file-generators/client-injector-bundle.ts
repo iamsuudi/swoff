@@ -20,6 +20,8 @@ export function generateClientInjectorBundle(ctx: GeneratorContext): void {
     sw.navigation.mode,
     ctx.config.features.auth.enabled,
     ctx.config.features.mutationQueue.enabled,
+    ctx.config.features.connectivity.enabled || ctx.config.features.auth.enabled,
+    ctx.config.features.tagInvalidation.enabled || ctx.config.features.mutationQueue.enabled || ctx.config.features.graphql.enabled,
   );
 
   writeFile(ctx, `client-injector.bundle.${ext}`, code);

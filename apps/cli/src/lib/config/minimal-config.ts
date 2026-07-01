@@ -2,7 +2,7 @@ import type { AuthType } from "../shared/config-types.js";
 
 export interface WizardAnswers {
   framework: string;
-  outputDir: string;
+  swOutput: string;
   swFilename: string;
   navMode: "spa" | "ssr" | "default";
   fallback: string;
@@ -80,7 +80,7 @@ export function buildMinimalConfig(answers: WizardAnswers): Record<string, unkno
   }
 
   const build: Record<string, unknown> = {
-    outputDir: answers.outputDir,
+    swOutput: answers.swOutput,
     swFilename: answers.swFilename,
   };
 

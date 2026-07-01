@@ -212,7 +212,7 @@ describe("CLI commands integration", () => {
         "swoff/cache/tags.js",
         "swoff/cache/invalidate.js",
         "swoff/pwa/prompt.js",
-        "swoff/sw/generator.js",
+        "swoff/sw/generator.mjs",
       ];
       for (const f of expectedFiles) {
         const fullPath = join(testDir, f);

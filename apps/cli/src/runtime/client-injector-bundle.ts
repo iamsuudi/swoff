@@ -4,6 +4,7 @@ export function generateClientInjectorBundleCode(
   ctx: RuntimeContext,
   autoActivate: boolean,
   swFilename: string,
+  swUrl: string | undefined,
   pwaEnabled: boolean,
   navMode?: string,
   authEnabled?: boolean,
@@ -74,7 +75,7 @@ export function generateClientInjectorBundleCode(
       return;
     }
     try {
-      var registration = await navigator.serviceWorker.register("/${swFilename}.js");
+      var registration = await navigator.serviceWorker.register("${swUrl || '/' + swFilename + '.js'}");
       if (registration.installing) {
         registration.installing.addEventListener("statechange", function () {
           if (registration.installing?.state === "installed" && AUTO_ACTIVATE) {

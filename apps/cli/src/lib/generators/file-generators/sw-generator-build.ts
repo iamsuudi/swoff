@@ -80,14 +80,15 @@ if (!existsSync(outDir)) {
   mkdirSync(outDir, { recursive: true });
 }
 
-function collectAssets(dir, baseDir) {
+function collectAssets(dir, baseDir, excludeDirs) {
   if (!existsSync(dir)) return [];
   const entries = readdirSync(dir, { withFileTypes: true });
   const assets = [];
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
     if (entry.isDirectory()) {
-      assets.push(...collectAssets(fullPath, baseDir));
+      if (excludeDirs && excludeDirs.indexOf(entry.name) !== -1) continue;
+      assets.push(...collectAssets(fullPath, baseDir, excludeDirs));
     } else {
       assets.push('/' + relative(baseDir, fullPath));
     }
@@ -106,8 +107,22 @@ const allAssets = [];
       const matchExtensions = cfg.matchExtensions;
       const stripExtensions = cfg.stripExtensions;
       const stripSuffixes = cfg.stripSuffixes;
-      for (const a of collectAssets(dirPath, dirPath)) {
+      const excludeDirs = cfg.excludeDirs;
+      const excludeFiles = cfg.excludeFiles;
+      for (const a of collectAssets(dirPath, dirPath, excludeDirs)) {
         if (matchExtensions?.length && !matchExtensions.includes(extname(a))) continue;
+        if (excludeFiles?.length) {
+          var basename = a.split('/').pop() || '';
+          var excluded = false;
+          for (var pi = 0; pi < excludeFiles.length; pi++) {
+            var pat = excludeFiles[pi];
+            if (pat.startsWith('*.') ? basename.endsWith(pat.slice(1)) : basename === pat) {
+              excluded = true;
+              break;
+            }
+          }
+          if (excluded) continue;
+        }
         let url = normPrefix + '/' + a.slice(1);
         if (stripExtensions?.includes(extname(a))) url = url.replace(/\\.[^/.]+$/, '');
         if (stripSuffixes) {

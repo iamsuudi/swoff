@@ -14,6 +14,7 @@ export function generateSwInjector(ctx: GeneratorContext): void {
       ext: ctx.ext,
       autoActivate: ctx.config.features.serviceWorker.autoActivate,
       swFilename: ctx.config.build?.swFilename || "sw",
+      swUrl: ctx.config.build?.swUrl,
     }),
   );
 }

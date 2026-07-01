@@ -369,6 +369,11 @@ export function validateConfig(config: SwoffConfig): string[] {
         errors.push("build.swFilename must be a non-empty string");
       }
     }
+    if (build.swUrl !== undefined) {
+      if (typeof build.swUrl !== "string" || !build.swUrl) {
+        errors.push("build.swUrl must be a non-empty string");
+      }
+    }
     if (build.precacheDirs !== undefined) {
       if (typeof build.precacheDirs !== "object" || build.precacheDirs === null || Array.isArray(build.precacheDirs)) {
         errors.push("build.precacheDirs must be an object");
@@ -399,6 +404,16 @@ export function validateConfig(config: SwoffConfig): string[] {
           if (obj.stripSuffixes !== undefined) {
             if (!Array.isArray(obj.stripSuffixes) || !obj.stripSuffixes.every((s: unknown) => typeof s === "string")) {
               errors.push(`build.precacheDirs["${dir}"].stripSuffixes must be an array of strings`);
+            }
+          }
+          if (obj.excludeDirs !== undefined) {
+            if (!Array.isArray(obj.excludeDirs) || !obj.excludeDirs.every((d: unknown) => typeof d === "string")) {
+              errors.push(`build.precacheDirs["${dir}"].excludeDirs must be an array of strings`);
+            }
+          }
+          if (obj.excludeFiles !== undefined) {
+            if (!Array.isArray(obj.excludeFiles) || !obj.excludeFiles.every((f: unknown) => typeof f === "string")) {
+              errors.push(`build.precacheDirs["${dir}"].excludeFiles must be an array of strings`);
             }
           }
         }

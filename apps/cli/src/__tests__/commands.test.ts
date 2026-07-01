@@ -155,7 +155,7 @@ describe("generateCommand", () => {
     expect(existsSync(join(testDir, "swoff/client-injector.js"))).toBe(true);
     expect(existsSync(join(testDir, "swoff/sw/template.js"))).toBe(true);
     expect(existsSync(join(testDir, "swoff/sw/injector.js"))).toBe(true);
-    expect(existsSync(join(testDir, "swoff/sw/generator.js"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/sw/generator.mjs"))).toBe(true);
     expect(existsSync(join(testDir, "swoff/cache/invalidate.js"))).toBe(false);
     expect(existsSync(join(testDir, "swoff/storage.js"))).toBe(true);
     expect(existsSync(join(testDir, "swoff/reset.js"))).toBe(true);

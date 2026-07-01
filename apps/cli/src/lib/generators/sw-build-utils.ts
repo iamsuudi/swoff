@@ -2,14 +2,15 @@ import { readdirSync, existsSync } from "fs";
 import { join, relative, extname } from "path";
 import type { PrecacheDirConfig, SwoffConfig } from "../shared/config-types.js";
 
-export function collectAssets(dir: string, baseDir: string): string[] {
+export function collectAssets(dir: string, baseDir: string, excludeDirs?: string[]): string[] {
   if (!existsSync(dir)) return [];
   const entries = readdirSync(dir, { withFileTypes: true });
   const assets: string[] = [];
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
     if (entry.isDirectory()) {
-      assets.push(...collectAssets(fullPath, baseDir));
+      if (excludeDirs?.includes(entry.name)) continue;
+      assets.push(...collectAssets(fullPath, baseDir, excludeDirs));
     } else {
       assets.push("/" + relative(baseDir, fullPath));
     }
@@ -51,8 +52,19 @@ export function scanPrecacheAssets(
     const dirPath = join(projectRoot, dir);
     const cfg = raw as PrecacheDirConfig;
     const normPrefix = cfg.prefix.replace(/\/+$/, "");
-    for (const a of collectAssets(dirPath, dirPath)) {
+    for (const a of collectAssets(dirPath, dirPath, cfg.excludeDirs)) {
       if (cfg.matchExtensions?.length && !cfg.matchExtensions.includes(extname(a))) continue;
+      if (cfg.excludeFiles?.length) {
+        const basename = a.split("/").pop() || "";
+        let excluded = false;
+        for (const pat of cfg.excludeFiles) {
+          if (pat.startsWith("*.") ? basename.endsWith(pat.slice(1)) : basename === pat) {
+            excluded = true;
+            break;
+          }
+        }
+        if (excluded) continue;
+      }
       let urlPath = normPrefix + "/" + a.slice(1);
       if (cfg.stripExtensions?.includes(extname(a))) {
         urlPath = urlPath.replace(/\.[^/.]+$/, "");

@@ -84,6 +84,8 @@ export interface PrecacheDirConfig {
   matchExtensions?: string[];
   stripExtensions?: string[];
   stripSuffixes?: string[];
+  excludeDirs?: string[];
+  excludeFiles?: string[];
 }
 
 export interface SwoffConfig {
@@ -144,6 +146,7 @@ export interface SwoffConfig {
     swOutput: string;
     swoffPath?: string;
     swFilename: string;
+    swUrl?: string;
     precacheDirs?: Record<string, PrecacheDirConfig>;
   };
 }

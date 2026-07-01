@@ -44,9 +44,11 @@ self.addEventListener("message", (event) => {
     // No action needed; reactive refetches will resume on next ONLINE signal.
   }
   if (event.data.type === "RESUME_PRECACHE") {
-    startBackgroundPrecache().catch(function(err) {
-      console.error("Background precache error:", err);
-    });
+    event.waitUntil(
+      startBackgroundPrecache().catch(function(err) {
+        console.error("Background precache error:", err);
+      })
+    );
   }
   if (event.data.type === "RESET_CACHE") {
     event.waitUntil(

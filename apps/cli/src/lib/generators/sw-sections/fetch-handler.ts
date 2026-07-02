@@ -908,5 +908,6 @@ async function handleMutation(event) {
     registerReactiveEntry(cacheKey(request), request.url, cfg);
   }
   applyStrategy(event, request, cfg);
+  startBackgroundPrecache();
 });`;
 }

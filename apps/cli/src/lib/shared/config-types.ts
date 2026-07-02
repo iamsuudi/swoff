@@ -100,6 +100,16 @@ export interface SwoffConfig {
     | "react-spa"
     | "vue"
     | "svelte"
+    | "qwik"
+    | "preact"
+    | "angular"
+    | "solid"
+    | "lit"
+    | "alpine"
+    | "marko"
+    | "stimulus"
+    | "jquery"
+    | "htmx"
     | "no-bundler"
     | "vanilla";
   features: {

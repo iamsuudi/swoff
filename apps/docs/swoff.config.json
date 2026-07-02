@@ -16,7 +16,7 @@
     }
   },
   "build": {
-    "outputDir": "dist/client",
+    "swOutput": "dist/client",
     "swFilename": "sw",
     "precacheDirs": {
       "dist/client": {

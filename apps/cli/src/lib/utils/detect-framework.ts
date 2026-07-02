@@ -5,7 +5,11 @@ const REACT_DEPS = [
   "react",
   "react-dom",
   "react-router-dom",
+  "react-router",
   "@tanstack/react-router",
+  "@tanstack/react-location",
+  "wouter",
+  "@reach/router",
   "remix",
   "@remix-run/react",
 ];
@@ -20,6 +24,16 @@ export type FrameworkName =
   | "react-spa"
   | "vue"
   | "svelte"
+  | "qwik"
+  | "preact"
+  | "angular"
+  | "solid"
+  | "lit"
+  | "alpine"
+  | "marko"
+  | "stimulus"
+  | "jquery"
+  | "htmx"
   | "vanilla"
   | "no-bundler";
 
@@ -34,6 +48,16 @@ const META_FRAMEWORKS: [string, FrameworkName][] = [
 ];
 
 const BASE_FRAMEWORKS: [string, FrameworkName][] = [
+  ["@builder.io/qwik", "qwik"],
+  ["preact", "preact"],
+  ["@angular/core", "angular"],
+  ["solid-js", "solid"],
+  ["lit", "lit"],
+  ["alpinejs", "alpine"],
+  ["marko", "marko"],
+  ["@hotwired/stimulus", "stimulus"],
+  ["htmx.org", "htmx"],
+  ["jquery", "jquery"],
   ["vue", "vue"],
   ["svelte", "svelte"],
 ];

@@ -4,13 +4,6 @@ export function generateBackgroundPrecache(): string {
 
 var PRECACHE_VERSION_KEY = "precache-version";
 var PRECACHE_CHECKPOINT_KEY = "checkpoint";
-var _precacheCheckDone = false;
-
-async function checkAndResumePrecache() {
-  if (_precacheCheckDone) return;
-  _precacheCheckDone = true;
-  await startBackgroundPrecache();
-}
 
 async function getPrecacheMeta(key) {
   try {

@@ -20,7 +20,7 @@ Swoff and HTMX are a natural fit. HTMX handles partial page updates via HTML-ove
 {
   "framework": "vanilla",
   "build": {
-    "outputDir": "public",
+    "swOutput": "public",
     "swFilename": "sw"
   },
   "features": {
@@ -89,7 +89,7 @@ Include the client-injector in your HTML:
 ## Build script
 
 ```bash
-node swoff/sw/generator.js
+node swoff/sw/generator.mjs
 ```
 
 ## Related

@@ -66,7 +66,7 @@ All files land in `swoff/`. See [API Reference](/docs/api) for the full referenc
 | `server-push/client.{ts\|js}`      | `serverPush.enabled`                                                     | SSE/WebSocket connection manager (runs in SW)                                                             |
 | `sw/template.js`                   | always                                                                   | Service worker source — runs in SW scope                                                                  |
 | `sw/injector.{ts\|js}`             | always                                                                   | SW registration logic                                                                                     |
-| `sw/generator.js`                  | always                                                                   | Build-time script — embeds asset hashes                                                                   |
+| `sw/generator.mjs`                  | always                                                                   | Build-time script — embeds asset hashes                                                                   |
 | `sw/version.{ts\|js}`              | always                                                                   | `SW_VERSION` constant — embedded in SW for display / debugging                                            |
 | `adapters/*.tsx`                   | React-based framework only                                               | React hooks. Other frameworks use `window.addEventListener` (see [Blueprint](/docs/frameworks/blueprint)) |
 | `swoff.d.ts`                       | TypeScript                                                               | TypeScript declarations                                                                                   |
@@ -148,17 +148,17 @@ swoff help generate
 
 ## Build script integration
 
-The SW generator (`sw/generator.js`) must run after every build to produce the final
+The SW generator (`sw/generator.mjs`) must run after every build to produce the final
 service worker file. Run it directly:
 
 ```bash
-node swoff/sw/generator.js
+node swoff/sw/generator.mjs
 ```
 
 For Node.js projects, add it to your `package.json` build script:
 
 ```json
-"build": "vite build && node swoff/sw/generator.js"
+"build": "vite build && node swoff/sw/generator.mjs"
 ```
 
 The generator:
@@ -167,4 +167,4 @@ The generator:
 2. Reads `sw/template.js` — the service worker source code
 3. Collects all built assets from the output directory
 4. Replaces placeholders (`[[CACHE_NAME]]`, `[[ASSETS_LIST]]`, `[[AUTO_SKIP_WAITING]]`) with actual values
-5. Writes the final SW file (`dist/sw.js`)
+5. Writes the final SW file to `build.swOutput` (e.g. `dist/sw.js`)

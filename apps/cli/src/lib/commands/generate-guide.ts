@@ -33,7 +33,7 @@ export function generateGuide(ctx: GuideContext): string[] {
   }
   lines.push("");
   lines.push("  Add to package.json build script:");
-  lines.push('    "build": "your-build && node swoff/sw/generator.js"');
+  lines.push('    "build": "your-build && node swoff/sw/generator.mjs"');
 
   if (config.features.pwa.enabled) {
     lines.push("");

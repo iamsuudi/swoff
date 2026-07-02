@@ -41,10 +41,10 @@ npx @swoff/cli init --framework no-bundler
 npx @swoff/cli generate
 
 # 3. Build the final service worker
-node swoff/sw/generator.js
+node swoff/sw/generator.mjs
 
 # 4. Include in your HTML
-<script src="/swoff/client-injector.js"></script>
+<script src="/swoff/client-injector.bundle.js"></script>
 ```
 
 The generated files in `swoff/` are static — serve them however you serve your other assets.
@@ -58,8 +58,8 @@ For non-JS projects, add the Swoff generator to your Makefile or CI pipeline:
 build:
 	composer install            # or pip install, go build, bundle install
 	npx @swoff/cli generate
-	node swoff/sw/generator.js  # final SW output
-	cp -r swoff public/swoff    # or python manage.py collectstatic
+	node swoff/sw/generator.mjs  # final SW output
+	# swoffPath in config controls where files land; no copy needed
 ```
 
 In Docker, Node.js is only needed in the build stage:
@@ -69,12 +69,13 @@ In Docker, Node.js is only needed in the build stage:
 FROM node:20-alpine AS swoff-build
 WORKDIR /app
 RUN npx @swoff/cli init --framework no-bundler \&\& npx @swoff/cli generate
-RUN node swoff/sw/generator.js
+RUN node swoff/sw/generator.mjs
 
 FROM php:8.2-apache AS runtime
 COPY --from=swoff-build /app/swoff /var/www/html/swoff
 COPY --from=swoff-build /app/swoff.config.json /var/www/html/
 # Your PHP app code, composer install, etc.
+# swoffPath in config controls where files land inside the runtime image
 ```
 
 The final image contains only static JS files — no Node.js runtime required in production.

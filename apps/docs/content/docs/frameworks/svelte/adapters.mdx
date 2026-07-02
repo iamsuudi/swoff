@@ -12,7 +12,7 @@ Swoff works with any Svelte-based project. Svelte adapters (stores) are not yet 
 
 | Setting               | Svelte + Vite   | SvelteKit |
 | --------------------- | --------------- | --------- |
-| `build.outputDir`     | `"dist"`        | `"build"` |
+| `build.swOutput`     | `"dist"`        | `"build"` |
 | `build.swFilename`    | `"sw"`          | `"sw"`    |
 | `navigation.mode`     | `"spa"`         | `"ssr"`   |
 | `navigation.fallback` | `"/index.html"` | `"/"`     |
@@ -63,7 +63,7 @@ All [Blueprint events](/docs/frameworks/blueprint#window-events) work the same w
 Run the SW generator after your build:
 
 ```bash
-node swoff/sw/generator.js
+node swoff/sw/generator.mjs
 ```
 
 Or add it to `package.json`:
@@ -71,12 +71,12 @@ Or add it to `package.json`:
 ```json
 {
   "scripts": {
-    "build": "your-build && node swoff/sw/generator.js"
+    "build": "your-build && node swoff/sw/generator.mjs"
   }
 }
 ```
 
-SvelteKit outputs to `build/` by default. The SW generator reads `build.outputDir` from config and writes the versioned SW there automatically.
+SvelteKit outputs to `build/` by default. The SW generator reads `build.swOutput` from config and writes the versioned SW there automatically.
 
 ## Adapters (stores)
 

@@ -32,7 +32,7 @@ A React SPA downloads a single HTML shell, then all routing happens client-side.
     }
   },
   "build": {
-    "outputDir": "dist",
+    "swOutput": "dist",
     "swFilename": "sw",
     "precacheDirs": {
       "dist": { "prefix": "/" }
@@ -80,7 +80,7 @@ Add the SW generator to your build:
 ```json
 {
   "scripts": {
-    "build": "vite build && node swoff/sw/generator.js"
+    "build": "vite build && node swoff/sw/generator.mjs"
   }
 }
 ```

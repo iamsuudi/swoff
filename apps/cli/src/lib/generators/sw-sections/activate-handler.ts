@@ -93,8 +93,10 @@ self.addEventListener("activate", (event) => {
       await self.clients.claim();${navPreloadCode}${evictionCode}
     })()
   );
-  startBackgroundPrecache().catch(function(err) {
-    console.error("Background precache error:", err);
-  });
+  event.waitUntil(
+    startBackgroundPrecache().catch(function(err) {
+      console.error("Background precache error:", err);
+    })
+  );
 });`;
 }

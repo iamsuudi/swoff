@@ -4,7 +4,7 @@
  * Reads swoff/sw/template.js and generates the final SW output.
  *
  * Add to package.json:
- *   "build": "your-build && node swoff/sw/generator.js"
+   *   "build": "your-build && node swoff/sw/generator.mjs"
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
@@ -32,7 +32,7 @@ if (!existsSync(templatePath)) {
 const config = JSON.parse(readFileSync(configPath, 'utf8'));
 let template = readFileSync(templatePath, 'utf8');
 
-const swoffDir = join(projectRoot, 'swoff');
+const swoffDir = join(projectRoot, config.build?.swoffPath || 'swoff');
 
 // Prepend isAuthFailureResponse from user's auth/check, or use default fallback
 const authCheckTsPath = join(swoffDir, 'auth', 'check.ts');
@@ -69,22 +69,23 @@ if (config.features?.serverPush?.enabled) {
   template = template.replace(/SWOFF_API_BASE/g, apiBase);
 }
 
-const outputDir = config.build?.outputDir || 'dist';
+const swOutput = config.build?.swOutput || 'dist';
 const swFilename = config.build?.swFilename || 'sw';
 
-const outDir = join(projectRoot, outputDir);
+const outDir = join(projectRoot, swOutput);
 if (!existsSync(outDir)) {
   mkdirSync(outDir, { recursive: true });
 }
 
-function collectAssets(dir, baseDir) {
+function collectAssets(dir, baseDir, excludeDirs) {
   if (!existsSync(dir)) return [];
   const entries = readdirSync(dir, { withFileTypes: true });
   const assets = [];
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
     if (entry.isDirectory()) {
-      assets.push(...collectAssets(fullPath, baseDir));
+      if (excludeDirs && excludeDirs.indexOf(entry.name) !== -1) continue;
+      assets.push(...collectAssets(fullPath, baseDir, excludeDirs));
     } else {
       assets.push('/' + relative(baseDir, fullPath));
     }
@@ -103,8 +104,22 @@ const allAssets = [];
       const matchExtensions = cfg.matchExtensions;
       const stripExtensions = cfg.stripExtensions;
       const stripSuffixes = cfg.stripSuffixes;
-      for (const a of collectAssets(dirPath, dirPath)) {
+      const excludeDirs = cfg.excludeDirs;
+      const excludeFiles = cfg.excludeFiles;
+      for (const a of collectAssets(dirPath, dirPath, excludeDirs)) {
         if (matchExtensions?.length && !matchExtensions.includes(extname(a))) continue;
+        if (excludeFiles?.length) {
+          var basename = a.split('/').pop() || '';
+          var excluded = false;
+          for (var pi = 0; pi < excludeFiles.length; pi++) {
+            var pat = excludeFiles[pi];
+            if (pat.startsWith('*.') ? basename.endsWith(pat.slice(1)) : basename === pat) {
+              excluded = true;
+              break;
+            }
+          }
+          if (excluded) continue;
+        }
         let url = normPrefix + '/' + a.slice(1);
         if (stripExtensions?.includes(extname(a))) url = url.replace(/\.[^/.]+$/, '');
         if (stripSuffixes) {
@@ -155,4 +170,4 @@ const hasPrecache = Object.keys(config.build?.precacheDirs || {}).length > 0;
 if (!hasPrecache) {
   console.warn('Warning: No precacheDirs configured. Only explicit fallback routes will be precached.');
 }
-console.log(`Service worker built: ${outputDir}/${swFile}`);
+console.log(`Service worker built: ${swOutput}/${swFile}`);

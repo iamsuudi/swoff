@@ -10,13 +10,15 @@ Swoff works with any project that doesn't use a JavaScript bundler. The generate
 
 ## Config per flavor
 
-| Setting               | Go              | Laravel / PHP   | Rails           | Django / Flask  | Plain HTML/JS   |
-| --------------------- | --------------- | --------------- | --------------- | --------------- | --------------- |
-| `build.outputDir`     | `"static"`      | `"public"`      | `"public"`      | `"static"`      | `"dist"`        |
-| `build.swFilename`    | `"sw"`          | `"sw"`          | `"sw"`          | `"sw"`          | `"sw"`          |
-| `navigation.mode`     | `"ssr"`         | `"ssr"`         | `"ssr"`         | `"ssr"`         | `"spa"`         |
-| `navigation.fallback` | `"/offline"`    | `"/offline"`    | `"/offline"`    | `"/offline"`    | `"/index.html"` |
-| `strategy.default`    | `"cache-first"` | `"cache-first"` | `"cache-first"` | `"cache-first"` | `"cache-first"` |
+| Setting                | Go                | Laravel / PHP     | Rails             | Django / Flask    | Plain HTML/JS     |
+| ---------------------- | ----------------- | ----------------- | ----------------- | ----------------- | ----------------- |
+| `build.swOutput`       | `"static"`        | `"public"`        | `"public"`        | `"static"`        | `"dist"`          |
+| `build.swoffPath`      | `"static/swoff"`  | `"public/swoff"`  | `"public/swoff"`  | `"static/swoff"`  | `"public/swoff"`  |
+| `build.swFilename`     | `"sw"`            | `"sw"`            | `"sw"`            | `"sw"`            | `"sw"`            |
+| `build.swUrl`          | `"/sw.js"`        | `"/sw.js"`        | `"/sw.js"`        | `"/sw.js"`        | `"/sw.js"`        |
+| `navigation.mode`      | `"ssr"`           | `"ssr"`           | `"ssr"`           | `"ssr"`           | `"spa"`           |
+| `navigation.fallback`  | `"/offline"`      | `"/offline"`      | `"/offline"`      | `"/offline"`      | `"/index.html"`   |
+| `strategy.default`     | `"cache-first"`   | `"cache-first"`   | `"cache-first"`   | `"cache-first"`   | `"cache-first"`   |
 
 ---
 
@@ -24,9 +26,10 @@ Swoff works with any project that doesn't use a JavaScript bundler. The generate
 
 ### Where to place generated files
 
+Set `build.swoffPath` to `"static/swoff"` — generated files land directly in your static directory:
+
 ```bash
 npx @swoff/cli generate
-cp -r swoff static/swoff
 ```
 
 ### Embed in binary
@@ -73,7 +76,7 @@ r.Static("/swoff", "./static/swoff")
 ```makefile
 build:
 	go build -o app .
-	node swoff/sw/generator.js
+	node static/swoff/sw/generator.mjs
 ```
 
 ### Auth
@@ -98,10 +101,10 @@ Cookie-based session middleware (e.g., `gorilla/sessions`):
 
 ### Where to place generated files
 
+Set `build.swoffPath` to `"public/swoff"` — generated files land in your public directory:
+
 ```bash
 npx @swoff/cli generate
-ln -s ../swoff public/swoff
-# or: cp -r swoff public/swoff
 ```
 
 ### Entry point (Blade)
@@ -119,13 +122,13 @@ ln -s ../swoff public/swoff
 Add to your `composer.json` scripts or CI pipeline:
 
 ```bash
-node swoff/sw/generator.js
+node public/swoff/sw/generator.mjs
 ```
 
 If using Vite or Laravel Mix:
 
 ```bash
-npm run build && node swoff/sw/generator.js
+npm run build && node swoff/sw/generator.mjs
 ```
 
 ### Auth (Laravel Sanctum)
@@ -150,11 +153,10 @@ The generated `auth/adapter.ts` works with Laravel's session-based auth out of t
 
 ### Where to place generated files
 
+Set `build.swoffPath` to `"public/swoff"` — generated files land in your public directory:
+
 ```bash
 npx @swoff/cli generate
-ln -s ../swoff public/swoff
-# or: cp -r swoff public/swoff
-# or (Rails < 7): cp -r swoff app/assets/javascripts/swoff
 ```
 
 ### Entry point (ERB)
@@ -170,13 +172,13 @@ ln -s ../swoff public/swoff
 
 ```bash
 # In your Rakefile or CI:
-node swoff/sw/generator.js
+node public/swoff/sw/generator.mjs
 ```
 
 If using a JS build tool (Vite, esbuild, Bun):
 
 ```bash
-bun run build && node swoff/sw/generator.js
+bun run build && node swoff/sw/generator.mjs
 ```
 
 ### Auth (cookie sessions)
@@ -201,14 +203,10 @@ Rails uses httpOnly session cookies by default — the browser sends them automa
 
 ### Where to place generated files
 
+Set `build.swoffPath` to `"your_app/static/swoff"` — generated files land directly in your static directory:
+
 ```bash
 npx @swoff/cli generate
-cp -r swoff your_app/static/swoff/
-# or symlink:
-ln -s /full/path/to/swoff your_app/static/swoff
-
-# Then collect:
-python manage.py collectstatic
 ```
 
 ### Entry point (Jinja)
@@ -225,14 +223,14 @@ python manage.py collectstatic
 
 ```bash
 # In CI or deployment:
-node swoff/sw/generator.js
+node your_app/static/swoff/sw/generator.mjs
 python manage.py collectstatic
 ```
 
 Without a JS build step:
 
 ```bash
-node swoff/sw/generator.js
+node your_app/static/swoff/sw/generator.mjs
 python manage.py collectstatic
 ```
 
@@ -256,14 +254,11 @@ python manage.py collectstatic
 
 ### Where to place generated files
 
-Flask serves `static/` automatically — copy or generate directly into it:
+Flask serves `static/` automatically. Set `build.swoffPath` to `"static/swoff"`:
 
 ```bash
 npx @swoff/cli generate
-cp -r swoff static/swoff/
-
-# Or configure outputDir to point into your Flask app:
-# "outputDir": "your_app/static"
+# Files land directly in static/swoff/ — no copy needed
 ```
 
 ### Entry point (Jinja)
@@ -280,10 +275,10 @@ cp -r swoff static/swoff/
 No `collectstatic` equivalent — generated files go straight into `static/`:
 
 ```bash
-node swoff/sw/generator.js
+node static/swoff/sw/generator.mjs
 ```
 
-If `outputDir` points to Flask's static folder, run only the generator.
+If `swOutput` points to Flask's static folder and `swoffPath` to the same directory, run only the generator.
 
 ### Auth (Flask session)
 
@@ -305,9 +300,10 @@ If `outputDir` points to Flask's static folder, run only the generator.
 
 ### Where to place generated files
 
+Set `build.swoffPath` to `"public/swoff"` — generated files land directly in your document root:
+
 ```bash
 npx @swoff/cli generate
-cp -r swoff public/swoff   # or your document root
 ```
 
 ### Entry point
@@ -329,7 +325,7 @@ cp -r swoff public/swoff   # or your document root
 
 ```bash
 # After building your static site:
-node swoff/sw/generator.js
+node public/swoff/sw/generator.mjs
 ```
 
 For projects without a build step, run the generator manually or add it to your deployment script.

@@ -39,7 +39,7 @@ npx @swoff/cli init
 npx @swoff/cli generate
 
 # 3. Build the service worker (after your build)
-node swoff/sw/generator.js
+node swoff/sw/generator.mjs
 
 # 4. Include in your HTML
 <script src="/swoff/client-injector.js"></script>

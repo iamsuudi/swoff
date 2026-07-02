@@ -907,6 +907,7 @@ async function handleMutation(event) {
   if (cfg.strategy === "reactive") {
     registerReactiveEntry(cacheKey(request), request.url, cfg);
   }
+  event.waitUntil(checkAndResumePrecache());
   applyStrategy(event, request, cfg);
 });`;
 }

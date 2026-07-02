@@ -50,7 +50,7 @@ Next.js Pages Router (12.x and earlier) fetches page data as JSON via `/_next/da
     }
   },
   "build": {
-    "outputDir": "public",
+    "swOutput": "public",
     "swFilename": "sw",
     "precacheDirs": {
       ".next/static": { "prefix": "/_next/static" },
@@ -107,7 +107,7 @@ When the user is offline and the client requests an RSC Payload (`GET /notes?_rs
     }
   },
   "build": {
-    "outputDir": "public",
+    "swOutput": "public",
     "precacheDirs": {
       ".next/static": { "prefix": "/_next/static" },
       ".next/server/pages": {
@@ -145,7 +145,7 @@ export default function OfflinePage() {
 ```json
 {
   "scripts": {
-    "build": "next build && node swoff/sw/generator.js"
+    "build": "next build && node swoff/sw/generator.mjs"
   }
 }
 ```

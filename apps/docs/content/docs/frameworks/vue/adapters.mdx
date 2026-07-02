@@ -12,7 +12,7 @@ Swoff works with any Vue-based project. Vue adapters (composables) are not yet g
 
 | Setting               | Vue + Vite      | Nuxt            |
 | --------------------- | --------------- | --------------- |
-| `build.outputDir`     | `"dist"`        | `"dist"`        |
+| `build.swOutput`     | `"dist"`        | `"dist"`        |
 | `build.swFilename`    | `"sw"`          | `"sw"`          |
 | `navigation.mode`     | `"spa"`         | `"spa"`         |
 | `navigation.fallback` | `"/index.html"` | `"/index.html"` |
@@ -63,7 +63,7 @@ All [Blueprint events](/docs/frameworks/blueprint#window-events) work the same w
 Run the SW generator after your build:
 
 ```bash
-node swoff/sw/generator.js
+node swoff/sw/generator.mjs
 ```
 
 Or add it to `package.json`:
@@ -71,7 +71,7 @@ Or add it to `package.json`:
 ```json
 {
   "scripts": {
-    "build": "your-build && node swoff/sw/generator.js"
+    "build": "your-build && node swoff/sw/generator.mjs"
   }
 }
 ```

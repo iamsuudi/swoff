@@ -65,6 +65,7 @@ function broadcastToClients(type, payload) {
 
 var PRECACHE_VERSION_KEY = "precache-version";
 var PRECACHE_CHECKPOINT_KEY = "checkpoint";
+var _precachingActive = false;
 
 async function getPrecacheMeta(key) {
   try {
@@ -138,6 +139,9 @@ async function ensurePrecacheVersion() {
 }
 
 async function startBackgroundPrecache() {
+  if (_precachingActive) return;
+  _precachingActive = true;
+  try {
   await ensurePrecacheVersion();
   var cache = await caches.open("precache");
   var total = ASSETS_TO_CACHE.length;
@@ -148,7 +152,6 @@ async function startBackgroundPrecache() {
 
   var downloaded = 0;
   var attempted = 0;
-  var allClients = await self.clients.matchAll({ includeUncontrolled: true });
   var i;
 
   for (i = 0; i < checkpoint && i < total; i++) {
@@ -158,6 +161,7 @@ async function startBackgroundPrecache() {
   attempted = checkpoint;
 
   for (i = checkpoint; i < total; i += PRECACHE_CONCURRENCY) {
+    var allClients = await self.clients.matchAll({ includeUncontrolled: true });
     var batchEnd = Math.min(i + PRECACHE_CONCURRENCY, total);
     var promises = [];
     var batchFailed = false;
@@ -201,6 +205,9 @@ async function startBackgroundPrecache() {
   }
 
   await setPrecacheCheckpoint(total);
+  } finally {
+    _precachingActive = false;
+  }
 }
 
 self.addEventListener("install", (event) => {
@@ -1057,6 +1064,7 @@ self.addEventListener("fetch", (event) => {
     registerReactiveEntry(cacheKey(request), request.url, cfg);
   }
   applyStrategy(event, request, cfg);
+  startBackgroundPrecache();
 });
 
 

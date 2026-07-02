@@ -2,9 +2,8 @@ import { Loader } from "lucide-react";
 import { usePrecacheProgress } from "../../swoff/adapters/usePrecacheProgress";
 
 export default function SWPrecacheProgress() {
-  const { status, progress } = usePrecacheProgress();
+  const { progress } = usePrecacheProgress();
 
-  if (status !== "installing") return null;
   if (progress >= 100) return null;
 
   return (

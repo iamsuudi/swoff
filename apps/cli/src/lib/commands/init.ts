@@ -5,6 +5,49 @@ import { detectFramework, type FrameworkName } from "../utils/detect-framework.j
 import { buildMinimalConfig, type WizardAnswers } from "../config/minimal-config.js";
 
 const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
+  "react-spa": {
+    swOutput: "dist",
+    navMode: "spa",
+  },
+  qwik: {
+    navMode: "spa",
+  },
+  preact: {
+    swOutput: "dist",
+    navMode: "spa",
+  },
+  angular: {
+    swOutput: "dist",
+    navMode: "spa",
+  },
+  solid: {
+    swOutput: "dist",
+    navMode: "spa",
+  },
+  lit: {
+    navMode: "spa",
+  },
+  alpine: {
+    navMode: "spa",
+  },
+  marko: {
+    navMode: "spa",
+  },
+  stimulus: {
+    navMode: "spa",
+  },
+  jquery: {
+    navMode: "spa",
+  },
+  htmx: {
+    navMode: "spa",
+  },
+  vue: {
+    navMode: "spa",
+  },
+  svelte: {
+    navMode: "spa",
+  },
   nextjs: {
     swOutput: "public",
     navMode: "ssr",
@@ -28,15 +71,10 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
     navMode: "ssr",
     defaultStrategy: "network-first",
   },
-  "react-spa": {
-    swOutput: "dist",
-    navMode: "spa",
-  },
   "tanstack-start-react": {
     swOutput: ".output/public",
     navMode: "ssr",
     defaultStrategy: "network-first",
-    patterns: { "/_serverFn/*": "network-only" },
   },
 };
 
@@ -52,6 +90,8 @@ const STRATEGIES = [
 const ALL_FRAMEWORKS = [
   "nextjs", "remix", "tanstack-start-react", "astro", "nuxt",
   "sveltekit", "react-spa", "vue", "svelte",
+  "qwik", "preact", "angular", "solid", "lit",
+  "alpine", "marko", "stimulus", "jquery", "htmx",
   "vanilla", "no-bundler",
 ] as const;
 

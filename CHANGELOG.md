@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.2 (2026-07-02)
+## 0.4.3 (2026-07-02)
 
 - feat: expand framework detection to 10 new frontend frameworks (Qwik, Preact, Angular, Solid, Lit, Alpine, Marko, Stimulus, jQuery, HTMX)
 - feat: start precaching immediately on SW activation instead of waiting for first fetch

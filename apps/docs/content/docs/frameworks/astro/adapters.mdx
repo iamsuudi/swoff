@@ -12,7 +12,7 @@ Swoff works with both static and SSR Astro projects. The Service Worker runs in 
 
 | Setting               | Astro (static)              | Astro (SSR)       |
 | --------------------- | --------------------------- | ----------------- |
-| `build.outputDir`     | `"dist"`                    | `"dist"`          |
+| `build.swOutput`     | `"dist"`                    | `"dist"`          |
 | `build.swFilename`    | `"sw"`                      | `"sw"`            |
 | `navigation.mode`     | `"spa"`                     | `"ssr"`           |
 | `navigation.fallback` | `"/404"` or `"/index.html"` | `"/offline"`      |
@@ -80,7 +80,7 @@ Add the SW generator after your Astro build:
 # In package.json:
 {
   "scripts": {
-    "build": "astro build && node swoff/sw/generator.js"
+    "build": "astro build && node swoff/sw/generator.mjs"
   }
 }
 ```

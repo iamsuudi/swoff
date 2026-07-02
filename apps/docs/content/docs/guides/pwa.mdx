@@ -24,7 +24,7 @@ PWA is enabled by default after `swoff init`. To enable it in an existing config
 | ----------------------- | ------------------------------------------------------------------------------------- | --------------------------------- |
 | `swoff/pwa/prompt.ts`   | Install prompt listener, `isInstallable()`, `promptInstall()`                         | Yes (bundler only)                |
 | `swoff/sw/template.js`  | The SW source — reads cache strategies, auth, tags from config headers                | No, built into SW                 |
-| `swoff/sw/generator.js` | Build script that produces the final `sw.js`                                          | Run: `node swoff/sw/generator.js` |
+| `swoff/sw/generator.mjs` | Build script that produces the final `sw.js`                                          | Run: `node swoff/sw/generator.mjs` |
 | `swoff-api.bundle.js`   | Same PWA/storage APIs via `window.swoff.isInstallable()` etc. for no-bundler projects | No (auto-initializes)             |
 
 ## Usage
@@ -95,7 +95,7 @@ This creates platform-ready assets (PNG at various sizes, SVG favicon, Apple tou
 ## Build the SW
 
 ```bash
-node swoff/sw/generator.js
+node swoff/sw/generator.mjs
 ```
 
 Add this to your build script. It reads the config headers from generated source files and produces your final `sw.js`.

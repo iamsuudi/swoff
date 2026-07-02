@@ -22,7 +22,7 @@ npx @swoff/cli generate
 {
   "framework": "vanilla",
   "build": {
-    "outputDir": "dist",
+    "swOutput": "dist",
     "swFilename": "sw"
   },
   "features": {
@@ -49,11 +49,7 @@ npx @swoff/cli generate
 
 ## Where to place generated files
 
-```bash
-# After generation, swoff/ lives at project root.
-# Copy or move it into your document root:
-cp -r swoff public/swoff
-```
+The `build.swoffPath` setting controls where generated files land. Defaults to `"swoff"` (project root). No copy step needed.
 
 ## Entry point
 
@@ -72,10 +68,10 @@ For projects without a bundler, see the [No-Bundler guide](/docs/frameworks/no-b
 Add the generator to your build chain:
 
 ```bash
-vite build && node swoff/sw/generator.js
+vite build && node swoff/sw/generator.mjs
 ```
 
-The generator reads `build.outputDir` from config and writes the final SW there.
+The generator reads `build.swOutput` from config and writes the final SW there.
 
 ## Auth
 

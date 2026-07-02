@@ -18,7 +18,7 @@ import { fetchWithCache } from "./swoff/fetch/core";
 const { response } = await fetchWithCache("/api/todos");
 ```
 
-### Without a bundler (vanilla, Laravel, Django, Rails, Go)
+### Without a bundler (no-bundler, plain HTML/JS)
 
 ```html
 <script src="/swoff/client-injector.bundle.js"></script>

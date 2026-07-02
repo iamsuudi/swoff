@@ -134,19 +134,53 @@ const features = [
 ];
 
 const frontendFrameworks = [
-  "React", "Vue", "Svelte", "Solid", "Preact", "Angular",
-  "Alpine", "HTMX", "Lit", "Qwik", "Marko", "Stimulus", "jQuery",
+  "React",
+  "Vue",
+  "Svelte",
+  "Solid",
+  "Preact",
+  "Angular",
+  "Alpine",
+  "HTMX",
+  "Lit",
+  "Qwik",
+  "Marko",
+  "Stimulus",
+  "jQuery",
 ];
 
 const metaFrameworks = [
-  "Next.js", "Remix", "Nuxt", "SvelteKit", "TanStack Start",
-  "Astro", "Gatsby", "Eleventy", "Hugo", "Jekyll",
+  "Next.js",
+  "Remix",
+  "Nuxt",
+  "SvelteKit",
+  "TanStack Start",
+  "Astro",
+  "Gatsby",
+  "Eleventy",
+  "Hugo",
+  "Jekyll",
 ];
 
 const backendFrameworks = [
-  "Laravel", "Django", "Rails", "Express", "Fastify", "Hono",
-  "Go", "PHP", "Python", "Ruby", "Java", "Spring", "ASP.NET",
-  "Rust", "Phoenix", "Deno", "Bun", "Node.js",
+  "Laravel",
+  "Django",
+  "Rails",
+  "Express",
+  "Fastify",
+  "Hono",
+  "Go",
+  "PHP",
+  "Python",
+  "Ruby",
+  "Java",
+  "Spring",
+  "ASP.NET",
+  "Rust",
+  "Phoenix",
+  "Deno",
+  "Bun",
+  "Node.js",
 ];
 
 function SectionGlow({ className }: { className?: string }) {
@@ -176,7 +210,7 @@ function Home() {
 
             <div className="text-center">
               <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tight text-fd-foreground leading-[1.05] text-center">
-                Offline-First
+                Offline Infra
                 <br />
                 <span className="bg-linear-to-r from-fd-primary via-orange-400 to-amber-500 bg-clip-text text-transparent text-center">
                   For Any Stack
@@ -184,10 +218,11 @@ function Home() {
               </h1>
 
               <p className="text-lg md:text-xl text-fd-muted-foreground max-w-2xl mt-6 mb-10 leading-relaxed mx-auto">
-                Swoff is a config-driven code generation toolchain for offline-first web apps.
-                An interactive wizard builds your config, the CLI generates an auditable
-                service worker and client runtime, and you own every line — zero runtime
-                dependencies, no framework coupling.
+                Swoff is a config-driven code generation toolchain for
+                offline-first web apps. An interactive wizard builds your
+                config, the CLI generates an auditable service worker and client
+                runtime, and you own every line — zero runtime dependencies, no
+                framework coupling.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -196,7 +231,7 @@ function Home() {
                   params={{ _splat: "" }}
                   className={buttonVariants({
                     className:
-                      "bg-fd-foreground text-fd-background hover:opacity-90 font-bold px-8 h-12 text-[15px] rounded-lg gap-2 shadow-lg group",
+                      "w-55 flex items-center justify-center bg-fd-foreground text-fd-background hover:opacity-90 font-bold h-12 text-[15px] rounded-lg gap-2 shadow-lg group",
                   })}
                 >
                   Get Started
@@ -209,7 +244,7 @@ function Home() {
                   className={buttonVariants({
                     variant: "outline",
                     className:
-                      "border-fd-border text-fd-foreground hover:bg-fd-muted/50 font-bold px-8 h-12 text-[15px] rounded-lg gap-2 shadow",
+                      "w-55 flex items-center justify-center border-fd-border text-fd-foreground hover:bg-fd-muted/50 font-bold h-12 text-[15px] rounded-lg gap-2 shadow",
                   })}
                 >
                   <Icons.gitHub className="size-4 text-fd-foreground" />
@@ -230,7 +265,8 @@ function Home() {
               How It Works
             </h2>
             <p className="text-fd-muted-foreground text-lg max-w-xl mx-auto">
-              One interactive session, one CLI command, one build step — and you own the output.
+              One interactive session, one CLI command, one build step — and you
+              own the output.
             </p>
           </div>
 
@@ -247,8 +283,7 @@ function Home() {
                 <code className="text-xs bg-fd-muted px-1 py-0.5 rounded">
                   swoff init
                 </code>
-                <br />
-                — interactive wizard builds your config
+                <br />— interactive wizard builds your config
               </p>
             </div>
 
@@ -428,7 +463,7 @@ function Home() {
               params={{ _splat: "" }}
               className={buttonVariants({
                 className:
-                  "bg-fd-foreground text-fd-background hover:opacity-90 font-bold px-10 h-12 text-[15px] rounded-lg gap-2 shadow-lg group",
+                  "w-55 flex items-center justify-center bg-fd-foreground text-fd-background hover:opacity-90 font-bold h-12 text-[15px] rounded-lg gap-2 shadow-lg group",
               })}
             >
               Get Started
@@ -441,7 +476,7 @@ function Home() {
               className={buttonVariants({
                 variant: "outline",
                 className:
-                  "border-fd-border text-fd-foreground hover:bg-fd-muted/50 font-bold px-10 h-12 text-[15px] rounded-lg gap-2 shadow-md",
+                  "w-55 flex items-center justify-center border-fd-border text-fd-foreground hover:bg-fd-muted/50 font-bold h-12 text-[15px] rounded-lg gap-2 shadow-md",
               })}
             >
               <Icons.gitHub className="size-4" />

@@ -1,6 +1,6 @@
 /**
  * Generates sw-template.js - the SW template with config features baked in.
- * Placeholders are replaced during build by sw-generator.js.
+ * Placeholders are replaced during build by sw-generator.mjs.
  */
 
 import { GeneratorContext, writeFile } from "./context.js";

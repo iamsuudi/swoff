@@ -14,7 +14,7 @@ All React-based frameworks (Vite, Next.js, Remix, TanStack Start) share the same
 
 | Setting                      | React + Vite    | Next.js (static) | Remix            | TanStack Start  |
 | ---------------------------- | --------------- | ---------------- | ---------------- | --------------- |
-| `build.outputDir`            | `"dist"`        | `"out"`          | `"build/client"` | `"dist"`        |
+| `build.swOutput`            | `"dist"`        | `"out"`          | `"build/client"` | `"dist"`        |
 | `build.swFilename`           | `"sw"`          | `"sw"`           | `"sw"`           | `"sw"`          |
 | `navigation.mode`            | `"spa"`         | `"spa"`          | `"spa"`          | `"spa"`         |
 | `navigation.fallback`        | `"/index.html"` | `"/index.html"`  | `"/index.html"`  | `"/index.html"` |
@@ -311,7 +311,7 @@ Remix: call in `app/root.tsx` client entry.
 Run the SW generator after your build:
 
 ```bash
-node swoff/sw/generator.js
+node swoff/sw/generator.mjs
 ```
 
 Or add it to `package.json`:
@@ -319,9 +319,9 @@ Or add it to `package.json`:
 ```json
 {
   "scripts": {
-    "build": "your-framework-build && node swoff/sw/generator.js"
+    "build": "your-framework-build && node swoff/sw/generator.mjs"
   }
 }
 ```
 
-Next.js static export output goes to `out/` — the SW generator reads `build.outputDir` from config and writes there automatically.
+Next.js static export output goes to `out/` — the SW generator reads `build.swOutput` from config and writes there automatically.

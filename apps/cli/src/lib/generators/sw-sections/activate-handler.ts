@@ -93,10 +93,6 @@ self.addEventListener("activate", (event) => {
       await self.clients.claim();${navPreloadCode}${evictionCode}
     })()
   );
-  event.waitUntil(
-    startBackgroundPrecache().catch(function(err) {
-      console.error("Background precache error:", err);
-    })
-  );
+  // Precaching starts on first fetch via checkAndResumePrecache — no waitUntil needed here
 });`;
 }

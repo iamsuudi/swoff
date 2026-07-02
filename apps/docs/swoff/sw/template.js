@@ -65,13 +65,6 @@ function broadcastToClients(type, payload) {
 
 var PRECACHE_VERSION_KEY = "precache-version";
 var PRECACHE_CHECKPOINT_KEY = "checkpoint";
-var _precacheCheckDone = false;
-
-async function checkAndResumePrecache() {
-  if (_precacheCheckDone) return;
-  _precacheCheckDone = true;
-  await startBackgroundPrecache();
-}
 
 async function getPrecacheMeta(key) {
   try {
@@ -303,7 +296,7 @@ self.addEventListener("activate", (event) => {
       await evictStaleRuntimeCache();
     })()
   );
-  // Precaching starts on first fetch via checkAndResumePrecache — no waitUntil needed here
+  startBackgroundPrecache();
 });
 
 // --- Refetch Retry Config ---
@@ -1063,7 +1056,6 @@ self.addEventListener("fetch", (event) => {
   if (cfg.strategy === "reactive") {
     registerReactiveEntry(cacheKey(request), request.url, cfg);
   }
-  event.waitUntil(checkAndResumePrecache());
   applyStrategy(event, request, cfg);
 });
 

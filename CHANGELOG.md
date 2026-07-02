@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.2 (2026-07-02)
+
+- feat: expand framework detection to 10 new frontend frameworks (Qwik, Preact, Angular, Solid, Lit, Alpine, Marko, Stimulus, jQuery, HTMX)
+- feat: start precaching immediately on SW activation instead of waiting for first fetch
+- fix: remove /_serverFn/*=network-only from tanstack-start-react preset
+- fix: expand react-spa detection to cover react-router, @tanstack/react-location, wouter, @reach/router
+- fix: no-bundler backend flavors default to navMode "default" instead of "ssr"
+
 ## 0.4.1 (2026-07-02)
 
 - feat: reliable precaching with asset version tracking and fetch-based resume
@@ -30,41 +38,3 @@
 - Core features: service worker generation, 6 caching strategies, auth adapters, mutation queue, GraphQL, tag invalidation, server push, push notifications
 - @swoff/assets PWA icon generator
 - React hooks adapters
-
-## 0.3.12 (2026-06-03)
-
-## 0.3.11 (2026-06-03)
-
-## 0.3.10 (2026-06-03)
-
-## 0.3.9 (2026-05-31)
-
-## 0.3.8 (2026-05-27)
-
-## 0.3.7 (2026-05-26)
-
-## 0.3.6 (2026-05-25)
-
-## 0.3.5 (2026-05-24)
-
-## 0.3.4 (2026-05-23)
-
-## 0.3.3 (2026-05-23)
-
-## 0.3.2 (2026-05-23)
-
-## 0.3.1 (2026-05-23)
-
-## 0.3.0 (2026-05-23)
-
-## 0.2.2 (2026-05-22)
-
-## 0.2.1 (2026-05-22)
-
-## 0.2.0 (2026-05-22)
-
-## 0.1.0 (2026-05-21)
-
-## 0.0.2 (2026-05-20)
-
-## 0.0.1 (2026-05-20)

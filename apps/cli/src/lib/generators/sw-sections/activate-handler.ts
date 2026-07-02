@@ -93,6 +93,6 @@ self.addEventListener("activate", (event) => {
       await self.clients.claim();${navPreloadCode}${evictionCode}
     })()
   );
-  // Precaching starts on first fetch via checkAndResumePrecache — no waitUntil needed here
+  startBackgroundPrecache();
 });`;
 }

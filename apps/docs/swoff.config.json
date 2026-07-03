@@ -3,6 +3,7 @@
   "framework": "tanstack-start-react",
   "features": {
     "serviceWorker": {
+      "autoActivate": true,
       "strategy": {
         "default": "network-first",
         "patterns": {

@@ -9,7 +9,7 @@
  * Window events:
  *   sw-progress          - Download progress (detail: { percent, downloaded, total })
  */
-const AUTO_ACTIVATE = false;
+const AUTO_ACTIVATE = true;
 
 async function waitForController(): Promise<void> {
   return new Promise<void>((resolve) => {

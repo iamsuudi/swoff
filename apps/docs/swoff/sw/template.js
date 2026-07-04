@@ -438,7 +438,7 @@ self.addEventListener("message", (event) => {
 const NAV_MODE = "ssr";
 const FALLBACK_PATH = "/offline";
 const DEFAULT_STRATEGY = "network-first";
-const CUSTOM_STRATEGIES = {"/_serverFn/*":"network-only"};
+const CUSTOM_STRATEGIES = {};
 const REACTIVE_STALE_DEFAULT = 0;
 const FETCH_TIMEOUT_MS = 10000;
 const SW_DEBUG = false;
@@ -737,6 +737,7 @@ function safeResponse(res) {
     headers: res.headers,
   });
 }
+
 // --- Response Helpers ---
 
 function markFromCache(response) {

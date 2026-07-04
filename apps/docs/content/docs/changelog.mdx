@@ -10,6 +10,18 @@ All releases are tracked on GitHub. View the [full release history →](https://
 
 ---
 
+## @swoff/cli@0.4.5 (2026-07-04)
+
+- fix: strip redirected flag from cached responses returned by fallback() to prevent browser rejecting event.respondWith() with a NetworkError
+- feat: add precacheDirs defaults for vue, svelte, sveltekit init presets
+- feat: rename `react-spa` → `react` framework name (backward-compat alias kept for existing configs)
+- feat: add vike framework detection and init preset (SSR, dist/client output, Vue adapters)
+- docs: add advanced precaching guide with checkpoint resume, progress, reset design
+- docs: add missing build config page and fix precaching cross-links
+- docs: move real-time (SSE/WS) comparison from GraphQL to Caching & Data Fetching
+- docs: add cross-query GQL invalidation docs with honest tradeoff comparison vs normalized caches
+- chore: consolidate all changelogs into root `CHANGELOG.md` (single source)
+
 ## @swoff/cli@0.4.4 (2026-07-04)
 
 - feat: Vue adapters — 14 composable templates (TS + JS) for Vue, Nuxt, Quasar, VitePress

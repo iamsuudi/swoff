@@ -445,7 +445,7 @@ self.addEventListener("message", (event) => {
 const NAV_MODE = "ssr";
 const FALLBACK_PATH = "/offline";
 const DEFAULT_STRATEGY = "network-first";
-const CUSTOM_STRATEGIES = {"/_serverFn/*":"network-only"};
+const CUSTOM_STRATEGIES = {};
 const REACTIVE_STALE_DEFAULT = 0;
 const FETCH_TIMEOUT_MS = 10000;
 const SW_DEBUG = false;
@@ -703,14 +703,14 @@ async function fallback(request) {
   const pc = await fromPrecache(request);
   if (pc) {
     swLog("fallback", "HIT precache", request.url, 3);
-    return pc;
+    return safeResponse(pc);
   }
   if (NAV_MODE !== "spa") {
       const htmlCache = await caches.open("swoff-runtime-html");
       const htmlMatch = await htmlCache.match(cacheKey(request));
       if (htmlMatch) {
         swLog("fallback", "HIT runtime-html", request.url, 3);
-        return htmlMatch;
+        return safeResponse(htmlMatch);
       }
     }
   if (NAV_MODE !== "spa") {
@@ -720,7 +720,7 @@ async function fallback(request) {
       if (match) {
         swLog("fallback", "HIT global fallback", request.url, 3);
         broadcastToClients("OFFLINE_FALLBACK_ACTIVATED", { detail: { route: new URL(request.url).pathname, fallbackLevel: "offline-page", timestamp: Date.now() } });
-        return match;
+        return safeResponse(match);
       }
     }
   }
@@ -735,6 +735,16 @@ function inline503Response() {
     { status: 503, headers: { "Content-Type": "text/html", "Cache-Control": "no-store" } }
   );
 }
+
+function safeResponse(res) {
+  if (!res || !res.redirected) return res;
+  return new Response(res.body, {
+    status: res.status,
+    statusText: res.statusText,
+    headers: res.headers,
+  });
+}
+
 // --- Response Helpers ---
 
 function markFromCache(response) {

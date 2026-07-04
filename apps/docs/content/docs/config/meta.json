@@ -3,6 +3,7 @@
     "service-worker",
     "connectivity",
     "pwa",
+    "build",
     "auth",
     "graphql",
     "request-batching",

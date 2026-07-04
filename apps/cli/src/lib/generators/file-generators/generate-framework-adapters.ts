@@ -44,13 +44,14 @@ const ADAPTERS: AdapterDef[] = [
 const BASE_FRAMEWORK: Record<string, string> = {
   nextjs: "react",
   remix: "react",
-  "react-spa": "react",
+  "react": "react",
   "tanstack-start-react": "react",
   astro: "react",
   nuxt: "vue",
   quasar: "vue",
   vitepress: "vue",
   sveltekit: "svelte",
+  vike: "vue",
 };
 
 const OUTPUT_SUBDIRS: Record<string, string> = {

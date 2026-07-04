@@ -18,6 +18,7 @@ export const metaFrameworks = [
   "Next.js",
   "Remix",
   "Nuxt",
+  "Vike",
   "Quasar",
   "VitePress",
   "SvelteKit",

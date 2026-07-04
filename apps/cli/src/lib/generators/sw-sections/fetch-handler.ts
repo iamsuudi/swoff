@@ -162,6 +162,16 @@ function matchRouteFallback(url) {
     "  );\n" +
     "}\n";
 
+  const safeResponse =
+    "function safeResponse(res) {\n" +
+    "  if (!res || !res.redirected) return res;\n" +
+    "  return new Response(res.body, {\n" +
+    "    status: res.status,\n" +
+    "    statusText: res.statusText,\n" +
+    "    headers: res.headers,\n" +
+    "  });\n" +
+    "}\n";
+
   const tagCode = tagInvalidation
     ? `
   const tagsHeader = request.headers.get("X-SW-Cache-Tags");
@@ -408,14 +418,14 @@ async function fallback(request) {
   const pc = await fromPrecache(request);
   if (pc) {
     swLog("fallback", "HIT precache", request.url, 3);
-    return pc;
+    return safeResponse(pc);
   }
   if (NAV_MODE !== "spa") {
       const htmlCache = await caches.open("swoff-runtime-html");
       const htmlMatch = await htmlCache.match(cacheKey(request));
       if (htmlMatch) {
         swLog("fallback", "HIT runtime-html", request.url, 3);
-        return htmlMatch;
+        return safeResponse(htmlMatch);
       }
     }${
     hasRules
@@ -427,7 +437,7 @@ async function fallback(request) {
       if (match) {
         swLog("fallback", "HIT per-route fallback", request.url, 3);
         broadcastToClients("OFFLINE_FALLBACK_ACTIVATED", { detail: { route: new URL(request.url).pathname, fallbackLevel: "route-fallback", timestamp: Date.now() } });
-        return match;
+        return safeResponse(match);
       }
     }`
       : ""
@@ -439,7 +449,7 @@ async function fallback(request) {
       if (match) {
         swLog("fallback", "HIT global fallback", request.url, 3);
         broadcastToClients("OFFLINE_FALLBACK_ACTIVATED", { detail: { route: new URL(request.url).pathname, fallbackLevel: "offline-page", timestamp: Date.now() } });
-        return match;
+        return safeResponse(match);
       }
     }
   }
@@ -448,7 +458,9 @@ async function fallback(request) {
   return inline503Response();
 }
 
-${inline503}// --- Response Helpers ---
+${inline503}
+${safeResponse}
+// --- Response Helpers ---
 
 function markFromCache(response) {
   swLog("markFromCache", "ENTER", response.url, 4);

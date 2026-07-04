@@ -472,13 +472,24 @@ function isStale(response, staleTimeSeconds) {
 
 // --- Fetch Helpers ---
 
+// Strips internal X-SW-* headers so they never leak to external servers.
+function _stripSWHeaders(request) {
+  var headers = new Headers(request.headers);
+  for (var key of headers.keys()) {
+    if (key.toLowerCase().indexOf("x-sw-") === 0) {
+      headers.delete(key);
+    }
+  }
+  return new Request(request, { headers: headers });
+}
+
 async function _fetchWithTimeout(_, request, timeoutMs) {
   timeoutMs = timeoutMs || FETCH_TIMEOUT_MS;
   swLog("_fetchWithTimeout", "ENTER timeout=" + timeoutMs, request.url, 3);
   const controller = new AbortController();
   const id = setTimeout(function() { controller.abort(); }, timeoutMs);
   try {
-    const response = await fetch(request, { signal: controller.signal });
+    const response = await fetch(_stripSWHeaders(request), { signal: controller.signal });
     swLog("_fetchWithTimeout", "SUCCESS " + response.status, request.url, 3);
     return response;
   } catch (e) {
@@ -822,7 +833,7 @@ async function _fetchMutation(request) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(request, { signal: controller.signal });
+    const response = await fetch(_stripSWHeaders(request), { signal: controller.signal });
     swLog("_fetchMutation", "SUCCESS " + response.status, request.url, 4);
     return response;
   } catch (e) {

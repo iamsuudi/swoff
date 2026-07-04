@@ -23,13 +23,10 @@ function sleep(ms) {
 
 async function fetchWithRetry(request, retryConfig) {
   swLog("fetchWithRetry", "ENTER", request.url, 3);
-  if (!retryConfig) return fetch(request);
+  if (!retryConfig) return _fetchWithTimeout(null, request);
   for (var attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
     try {
-      var controller = new AbortController();
-      var id = setTimeout(function() { controller.abort(); }, FETCH_TIMEOUT_MS);
-      var response = await fetch(request, { signal: controller.signal });
-      clearTimeout(id);
+      var response = await _fetchWithTimeout(null, request);
       if (response.ok) {
         swLog("fetchWithRetry", "SUCCESS attempt=" + attempt, request.url, 3);
         return response;

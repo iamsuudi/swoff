@@ -9,9 +9,8 @@
 - feat: adapter generator supports `.ts`/`.js` templates (no JSX required)
 - feat: remove `status` from `usePrecacheProgress` — only `progress` remains
 - feat: make storage threshold configurable via `features.serviceWorker.strategy.storageThreshold` (default 80%)
-- feat: auto-strip X-SW-* headers in SW fetch handler to prevent leaking to external servers
+- feat: auto-strip X-SW-\* headers in SW fetch handler to prevent leaking to external servers
 - fix: use op-name derived tags for GQL mutation invalidation instead of URL-based tags (cross-query entity updates still need explicit tags)
-- chore: consolidate all changelogs into root `CHANGELOG.md` (single source)
 
 ## @swoff/cli@0.4.3 (2026-07-02)
 

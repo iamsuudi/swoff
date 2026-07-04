@@ -5,10 +5,7 @@
     "serviceWorker": {
       "autoActivate": true,
       "strategy": {
-        "default": "network-first",
-        "patterns": {
-          "/_serverFn/*": "network-only"
-        }
+        "default": "network-first"
       },
       "navigation": {
         "mode": "ssr",

@@ -1,0 +1,62 @@
+---
+title: Build
+description: Build output configuration — swOutput, swoffPath, swFilename, swUrl, precacheDirs.
+---
+
+Controls where generated files are written and how assets are discovered for precaching.
+
+## `build`
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `swOutput` | `string` | `"dist"` | Build tool output directory (e.g. `"dist"`, `"public"`, `"static"`) |
+| `swoffPath` | `string` | `"swoff"` | Directory where generated swoff files (client injector, SW template, generator) are written, relative to project root. E.g. `"static/swoff"` places files under `static/swoff/`. No copy step needed — generate directly into your server's static directory. |
+| `swFilename` | `string` | `"sw"` | Service worker filename prefix (must match `^[a-zA-Z0-9-_]+$`). Produces `<swFilename>.js` at the output root. |
+| `swUrl` | `string` | `""` | Override the SW registration URL. Use when serving the SW from a non-standard path (e.g. behind a CDN or reverse proxy). Defaults to `/<swFilename>.js`. |
+| `precacheDirs` | `object` | `{}` | Directories to scan for precache assets (see below). When empty, no directory scanning occurs — only explicit fallback routes and `precacheRoutes` are precached. |
+
+---
+
+### `precacheDirs`
+
+Keys are filesystem paths (relative to project root). Values configure how scanned files become cache entries:
+
+```json
+{
+  "dist": { "prefix": "/" },
+  "public": {
+    "prefix": "/static",
+    "matchExtensions": [".html", ".js", ".css"],
+    "stripExtensions": [".html"],
+    "stripSuffixes": ["index"],
+    "excludeDirs": ["node_modules"],
+    "excludeFiles": ["*.map"]
+  }
+}
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `prefix` | `string` | (required) | URL prefix to serve assets under. E.g. `"dist"` → `"/"` serves `dist/about.html` at `/about`. |
+| `matchExtensions` | `string[]` | — | Only include files with these extensions (e.g. `[".html", ".json"]`). Omit to include all files. |
+| `stripExtensions` | `string[]` | — | Remove specific extensions from the cached URL key. Only extensions present here are stripped — e.g. `[".html"]` strips `.html` from URLs but keeps `.json` intact. Empty or omitted means no stripping. `about.html` → `/about`. |
+| `stripSuffixes` | `string[]` | — | Strip these path segments before the extension (e.g. `["index", "page"]`). After extension stripping, each matching suffix is removed: `index.html` → `/`, `about/index.html` → `/about`, `blog/page.html` → `/blog`. Trailing slashes are then cleaned unless the result is `/`. |
+| `excludeDirs` | `string[]` | — | Exclude directories by exact basename at any depth. E.g. `["node_modules", ".git"]` skips all directories named `node_modules`. |
+| `excludeFiles` | `string[]` | — | Exclude files by extension glob pattern (basename match). E.g. `["*.map", "*.md"]` excludes all `.map` and `.md` files regardless of directory. |
+
+---
+
+### `swUrl` — custom registration path
+
+When the service worker file is served from a non-standard URL (e.g. behind a CDN), set `swUrl` to the full path the browser should use for registration:
+
+```json
+{
+  "build": {
+    "swFilename": "sw",
+    "swUrl": "/custom-path/sw.js"
+  }
+}
+```
+
+If `swUrl` is empty (default), the registration URL is `/<swFilename>.js`.

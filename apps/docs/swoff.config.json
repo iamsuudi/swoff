@@ -18,7 +18,9 @@
     "swFilename": "sw",
     "precacheDirs": {
       "dist/client": {
-        "prefix": "/"
+        "prefix": "/",
+        "stripExtensions": [".html"],
+        "stripSuffixes": ["index"]
       }
     }
   }

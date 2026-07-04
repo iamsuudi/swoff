@@ -96,6 +96,8 @@ export interface SwoffConfig {
     | "tanstack-start-react"
     | "astro"
     | "nuxt"
+    | "quasar"
+    | "vitepress"
     | "sveltekit"
     | "react-spa"
     | "vue"

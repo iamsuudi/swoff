@@ -63,6 +63,12 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
   astro: {
     navMode: "ssr",
   },
+  quasar: {
+    navMode: "spa",
+  },
+  vitepress: {
+    navMode: "default",
+  },
   nuxt: {
     navMode: "ssr",
     defaultStrategy: "network-first",
@@ -89,7 +95,7 @@ const STRATEGIES = [
 
 const ALL_FRAMEWORKS = [
   "nextjs", "remix", "tanstack-start-react", "astro", "nuxt",
-  "sveltekit", "react-spa", "vue", "svelte",
+  "quasar", "vitepress", "sveltekit", "react-spa", "vue", "svelte",
   "qwik", "preact", "angular", "solid", "lit",
   "alpine", "marko", "stimulus", "jquery", "htmx",
   "vanilla", "no-bundler",

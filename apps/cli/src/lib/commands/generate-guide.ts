@@ -28,8 +28,8 @@ export function generateGuide(ctx: GuideContext): string[] {
   if (isReact) {
     lines.push("");
     lines.push("  React hook for reactive network state:");
-    lines.push(`    import { useNetworkStatus } from "../swoff/adapters/useNetworkStatus.${ext}x";`);
-    lines.push("    const online = useNetworkStatus();");
+    lines.push(`    import { useSwoffNetwork } from "../swoff/adapters/useSwoffNetwork.${ext}x";`);
+    lines.push("    const online = useSwoffNetwork();");
   }
   lines.push("");
   lines.push("  Add to package.json build script:");
@@ -45,12 +45,12 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push(`    <link rel="manifest" href="/manifest.json">`);
     if (isReact) {
       lines.push("");
-      lines.push("  React hooks generated in swoff/adapters/usePrecacheProgress.tsx:");
-      lines.push(`    import { usePrecacheProgress } from "../swoff/adapters/usePrecacheProgress.${ext}x";`);
+      lines.push("  React hooks generated in swoff/adapters/useSwoffPrecache.tsx:");
+      lines.push(`    import { useSwoffPrecache } from "../swoff/adapters/useSwoffPrecache.${ext}x";`);
       lines.push("");
       lines.push("    function App() {");
-      lines.push("      const { status, progress } = usePrecacheProgress();");
-      lines.push("      if (status === 'installing') return <SWProgressBar progress={progress} />;");
+      lines.push("      const { progress } = useSwoffPrecache();");
+      lines.push("      if (progress > 0 && progress < 100) return <SWProgressBar progress={progress} />;");
       lines.push("      return <MainApp />;");
       lines.push("    }");
     }
@@ -63,11 +63,11 @@ export function generateGuide(ctx: GuideContext): string[] {
     lines.push(`    import { queueMutation, processMutationQueue, getPendingCount } from "./swoff/mutation/queue.${ext}";`);
     if (isReact) {
       lines.push("");
-      lines.push("  React hook generated in swoff/adapters/useMutationQueue.tsx:");
-      lines.push(`    import { useMutationQueue } from "../swoff/adapters/useMutationQueue.${ext}x";`);
+      lines.push("  React hook generated in swoff/adapters/useSwoffQueue.tsx:");
+      lines.push(`    import { useSwoffQueue } from "../swoff/adapters/useSwoffQueue.${ext}x";`);
       lines.push("");
       lines.push("    function SyncStatus() {");
-      lines.push("      const { pending, lastSync } = useMutationQueue();");
+      lines.push("      const { pending, lastSync } = useSwoffQueue();");
       lines.push("      if (pending > 0) return <span>{pending} pending</span>;");
       lines.push("      if (lastSync?.failed) return <span>{lastSync.failed} failed</span>;");
       lines.push("      return null;");
@@ -93,11 +93,11 @@ export function generateGuide(ctx: GuideContext): string[] {
     }
     if (isReact) {
       lines.push("");
-      lines.push("  React hook generated in swoff/adapters/useAuth.tsx:");
-      lines.push(`    import { useAuth } from "../swoff/adapters/useAuth.${ext}x";`);
+      lines.push("  React hook generated in swoff/adapters/useSwoffAuth.tsx:");
+      lines.push(`    import { useSwoffAuth } from "../swoff/adapters/useSwoffAuth.${ext}x";`);
       lines.push("");
       lines.push("    function Profile() {");
-      lines.push("      const { authenticated, user, online } = useAuth();");
+      lines.push("      const { authenticated, user, online } = useSwoffAuth();");
       lines.push("      if (!authenticated) return <LoginPage />;");
       lines.push("      return <div>Welcome {user?.name} {!online && '(offline)'}</div>;");
       lines.push("    }");
@@ -118,11 +118,11 @@ export function generateGuide(ctx: GuideContext): string[] {
     }
     if (isReact) {
       lines.push("");
-      lines.push("  React hook generated in swoff/adapters/useBackgroundSync.tsx:");
-      lines.push(`    import { useBackgroundSync } from "../swoff/adapters/useBackgroundSync.${ext}x";`);
+      lines.push("  React hook generated in swoff/adapters/useSwoffSync.tsx:");
+      lines.push(`    import { useSwoffSync } from "../swoff/adapters/useSwoffSync.${ext}x";`);
       lines.push("");
       lines.push("    function SyncPanel() {");
-      lines.push("      const { supported, triggerSync } = useBackgroundSync();");
+      lines.push("      const { supported, triggerSync } = useSwoffSync();");
       lines.push("      if (!supported) return <p>Background sync not available</p>;");
       lines.push("      return <button onClick={triggerSync}>Trigger Sync</button>;");
       lines.push("    }");

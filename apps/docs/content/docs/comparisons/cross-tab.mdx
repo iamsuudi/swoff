@@ -14,7 +14,7 @@ Tab A: mutation success → dispatch INVALIDATE_TAG to SW
   → SW: clears cache entries for tag
   → SW: posts TAG_INVALIDATED to all clients (self.clients.matchAll())
   → Tab B: receives TAG_INVALIDATED → dispatches cache-invalidated event
-  → Tab B: useCachedFetch for matching tag auto-refetches
+  → Tab B: useSwoffFetch for matching tag auto-refetches
 ```
 
 **Scope:** Every tab with the same origin receives the event — different windows, different tabs. The SW posts to all connected clients via `self.clients.matchAll()`. No BroadcastChannel API needed.

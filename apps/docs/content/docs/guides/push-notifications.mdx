@@ -1,6 +1,6 @@
 ---
 title: Push Notifications
-description: Subscribe, notify, unsubscribe, and React hooks for push notification management.
+description: Subscribe, notify, unsubscribe, and framework adapters for push notification management.
 ---
 
 > If you've worked with the Web Push API directly, Swoff provides the browser-side subscription management and SW push event handler — you just need a server endpoint to send the subscription and trigger pushes.
@@ -92,7 +92,7 @@ Include the auto-initializing bundles, then call the API on `window.swoff`:
 
 This section has one adapter:
 
-### `usePushSubscription`
+### `useSwoffPush`
 
 Exposes push state: `{ subscribed, permission, subscribe, unsubscribe }`.
 
@@ -121,7 +121,7 @@ window.addEventListener("push-permission-changed", (e) => {
 // 5. Return { subscribed, permission, subscribe, unsubscribe }
 ```
 
-**If your framework already has this adapter** (React): the CLI generates `usePushSubscription` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has this adapter** (React): the CLI generates `useSwoffPush` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ### Server side (example)
 

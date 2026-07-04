@@ -165,7 +165,7 @@ Caching strategies and navigation have their own config sections — see [Cachin
 
 This section has one adapter:
 
-### `usePrecacheProgress`
+### `useSwoffPrecache`
 
 Exposes background precaching state: `{ status, progress }`.
 
@@ -178,16 +178,16 @@ Exposes background precaching state: `{ status, progress }`.
 **Building the adapter:**
 
 ```js
-// Reactive state shape: { status, progress }
-// 1. Initialize: status = "idle", progress = 0
+// Reactive state shape: { progress }
+// 1. Initialize: progress = 0
 // 2. Listen to events:
 window.addEventListener("sw-progress", (e) => {
-  // Set status = "installing", progress = e.detail.percent
+  // Set progress = e.detail.percent
 });
-// 3. Return { status, progress }
+// 3. Return { progress }
 ```
 
-**If your framework already has this adapter** (React): the CLI generates `usePrecacheProgress` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has this adapter** (React): the CLI generates `useSwoffPrecache` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ## Related
 

@@ -20,7 +20,7 @@ Every network request made by the SW passes through `_fetchWithTimeout()`, wrapp
 | `getStorageEstimate()` | Wraps `navigator.storage.estimate()` — returns `{ usage, quota, percentUsed }`      |
 | `formatBytes(n)`       | Formats byte counts for display (`1572864` → `"1.5 MB"`)                           |
 
-The React adapter `useStorageEstimate()` ties these together as a reactive hook that refreshes on visibility change.
+The React adapter `useSwoffStorage()` ties these together as a reactive hook that refreshes on visibility change.
 
 ### Unified notification channel
 

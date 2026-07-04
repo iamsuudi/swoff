@@ -36,7 +36,7 @@ This timeout applies uniformly across all strategies, ensuring no single slow re
 
 ### Storage quota awareness
 
-`storage.ts` exposes `getStorageEstimate()` and `formatBytes()` — thin wrappers around `navigator.storage.estimate()`. The former is a pure utility for rendering quota in the UI (e.g. `useStorageEstimate()` React hook). The storage check (≥80% threshold) runs inside `client-injector.ts` after SW initialization and dispatches `CustomEvent("swoff:notification")` on threshold breach.
+`storage.ts` exposes `getStorageEstimate()` and `formatBytes()` — thin wrappers around `navigator.storage.estimate()`. The former is a pure utility for rendering quota in the UI (e.g. `useSwoffStorage()` React hook). The storage check (≥80% threshold) runs inside `client-injector.ts` after SW initialization and dispatches `CustomEvent("swoff:notification")` on threshold breach.
 
 ### Why a unified channel?
 

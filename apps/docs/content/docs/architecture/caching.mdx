@@ -228,7 +228,7 @@ There is no user-facing config — it is always enabled. Both caches participate
 
 The `strategy` field resolves through three priority levels:
 
-1. **Per-request (highest)** — passed as options to `fetchWithCache({ strategy })` or `useCachedFetch()`, or via `X-SW-Strategy` header
+1. **Per-request (highest)** — passed as options to `fetchWithCache({ strategy })` or `useSwoffFetch()`, or via `X-SW-Strategy` header
 2. **Route pattern** — configured in `features.serviceWorker.strategy.patterns` keyed by URL pattern
 3. **Global default (lowest)** — configured at `features.serviceWorker.strategy.default`
 

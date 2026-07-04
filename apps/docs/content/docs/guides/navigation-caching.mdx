@@ -56,9 +56,9 @@ For the internal mechanics of `serveFromCache`, the fallback chain, and per-mode
 
 ## Framework adapters
 
-`useNetworkStatus` now lives in the [Connectivity & Storage guide](/docs/guides/connectivity#usenetworkstatus).
+`useSwoffNetwork` now lives in the [Connectivity & Storage guide](/docs/guides/connectivity#usenetworkstatus).
 
-### `useOfflineAnalytics`
+### `useSwoffAnalytics`
 
 Tracks offline fallback events for analytics: `{ lastEvent, events, clear }`.
 
@@ -97,7 +97,7 @@ navigator.serviceWorker.addEventListener("message", (event) => {
 });
 ```
 
-**If your framework already has these adapters** (React): the CLI generates `useOfflineAnalytics` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has these adapters** (React): the CLI generates `useSwoffAnalytics` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ## Related
 

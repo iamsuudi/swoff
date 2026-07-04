@@ -104,7 +104,7 @@ Add this to your build script. It reads the config headers from generated source
 
 This section has three adapters:
 
-### `usePwaInstall`
+### `useSwoffPwa`
 
 Exposes install prompt state: `{ isInstallable, promptInstall }`.
 
@@ -126,13 +126,13 @@ window.addEventListener("beforeinstallprompt", (e) => {
 // 4. Return { isInstallable, promptInstall }
 ```
 
-### `usePrecacheProgress`
+### `useSwoffPrecache`
 
 See the [Service Worker guide](/docs/guides/service-worker#framework-adapters) for the adapter that exposes `{ status, progress }` from background precaching progress.
 
-`useStorageEstimate` now lives in the [Connectivity & Storage guide](/docs/guides/connectivity#usestorageestimate).
+`useSwoffStorage` now lives in the [Connectivity & Storage guide](/docs/guides/connectivity#usestorageestimate).
 
-**If your framework already has these adapters** (React): the CLI generates `usePwaInstall` and `usePrecacheProgress` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has these adapters** (React): the CLI generates `useSwoffPwa` and `useSwoffPrecache` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ## Related
 

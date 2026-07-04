@@ -1,6 +1,6 @@
 ---
 title: Data Fetching & Caching
-description: fetchWithCache, prefetchCache, and React hooks for reactive data fetching.
+description: fetchWithCache, prefetchCache, and framework adapters for reactive data fetching.
 ---
 
 > **If you're coming from TanStack Query:** `fetchWithCache` returns `{ response, fromCache }` instead of `{ data, isLoading }`. Caching happens in the Service Worker — cached responses survive hard navigation, tab close, and full page reload. No provider wrapper needed. See the [full comparison](/docs/comparisons#data-fetching).
@@ -63,10 +63,10 @@ prefetchCache("/api/notes/123");
 If your framework is React-based, the CLI generates reactive hooks into `swoff/adapters/`:
 
 ```tsx
-import { useCachedFetch } from "./swoff/adapters/useCachedFetch";
+import { useSwoffFetch } from "./swoff/adapters/useSwoffFetch";
 
 function NotesList() {
-  const { data, isLoading, error, fromCache } = useCachedFetch("/api/notes");
+  const { data, isLoading, error, fromCache } = useSwoffFetch("/api/notes");
   if (isLoading) return <p>Loading...</p>;
   return <pre>{JSON.stringify(data, null, 2)}</pre>;
 }
@@ -154,7 +154,7 @@ Caching strategy configuration (default strategy, timeout, patterns, per-route o
 
 This section has two adapters:
 
-### `useCachedFetch`
+### `useSwoffFetch`
 
 The primary data-fetching adapter. Exposes reactive request state: `{ data, isLoading, error, fromCache, refetch }`.
 
@@ -179,7 +179,7 @@ window.addEventListener("cache-invalidated", (e) => {
 // 5. Return { data, isLoading, error, fromCache, refetch }
 ```
 
-### `usePrefetch`
+### `useSwoffPrefetch`
 
 Exposes a `prefetch(url)` function for fire-and-forget cache warming. No events needed — calls `swoff.prefetchCache()` directly.
 
@@ -190,7 +190,7 @@ Exposes a `prefetch(url)` function for fire-and-forget cache warming. No events 
 // 2. Return { prefetch }
 ```
 
-**If your framework already has these adapters** (React): the CLI generates `useCachedFetch` and `usePrefetch` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has these adapters** (React): the CLI generates `useSwoffFetch` and `useSwoffPrefetch` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ## Related
 

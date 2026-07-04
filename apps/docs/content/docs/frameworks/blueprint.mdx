@@ -47,7 +47,7 @@ Swoff sets these properties on `window` for synchronous access:
 
 ## Adapter template
 
-Every adapter follows the same pattern. Here's a minimal `useCachedFetch` for any reactive framework:
+Every adapter follows the same pattern. Here's a minimal `useSwoffFetch` for any reactive framework:
 
 ```ts
 // 1. Define the reactive state shape
@@ -63,7 +63,7 @@ interface CachedFetchState<T> {
 //    Vue:   ref + onMounted
 //    Svelte: writable + onMount
 
-function useCachedFetch(url: string) {
+function useSwoffFetch(url: string) {
   // Initialize reactive state
   // Call swoff fetch on mount / url change
   // Listen to cache-invalidated to refetch
@@ -79,20 +79,20 @@ These are the standard adapters. Each maps directly to the events above:
 
 | Adapter               | Listens to                                                            | Exposes                                                                                     |
 | --------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `useNetworkStatus`    | `app-connectivity-change`, `navigator.connection` `change`            | `online`, `wasOffline`, `lastChangedAt`, `effectiveType`, `downlink`, `isRetrying`, `retry` |
-| `useCachedFetch`      | `cache-invalidated`                                                   | `data`, `isLoading`, `error`, `fromCache`, `refetch`                                        |
-| `usePrecacheProgress` | `sw-progress`                                                         | `status`, `progress`                                                                        |
-| `useAuth`             | `sw-auth-state-change`                                                | `authenticated`, `auth`, `online`, `setAuth`, `clearAuth`                                   |
-| `useMutationQueue`    | `mutation-queue-changed`                                              | `pending`, `items`, `isProcessing`, `retryAll`                                              |
-| `usePushSubscription` | `push-subscription-changed`, `push-permission-changed`                | `subscribed`, `permission`, `subscribe`, `unsubscribe`                                      |
-| `useBackgroundSync`   | `background-sync-complete`                                            | `supported`, `registered`, `triggerSync`                                                    |
-| `usePwaInstall`       | `beforeinstallprompt`                                                 | `isInstallable`, `promptInstall`                                                            |
-| `usePrefetch`         | —                                                                     | `prefetch` (calls `prefetchCache`)                                                          |
-| `useMutation`         | —                                                                     | `mutate` (calls `fetchWithCache`)                                                           |
-| `useMutationState`    | `mutation-queue-changed`                                              | `states`, `track`, `getState`                                                               |
+| `useSwoffNetwork`    | `app-connectivity-change`, `navigator.connection` `change`            | `online`, `wasOffline`, `lastChangedAt`, `effectiveType`, `downlink`, `isRetrying`, `retry` |
+| `useSwoffFetch`      | `cache-invalidated`                                                   | `data`, `isLoading`, `error`, `fromCache`, `refetch`                                        |
+| `useSwoffPrecache` | `sw-progress`                                                         | `progress`                                                                                  |
+| `useSwoffAuth`             | `sw-auth-state-change`                                                | `authenticated`, `auth`, `online`, `setAuth`, `clearAuth`                                   |
+| `useSwoffQueue`    | `mutation-queue-changed`                                              | `pending`, `items`, `isProcessing`, `retryAll`                                              |
+| `useSwoffPush` | `push-subscription-changed`, `push-permission-changed`                | `subscribed`, `permission`, `subscribe`, `unsubscribe`                                      |
+| `useSwoffSync`   | `background-sync-complete`                                            | `supported`, `registered`, `triggerSync`                                                    |
+| `useSwoffPwa`       | `beforeinstallprompt`                                                 | `isInstallable`, `promptInstall`                                                            |
+| `useSwoffPrefetch`         | —                                                                     | `prefetch` (calls `prefetchCache`)                                                          |
+| `useSwoffMutation`         | —                                                                     | `mutate` (calls `fetchWithCache`)                                                           |
+| `useSwoffMutationState`    | `mutation-queue-changed`                                              | `states`, `track`, `getState`                                                               |
 | `useSwoffReset`       | —                                                                     | `reset` (calls `resetSwoff`)                                                                |
-| `useOfflineAnalytics` | `swoff:offline-fallback` (or SW message `OFFLINE_FALLBACK_ACTIVATED`) | `lastEvent`, `events`, `clear`                                                              |
-| `useStorageEstimate`  | —                                                                     | `usage`, `quota`, `percentUsed`                                                             |
+| `useSwoffAnalytics` | `swoff:offline-fallback` (or SW message `OFFLINE_FALLBACK_ACTIVATED`) | `lastEvent`, `events`, `clear`                                                              |
+| `useSwoffStorage`  | —                                                                     | `usage`, `quota`, `percentUsed`                                                             |
 
 ## Prerequisites
 

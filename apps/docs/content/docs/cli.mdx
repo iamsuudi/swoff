@@ -68,7 +68,7 @@ All files land in `swoff/`. See [API Reference](/docs/api) for the full referenc
 | `sw/injector.{ts\|js}`             | always                                                                   | SW registration logic                                                                                     |
 | `sw/generator.mjs`                  | always                                                                   | Build-time script — embeds asset hashes                                                                   |
 | `sw/version.{ts\|js}`              | always                                                                   | `SW_VERSION` constant — embedded in SW for display / debugging                                            |
-| `adapters/*.tsx`                   | React-based framework only                                               | React hooks. Other frameworks use `window.addEventListener` (see [Blueprint](/docs/frameworks/blueprint)) |
+| `adapters/*.tsx`                   | React-based framework only                                               | Framework adapters. Other frameworks use `window.addEventListener` (see [Blueprint](/docs/frameworks/blueprint)) |
 | `swoff.d.ts`                       | TypeScript                                                               | TypeScript declarations                                                                                   |
 
 ### PWA assets

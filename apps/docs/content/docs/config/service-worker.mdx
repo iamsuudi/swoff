@@ -89,7 +89,7 @@ When a strategy value is an object instead of a string:
 
 `strategy` and `staleTime` resolve in 3 tiers (highest to lowest priority):
 
-1. **Per-request** — passed as options to `fetchWithCache({ strategy })` or `useCachedFetch()`, or via `X-SW-Strategy` / `X-SW-Stale-Time` headers
+1. **Per-request** — passed as options to `fetchWithCache({ strategy })` or `useSwoffFetch()`, or via `X-SW-Strategy` / `X-SW-Stale-Time` headers
 2. **Route pattern** — configured in `features.serviceWorker.strategy.patterns`
 3. **Global default** — configured at `features.serviceWorker.strategy.reactive.*` (for `staleTime`) or `features.serviceWorker.strategy.default` (for `strategy`)
 

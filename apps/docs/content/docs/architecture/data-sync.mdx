@@ -56,8 +56,8 @@ The mutation queue stores writes in IndexedDB and replays them when online. Each
 
 - `getQueuePosition(id)` — returns the 0-based index of a mutation in the queue
 - `getQueueItems()` — returns all pending items with their status and retry count
-- `useMutationQueue()` — exposes `{ pending, items, lastSync }`
-- `useMutationState(id)` — subscribes to a specific mutation's state changes
+- `useSwoffQueue()` — exposes `{ pending, items, lastSync }`
+- `useSwoffMutationState(id)` — subscribes to a specific mutation's state changes
 
 **Batch processing:**
 

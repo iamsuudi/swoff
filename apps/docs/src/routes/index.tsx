@@ -21,6 +21,11 @@ import {
 } from "lucide-react";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { Icons } from "@/components/icons";
+import {
+  frontendFrameworks,
+  metaFrameworks,
+  backendFrameworks,
+} from "@/lib/frameworks";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -132,56 +137,6 @@ const features = [
     color: "text-cyan-500",
     bg: "bg-cyan-500/10",
   },
-];
-
-const frontendFrameworks = [
-  "React",
-  "Vue",
-  "Svelte",
-  "Solid",
-  "Preact",
-  "Angular",
-  "Alpine",
-  "HTMX",
-  "Lit",
-  "Qwik",
-  "Marko",
-  "Stimulus",
-  "jQuery",
-];
-
-const metaFrameworks = [
-  "Next.js",
-  "Remix",
-  "Nuxt",
-  "SvelteKit",
-  "TanStack Start",
-  "Astro",
-  "Gatsby",
-  "Eleventy",
-  "Hugo",
-  "Jekyll",
-];
-
-const backendFrameworks = [
-  "Laravel",
-  "Django",
-  "Rails",
-  "Express",
-  "Fastify",
-  "Hono",
-  "Go",
-  "PHP",
-  "Python",
-  "Ruby",
-  "Java",
-  "Spring",
-  "ASP.NET",
-  "Rust",
-  "Phoenix",
-  "Deno",
-  "Bun",
-  "Node.js",
 ];
 
 function Home() {
@@ -529,7 +484,7 @@ function Home() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <span className="text-xs text-fd-muted-foreground">
-                &copy; {new Date().getFullYear()} Suudi
+                &copy; {new Date().getFullYear()} Swoff
               </span>
             </div>
             <div className="flex items-center gap-5 text-xs text-fd-muted-foreground">

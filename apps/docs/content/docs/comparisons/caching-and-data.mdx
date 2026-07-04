@@ -93,7 +93,7 @@ Offline mutation → IndexedDB (queue)
 - **SW fallback:** When all tabs close, the SW wakes via Background Sync API and replays the queue.
 - **Per-mutation online check:** Before each replay, checks `navigator.onLine`. If offline mid-batch, remaining mutations stay queued.
 - **Configurable retry:** `maxRetries`, `retryBackoffMs` (exponential), `batchSize`, `batchDelayMs`.
-- **Queue introspection:** `getQueuePosition(id)`, `getQueueItems()`, `useMutationQueue()`.
+- **Queue introspection:** `getQueuePosition(id)`, `getQueueItems()`, `useSwoffQueue()`.
 - **Dual-replay prevention:** SW skips Background Sync replay if any client page is open.
 - **Auth-aware:** If the auth token expires mid-batch, the SW attempts silent refresh before retrying.
 

@@ -12,7 +12,7 @@ Application Layer (React, Vue, Svelte, HTMX, vanilla)
       Browser APIs (Cache Storage, IndexedDB, fetch, push)
 ```
 
-The only framework-specific surface is **view adapters** (React hooks, future Vue/Svelte). These are optional thin wrappers over `postMessage` to the SW. The core caching, offline, invalidation, and auth work without them.
+The only framework-specific surface is **view adapters** (React hooks, Vue composables, future Svelte). These are optional thin wrappers over `postMessage` to the SW. The core caching, offline, invalidation, and auth work without them.
 
 ## Compatible with everything
 
@@ -20,9 +20,9 @@ The only framework-specific surface is **view adapters** (React hooks, future Vu
 | -------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | **Backend**                | PHP, Laravel, Django, Flask, Rails, ASP.NET, Go, Java, Node | `navigation.mode: "ssr"`                                                         |
 | **HTML-over-wire**         | HTMX, Turbo Hotwire, Unpoly, Livewire                       | `navigation.mode: "ssr"`                                                         |
-| **SSG**                    | Astro, Hugo, 11ty, Jekyll                                   | `navigation.mode: "default"`, strategy `cache-first`                             |
+| **SSG**                    | Astro, VitePress, Hugo, 11ty, Jekyll                        | `navigation.mode: "default"`, strategy `cache-first`                             |
 | **SPA frameworks**         | React, Vue, Svelte, Solid, Angular, Alpine                  | `navigation.mode: "spa"` (default)                                               |
-| **Meta-frameworks**        | Next.js, Remix, Nuxt, SvelteKit, TanStack Start             | Auto-detected; `navigation.mode: "ssr"` + framework-specific `ignoreQueryParams` |
+| **Meta-frameworks**        | Next.js, Remix, Nuxt, Quasar, SvelteKit, TanStack Start     | Auto-detected; `navigation.mode: "ssr"` + framework-specific `ignoreQueryParams` |
 | **RSC-based**              | Next.js App Router                                          | `navigation.mode: "ssr"` + `ignoreQueryParams: ["_rsc"]` (auto-detected)         |
 | **Edge / Serverless**      | Cloudflare Workers, Deno Deploy, Vercel Edge                | Edge runs on CDN, Swoff runs in browser — independent layers, no conflict        |
 | **Islands / Resumability** | Astro islands, Qwik, Marko                                  | SW runs in its own thread regardless of component hydration                      |

@@ -378,7 +378,7 @@ function AssetsPage() {
                   "flex items-center justify-center bg-fd-foreground text-fd-background hover:opacity-90 font-bold h-11 text-[14px] rounded-lg gap-2 px-4 shadow-lg group",
               })}
             >
-              Get Started with Swoff
+              Get Started
               <ExternalLink className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
             </Link>
             <a
@@ -388,7 +388,7 @@ function AssetsPage() {
               className={buttonVariants({
                 variant: "outline",
                 className:
-                  "flex items-center justify-center border-fd-border text-fd-foreground hover:bg-fd-primary/95 bg-fd-primary font-bold h-11 px-4 text-[14px] rounded-lg gap-2 shadow-md",
+                  "flex items-center justify-center border-fd-border text-fd-foreground hover:bg-fd-success/95 bg-fd-success font-bold h-11 px-4 text-[14px] rounded-lg gap-2 shadow-md",
               })}
             >
               <Icons.npm className="size-8" />

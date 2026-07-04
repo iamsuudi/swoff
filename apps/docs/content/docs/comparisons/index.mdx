@@ -98,7 +98,7 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 | Icon generation           | ✅ `npx @swoff/assets`         | ❌              | ❌             | ❌             | ❌        |
 | Install prompt management | ✅ isInstallable/promptInstall | 🟡 registerSW   | ❌             | ❌             | ❌        |
 | Push notifications        | ✅ built-in SW handler         | 🟡 manual       | 🟡 manual      | 🟡 manual      | 🟡 manual |
-| React hooks generated     | ✅ usePwaInstall               | 🟡 registerSW   | ❌             | ❌             | ❌        |
+| Framework adapters        | ✅ 14 hooks                  | 🟡 registerSW   | ❌             | ❌             | ❌        |
 | Framework-agnostic        | ✅ any                         | ❌ Vite-only    | ❌ Next.js     | ❌ Next.js     | ✅ any    |
 | Auditable generated code  | ✅ every file                  | 🟡 only SW      | 🟡 only SW     | 🟡 only SW     | ❌        |
 | Runtime size added        | 0 kB                           | ~30 kB          | ~35 kB         | ~30 kB         | ~30 kB    |
@@ -120,7 +120,7 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 | --------------------------------- | --------------- | ------------------- | ----------------------------- | ---------------------------- | ------------------------- | --------------------------------------------- |
 | Config-driven setup               | ✅ single file  | ✅ workbox-config   | ❌ code-only                  | ❌ code-only                 | ❌ code-only              | ❌ code-only + schema defs                    |
 | Build-tool agnostic               | ✅ any          | ✅ any              | ✅ any                        | ✅ any                       | ✅ any                    | ✅ any                                        |
-| React hooks                       | ✅ 10           | 🟡 minimal          | ✅ extensive                  | ✅                           | ✅                        | ✅ useLiveQuery                               |
+| Framework adapters                 | ✅ 14           | 🟡 minimal          | ✅ extensive                  | ✅                           | ✅                        | ✅ useLiveQuery                               |
 | TypeScript declarations generated | ✅              | ❌                  | ✅ built-in                   | ✅ built-in                  | ✅ built-in               | ✅ built-in                                   |
 | Auditable generated code          | ✅ every file   | 🟡 only SW          | ❌                            | ❌                           | ❌                        | ❌                                            |
 | Lines of setup code               | ✅ 0 (1 config) | 🟡 config + imports | ❌ query client + hooks setup | ❌ ApolloClient + link chain | ❌ schema + RxDB creation | ❌ schema + DB + sync engine + server adapter |

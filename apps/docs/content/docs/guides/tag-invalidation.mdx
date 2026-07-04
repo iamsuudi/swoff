@@ -1,6 +1,6 @@
 ---
 title: Tag System
-description: Auto-tags, glob patterns, cascading invalidation, cross-tab, and React hooks.
+description: Auto-tags, glob patterns, cascading invalidation, cross-tab, and framework adapters.
 ---
 
 > **If you're coming from TanStack Query:** `invalidateByTag("notes")` is Swoff's equivalent of `queryClient.invalidateQueries({ queryKey: ["notes"] })`. The difference: Swoff auto-generates tags from URL patterns, supports glob matching, cascading invalidation, and works cross-tab — no query key management needed. See the [full comparison](/docs/comparisons#invalidation).
@@ -192,7 +192,7 @@ No manual coordination needed. Works out of the box.
 
 ## Framework adapters
 
-The `cache-invalidated` event drives the `useCachedFetch` adapter (see the [Data Fetching guide](/docs/guides/data-fetching#framework-adapters)). When tags are invalidated, your adapter must listen for this event and refetch affected data.
+The `cache-invalidated` event drives the `useSwoffFetch` adapter (see the [Data Fetching guide](/docs/guides/data-fetching#framework-adapters)). When tags are invalidated, your adapter must listen for this event and refetch affected data.
 
 **Event:**
 
@@ -217,7 +217,7 @@ window.addEventListener("cache-invalidated", (e) => {
 
 For introspection (debugging which URLs are tagged), use `getUrlsForTag(tag)` or `swoff.getUrlsForTag(tag)` — see the Introspection section above.
 
-**If your framework already has this** (React): the CLI generates `useCachedFetch` into `swoff/adapters/` which listens to `cache-invalidated` automatically. See the [React page](/docs/frameworks/react/adapters) or the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has this** (React): the CLI generates `useSwoffFetch` into `swoff/adapters/` which listens to `cache-invalidated` automatically. See the [React page](/docs/frameworks/react/adapters) or the [Blueprint](/docs/frameworks/blueprint).
 
 ### Introspection
 

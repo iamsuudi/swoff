@@ -1,13 +1,34 @@
 import { writeFileSync, existsSync } from "fs";
 import { join } from "path";
-import { intro, outro, text, confirm, select, isCancel, log } from "@clack/prompts";
-import { detectFramework, type FrameworkName } from "../utils/detect-framework.js";
-import { buildMinimalConfig, type WizardAnswers } from "../config/minimal-config.js";
+import {
+  intro,
+  outro,
+  text,
+  confirm,
+  select,
+  isCancel,
+  log,
+} from "@clack/prompts";
+import {
+  detectFramework,
+  type FrameworkName,
+} from "../utils/detect-framework.js";
+import {
+  buildMinimalConfig,
+  type WizardAnswers,
+} from "../config/minimal-config.js";
 
 const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
-  "react-spa": {
+  react: {
     swOutput: "dist",
     navMode: "spa",
+    precacheDirs: {
+      dist: {
+        prefix: "/",
+        stripExtensions: [".html"],
+        stripSuffixes: ["index"],
+      },
+    },
   },
   qwik: {
     navMode: "spa",
@@ -43,10 +64,26 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
     navMode: "spa",
   },
   vue: {
+    swOutput: "dist",
     navMode: "spa",
+    precacheDirs: {
+      dist: {
+        prefix: "/",
+        stripExtensions: [".html"],
+        stripSuffixes: ["index"],
+      },
+    },
   },
   svelte: {
+    swOutput: "dist",
     navMode: "spa",
+    precacheDirs: {
+      dist: {
+        prefix: "/",
+        stripExtensions: [".html"],
+        stripSuffixes: ["index"],
+      },
+    },
   },
   nextjs: {
     swOutput: "public",
@@ -54,6 +91,17 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
     defaultStrategy: "network-first",
     patterns: { "/_next/static/*": "cache-first" },
     ignoreQueryParams: ["_rsc"],
+    precacheDirs: {
+      ".next/static": {
+        prefix: "/_next/static",
+      },
+      ".next/server/app": {
+        prefix: "/",
+        matchExtensions: [".html"],
+        stripExtensions: [".html"],
+        stripSuffixes: ["index"],
+      },
+    },
   },
   remix: {
     navMode: "ssr",
@@ -74,13 +122,28 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
     defaultStrategy: "network-first",
   },
   sveltekit: {
+    swOutput: ".svelte-kit/output/client",
     navMode: "ssr",
     defaultStrategy: "network-first",
+    precacheDirs: {
+      ".svelte-kit/output/client": {
+        prefix: "/",
+        stripExtensions: [".html"],
+        stripSuffixes: ["index"],
+      },
+    },
   },
   "tanstack-start-react": {
     swOutput: ".output/public",
     navMode: "ssr",
     defaultStrategy: "network-first",
+    precacheDirs: {
+      ".output/public": {
+        prefix: "/",
+        stripExtensions: [".html"],
+        stripSuffixes: ["index"],
+      },
+    },
   },
 };
 
@@ -94,16 +157,40 @@ const STRATEGIES = [
 ] as const;
 
 const ALL_FRAMEWORKS = [
-  "nextjs", "remix", "tanstack-start-react", "astro", "nuxt",
-  "quasar", "vitepress", "sveltekit", "react-spa", "vue", "svelte",
-  "qwik", "preact", "angular", "solid", "lit",
-  "alpine", "marko", "stimulus", "jquery", "htmx",
-  "vanilla", "no-bundler",
+  "nextjs",
+  "remix",
+  "tanstack-start-react",
+  "astro",
+  "nuxt",
+  "quasar",
+  "vitepress",
+  "sveltekit",
+  "react",
+  "vue",
+  "svelte",
+  "qwik",
+  "preact",
+  "angular",
+  "solid",
+  "lit",
+  "alpine",
+  "marko",
+  "stimulus",
+  "jquery",
+  "htmx",
+  "vanilla",
+  "no-bundler",
 ] as const;
 
-export async function initCommand(projectRoot: string, yesMode?: boolean, frameworkOverride?: string) {
+export async function initCommand(
+  projectRoot: string,
+  yesMode?: boolean,
+  frameworkOverride?: string,
+) {
   const configFiles = ["swoff.config.json", "swoff.config.js"];
-  const existingConfig = configFiles.find((f) => existsSync(join(projectRoot, f)));
+  const existingConfig = configFiles.find((f) =>
+    existsSync(join(projectRoot, f)),
+  );
 
   if (existingConfig) {
     log.warn(`Found existing ${existingConfig}. Aborting.`);
@@ -111,9 +198,10 @@ export async function initCommand(projectRoot: string, yesMode?: boolean, framew
     return;
   }
 
-  const detected = frameworkOverride && ALL_FRAMEWORKS.includes(frameworkOverride as never)
-    ? (frameworkOverride as (typeof ALL_FRAMEWORKS)[number])
-    : detectFramework(projectRoot);
+  const detected =
+    frameworkOverride && ALL_FRAMEWORKS.includes(frameworkOverride as never)
+      ? (frameworkOverride as (typeof ALL_FRAMEWORKS)[number])
+      : detectFramework(projectRoot);
   if (frameworkOverride && detected === frameworkOverride) {
     log.info(`Framework: ${detected} (override)`);
   }
@@ -192,11 +280,17 @@ export async function initCommand(projectRoot: string, yesMode?: boolean, framew
   });
   if (isCancel(defaultStrategy)) process.exit(0);
 
-  const pwaEnabled = await confirm({ message: "Enable PWA install prompt?", initialValue: false });
+  const pwaEnabled = await confirm({
+    message: "Enable PWA install prompt?",
+    initialValue: false,
+  });
   if (isCancel(pwaEnabled)) process.exit(0);
 
   let authType: string | undefined;
-  const authEnabled = await confirm({ message: "Enable authentication?", initialValue: false });
+  const authEnabled = await confirm({
+    message: "Enable authentication?",
+    initialValue: false,
+  });
   if (isCancel(authEnabled)) process.exit(0);
   if (authEnabled) {
     authType = (await select({
@@ -211,19 +305,34 @@ export async function initCommand(projectRoot: string, yesMode?: boolean, framew
     if (isCancel(authType)) process.exit(0);
   }
 
-  const mutationEnabled = await confirm({ message: "Enable mutation queue (offline mutations)?", initialValue: false });
+  const mutationEnabled = await confirm({
+    message: "Enable mutation queue (offline mutations)?",
+    initialValue: false,
+  });
   if (isCancel(mutationEnabled)) process.exit(0);
 
-  const tagInvalidationEnabled = await confirm({ message: "Enable tag invalidation?", initialValue: false });
+  const tagInvalidationEnabled = await confirm({
+    message: "Enable tag invalidation?",
+    initialValue: false,
+  });
   if (isCancel(tagInvalidationEnabled)) process.exit(0);
 
-  const graphqlEnabled = await confirm({ message: "Enable GraphQL support?", initialValue: false });
+  const graphqlEnabled = await confirm({
+    message: "Enable GraphQL support?",
+    initialValue: false,
+  });
   if (isCancel(graphqlEnabled)) process.exit(0);
 
-  const serverPushEnabled = await confirm({ message: "Enable server push?", initialValue: false });
+  const serverPushEnabled = await confirm({
+    message: "Enable server push?",
+    initialValue: false,
+  });
   if (isCancel(serverPushEnabled)) process.exit(0);
 
-  const pushNotificationsEnabled = await confirm({ message: "Enable push notifications?", initialValue: false });
+  const pushNotificationsEnabled = await confirm({
+    message: "Enable push notifications?",
+    initialValue: false,
+  });
   if (isCancel(pushNotificationsEnabled)) process.exit(0);
 
   const precacheDir = await text({
@@ -256,11 +365,15 @@ export async function initCommand(projectRoot: string, yesMode?: boolean, framew
   if (graphqlEnabled) log.info("  GraphQL:      enabled");
   if (serverPushEnabled) log.info("  Server Push:  enabled");
   if (pushNotificationsEnabled) log.info("  Push Notif:   enabled");
-  if (precacheDir) log.info(`  Precache:     ${precacheDir} → ${precachePrefix}`);
+  if (precacheDir)
+    log.info(`  Precache:     ${precacheDir} → ${precachePrefix}`);
   log.info("─".repeat(40));
   log.info("");
 
-  const write = await confirm({ message: "Write swoff.config.json?", initialValue: true });
+  const write = await confirm({
+    message: "Write swoff.config.json?",
+    initialValue: true,
+  });
   if (isCancel(write) || !write) {
     outro("Aborted.");
     return;
@@ -293,5 +406,7 @@ function writeConfig(projectRoot: string, answers: WizardAnswers) {
   const config = buildMinimalConfig(answers);
   const configPath = join(projectRoot, "swoff.config.json");
   writeFileSync(configPath, JSON.stringify(config, null, 2));
-  outro(`Config written to swoff.config.json (${Object.keys(config).length} top-level keys)`);
+  outro(
+    `Config written to swoff.config.json (${Object.keys(config).length} top-level keys)`,
+  );
 }

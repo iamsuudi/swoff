@@ -6,7 +6,7 @@ import { generateFiles } from "../lib/generators/swoff-files-generator.js";
 vi.mock("@clack/prompts", () => {
   let callCount = 0;
   const mockValues: Record<string, unknown> = {
-    framework: "react-spa",
+    framework: "react",
     swOutput: "dist",
     swFilename: "sw",
     navMode: "spa",
@@ -83,7 +83,7 @@ describe("initCommand", () => {
     writeFileSync(join(testDir, "package.json"), JSON.stringify({ dependencies: { react: "^18.0.0" } }));
     await initCommand(testDir, true);
     const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
-    expect(config.framework).toBe("react-spa");
+    expect(config.framework).toBe("react");
   });
 
   it("creates minimal config with only serviceWorker feature", async () => {
@@ -133,7 +133,7 @@ describe("generateCommand", () => {
   function writeMinimalConfig() {
     const config = {
       $schema: "https://swoff.netlify.app/schema/v1.json",
-      framework: "react-spa",
+      framework: "react",
       features: {
         serviceWorker: {
           strategy: {

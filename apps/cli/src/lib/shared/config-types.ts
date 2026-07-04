@@ -99,7 +99,7 @@ export interface SwoffConfig {
     | "quasar"
     | "vitepress"
     | "sveltekit"
-    | "react-spa"
+    | "react"
     | "vue"
     | "svelte"
     | "qwik"

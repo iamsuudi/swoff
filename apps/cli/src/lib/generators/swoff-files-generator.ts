@@ -206,7 +206,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
       name: "framework-adapters",
       gen: () => generateFrameworkAdapters(ctx),
       enabled: [
-        "react-spa",
+        "react",
         "nextjs",
         "remix",
         "tanstack-start-react",

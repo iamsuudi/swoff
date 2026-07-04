@@ -23,7 +23,7 @@ export type FrameworkName =
   | "quasar"
   | "vitepress"
   | "sveltekit"
-  | "react-spa"
+  | "react"
   | "vue"
   | "svelte"
   | "qwik"
@@ -92,7 +92,7 @@ export function detectFramework(projectRoot: string): FrameworkName {
     if (allDeps[dep]) return name;
   }
 
-  if (REACT_DEPS.some((d) => allDeps[d])) return "react-spa";
+  if (REACT_DEPS.some((d) => allDeps[d])) return "react";
 
   return "vanilla";
 }

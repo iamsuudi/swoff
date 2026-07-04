@@ -9,7 +9,7 @@ import type { SwoffConfig } from "../../shared/config-types.js";
 
 const BUNDLER_FRAMEWORKS = new Set([
   "nextjs", "remix", "tanstack-start-react", "astro",
-  "nuxt", "sveltekit", "react-spa", "vue", "svelte",
+  "nuxt", "sveltekit", "react", "vue", "svelte",
   "qwik", "preact", "angular", "solid", "lit",
   "alpine", "marko", "stimulus", "jquery", "htmx",
   "vanilla",

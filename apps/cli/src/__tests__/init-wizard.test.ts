@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { buildMinimalConfig, type WizardAnswers } from "../lib/config/minimal-config.js";
 
 const baseAnswers: WizardAnswers = {
-  framework: "react-spa",
+  framework: "react",
   swOutput: "dist",
   swFilename: "sw",
   navMode: "spa",
@@ -20,7 +20,7 @@ const baseAnswers: WizardAnswers = {
 describe("buildMinimalConfig", () => {
   it("produces config with only serviceWorker feature when no options enabled", () => {
     const config = buildMinimalConfig(baseAnswers);
-    expect(config.framework).toBe("react-spa");
+    expect(config.framework).toBe("react");
     expect(config.features).toHaveProperty("serviceWorker");
     expect(config.features).not.toHaveProperty("pwa");
     expect(config.features).not.toHaveProperty("auth");

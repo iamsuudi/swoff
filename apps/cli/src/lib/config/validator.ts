@@ -343,7 +343,7 @@ export function validateConfig(config: SwoffConfig): string[] {
   }
 
   const fw = config.framework;
-  const VALID_FRAMEWORKS = ["nextjs", "remix", "tanstack-start-react", "astro", "nuxt", "sveltekit", "react-spa", "vue", "svelte", "qwik", "preact", "angular", "solid", "lit", "alpine", "marko", "stimulus", "jquery", "htmx", "vanilla", "no-bundler"];
+  const VALID_FRAMEWORKS = ["nextjs", "remix", "tanstack-start-react", "astro", "nuxt", "sveltekit", "react", "vue", "svelte", "qwik", "preact", "angular", "solid", "lit", "alpine", "marko", "stimulus", "jquery", "htmx", "vanilla", "no-bundler"];
   if (fw !== undefined) {
     if (typeof fw !== "string") {
       errors.push(`framework must be a string, got ${typeof fw}`);

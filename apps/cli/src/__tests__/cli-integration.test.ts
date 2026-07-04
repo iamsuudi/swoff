@@ -143,7 +143,7 @@ describe("CLI commands integration", () => {
     function writeConfig(overrides: Record<string, unknown> = {}) {
       const config = {
         $schema: "https://swoff.netlify.app/schema/v1.json",
-        framework: "react-spa",
+        framework: "react",
         features: {
           pwa: { enabled: true, preventDefaultInstall: false },
           serviceWorker: {
@@ -197,7 +197,7 @@ describe("CLI commands integration", () => {
         swoffDir: join(testDir, "swoff"),
         ext: "js",
         generatedFiles: [],
-        frameworkName: "react-spa",
+        frameworkName: "react",
         hasBundler: true,
       };
       const files = generateFiles(ctx);

@@ -211,6 +211,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
         "remix",
         "tanstack-start-react",
         "astro",
+        "vike",
       ].includes(ctx.frameworkName),
     },
   ];

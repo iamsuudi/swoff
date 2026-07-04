@@ -133,6 +133,18 @@ const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
       },
     },
   },
+  vike: {
+    swOutput: "dist/client",
+    navMode: "ssr",
+    defaultStrategy: "network-first",
+    precacheDirs: {
+      "dist/client": {
+        prefix: "/",
+        stripExtensions: [".html"],
+        stripSuffixes: ["index"],
+      },
+    },
+  },
   "tanstack-start-react": {
     swOutput: ".output/public",
     navMode: "ssr",
@@ -165,6 +177,7 @@ const ALL_FRAMEWORKS = [
   "quasar",
   "vitepress",
   "sveltekit",
+  "vike",
   "react",
   "vue",
   "svelte",

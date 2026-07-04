@@ -51,6 +51,7 @@ const BASE_FRAMEWORK: Record<string, string> = {
   quasar: "vue",
   vitepress: "vue",
   sveltekit: "svelte",
+  vike: "vue",
 };
 
 const OUTPUT_SUBDIRS: Record<string, string> = {

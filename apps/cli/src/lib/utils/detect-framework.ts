@@ -23,6 +23,7 @@ export type FrameworkName =
   | "quasar"
   | "vitepress"
   | "sveltekit"
+  | "vike"
   | "react"
   | "vue"
   | "svelte"
@@ -49,6 +50,7 @@ const META_FRAMEWORKS: [string, FrameworkName][] = [
   ["quasar", "quasar"],
   ["vitepress", "vitepress"],
   ["@sveltejs/kit", "sveltekit"],
+  ["vike", "vike"],
 ];
 
 const BASE_FRAMEWORKS: [string, FrameworkName][] = [

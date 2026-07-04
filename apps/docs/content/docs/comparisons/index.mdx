@@ -86,6 +86,7 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 | ---------------------------- | ----------- | ------- | -------------- | ------------ | -------------- | ------------------ |
 | Body-hash GQL caching        | ✅ SHA-256  | ❌      | ❌             | 🟡 in-memory | ❌             | 🟡 normalized cols |
 | GQL operation-name auto-tags | ✅          | ❌      | ❌             | 🟡 custom    | ❌             | ❌                 |
+| Cross-query entity invalidation | 🟡 Op-name only (CRUD pairs auto; cross-query needs explicit tags) | ❌ | ❌ | ✅ Automatic entity normalization | ❌ | ❌ |
 | GQL offline mutation queue   | ✅          | ❌      | ❌             | ❌           | ❌             | ✅                 |
 | SSE/WS connection management | ✅ built-in | ❌      | ❌             | 🟡 link      | ✅ replication | 🟡 via sync engine |
 

@@ -93,6 +93,42 @@ const { data } = await queryGql(
 );
 ```
 
+### Cross-query cache invalidation
+
+Auto-tags from operation names handle paired read/write operations (e.g. `GetNotes` ↔ `CreateNote`). But the same entity type often appears in multiple queries — a `User` in `GetDashboard`, `GetTeam`, and `me`. Op-name auto-tags only cover the top-level operation, not nested entity references.
+
+This is a deliberate tradeoff vs normalized caches like Apollo Client:
+
+| | Swoff (body-hash + auto-tags) | Apollo Client (normalized store) |
+|---|---|---|
+| Cross-query auto-invalidation | Operation-name based. `UpdateUser` invalidates `user`; `GetDashboard` (tagged `dashboard`) is NOT auto-invalidated | Automatic — Apollo extracts `__typename + id`, updates all queries referencing that entity |
+| Schema coupling | None — no `__typename`, no `id` field required | Requires `__typename` in every response, consistent `id` field |
+| Runtime size | 0 kB (generated code) | ~32 kB gzip |
+| Cache persistence | Cache API (disk, survives tab close) | In-memory |
+| Offline mutation replay | ✅ Auto-invalidates cache tags on replay | ❌ No SW-level offline support |
+| Entity update granularity | Invalidates entire cache entry | Patches individual entity fields |
+| Anonymous query support | ❌ No op name → no auto-tags, can't be tag-invalidated | ✅ Normalizes by entity regardless |
+
+For most apps, op-name auto-tags cover the common CRUD pairs. When you need cross-query invalidation, use explicit `tags` and `invalidate`:
+
+```ts
+// Tag both queries with the same tag
+const dashboard = await queryGql(`
+  query GetDashboard { user { id name } team { id } }
+`, {}, { tags: ["user", "team"] });
+
+const team = await queryGql(`
+  query GetTeam { members { id name } }
+`, {}, { tags: ["user", "team"] });
+
+// Invalidate both with the same tag
+await mutateGql(`
+  mutation UpdateProfile($name: String!) { updateProfile(name: $name) { id } }
+`, { name }, { invalidate: ["user", "team"] });
+```
+
+> Anonymous queries (no operation name, e.g. `{ todos { id } }`) produce no auto-tags and cannot be tag-invalidated. Always name your operations for caching to work.
+
 ### No-bundler usage
 
 Include `swoff-api.bundle.js` after `client-injector.bundle.js`:

@@ -228,6 +228,13 @@
                   "description": "Network fetch timeout in seconds.",
                   "default": 10,
                   "minimum": 1
+                },
+                "storageThreshold": {
+                  "type": "integer",
+                  "description": "Storage usage percentage threshold that triggers automatic cache eviction of stale entries. 0 disables threshold-based eviction.",
+                  "default": 80,
+                  "minimum": 0,
+                  "maximum": 100
                 }
               }
             },

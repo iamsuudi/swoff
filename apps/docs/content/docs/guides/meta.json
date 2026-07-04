@@ -4,6 +4,7 @@
     "service-worker",
     "caching-strategy",
     "navigation-caching",
+    "precaching",
     "data-fetching",
     "graphql",
     "tag-invalidation",

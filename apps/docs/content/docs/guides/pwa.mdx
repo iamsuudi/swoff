@@ -100,6 +100,10 @@ node swoff/sw/generator.mjs
 
 Add this to your build script. It reads the config headers from generated source files and produces your final `sw.js`.
 
+## Offline analytics
+
+The SW tracks which routes fell back to cached or offline responses. The `useSwoffAnalytics` adapter exposes `{ lastEvent, events, clear }` — see the [Navigation Caching guide](/docs/guides/navigation-caching#useswoffanalytics) for usage and event shapes.
+
 ## Framework adapters
 
 This section has three adapters:

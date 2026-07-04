@@ -21,6 +21,8 @@ Two internal collections manage this: `pendingBatches` (Map collecting callers w
 
 **Scope:** Any `fetchWithCache` call — hooks, raw calls, GraphQL queries. Set window to 0 to disable.
 
+**Why 50ms?** Short enough to be imperceptible to users (a single animation frame at 60fps is ~16ms), long enough to coalesce concurrent renders from the same route. Increase for very bursty navigation patterns (e.g. page loads that fire 10+ parallel data requests in the same tick).
+
 ## Competitor comparison
 
 | Library            | Coalesces before network request? |

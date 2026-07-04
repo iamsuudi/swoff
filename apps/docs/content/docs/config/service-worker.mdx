@@ -33,6 +33,7 @@ Controls the background precache behavior.
 | `normalizeKey`                | `boolean`  | `false`         | When `true`, query params are sorted alphabetically in cache keys so `?b=1&a=2` and `?a=2&b=1` resolve to the same entry.                                                                                                                                                                      |
 | `ignoreQueryParams`           | `string[]` | `[]`            | Query params to strip from cache keys (e.g. `["_t", "utm_source"]`). Prevents cache-busting params from creating duplicate cache entries.                                                                                                                                                      |
 | `timeout`                     | `number`   | `10`            | Network fetch timeout in seconds. The SW's `_fetch` wraps `fetch()` with an `AbortController` that aborts after this duration. On timeout or network error, a `SW_NOTIFICATION` is broadcast (level: `"error"`, code: `"FETCH_FAILED"`), and the strategy falls through to its cache fallback. |
+| `storageThreshold`              | `number`   | `80`            | Storage quota warning threshold (percent). When `navigator.storage.estimate().percentUsed` exceeds this value after SW init, a `STORAGE_QUOTA_HIGH` notification is dispatched. Range: 0–100. |
 
 ### `features.serviceWorker.navigation`
 

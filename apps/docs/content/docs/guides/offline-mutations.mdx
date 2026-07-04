@@ -8,7 +8,14 @@ description: Queue writes offline, replay online, background-sync, and framework
 ## Preconditions
 
 - Swoff initialized with data fetching enabled
-- **For background sync:** cookie auth (bearer and custom auth are incompatible — see auth guide)
+
+> **Bearer and custom auth limitation:** Background sync runs from the service worker with no DOM access — bearer tokens can't be refreshed and custom headers can't be injected. Only cookie auth supports background sync. Bearer and custom auth work with the mutation queue (online replay only — see the table below).
+
+| Auth type | Mutation queue | Background sync |
+| --------- | -------------- | --------------- |
+| cookie    | ✅             | ✅              |
+| bearer    | ✅             | ❌              |
+| custom    | ✅             | ❌              |
 
 ## Status
 
@@ -326,16 +333,6 @@ Wraps `fetchWithCache(url, { mutation: true })`. No events needed — calls the 
 - `retry.backoffMs` — initial backoff delay
 - `retry.maxBackoffMs` — max backoff cap
 - `retry.jitterMs` — random jitter added to backoff to prevent thundering herd
-
-### Auth compatibility
-
-| Auth type | Mutation queue | Background sync |
-| --------- | -------------- | --------------- |
-| cookie    | ✅             | ✅              |
-| bearer    | ✅             | ❌              |
-| custom    | ✅             | ❌              |
-
-Background sync runs from the SW with no DOM access — bearer tokens can't be refreshed and headers can't be injected, so it requires cookie auth where the browser sends the session cookie automatically.
 
 ## Related
 

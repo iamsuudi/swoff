@@ -103,6 +103,29 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 | Auditable generated code  | ✅ every file                  | 🟡 only SW      | 🟡 only SW     | 🟡 only SW     | ❌        |
 | Runtime size added        | 0 kB                           | ~30 kB          | ~35 kB         | ~30 kB         | ~30 kB    |
 
+Generated files include a `DO NOT EDIT MANUALLY` header — edits are overwritten on the next `swoff generate`. Extend behavior via config, not by editing generated files. The `auth/check.ts` file is the one exception (intentionally user-editable).
+
+Compare initialization side-by-side:
+
+```ts
+// Swoff — config-driven, any framework
+import { initServiceWorker } from "./swoff/client-injector";
+initServiceWorker();
+
+// vite-plugin-pwa — Vite-only, wraps Workbox
+import { registerSW } from "virtual:pwa-register";
+registerSW();
+
+// Serwist — Next.js–first
+import { initialize } from "@serwist/next/browser";
+initialize();
+
+// next-pwa — Next.js config only
+// no runtime init — configured in next.config.js
+```
+
+Swoff's `initServiceWorker` works in any framework with one config file. No `virtual:` imports, no build-plugin coupling.
+
 ### Resource Monitoring
 
 | Feature                        | Swoff                   | Workbox         | TanStack Query | Apollo | RxDB                 | TanStack DB |

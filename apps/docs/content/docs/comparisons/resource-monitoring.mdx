@@ -13,14 +13,14 @@ Every network request made by the SW passes through `_fetchWithTimeout()`, wrapp
 
 ### Storage quota awareness
 
-`storage.ts` exports two utilities; the threshold check runs in `client-injector.ts`:
+`storage.ts` exports two utilities; the threshold check runs in `client-injector.ts` after SW activation:
 
 | Function               | Purpose                                                                            |
 | ---------------------- | ---------------------------------------------------------------------------------- |
 | `getStorageEstimate()` | Wraps `navigator.storage.estimate()` — returns `{ usage, quota, percentUsed }`      |
 | `formatBytes(n)`       | Formats byte counts for display (`1572864` → `"1.5 MB"`)                           |
 
-The React adapter `useSwoffStorage()` ties these together as a reactive hook that refreshes on visibility change.
+The check fires when `percentUsed` exceeds `features.serviceWorker.strategy.storageThreshold` (default **80%**) and dispatches a `STORAGE_QUOTA_HIGH` notification. The threshold is configurable — set `storageThreshold` under the same strategy config to any value between 0 and 100. The React adapter `useSwoffStorage()` ties these together as a reactive hook that refreshes on visibility change.
 
 ### Unified notification channel
 

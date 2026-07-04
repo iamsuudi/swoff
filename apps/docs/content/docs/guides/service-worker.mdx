@@ -78,6 +78,21 @@ SW updates are content-based. Every build produces a byte-different `sw.js` — 
 
 Cache names are fixed: `"precache"`, `"swoff-runtime"`, `"swoff-runtime-html"`. Additionally, every build appends a timestamp constant `CACHE_NAME = "<Date.now()>"` at the end of the SW. This constant is purely a byte-differ — it triggers browser update detection when the SW file changes. On activation, the SW compares this timestamp against an IndexedDB record (`swoff-meta` DB, `cacheName` key). On deploy mismatch, all three caches are deleted before the new SW takes over.
 
+## Generated file boundary
+
+Every file under `swoff/` is generated from `swoff.config.json`. The generator places a `DO NOT EDIT MANUALLY` header on files that are fully managed — editing these files is safe for experimentation, but your changes will be overwritten the next time you run `swoff generate`.
+
+**One exception:** `swoff/auth/check.ts` is intentionally user-editable — it contains the `isAuthFailureResponse()` predicate you customize to define what constitutes an auth failure for your app.
+
+**The extension model:**
+
+| Need                                 | How to do it                                                          |
+| ------------------------------------ | --------------------------------------------------------------------- |
+| Change strategy, patterns, auth      | Edit `swoff.config.json`, re-run `swoff generate`                     |
+| Add custom SW behavior (push handler) | Generated `swoff/sw/template.js` has editable sections                |
+| Define auth failure detection        | Edit `swoff/auth/check.ts` — it's intentionally user-editable         |
+| Add custom client-side logic         | Import generated modules from your own code — don't edit the modules  |
+
 ## What the generated SW does
 
 The SW registers these event listeners based on your config:

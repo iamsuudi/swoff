@@ -17,12 +17,10 @@ All releases are tracked on GitHub. View the [full release history →](https://
 - feat: rename all React adapters `use*` → `useSwoff*` to avoid naming conflicts
 - feat: add Quasar, VitePress to auto-detected frameworks
 - feat: adapter generator supports `.ts`/`.js` templates (no JSX required)
-- feat: standalone `/assets` marketing page with feature cards and comparison table
-- feat: landing page text gradients, professional footer, nav + frameworks list extracted to shared file
 - feat: remove `status` from `usePrecacheProgress` — only `progress` remains
+- feat: make storage threshold configurable via `features.serviceWorker.strategy.storageThreshold` (default 80%)
+- feat: auto-strip X-SW-* headers in SW fetch handler to prevent leaking to external servers
 - fix: remove SW status gate from precache progress UI
-- refactor(brand): invert assets color scheme (black-bg → white-bg)
-- docs: replace "React hooks" with "Framework adapters" across all docs
 - chore: consolidate all changelogs into root `CHANGELOG.md` (single source)
 
 ## @swoff/cli@0.4.3 (2026-07-02)

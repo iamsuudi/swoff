@@ -112,6 +112,8 @@ fetch("/api/notes", {
 
 Available headers: `X-SW-Strategy`, `X-SW-Stale-Time`, `X-SW-Refetch-Interval`, `X-SW-Refetch-On-Focus`, `X-SW-Refetch-On-Reconnect`. The `refetch*` and `staleTime` options only apply to the `reactive` strategy — other strategies ignore them.
 
+> These headers are consumed by the SW fetch handler and **automatically stripped** before the request is forwarded to the network. No external server ever sees `X-SW-*` headers — safe to use with any third-party or cross-origin API.
+
 ## Config
 
 ```json

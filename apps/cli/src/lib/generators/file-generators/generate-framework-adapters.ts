@@ -7,15 +7,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const templatesDir = join(__dirname, "../../../../templates");
 
 function copyAdapter(frameworkDir: string, name: string, ext: string, outputDir: string) {
-  const primarySrc = join(frameworkDir, `${name}.${ext}x`);
-  if (existsSync(primarySrc)) {
-    copyFileSync(primarySrc, join(outputDir, `${name}.${ext}x`));
-    return;
-  }
-  const fallbackExt = ext === "ts" ? "jsx" : "tsx";
-  const fallbackSrc = join(frameworkDir, `${name}.${fallbackExt}`);
-  if (existsSync(fallbackSrc)) {
-    copyFileSync(fallbackSrc, join(outputDir, `${name}.${ext}x`));
+  // Try plain ext first (Vue: .ts/.js), then JSX variant (React: .tsx/.jsx),
+  // then opposite JSX fallback (tsx→jsx, jsx→tsx)
+  const extensions = [`.${ext}`, `.${ext}x`, ext === "ts" ? ".jsx" : ".tsx"];
+  for (const e of extensions) {
+    const src = join(frameworkDir, `${name}${e}`);
+    if (existsSync(src)) {
+      copyFileSync(src, join(outputDir, `${name}.${ext}x`));
+      return;
+    }
   }
 }
 
@@ -25,20 +25,20 @@ interface AdapterDef {
 }
 
 const ADAPTERS: AdapterDef[] = [
-  { name: "useNetworkStatus", condition: (c) => c.config.features.connectivity.enabled },
-  { name: "useStorageEstimate" },
-  { name: "useCachedFetch", condition: (c) => c.config.features.tagInvalidation.enabled },
-  { name: "useMutation", condition: (c) => c.config.features.mutationQueue.enabled },
-  { name: "usePrefetch", condition: (c) => c.config.features.tagInvalidation.enabled },
-  { name: "useMutationState", condition: (c) => c.config.features.mutationQueue.enabled },
+  { name: "useSwoffNetwork", condition: (c) => c.config.features.connectivity.enabled },
+  { name: "useSwoffStorage" },
+  { name: "useSwoffFetch", condition: (c) => c.config.features.tagInvalidation.enabled },
+  { name: "useSwoffMutation", condition: (c) => c.config.features.mutationQueue.enabled },
+  { name: "useSwoffPrefetch", condition: (c) => c.config.features.tagInvalidation.enabled },
+  { name: "useSwoffMutationState", condition: (c) => c.config.features.mutationQueue.enabled },
   { name: "useSwoffReset" },
-  { name: "useOfflineAnalytics" },
-  { name: "usePrecacheProgress" },
-  { name: "useAuth", condition: (c) => c.config.features.auth.enabled },
-  { name: "useMutationQueue", condition: (c) => c.config.features.mutationQueue.enabled },
-  { name: "usePwaInstall", condition: (c) => c.config.features.pwa.enabled },
-  { name: "usePushSubscription", condition: (c) => c.config.features.pushNotifications },
-  { name: "useBackgroundSync", condition: (c) => !!c.config.features.mutationQueue.backgroundSync },
+  { name: "useSwoffAnalytics" },
+  { name: "useSwoffPrecache" },
+  { name: "useSwoffAuth", condition: (c) => c.config.features.auth.enabled },
+  { name: "useSwoffQueue", condition: (c) => c.config.features.mutationQueue.enabled },
+  { name: "useSwoffPwa", condition: (c) => c.config.features.pwa.enabled },
+  { name: "useSwoffPush", condition: (c) => c.config.features.pushNotifications },
+  { name: "useSwoffSync", condition: (c) => !!c.config.features.mutationQueue.backgroundSync },
 ];
 
 const BASE_FRAMEWORK: Record<string, string> = {
@@ -47,10 +47,16 @@ const BASE_FRAMEWORK: Record<string, string> = {
   "react-spa": "react",
   "tanstack-start-react": "react",
   astro: "react",
+  nuxt: "vue",
+  quasar: "vue",
+  vitepress: "vue",
+  sveltekit: "svelte",
 };
 
 const OUTPUT_SUBDIRS: Record<string, string> = {
   react: "adapters",
+  vue: "adapters",
+  svelte: "adapters",
 };
 
 export function generateFrameworkAdapters(ctx: GeneratorContext): void {

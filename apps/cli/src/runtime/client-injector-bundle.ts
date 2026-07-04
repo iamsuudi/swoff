@@ -11,6 +11,7 @@ export function generateClientInjectorBundleCode(
   mutationQueueEnabled?: boolean,
   connectivityEnabled?: boolean,
   tagInvalidationEnabled?: boolean,
+  storageThreshold?: number,
 ): string {
   const pwaCode = pwaEnabled ? `
   // ── PWA Install Prompt ──
@@ -293,7 +294,7 @@ ${tagInvalidationEnabled ? `
     await registerSW();
 ${connectivityEnabled ? `
     var storage = await getStorageEstimate();
-    if (storage.percentUsed > 80) {
+    if (storage.percentUsed > ${storageThreshold ?? 80}) {
       window.dispatchEvent(new CustomEvent("swoff:notification", {
         detail: {
           level: "warn",

@@ -10,6 +10,8 @@ export function generateClientInjector(ctx: GeneratorContext): void {
   const ext = ctx.ext;
   const ts = ext === "ts";
 
+  const storageThreshold = ctx.config.features.serviceWorker.strategy.storageThreshold;
+
   const code = generateClientInjectorCode(
     { ts, ext },
     ctx.config.features.pwa.enabled,
@@ -19,6 +21,7 @@ export function generateClientInjector(ctx: GeneratorContext): void {
     ctx.config.features.auth.enabled,
     ctx.config.features.connectivity.enabled || ctx.config.features.auth.enabled,
     ctx.config.features.tagInvalidation.enabled || ctx.config.features.mutationQueue.enabled || ctx.config.features.graphql.enabled,
+    storageThreshold,
   );
 
   writeFile(ctx, `client-injector.${ext}`, code);

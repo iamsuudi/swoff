@@ -54,9 +54,13 @@ Swoff implements 6 caching strategies that execute in the SW `fetch` event handl
 | **Paradigm**                  | SW HTTP cache                               | App-layer stale-while-revalidate   | SW HTTP cache                   | SW HTTP cache                   | Client DB + sync engine                                |
 | **Cache scope**               | Any HTTP response (HTML, assets, REST, GQL) | Only data passed to `queryFn`      | Any HTTP response               | Any HTTP response (HTML, assets, REST, GQL)            | Only data in synced collections                        |
 | **Offline app skeleton**      | ✅ Built-in (SW caches HTML/CSS/JS)         | ❌ Not provided                    | ✅ Built-in                     | ✅ Built-in (SW caches HTML/CSS/JS)                    | ❌ Requires separate SW                                |
+| **Precaching timing**         | ✅ Background after activate (non-blocking) | ❌ N/A                             | 🟡 During install (blocks)      | 🟡 During install (blocks)                             | ❌ N/A                                                 |
+| **Precaching checkpoint/resume** | ✅ IndexedDB, survives SW termination    | ❌ N/A                             | ❌ Full re-download on failure  | ❌ Full re-download on failure                          | ❌ N/A                                                 |
+| **Precaching progress events** | ✅ Built-in `sw-progress` DOM event        | ❌ N/A                             | 🟡 Plugin required              | 🟡 Limited                                              | ❌ N/A                                                 |
 | **Server as source of truth** | ✅ Yes — cache is ephemeral                 | 🟡 Stale data lives until refetch  | ✅ Yes — cache is ephemeral     | ✅ Yes — cache is ephemeral                            | ❌ Each client has its own DB version                  |
 | **Real-time mechanism**       | SSE/WebSocket server push                   | Polling on refetchInterval         | ❌ None                         | ❌ None                         | Polling-based sync                                     |
 | **Cache invalidation**        | Tag-based + server push + auto on mutation  | Query-key based                    | URL-based                       | URL-based                       | Manual or replication                                  |
+| **Cross-query GQL invalidation** | 🟡 Op-name auto-tags handle CRUD pairs; same entity across different query names needs explicit tags | ❌ N/A (query-key based) | ❌ N/A | ❌ N/A | ✅ Automatic via `__typename` + `id` normalization (Apollo) |
 | **Schema required**           | ✅ No                                       | ✅ No                              | ✅ No                           | ✅ No                            | ❌ Yes (client + server schemas)                       |
 | **Dual-DB management**        | ✅ None                                     | ✅ None                            | ✅ None                         | ✅ None                          | ❌ Must keep client and server schemas in sync         |
 | **Client-side queries**       | Server-shaped only                          | In-memory cache only               | Server-shaped only              | Server-shaped only              | SQL + joins + aggregation                              |
@@ -93,7 +97,7 @@ Offline mutation → IndexedDB (queue)
 - **SW fallback:** When all tabs close, the SW wakes via Background Sync API and replays the queue.
 - **Per-mutation online check:** Before each replay, checks `navigator.onLine`. If offline mid-batch, remaining mutations stay queued.
 - **Configurable retry:** `maxRetries`, `retryBackoffMs` (exponential), `batchSize`, `batchDelayMs`.
-- **Queue introspection:** `getQueuePosition(id)`, `getQueueItems()`, `useMutationQueue()`.
+- **Queue introspection:** `getQueuePosition(id)`, `getQueueItems()`, `useSwoffQueue()`.
 - **Dual-replay prevention:** SW skips Background Sync replay if any client page is open.
 - **Auth-aware:** If the auth token expires mid-batch, the SW attempts silent refresh before retrying.
 

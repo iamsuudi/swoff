@@ -77,7 +77,7 @@ Stops the heartbeat, calls `verifyAndNotify()`, then restarts the heartbeat. Use
 
 ## Framework adapters
 
-### `useNetworkStatus`
+### `useSwoffNetwork`
 
 Exposes connectivity state: `{ online, wasOffline, lastChangedAt, effectiveType, downlink, isRetrying, retry }`.
 
@@ -122,4 +122,4 @@ navigator.connection?.addEventListener("change", () => {
 // 6. Return { online, wasOffline, lastChangedAt, effectiveType, downlink, isRetrying, retry }
 ```
 
-**If your framework already has this adapter** (React): the CLI generates `useNetworkStatus` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has this adapter** (React): the CLI generates `useSwoffNetwork` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).

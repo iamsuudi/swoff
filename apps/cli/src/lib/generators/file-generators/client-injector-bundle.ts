@@ -12,6 +12,8 @@ export function generateClientInjectorBundle(ctx: GeneratorContext): void {
   const ts = ext === "ts";
   const sw = ctx.config.features.serviceWorker;
 
+  const storageThreshold = sw.strategy.storageThreshold;
+
   const code = generateClientInjectorBundleCode(
     { ts, ext },
     sw.autoActivate,
@@ -23,6 +25,7 @@ export function generateClientInjectorBundle(ctx: GeneratorContext): void {
     ctx.config.features.mutationQueue.enabled,
     ctx.config.features.connectivity.enabled || ctx.config.features.auth.enabled,
     ctx.config.features.tagInvalidation.enabled || ctx.config.features.mutationQueue.enabled || ctx.config.features.graphql.enabled,
+    storageThreshold,
   );
 
   writeFile(ctx, `client-injector.bundle.${ext}`, code);

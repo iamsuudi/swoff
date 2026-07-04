@@ -1,6 +1,6 @@
 ---
 title: GraphQL
-description: Body-hash caching, operation-name auto-tags, and React hooks for GraphQL.
+description: Body-hash caching, operation-name auto-tags, and framework adapters for GraphQL.
 ---
 
 > **If you're coming from Apollo Client:** Swoff caches GraphQL responses by body hash (query + variables → SHA-256 digest), not by normalized entities. No schema introspection, no fragment matchers, no `InMemoryCache` config. Each query is a standalone cache entry. Mutations auto-invalidate by operation name tags. See the [full comparison](/docs/comparisons#graphql).
@@ -93,6 +93,42 @@ const { data } = await queryGql(
 );
 ```
 
+### Cross-query cache invalidation
+
+Auto-tags from operation names handle paired read/write operations (e.g. `GetNotes` ↔ `CreateNote`). But the same entity type often appears in multiple queries — a `User` in `GetDashboard`, `GetTeam`, and `me`. Op-name auto-tags only cover the top-level operation, not nested entity references.
+
+This is a deliberate tradeoff vs normalized caches like Apollo Client:
+
+| | Swoff (body-hash + auto-tags) | Apollo Client (normalized store) |
+|---|---|---|
+| Cross-query auto-invalidation | Operation-name based. `UpdateUser` invalidates `user`; `GetDashboard` (tagged `dashboard`) is NOT auto-invalidated | Automatic — Apollo extracts `__typename + id`, updates all queries referencing that entity |
+| Schema coupling | None — no `__typename`, no `id` field required | Requires `__typename` in every response, consistent `id` field |
+| Runtime size | 0 kB (generated code) | ~32 kB gzip |
+| Cache persistence | Cache API (disk, survives tab close) | In-memory |
+| Offline mutation replay | ✅ Auto-invalidates cache tags on replay | ❌ No SW-level offline support |
+| Entity update granularity | Invalidates entire cache entry | Patches individual entity fields |
+| Anonymous query support | ❌ No op name → no auto-tags, can't be tag-invalidated | ✅ Normalizes by entity regardless |
+
+For most apps, op-name auto-tags cover the common CRUD pairs. When you need cross-query invalidation, use explicit `tags` and `invalidate`:
+
+```ts
+// Tag both queries with the same tag
+const dashboard = await queryGql(`
+  query GetDashboard { user { id name } team { id } }
+`, {}, { tags: ["user", "team"] });
+
+const team = await queryGql(`
+  query GetTeam { members { id name } }
+`, {}, { tags: ["user", "team"] });
+
+// Invalidate both with the same tag
+await mutateGql(`
+  mutation UpdateProfile($name: String!) { updateProfile(name: $name) { id } }
+`, { name }, { invalidate: ["user", "team"] });
+```
+
+> Anonymous queries (no operation name, e.g. `{ todos { id } }`) produce no auto-tags and cannot be tag-invalidated. Always name your operations for caching to work.
+
 ### No-bundler usage
 
 Include `swoff-api.bundle.js` after `client-injector.bundle.js`:
@@ -123,7 +159,7 @@ Include `swoff-api.bundle.js` after `client-injector.bundle.js`:
 
 ## Framework adapters
 
-GraphQL uses the same `useCachedFetch` adapter pattern described in the [Data Fetching guide](/docs/guides/data-fetching#framework-adapters). When a mutation auto-invalidates by operation name, the SW dispatches `cache-invalidated`:
+GraphQL uses the same `useSwoffFetch` adapter pattern described in the [Data Fetching guide](/docs/guides/data-fetching#framework-adapters). When a mutation auto-invalidates by operation name, the SW dispatches `cache-invalidated`:
 
 **Events:**
 
@@ -135,7 +171,7 @@ GraphQL uses the same `useCachedFetch` adapter pattern described in the [Data Fe
 **Building the adapter for any framework:**
 
 ```js
-// Same pattern as useCachedFetch:
+// Same pattern as useSwoffFetch:
 window.addEventListener("cache-invalidated", (e) => {
   // Re-fetch any active GraphQL queries whose operation-name
   // auto-tags intersect with e.detail.tags
@@ -147,9 +183,9 @@ window.addEventListener("swoff:cache-updated", (e) => {
 });
 ```
 
-No GraphQL-specific adapter is needed — the same `useCachedFetch` pattern handles both REST and GraphQL. Body-hash caching and operation-name auto-tags happen automatically in the SW.
+No GraphQL-specific adapter is needed — the same `useSwoffFetch` pattern handles both REST and GraphQL. Body-hash caching and operation-name auto-tags happen automatically in the SW.
 
-**If your framework already has this** (React): the CLI generates `useCachedFetch` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) or the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has this** (React): the CLI generates `useSwoffFetch` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) or the [Blueprint](/docs/frameworks/blueprint).
 
 For a dedicated GraphQL API with operation-name auto-tags, use the generated `queryGql`/`mutateGql` functions instead.
 

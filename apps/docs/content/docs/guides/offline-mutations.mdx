@@ -1,6 +1,6 @@
 ---
 title: Offline Mutations & Sync
-description: Queue writes offline, replay online, background-sync, and React hooks.
+description: Queue writes offline, replay online, background-sync, and framework adapters.
 ---
 
 > **If you're coming from RxDB for offline sync:** Swoff doesn't replicate a client-side database. Instead, it queues POST/PUT/PATCH/DELETE requests in IndexedDB when offline and replays them when connectivity returns. No schema, no replication protocol, no WebSocket sync engine. Each queued mutation is just a stored HTTP request. See the [full comparison](/docs/comparisons/caching-and-data#offline-write-queue).
@@ -8,7 +8,14 @@ description: Queue writes offline, replay online, background-sync, and React hoo
 ## Preconditions
 
 - Swoff initialized with data fetching enabled
-- **For background sync:** cookie auth (bearer and custom auth are incompatible — see auth guide)
+
+> **Bearer and custom auth limitation:** Background sync runs from the service worker with no DOM access — bearer tokens can't be refreshed and custom headers can't be injected. Only cookie auth supports background sync. Bearer and custom auth work with the mutation queue (online replay only — see the table below).
+
+| Auth type | Mutation queue | Background sync |
+| --------- | -------------- | --------------- |
+| cookie    | ✅             | ✅              |
+| bearer    | ✅             | ❌              |
+| custom    | ✅             | ❌              |
 
 ## Status
 
@@ -223,7 +230,7 @@ In browsers without `SyncManager` support, `syncWhenPossible()` falls back to an
 
 This section has four adapters:
 
-### `useMutationQueue`
+### `useSwoffQueue`
 
 Exposes mutation queue state: `{ pending, items, isProcessing, retryAll }`.
 
@@ -247,7 +254,7 @@ window.addEventListener("mutation-queue-changed", async () => {
 // 4. Return { pending, items, isProcessing, retryAll }
 ```
 
-### `useMutationState`
+### `useSwoffMutationState`
 
 Exposes per-mutation lifecycle tracking: `{ states, track, getState }`.
 
@@ -263,7 +270,7 @@ Exposes per-mutation lifecycle tracking: `{ states, track, getState }`.
 // 4. Return { states, track, getState }
 ```
 
-### `useBackgroundSync`
+### `useSwoffSync`
 
 Exposes background sync support: `{ supported, registered, triggerSync }`.
 
@@ -286,7 +293,7 @@ window.addEventListener("background-sync-complete", (e) => {
 // 4. Return { supported, registered, triggerSync }
 ```
 
-### `useMutation`
+### `useSwoffMutation`
 
 Wraps `fetchWithCache(url, { mutation: true })`. No events needed — calls the mutation API directly.
 
@@ -297,7 +304,7 @@ Wraps `fetchWithCache(url, { mutation: true })`. No events needed — calls the 
 // 2. Return { mutate }
 ```
 
-**If your framework already has these adapters** (React): the CLI generates `useMutation`, `useMutationQueue`, `useMutationState`, and `useBackgroundSync` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has these adapters** (React): the CLI generates `useSwoffMutation`, `useSwoffQueue`, `useSwoffMutationState`, and `useSwoffSync` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ## Config
 
@@ -326,16 +333,6 @@ Wraps `fetchWithCache(url, { mutation: true })`. No events needed — calls the 
 - `retry.backoffMs` — initial backoff delay
 - `retry.maxBackoffMs` — max backoff cap
 - `retry.jitterMs` — random jitter added to backoff to prevent thundering herd
-
-### Auth compatibility
-
-| Auth type | Mutation queue | Background sync |
-| --------- | -------------- | --------------- |
-| cookie    | ✅             | ✅              |
-| bearer    | ✅             | ❌              |
-| custom    | ✅             | ❌              |
-
-Background sync runs from the SW with no DOM access — bearer tokens can't be refreshed and headers can't be injected, so it requires cookie auth where the browser sends the session cookie automatically.
 
 ## Related
 

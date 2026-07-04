@@ -103,6 +103,8 @@ export async function fetchWithGql${G(ts, "T")}(
   const tags = options.tags || tagsFromOpName(opName);
   const endpoint = GQL_ENDPOINTS[endpointIndex] || GQL_ENDPOINTS[0];
 
+  const invalidateTags = isRead ? undefined : (options.invalidate ?? (opName ? tagsFromOpName(opName) : undefined));
+
   const { response, fromCache } = await fetchWithCache(endpoint, {
     method: "POST",
     body: JSON.stringify({ query, variables }),
@@ -114,7 +116,7 @@ export async function fetchWithGql${G(ts, "T")}(
     type: isRead ? "read" : "mutation",
     auth: options.auth,
     queueOffline: options.queueOffline,
-    invalidate: options.invalidate,
+    invalidate: invalidateTags,
   });
 
   if (!response.ok) {

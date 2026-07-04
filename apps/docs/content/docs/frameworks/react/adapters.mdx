@@ -30,33 +30,33 @@ All other config fields (`strategy.default`, `strategy.patterns`, `features.*`) 
 The CLI generates these hooks into `swoff/adapters/`. Import them directly:
 
 ```ts
-import { useCachedFetch } from "./swoff/adapters/useCachedFetch";
+import { useSwoffFetch } from "./swoff/adapters/useSwoffFetch";
 ```
 
 | Hook                  | Condition                      | Purpose                                      |
 | --------------------- | ------------------------------ | -------------------------------------------- |
-| `useCachedFetch`      | always                         | Reactive fetch with caching and auth         |
-| `useMutation`         | always                         | Mutate data with SW awareness                |
-| `usePrefetch`         | always                         | Prefetch resources before navigation         |
+| `useSwoffFetch`      | always                         | Reactive fetch with caching and auth         |
+| `useSwoffMutation`         | always                         | Mutate data with SW awareness                |
+| `useSwoffPrefetch`         | always                         | Prefetch resources before navigation         |
 | `useSwoffReset`       | always                         | Wipe all caches, IDB, SW                     |
-| `useMutationState`    | always                         | Per-mutation lifecycle tracking              |
-| `useMutationQueue`    | `mutationQueue.enabled`        | Offline write queue                          |
-| `useNetworkStatus`    | always                         | Online/offline state, connection type, retry |
-| `useAuth`             | `auth.enabled`                 | Auth state, login/logout                     |
-| `usePrecacheProgress` | always                         | Background precaching progress               |
-| `usePushSubscription` | `pushNotifications`            | Push notification subscription               |
-| `useBackgroundSync`   | `mutationQueue.backgroundSync` | Background sync registration                 |
-| `usePwaInstall`       | `pwa.enabled`                  | Install prompt handler                       |
-| `useOfflineAnalytics` | always                         | Track offline fallback events                |
-| `useStorageEstimate`  | always                         | Storage quota and usage                      |
+| `useSwoffMutationState`    | always                         | Per-mutation lifecycle tracking              |
+| `useSwoffQueue`    | `mutationQueue.enabled`        | Offline write queue                          |
+| `useSwoffNetwork`    | always                         | Online/offline state, connection type, retry |
+| `useSwoffAuth`             | `auth.enabled`                 | Auth state, login/logout                     |
+| `useSwoffPrecache` | always                         | Background precaching progress               |
+| `useSwoffPush` | `pushNotifications`            | Push notification subscription               |
+| `useSwoffSync`   | `mutationQueue.backgroundSync` | Background sync registration                 |
+| `useSwoffPwa`       | `pwa.enabled`                  | Install prompt handler                       |
+| `useSwoffAnalytics` | always                         | Track offline fallback events                |
+| `useSwoffStorage`  | always                         | Storage quota and usage                      |
 
 ### Hook API
 
-#### `useCachedFetch<T>(url, options?)`
+#### `useSwoffFetch<T>(url, options?)`
 
 ```ts
-const { data, error, loading, refetch } = useCachedFetch<Todo[]>("/api/todos");
-const { data: posts } = useCachedFetch<Post[]>("/api/posts", {
+const { data, error, loading, refetch } = useSwoffFetch<Todo[]>("/api/todos");
+const { data: posts } = useSwoffFetch<Post[]>("/api/posts", {
   enabled: !!user,
 });
 ```
@@ -76,7 +76,7 @@ Returns `{ data: T \| null, error: unknown, loading: boolean, refetch: () => voi
 | `onError`          | `(err: unknown) => void` | —        | Callback fired when a fetch fails. Runs at the hook level (every failed fetch).                                                                                                               |
 | `enabled`          | `boolean`                | `true`   | When `false`, the fetch is skipped entirely. Useful for dependent queries.                                                                                                                    |
 
-#### `useMutation<TData>(url, options?)`
+#### `useSwoffMutation<TData>(url, options?)`
 
 ```ts
 const {
@@ -88,7 +88,7 @@ const {
   error,
   reset,
   mutationId,
-} = useMutation<{ id: number }>("/api/todos", {
+} = useSwoffMutation<{ id: number }>("/api/todos", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   auth: true,
@@ -125,10 +125,10 @@ The endpoint and request config (method, headers, auth) are fixed at the hook le
 | `mutationKey` | `string`                 | Deduplication key — if a mutation with the same key is already in-flight, the new call is skipped.                           |
 | `retry`       | `number \| boolean`      | Retry count on failure (default 0). `true` = Infinity.                                                                       |
 
-#### `usePrefetch()`
+#### `useSwoffPrefetch()`
 
 ```ts
-const prefetch = usePrefetch();
+const prefetch = useSwoffPrefetch();
 <a onMouseEnter={() => prefetch("/api/todos")}>Todos</a>
 ```
 
@@ -146,10 +146,10 @@ const { reset, isResetting, error } = useSwoffReset();
 | `isResetting` | `boolean`                     | `true` while the reset is in progress                               |
 | `error`       | `unknown`                     | Last error from a failed reset attempt, or `null`                   |
 
-#### `useMutationState(id)`
+#### `useSwoffMutationState(id)`
 
 ```ts
-const mutation = useMutationState(mutationId);
+const mutation = useSwoffMutationState(mutationId);
 if (mutation?.status === "error") {
   /* show error */
 }
@@ -157,10 +157,10 @@ if (mutation?.status === "error") {
 
 Returns `MutationState | null`. Subscribes to a specific mutation's state changes. Pass `null` or empty string to disable.
 
-#### `useMutationQueue()`
+#### `useSwoffQueue()`
 
 ```ts
-const { pending, items, lastSync, isProcessing, retryAll } = useMutationQueue();
+const { pending, items, lastSync, isProcessing, retryAll } = useSwoffQueue();
 ```
 
 | Field          | Type                                            | Description                                                                                                       |
@@ -171,11 +171,11 @@ const { pending, items, lastSync, isProcessing, retryAll } = useMutationQueue();
 | `isProcessing` | `boolean`                                       | `true` while the mutation queue is actively processing items (derived from `mutation-sync-complete` custom event) |
 | `retryAll`     | `() => Promise<void>`                           | Manually trigger a full replay of all queued mutations                                                            |
 
-#### `useNetworkStatus()`
+#### `useSwoffNetwork()`
 
 ```ts
 const { online, wasOffline, lastChangedAt, effectiveType, downlink } =
-  useNetworkStatus();
+  useSwoffNetwork();
 ```
 
 | Field           | Type           | Description                                                                              |
@@ -186,7 +186,7 @@ const { online, wasOffline, lastChangedAt, effectiveType, downlink } =
 | `effectiveType` | `string`       | Network effective type (`"slow-2g"`, `"2g"`, `"3g"`, `"4g"`) from `navigator.connection` |
 | `downlink`      | `number`       | Estimated downlink speed in Mb/s from `navigator.connection`                             |
 
-#### `useAuth()`
+#### `useSwoffAuth()`
 
 ```ts
 const {
@@ -198,7 +198,7 @@ const {
   setAuth,
   clearAuth,
   ensureValid,
-} = useAuth();
+} = useSwoffAuth();
 ```
 
 | Field           | Type                                | Description                                                                   |
@@ -214,15 +214,15 @@ const {
 
 Reacts to `sw-auth-state-change` events dispatched by `clearAuth()`, `setAuth()`, or the SW's AUTH_CLEARED broadcast for cross-tab sync.
 
-#### `usePrecacheProgress()`
+#### `useSwoffPrecache()`
 
 ```ts
-const { status, progress } = usePrecacheProgress();
+const { progress } = useSwoffPrecache();
 ```
 
-`status` is `"installing"` during background precaching, `"idle"` otherwise. Returns `progress` (0–100) while installing.
+Returns `progress` (0–100) from the background precache phase. Show the indicator when `progress > 0 && progress < 100`.
 
-#### `usePushSubscription()`
+#### `useSwoffPush()`
 
 ```ts
 const {
@@ -232,36 +232,36 @@ const {
   loading,
   subscribe,
   unsubscribe,
-} = usePushSubscription();
+} = useSwoffPush();
 ```
 
 Generated when `features.pushNotifications` is `true`.
 
-#### `useBackgroundSync()`
+#### `useSwoffSync()`
 
 ```ts
-const { supported, registered, lastSync, triggerSync } = useBackgroundSync();
+const { supported, registered, lastSync, triggerSync } = useSwoffSync();
 ```
 
 Generated when `features.mutationQueue.backgroundSync`.
 
-#### `usePwaInstall()`
+#### `useSwoffPwa()`
 
 ```ts
-const { isInstallable, promptInstall } = usePwaInstall();
+const { isInstallable, promptInstall } = useSwoffPwa();
 ```
 
 Generated when `features.pwa.enabled`.
 
-#### `useOfflineAnalytics(callback?)`
+#### `useSwoffAnalytics(callback?)`
 
 ```ts
-const { lastEvent, events, clear } = useOfflineAnalytics();
+const { lastEvent, events, clear } = useSwoffAnalytics();
 ```
 
 Tracks offline navigation fallback events. Optionally pass a callback that fires on each event. `clear()` resets the event list.
 
-#### `useStorageEstimate()`
+#### `useSwoffStorage()`
 
 ```ts
 const {
@@ -272,7 +272,7 @@ const {
   formattedQuota,
   loading,
   error,
-} = useStorageEstimate();
+} = useSwoffStorage();
 ```
 
 | Field            | Type             | Description                                      |

@@ -105,7 +105,7 @@ To customize reconnection behavior, adjust `reconnectDelayMs` in config. The SW 
 
 ## Framework adapters
 
-Server push invalidates cache entries in the SW, which dispatches `cache-invalidated` to all clients — the same event consumed by `useCachedFetch`. The flow:
+Server push invalidates cache entries in the SW, which dispatches `cache-invalidated` to all clients — the same event consumed by `useSwoffFetch`. The flow:
 
 ```
 Server sends tags via SSE/WS
@@ -133,7 +133,7 @@ window.addEventListener("cache-invalidated", (e) => {
 
 No additional events are needed — the adapter pattern is identical to the one described in the [Tag Invalidation guide](/docs/guides/tag-invalidation#frameworks). The only difference is the source of invalidation: server push instead of manual calls.
 
-**If your framework already has this** (React): the CLI generates `useCachedFetch` into `swoff/adapters/` which handles `cache-invalidated` automatically. See the [React page](/docs/frameworks/react/adapters) or the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has this** (React): the CLI generates `useSwoffFetch` into `swoff/adapters/` which handles `cache-invalidated` automatically. See the [React page](/docs/frameworks/react/adapters) or the [Blueprint](/docs/frameworks/blueprint).
 
 ### Important: tagInvalidation is required
 

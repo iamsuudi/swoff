@@ -21,7 +21,7 @@ Most tools either lock you into a framework (TanStack Query), only handle the SW
 - **SSE/WebSocket server push** — real-time cache invalidation from the SW
 - **Push notifications** — subscription management + SW push handler
 - **PWA install prompt** — configurable, plus storage estimation
-- **React hooks** — 14 generated adapters (`useCachedFetch`, `useAuth`, `usePrecacheProgress`, etc.)
+- **Framework adapters** — 14 generated hooks (`useSwoffFetch`, `useSwoffAuth`, `useSwoffPrecache`, etc.)
 
 All configurable from a single `swoff.config.json`.
 

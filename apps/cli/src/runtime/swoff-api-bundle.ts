@@ -1506,6 +1506,7 @@ function generateGqlSection(flags: SwoffApiBundleFlags): string {
     var variables = options.variables;
     var tags = options.tags || tagsFromOpName(opName);
     var endpoint = GQL_ENDPOINTS[endpointIndex] || GQL_ENDPOINTS[0];
+    var invalidateTags = isRead ? undefined : (options.invalidate ? options.invalidate : (opName ? tagsFromOpName(opName) : undefined));
 
     return bodyHash({ query: query, variables: variables }).then(function (hash) {
       return fetchWithCache(endpoint, {
@@ -1519,7 +1520,7 @@ function generateGqlSection(flags: SwoffApiBundleFlags): string {
         type: isRead ? "read" : "mutation",
         auth: options.auth,
         queueOffline: options.queueOffline,
-        invalidate: options.invalidate,
+        invalidate: invalidateTags,
       });
     }).then(function (result) {
       var response = result.response;

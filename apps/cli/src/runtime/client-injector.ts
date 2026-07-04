@@ -9,6 +9,7 @@ export function generateClientInjectorCode(
   authEnabled?: boolean,
   connectivityEnabled?: boolean,
   tagInvalidationEnabled?: boolean,
+  storageThreshold?: number,
 ): string {
   const { ext, ts } = ctx;
   const ssrNav = navMode === "ssr" && tagInvalidationEnabled;
@@ -152,10 +153,11 @@ if (typeof history !== "undefined") {
 `
     : "";
 
+  const threshold = storageThreshold ?? 80;
   const storageInit = connectivityEnabled
     ? `
   const storage = await getStorageEstimate();
-  if (storage.percentUsed > 80) {
+  if (storage.percentUsed > ${threshold}) {
     window.dispatchEvent(
       new CustomEvent("swoff:notification", {
         detail: {

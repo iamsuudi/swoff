@@ -323,13 +323,10 @@ function sleep(ms) {
 
 async function fetchWithRetry(request, retryConfig) {
   swLog("fetchWithRetry", "ENTER", request.url, 3);
-  if (!retryConfig) return fetch(request);
+  if (!retryConfig) return _fetchWithTimeout(null, request);
   for (var attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
     try {
-      var controller = new AbortController();
-      var id = setTimeout(function() { controller.abort(); }, FETCH_TIMEOUT_MS);
-      var response = await fetch(request, { signal: controller.signal });
-      clearTimeout(id);
+      var response = await _fetchWithTimeout(null, request);
       if (response.ok) {
         swLog("fetchWithRetry", "SUCCESS attempt=" + attempt, request.url, 3);
         return response;
@@ -762,13 +759,24 @@ function isStale(response, staleTimeSeconds) {
 
 // --- Fetch Helpers ---
 
+// Strips internal X-SW-* headers so they never leak to external servers.
+function _stripSWHeaders(request) {
+  var headers = new Headers(request.headers);
+  for (var key of headers.keys()) {
+    if (key.toLowerCase().indexOf("x-sw-") === 0) {
+      headers.delete(key);
+    }
+  }
+  return new Request(request, { headers: headers });
+}
+
 async function _fetchWithTimeout(_, request, timeoutMs) {
   timeoutMs = timeoutMs || FETCH_TIMEOUT_MS;
   swLog("_fetchWithTimeout", "ENTER timeout=" + timeoutMs, request.url, 3);
   const controller = new AbortController();
   const id = setTimeout(function() { controller.abort(); }, timeoutMs);
   try {
-    const response = await fetch(request, { signal: controller.signal });
+    const response = await fetch(_stripSWHeaders(request), { signal: controller.signal });
     swLog("_fetchWithTimeout", "SUCCESS " + response.status, request.url, 3);
     return response;
   } catch (e) {

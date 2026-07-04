@@ -20,6 +20,8 @@ export type FrameworkName =
   | "tanstack-start-react"
   | "astro"
   | "nuxt"
+  | "quasar"
+  | "vitepress"
   | "sveltekit"
   | "react-spa"
   | "vue"
@@ -44,6 +46,8 @@ const META_FRAMEWORKS: [string, FrameworkName][] = [
   ["@tanstack/react-start", "tanstack-start-react"],
   ["astro", "astro"],
   ["nuxt", "nuxt"],
+  ["quasar", "quasar"],
+  ["vitepress", "vitepress"],
   ["@sveltejs/kit", "sveltekit"],
 ];
 

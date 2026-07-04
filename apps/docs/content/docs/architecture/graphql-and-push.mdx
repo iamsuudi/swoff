@@ -26,7 +26,21 @@ Swoff's approach:
 
 - `query getTodos { ... }` → tags: `["todos"]`
 - `mutation createTodo(...)` → tags: `["todos", "todo"]`
-- These auto-invalidate after mutations, just like REST tag invalidation
+- Mutation invalidation mirrors the same op-name derivation — `createTodo` invalidates `todos`/`todo`, matching `getTodos`'s cache tags. Unlike REST where URL segments carry resource names, GQL op-name tags only cover the top-level operation, not nested entity references. Cross-query entity overlap (e.g. `User` in both `getDashboard` and `getTeam`) requires explicit `tags`/`invalidate` options.
+
+**Tradeoffs vs normalized caches (Apollo, Relay):**
+
+| | Swoff body-hash | Normalized cache |
+|---|---|---|
+| Schema coupling | None — any GQL API works | Requires `__typename`, `id`, type policies |
+| Cross-query entity updates | Manual via explicit tags | Automatic via `__typename + id` normalization |
+| Runtime cost | 0 kB (generated) | ~32 kB (Apollo) / ~10 kB (Urql exchange) |
+| Cache storage | Cache API (disk, persistent) | In-memory |
+| Anonymous queries | No op name → no tags | Works via entity extraction |
+| Offline mutation replay | ✅ Full queue + auto-invalidation | ❌ Not available |
+| Server-driven invalidation | ✅ SSE/WS server push | ❌ Require polling or subscriptions |
+
+The body-hash approach trades automatic entity normalization for simplicity, portability, and SW-level persistence — no schema setup, no type policies, no runtime deps.
 
 ## Server push transport: SSE vs WebSocket
 

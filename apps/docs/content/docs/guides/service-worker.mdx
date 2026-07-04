@@ -3,10 +3,6 @@ title: Service Worker
 description: SW lifecycle, versioning, auto-activation, navigation preload.
 ---
 
-# Service Worker
-
-Swoff generates a complete, auditable service worker from `swoff.config.json` — no manual SW code, no runtime libraries.
-
 ## Preconditions
 
 - `npx @swoff/cli init` already run (or existing `swoff.config.json`)
@@ -78,38 +74,39 @@ SW updates are content-based. Every build produces a byte-different `sw.js` — 
 
 Cache names are fixed: `"precache"`, `"swoff-runtime"`, `"swoff-runtime-html"`. Additionally, every build appends a timestamp constant `CACHE_NAME = "<Date.now()>"` at the end of the SW. This constant is purely a byte-differ — it triggers browser update detection when the SW file changes. On activation, the SW compares this timestamp against an IndexedDB record (`swoff-meta` DB, `cacheName` key). On deploy mismatch, all three caches are deleted before the new SW takes over.
 
+## Generated file boundary
+
+Every file under `swoff/` is generated from `swoff.config.json`. The generator places a `DO NOT EDIT MANUALLY` header on files that are fully managed — editing these files is safe for experimentation, but your changes will be overwritten the next time you run `swoff generate`.
+
+**One exception:** `swoff/auth/check.ts` is intentionally user-editable — it contains the `isAuthFailureResponse()` predicate you customize to define what constitutes an auth failure for your app.
+
+**The extension model:**
+
+| Need                                  | How to do it                                                         |
+| ------------------------------------- | -------------------------------------------------------------------- |
+| Change strategy, patterns, auth       | Edit `swoff.config.json`, re-run `swoff generate`                    |
+| Add custom SW behavior (push handler) | Generated `swoff/sw/template.js` has editable sections               |
+| Define auth failure detection         | Edit `swoff/auth/check.ts` — it's intentionally user-editable        |
+| Add custom client-side logic          | Import generated modules from your own code — don't edit the modules |
+
 ## What the generated SW does
 
 The SW registers these event listeners based on your config:
 
-| Event      | Purpose                                                                              |
-| ---------- | ------------------------------------------------------------------------------------ |
-| `install`  | `skipWaiting()` if auto-activate is enabled — no caching during install              |
-| `activate` | Claim clients, wipe stale caches, start background precache of remaining assets      |
-| `fetch`    | Intercept requests — runtime cache, strategies, navigation                          |
-| `message`  | Reactive cache refresh, auth state sync, mutation control                           |
-| `push`     | Display notifications from server push events                                       |
-| `sync`     | Background sync for queued mutations (if enabled)                                   |
+| Event      | Purpose                                                                         |
+| ---------- | ------------------------------------------------------------------------------- |
+| `install`  | `skipWaiting()` if auto-activate is enabled — no caching during install         |
+| `activate` | Claim clients, wipe stale caches, start background precache of remaining assets |
+| `fetch`    | Intercept requests — runtime cache, strategies, navigation                      |
+| `message`  | Reactive cache refresh, auth state sync, mutation control                       |
+| `push`     | Display notifications from server push events                                   |
+| `sync`     | Background sync for queued mutations (if enabled)                               |
 
 ## Cache stores
 
 ### Background precaching
 
-After activation, the SW progressively downloads all configured assets (build output, fallback routes, per-route fallbacks, and manifest) using `startBackgroundPrecache()`. Downloads proceed in batches with IndexedDB checkpointing — if the SW is terminated mid-way, it resumes from the last checkpoint on the next visit. Progress is reported via the `sw-progress` event.
-
-Configure concurrency in `swoff.config.json`:
-
-```json
-{
-  "features": {
-    "serviceWorker": {
-      "precache": { "concurrency": 3 }
-    }
-  }
-}
-```
-
-See [Config Reference → precache](/docs/config/service-worker#features-serviceworker-precache) for all options.
+After activation, the SW progressively downloads all configured assets in the background — build output, fallback routes, per-route fallbacks, and the PWA manifest — with IndexedDB checkpoint resume, per-batch progress events, and client-initiated resume on tab focus. See the [Precaching guide](/docs/guides/precaching) for the full design.
 
 The install event is minimal — it only calls `skipWaiting()` if auto-activate is enabled. No caching happens during install, so the SW activates immediately and begins background precaching.
 
@@ -165,29 +162,29 @@ Caching strategies and navigation have their own config sections — see [Cachin
 
 This section has one adapter:
 
-### `usePrecacheProgress`
+### `useSwoffPrecache`
 
 Exposes background precaching state: `{ status, progress }`.
 
 **Events listened to:**
 
-| Event         | Detail shape | Purpose                      |
-| ------------- | ------------ | ---------------------------- |
+| Event         | Detail shape  | Purpose                      |
+| ------------- | ------------- | ---------------------------- |
 | `sw-progress` | `{ percent }` | During background precaching |
 
 **Building the adapter:**
 
 ```js
-// Reactive state shape: { status, progress }
-// 1. Initialize: status = "idle", progress = 0
+// Reactive state shape: { progress }
+// 1. Initialize: progress = 0
 // 2. Listen to events:
 window.addEventListener("sw-progress", (e) => {
-  // Set status = "installing", progress = e.detail.percent
+  // Set progress = e.detail.percent
 });
-// 3. Return { status, progress }
+// 3. Return { progress }
 ```
 
-**If your framework already has this adapter** (React): the CLI generates `usePrecacheProgress` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+**If your framework already has this adapter** (React): the CLI generates `useSwoffPrecache` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
 
 ## Related
 

@@ -135,6 +135,7 @@ export interface SwoffConfig {
         normalizeKey?: boolean;
         ignoreQueryParams?: string[];
         timeout?: number;
+        storageThreshold?: number;
       };
       navigation: {
         mode: "spa" | "ssr" | "default";
@@ -362,6 +363,7 @@ export const defaultConfig: SwoffConfig = {
         normalizeKey: false,
         ignoreQueryParams: [],
         timeout: 10,
+        storageThreshold: 80,
         patterns: {},
         reactive: {
           staleTime: 0,

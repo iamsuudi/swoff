@@ -40,17 +40,17 @@ npx @swoff/cli generate
 
 This creates a `swoff/` directory with:
 
-| File | Purpose |
-|------|---------|
-| `sw/template.js` | Service worker source code |
-| `sw/injector.{ts,js}` | SW registration logic |
-| `sw/generator.mjs` | Build-time script to produce the final SW |
-| `client-injector.{ts,js}` | ESM entry point (bundler projects) — wires registration, PWA, mutation queue |
+| File                        | Purpose                                                                               |
+| --------------------------- | ------------------------------------------------------------------------------------- |
+| `sw/template.js`            | Service worker source code                                                            |
+| `sw/injector.{ts,js}`       | SW registration logic                                                                 |
+| `sw/generator.mjs`          | Build-time script to produce the final SW                                             |
+| `client-injector.{ts,js}`   | ESM entry point (bundler projects) — wires registration, PWA, mutation queue          |
 | `client-injector.bundle.js` | IIFE auto-initializing bundle (no-bundler projects) — same as above, no import needed |
-| `swoff-api.bundle.js` | IIFE bundle for SW communication APIs (no-bundler projects with features enabled) |
-| `storage.{ts,js}` | Storage estimation utilities |
-| `reset.{ts,js}` | `resetSwoff()` — wipes caches, DBs, unregisters SW |
-| `swoff.d.ts` | TypeScript declarations (when using TS) |
+| `swoff-api.bundle.js`       | IIFE bundle for SW communication APIs (no-bundler projects with features enabled)     |
+| `storage.{ts,js}`           | Storage estimation utilities                                                          |
+| `reset.{ts,js}`             | `resetSwoff()` — wipes caches, DBs, unregisters SW                                    |
+| `swoff.d.ts`                | TypeScript declarations (when using TS)                                               |
 
 Feature-specific files (auth adapters, fetch wrappers, etc.) are generated only for enabled features.
 
@@ -91,7 +91,7 @@ This registers the service worker, sets up PWA install handling, and initializes
 
 ## 5. Verify
 
-Open your app in Chrome, go to **Application > Service Workers**. You should see your SW registered and activated. Check **Application > Cache Storage** for `swoff-cache-v1` (precached assets) and `swoff-runtime-v1` (strategy cache entries).
+Open your app in Chrome, go to **Application > Service Workers**. You should see your SW registered and activated. Check **Application > Cache Storage** for `swoff-precache` (precached assets), `swoff-runtime` (strategy cache entries) and `swoff-runtime-html` (html pages cached on runtime).
 
 ## What's next?
 

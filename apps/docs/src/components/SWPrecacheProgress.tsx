@@ -1,8 +1,8 @@
 import { Loader } from "lucide-react";
-import { usePrecacheProgress } from "../../swoff/adapters/usePrecacheProgress";
+import { useSwoffPrecache } from "../../swoff/adapters/useSwoffPrecache";
 
 export default function SWPrecacheProgress() {
-  const { progress } = usePrecacheProgress();
+  const { progress } = useSwoffPrecache();
 
   if (progress === 0 || progress >= 100) return null;
 

@@ -36,7 +36,7 @@ describe("validateConfig", () => {
       tagInvalidation: {},
       graphql: { enabled: false, endpoints: ["/graphql"] },
     },
-    build: { swOutput: "dist", swFilename: "sw" },
+    build: { swOutput: "dist" },
   };
 
   describe("required fields", () => {
@@ -341,15 +341,6 @@ describe("validateConfig", () => {
       };
       const errors = validateConfig(config);
       expect(errors).toContain("build.swOutput must be a non-empty string");
-    });
-
-    it("rejects non-string swFilename", () => {
-      const config = {
-        ...validConfig,
-        build: { ...validConfig.build, swFilename: true },
-      };
-      const errors = validateConfig(config);
-      expect(errors).toContain("build.swFilename must be a non-empty string");
     });
 
     describe("precacheDirs", () => {

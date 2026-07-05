@@ -8,7 +8,6 @@ vi.mock("@clack/prompts", () => {
   const mockValues: Record<string, unknown> = {
     framework: "react",
     swOutput: "dist",
-    swFilename: "sw",
     navMode: "spa",
     fallback: "/offline",
     defaultStrategy: "cache-first",
@@ -142,7 +141,7 @@ describe("generateCommand", () => {
           navigation: { mode: "spa", fallback: "/index.html" },
         },
       },
-      build: { swOutput: "dist", swFilename: "sw" },
+      build: { swOutput: "dist" },
     };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config, null, 2));
   }
@@ -223,7 +222,7 @@ describe("validateCommand", () => {
           navigation: { mode: "spa", fallback: "/index.html" },
         },
       },
-      build: { swOutput: "dist", swFilename: "sw" },
+      build: { swOutput: "dist" },
     };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config, null, 2));
   }

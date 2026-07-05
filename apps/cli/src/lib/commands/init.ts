@@ -224,7 +224,6 @@ export async function initCommand(
     const answers: WizardAnswers = {
       framework: detected,
       swOutput: (preset.swOutput as string) || "dist",
-      swFilename: "sw",
       navMode: (preset.navMode as "spa" | "ssr" | "default") || "default",
       fallback: "/offline",
       defaultStrategy: (preset.defaultStrategy as string) || "cache-first",
@@ -262,12 +261,6 @@ export async function initCommand(
     initialValue: (activePreset.swOutput as string) || "dist",
   });
   if (isCancel(swOutput)) process.exit(0);
-
-  const swFilename = await text({
-    message: "Service worker filename",
-    initialValue: "sw",
-  });
-  if (isCancel(swFilename)) process.exit(0);
 
   const navMode = await select({
     message: "Navigation mode",
@@ -367,7 +360,7 @@ export async function initCommand(
   log.info("─".repeat(40));
   log.info("Summary");
   log.info(`  Framework:    ${framework}`);
-  log.info(`  SW output:    ${swOutput}/${swFilename}.js`);
+  log.info(`  SW output:    ${swOutput}/swoff.sw.js`);
   log.info(`  Fallback:     ${fallback}`);
   log.info(`  Navigation:   ${navMode}`);
   log.info(`  Strategy:     ${defaultStrategy}`);
@@ -395,7 +388,6 @@ export async function initCommand(
   const answers: WizardAnswers = {
     framework: framework as string,
     swOutput: swOutput as string,
-    swFilename: swFilename as string,
     navMode: navMode as "spa" | "ssr" | "default",
     fallback: fallback as string,
     defaultStrategy: defaultStrategy as string,

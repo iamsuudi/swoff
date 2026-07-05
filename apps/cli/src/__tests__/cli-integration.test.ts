@@ -42,7 +42,7 @@ describe("CLI commands integration", () => {
           tagInvalidation: { enabled: true },
           connectivity: { enabled: false },
         },
-        build: { swOutput: "dist", swFilename: "sw" },
+        build: { swOutput: "dist" },
       };
       writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config, null, 2));
 
@@ -166,7 +166,7 @@ describe("CLI commands integration", () => {
           graphql: { enabled: false, endpoints: ["/graphql"] },
           pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
         },
-        build: { swOutput: "dist", swFilename: "sw" },
+        build: { swOutput: "dist" },
         ...overrides,
       };
       writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config, null, 2));
@@ -180,10 +180,10 @@ describe("CLI commands integration", () => {
 
       // Generate service worker
       const swResult = await generateSW({ projectRoot: testDir });
-      expect(swResult.outputFile).toBe("sw.js");
-      expect(existsSync(join(testDir, "dist", "sw.js"))).toBe(true);
+      expect(swResult.outputFile).toBe("swoff.sw.js");
+      expect(existsSync(join(testDir, "dist", "swoff.sw.js"))).toBe(true);
 
-      const swContent = readFileSync(join(testDir, "dist", "sw.js"), "utf8");
+      const swContent = readFileSync(join(testDir, "dist", "swoff.sw.js"), "utf8");
       expect(swContent).toContain("self.addEventListener");
       expect(swContent).toContain('CACHE_NAME = "');
       expect(swContent).toContain('"swoff-runtime"');
@@ -234,7 +234,7 @@ describe("CLI commands integration", () => {
 
       await generateSW({ projectRoot: testDir });
 
-      const swContent = readFileSync(join(testDir, "dist", "sw.js"), "utf8");
+      const swContent = readFileSync(join(testDir, "dist", "swoff.sw.js"), "utf8");
       // Basic structure checks — all event listeners should be properly opened/closed
       const opens = (swContent.match(/self\.addEventListener\(/g) || []).length;
       // At minimum: install, activate, fetch, message

@@ -70,7 +70,6 @@ if (config.features?.serverPush?.enabled) {
 }
 
 const swOutput = config.build?.swOutput || 'dist';
-const swFilename = config.build?.swFilename || 'sw';
 
 const outDir = join(projectRoot, swOutput);
 if (!existsSync(outDir)) {
@@ -136,8 +135,8 @@ const allAssets = [];
     }
   }
 }
-const swFile = `${swFilename}.js`;
-const filtered = allAssets.filter(a => a !== `/${swFile}`);
+const swFile = "swoff.sw.js";
+const filtered = allAssets.filter(a => a !== "/" + swFile);
 const nav = config.features?.serviceWorker?.navigation || {};
 const fallback = [];
 if (nav.fallback) fallback.push(nav.fallback);

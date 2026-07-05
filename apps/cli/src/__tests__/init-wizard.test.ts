@@ -4,7 +4,6 @@ import { buildMinimalConfig, type WizardAnswers } from "../lib/config/minimal-co
 const baseAnswers: WizardAnswers = {
   framework: "react",
   swOutput: "dist",
-  swFilename: "sw",
   navMode: "spa",
   fallback: "/offline",
   defaultStrategy: "cache-first",

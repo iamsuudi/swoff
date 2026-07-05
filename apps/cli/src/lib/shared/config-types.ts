@@ -159,7 +159,6 @@ export interface SwoffConfig {
   build: {
     swOutput: string;
     swoffPath?: string;
-    swFilename: string;
     swUrl?: string;
     precacheDirs?: Record<string, PrecacheDirConfig>;
   };
@@ -346,7 +345,6 @@ export const defaultConfig: SwoffConfig = {
   build: {
     swOutput: "dist",
     swoffPath: "swoff",
-    swFilename: "sw",
     precacheDirs: {},
   },
   features: {
@@ -437,5 +435,5 @@ export const defaultInitConfig: Omit<SwoffConfig, "$schema"> & {
     pushNotifications: false,
     serverPush: { ...defaultServerPushConfig },
   },
-  build: { swOutput: "dist", swoffPath: "swoff", swFilename: "sw", precacheDirs: {} },
+  build: { swOutput: "dist", swoffPath: "swoff", precacheDirs: {} },
 };

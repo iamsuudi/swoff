@@ -124,7 +124,6 @@ The SW uses three fixed named caches:
 {
   "build": {
     "swOutput": "public",
-    "swFilename": "sw",
     "precacheDirs": {
       ".next/static": {
         "prefix": "/_next/static"
@@ -145,8 +144,7 @@ The SW uses three fixed named caches:
 }
 ```
 
-- `build.swOutput` — directory where the final `sw.js` is written. Default: `"dist"`.
-- `build.swFilename` — service worker filename without `.js` extension. Default: `"sw"` (produces `sw.js`).
+- `build.swOutput` — directory where the final `swoff.sw.js` is written. Default: `"dist"`.
 - `build.precacheDirs` — directories to scan for precache assets. Keys are filesystem paths relative to project root. When empty, no directory scanning occurs — only explicit fallback routes are precached. Each entry supports:
   - `prefix` — URL prefix prepended to each matched file's path
   - `matchExtensions` — only include files with these extensions (e.g. `[".html"]`); omit for all

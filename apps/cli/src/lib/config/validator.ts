@@ -364,11 +364,6 @@ export function validateConfig(config: SwoffConfig): string[] {
         errors.push("build.swoffPath must be a non-empty string");
       }
     }
-    if (build.swFilename !== undefined) {
-      if (typeof build.swFilename !== "string" || !build.swFilename) {
-        errors.push("build.swFilename must be a non-empty string");
-      }
-    }
     if (build.swUrl !== undefined) {
       if (typeof build.swUrl !== "string" || !build.swUrl) {
         errors.push("build.swUrl must be a non-empty string");

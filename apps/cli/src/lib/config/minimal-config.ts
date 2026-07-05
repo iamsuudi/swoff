@@ -3,7 +3,6 @@ import type { AuthType } from "../shared/config-types.js";
 export interface WizardAnswers {
   framework: string;
   swOutput: string;
-  swFilename: string;
   navMode: "spa" | "ssr" | "default";
   fallback: string;
   defaultStrategy: string;
@@ -81,7 +80,6 @@ export function buildMinimalConfig(answers: WizardAnswers): Record<string, unkno
 
   const build: Record<string, unknown> = {
     swOutput: answers.swOutput,
-    swFilename: answers.swFilename,
   };
 
   if (answers.precacheDir) {

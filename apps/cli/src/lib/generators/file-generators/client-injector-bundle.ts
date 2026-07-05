@@ -17,7 +17,6 @@ export function generateClientInjectorBundle(ctx: GeneratorContext): void {
   const code = generateClientInjectorBundleCode(
     { ts, ext },
     sw.autoActivate,
-    ctx.config.build?.swFilename || "sw",
     ctx.config.build?.swUrl,
     ctx.config.features.pwa.enabled,
     sw.navigation.mode,

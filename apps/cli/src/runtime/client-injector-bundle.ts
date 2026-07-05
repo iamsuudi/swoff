@@ -3,7 +3,6 @@ import type { RuntimeContext } from "./utils.js";
 export function generateClientInjectorBundleCode(
   ctx: RuntimeContext,
   autoActivate: boolean,
-  swFilename: string,
   swUrl: string | undefined,
   pwaEnabled: boolean,
   navMode?: string,
@@ -75,7 +74,7 @@ export function generateClientInjectorBundleCode(
       return;
     }
     try {
-      var registration = await navigator.serviceWorker.register("${swUrl || '/' + swFilename + '.js'}");
+      var registration = await navigator.serviceWorker.register("${swUrl || '/swoff.sw.js'}");
       if (registration.installing) {
         registration.installing.addEventListener("statechange", function () {
           if (registration.installing?.state === "installed" && AUTO_ACTIVATE) {

@@ -68,9 +68,8 @@ async function checkCacheVersion() {
 
   if (prev !== null && prev !== current) {
     await Promise.all(
-      ["swoff-runtime", "swoff-runtime-html", "precache"].map(function(n) { return caches.delete(n); })
+      ["swoff-runtime", "swoff-runtime-html"].map(function(n) { return caches.delete(n); })
     );
-    await resetPrecacheCheckpoint();
   }
 
   try {

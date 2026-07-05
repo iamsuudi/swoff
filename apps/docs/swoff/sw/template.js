@@ -135,6 +135,9 @@ async function ensurePrecacheVersion() {
   if (stored !== current) {
     await setPrecacheMeta(PRECACHE_VERSION_KEY, current);
     await setPrecacheMeta(PRECACHE_CHECKPOINT_KEY, 0);
+    var cache = await caches.open("precache");
+    var keys = await cache.keys();
+    await Promise.all(keys.map(function(req) { return cache.delete(req); }));
   }
 }
 

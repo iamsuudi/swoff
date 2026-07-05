@@ -29,22 +29,19 @@ import { initServiceWorker as swInit } from "./sw/injector.ts";
 // --- Auto-prefetch HTML on client-side navigation (SSR mode) ---
 // Intercepts history.pushState/replaceState to warm the SW cache with HTML
 // for routes the user navigates to via client-side routing.
-function prefetchCache(url: string) {
-  fetch(new Request(url)).catch(function() {});
-}
 if (typeof history !== "undefined") {
   const origPushState = history.pushState.bind(history);
   history.pushState = function (data, unused, url) {
     origPushState(data, unused, url);
     if (typeof url === "string" && url.startsWith("/")) {
-      prefetchCache(url);
+      fetch(new Request(url)).catch(function() {});
     }
   };
   const origReplaceState = history.replaceState.bind(history);
   history.replaceState = function (data, unused, url) {
     origReplaceState(data, unused, url);
     if (typeof url === "string" && url.startsWith("/")) {
-      prefetchCache(url);
+      fetch(new Request(url)).catch(function() {});
     }
   };
 }

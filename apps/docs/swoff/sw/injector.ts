@@ -33,7 +33,7 @@ export async function initServiceWorker(): Promise<void> {
   }
 
   try {
-    const registration = await navigator.serviceWorker.register("/sw.js");
+    const registration = await navigator.serviceWorker.register("/swoff.sw.js");
 
     if (registration.installing) {
       registration.installing.addEventListener("statechange", () => {

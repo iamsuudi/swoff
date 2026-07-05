@@ -12,7 +12,7 @@ export function generateClientInjectorCode(
   storageThreshold?: number,
 ): string {
   const { ext, ts } = ctx;
-  const ssrNav = navMode === "ssr" && tagInvalidationEnabled;
+  const ssrNav = navMode === "ssr";
 
   const pwaImport = pwaEnabled
     ? `import { setupPwaInstall } from "./pwa/prompt.${ext}";

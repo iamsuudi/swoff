@@ -222,6 +222,17 @@ function isNavRequest(request) {
   );
 }
 
+function isSsrClientNav(request) {
+  const accept = (request.headers.get("Accept") || "").toLowerCase();
+  // Next.js RSC — full-page HTML reload on failure
+  if (accept.includes("text/x-component")) return true;
+  // Remix data requests — same URL-based pattern as full nav
+  if (request.url.includes("?_data")) return true;
+  // SvelteKit data requests
+  if (request.url.includes("__data.json")) return true;
+  return false;
+}
+
 // --- Cache Key ---
 
 function cacheKey(request) {
@@ -406,14 +417,14 @@ async function cacheResponse(response, request) {
   }${tagCode}
 }
 
-// --- Fallback ---
+// --- Navigation Fallback (HTML chain, nav requests only) ---
 
 /*
- * Fallback hierarchy for when a strategy cannot serve a response:
+ * navFallback hierarchy for when a strategy cannot serve a response:
  *   SSR / Default:  precache → runtime-html → per-route → global → inline 503
  *   SPA:            per-route → inline 503
  */
-async function fallback(request) {
+async function navFallback(request) {
   swLog("fallback", "ENTER", request.url, 3);
   const pc = await fromPrecache(request);
   if (pc) {
@@ -456,6 +467,21 @@ async function fallback(request) {
   swLog("fallback", "HIT inline 503", request.url, 3);
   broadcastToClients("OFFLINE_FALLBACK_ACTIVATED", { detail: { route: new URL(request.url).pathname, fallbackLevel: "inline-503", timestamp: Date.now() } });
   return inline503Response();
+}
+
+// --- Fallback Dispatcher ---
+
+/*
+ * fallback dispatches to either navFallback (HTML chain) or a 502 error
+ * depending on the request type:
+ *   - isNavRequest → navFallback (true document navigation)
+ *   - SSR mode + isSsrClientNav → navFallback (framework client-nav fetches that accept HTML)
+ *   - Everything else → 502 Bad Gateway
+ */
+async function fallback(request) {
+  if (isNavRequest(request)) return navFallback(request);
+  if (NAV_MODE === "ssr" && isSsrClientNav(request)) return navFallback(request);
+  return new Response(null, { status: 502, statusText: "Bad Gateway" });
 }
 
 ${inline503}

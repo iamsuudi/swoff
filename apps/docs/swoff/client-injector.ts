@@ -24,7 +24,28 @@
  *   sw-auth-state-change  - Login or logout (detail: { authenticated: boolean })
  */
 import { initServiceWorker as swInit } from "./sw/injector.ts";
+import { prefetchCache } from "./fetch/core.ts";
 
+
+// --- Auto-prefetch HTML on client-side navigation (SSR mode) ---
+// Intercepts history.pushState/replaceState to warm the SW cache with HTML
+// for routes the user navigates to via client-side routing.
+if (typeof history !== "undefined") {
+  const origPushState = history.pushState.bind(history);
+  history.pushState = function (data, unused, url) {
+    origPushState(data, unused, url);
+    if (typeof url === "string" && url.startsWith("/")) {
+      prefetchCache(url);
+    }
+  };
+  const origReplaceState = history.replaceState.bind(history);
+  history.replaceState = function (data, unused, url) {
+    origReplaceState(data, unused, url);
+    if (typeof url === "string" && url.startsWith("/")) {
+      prefetchCache(url);
+    }
+  };
+}
 
 // --- SW Message Listener ---
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {

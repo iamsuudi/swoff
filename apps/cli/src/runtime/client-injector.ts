@@ -124,11 +124,6 @@ if (typeof document !== "undefined") {
   const swImport = `import { initServiceWorker as swInit } from "./sw/injector.${ext}";
 `;
 
-  const autoPrefetchImport = ssrNav
-    ? `import { prefetchCache } from "./fetch/core.${ext}";
-`
-    : "";
-
   const autoPrefetchCode = ssrNav
     ? `
 // --- Auto-prefetch HTML on client-side navigation (SSR mode) ---
@@ -139,14 +134,14 @@ if (typeof history !== "undefined") {
   history.pushState = function (data, unused, url) {
     origPushState(data, unused, url);
     if (typeof url === "string" && url.startsWith("/")) {
-      prefetchCache(url);
+      fetch(new Request(url)).catch(function() {});
     }
   };
   const origReplaceState = history.replaceState.bind(history);
   history.replaceState = function (data, unused, url) {
     origReplaceState(data, unused, url);
     if (typeof url === "string" && url.startsWith("/")) {
-      prefetchCache(url);
+      fetch(new Request(url)).catch(function() {});
     }
   };
 }
@@ -196,7 +191,7 @@ if (typeof history !== "undefined") {
  *   sw-auth-unauthorized  - 401 response received
  *   sw-auth-state-change  - Login or logout (detail: { authenticated: boolean })
  */
-${pwaImport}${mutationImport}${authImport}${swImport}${storageImport}${connectivityImport}${pushImport}${autoPrefetchImport}
+${pwaImport}${mutationImport}${authImport}${swImport}${storageImport}${connectivityImport}${pushImport}
 ${pwaCall}${pushCall}${onlineListener}${focusListener}${autoPrefetchCode}
 // --- SW Message Listener ---
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {
@@ -240,7 +235,7 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
           },
         })
       );
-    }
+    }${mutationQueueEnabled ? `
     if (event.data.type === "BACKGROUND_SYNC_PROGRESS") {
       window.dispatchEvent(
         new CustomEvent("mutation-sync-progress", {
@@ -264,7 +259,7 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
     }
     if (event.data.type === "MUTATION_STORED" && typeof processMutationQueue !== "undefined") {
       processMutationQueue();
-    }
+    }` : ""}${authEnabled ? `
     if (event.data.type === "AUTH_CLEARED") {
       // Another tab cleared auth — clear memory only (IndexedDB + caches already cleaned by initiator)
       if (typeof clearMemoryAuth !== "undefined") {
@@ -294,7 +289,7 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
           window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
         }
       })();
-    }${invalidationHandler}  });
+    }` : ""}${invalidationHandler}  });
 }
 
 // --- Background Precache Resume ---

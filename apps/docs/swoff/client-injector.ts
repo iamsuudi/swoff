@@ -24,12 +24,14 @@
  *   sw-auth-state-change  - Login or logout (detail: { authenticated: boolean })
  */
 import { initServiceWorker as swInit } from "./sw/injector.ts";
-import { prefetchCache } from "./fetch/core.ts";
 
 
 // --- Auto-prefetch HTML on client-side navigation (SSR mode) ---
 // Intercepts history.pushState/replaceState to warm the SW cache with HTML
 // for routes the user navigates to via client-side routing.
+function prefetchCache(url: string) {
+  fetch(new Request(url)).catch(function() {});
+}
 if (typeof history !== "undefined") {
   const origPushState = history.pushState.bind(history);
   history.pushState = function (data, unused, url) {
@@ -89,60 +91,6 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
           },
         })
       );
-    }
-    if (event.data.type === "BACKGROUND_SYNC_PROGRESS") {
-      window.dispatchEvent(
-        new CustomEvent("mutation-sync-progress", {
-          detail: event.data.detail,
-        })
-      );
-    }
-    if (event.data.type === "BACKGROUND_SYNC_COMPLETE") {
-      const { succeeded, failed, tags } = event.data.detail;
-      window.dispatchEvent(
-        new CustomEvent("mutation-sync-complete", {
-          detail: { succeeded, failed },
-        })
-      );
-      if (tags && tags.length > 0) {
-        window.dispatchEvent(
-          new CustomEvent("cache-invalidated", { detail: { tags } })
-        );
-      }
-      window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
-    }
-    if (event.data.type === "MUTATION_STORED" && typeof processMutationQueue !== "undefined") {
-      processMutationQueue();
-    }
-    if (event.data.type === "AUTH_CLEARED") {
-      // Another tab cleared auth — clear memory only (IndexedDB + caches already cleaned by initiator)
-      if (typeof clearMemoryAuth !== "undefined") {
-        clearMemoryAuth();
-      }
-      window.dispatchEvent(new CustomEvent("sw-auth-state-change", { detail: { type: "clear" } }));
-    }
-    if (event.data.type === "AUTH_FAILURE") {
-      // SW detected 401 during background refetch — check if session is still valid
-      (async () => {
-        if (typeof ensureValidAuth === "undefined") return;
-        const refreshed = await ensureValidAuth();
-        if (!refreshed) {
-          // Session expired — clear queue and runtime caches
-          if (typeof clearQueue !== "undefined") {
-            await clearQueue();
-          }
-          try {
-            for (const name of ["swoff-runtime", "swoff-runtime-html"]) {
-              const cache = await caches.open(name);
-              const keys = await cache.keys();
-              await Promise.all(keys.map((k) => cache.delete(k)));
-            }
-          } catch {
-            // Handle cache deletion errors
-          }
-          window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
-        }
-      })();
     }  });
 }
 

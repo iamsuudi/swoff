@@ -32,20 +32,19 @@ export function generateClientInjectorBundleCode(
 
   const ssrPrefetch = navMode === "ssr" ? `
   // ── Auto-prefetch HTML on client-side navigation (SSR mode) ──
-  // Guards against missing prefetchCache — only active when the user includes the fetch/core module.
   if (typeof history !== "undefined") {
     var origPushState = history.pushState.bind(history);
     history.pushState = function (data, unused, url) {
       origPushState(data, unused, url);
-      if (typeof url === "string" && url.startsWith("/") && typeof prefetchCache === "function") {
-        prefetchCache(url);
+      if (typeof url === "string" && url.startsWith("/")) {
+        fetch(new Request(url)).catch(function() {});
       }
     };
     var origReplaceState = history.replaceState.bind(history);
     history.replaceState = function (data, unused, url) {
       origReplaceState(data, unused, url);
-      if (typeof url === "string" && url.startsWith("/") && typeof prefetchCache === "function") {
-        prefetchCache(url);
+      if (typeof url === "string" && url.startsWith("/")) {
+        fetch(new Request(url)).catch(function() {});
       }
     };
   }` : "";

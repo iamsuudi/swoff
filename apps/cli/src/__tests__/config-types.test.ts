@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   defaultConfig,
-  defaultInitConfig,
   KNOWN_FEATURES,
   VALID_STRATEGIES,
   API_PREFIXES,
@@ -94,23 +93,6 @@ describe("config-types", () => {
 
     it("has tagInvalidation with debounceMs", () => {
       expect(defaultConfig.features.tagInvalidation.debounceMs).toBe(0);
-    });
-  });
-
-  describe("defaultInitConfig", () => {
-    it("includes $schema field", () => {
-      expect(defaultInitConfig.$schema).toBe(
-        "https://swoff.netlify.app/schema/v1.json",
-      );
-    });
-
-    it("has default patterns for API and static", () => {
-      expect(
-        defaultInitConfig.features.serviceWorker.strategy.patterns,
-      ).toEqual({
-        "/api/*": "network-first",
-        "/static/*": "cache-first",
-      });
     });
   });
 

@@ -267,78 +267,7 @@ export function mergeConfigs(
   base: SwoffConfig,
   override: Partial<SwoffConfig>,
 ): SwoffConfig {
-  return {
-    ...base,
-    ...override,
-    build: { ...base.build, ...override.build },
-    features: {
-      ...base.features,
-      ...override.features,
-      requestBatchWindowMs:
-        override.features?.requestBatchWindowMs ??
-        base.features.requestBatchWindowMs,
-      pwa: { ...base.features.pwa, ...override.features?.pwa },
-      serviceWorker: {
-        ...base.features.serviceWorker,
-        ...override.features?.serviceWorker,
-        precache: {
-          ...base.features.serviceWorker.precache,
-          ...override.features?.serviceWorker?.precache,
-          concurrency: override.features?.serviceWorker?.precache?.concurrency ?? base.features.serviceWorker.precache?.concurrency ?? 1,
-        },
-        strategy: {
-          ...base.features.serviceWorker.strategy,
-          ...override.features?.serviceWorker?.strategy,
-          reactive: {
-            ...base.features.serviceWorker.strategy.reactive,
-            ...override.features?.serviceWorker?.strategy?.reactive,
-          },
-        },
-        navigation: {
-          ...base.features.serviceWorker.navigation,
-          ...override.features?.serviceWorker?.navigation,
-        },
-      },
-      refetchQueue: {
-        ...defaultRefetchQueue,
-        ...base.features.refetchQueue,
-        ...override.features?.refetchQueue,
-      },
-      mutationQueue: {
-        ...defaultMutationQueue,
-        ...base.features.mutationQueue,
-        ...override.features?.mutationQueue,
-      },
-      auth: {
-        ...defaultAuth,
-        ...base.features.auth,
-        ...override.features?.auth,
-      } as AuthConfig,
-      graphql: {
-        ...defaultGql,
-        ...base.features.graphql,
-        ...override.features?.graphql,
-      },
-      connectivity: {
-        ...defaultConnectivity,
-        ...base.features.connectivity,
-        ...override.features?.connectivity,
-      },
-      tagInvalidation: {
-        ...defaultTagInvalidation,
-        ...base.features.tagInvalidation,
-        ...override.features?.tagInvalidation,
-      },
-      pushNotifications:
-        override.features?.pushNotifications ??
-        base.features.pushNotifications,
-      serverPush: {
-        ...defaultServerPushConfig,
-        ...base.features.serverPush,
-        ...override.features?.serverPush,
-      },
-    },
-  };
+  return deepMerge(base, override) as SwoffConfig;
 }
 
 export const defaultConfig: SwoffConfig = {

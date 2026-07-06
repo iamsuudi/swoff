@@ -1,4 +1,41 @@
 import type { RuntimeContext } from "./utils.js";
+import { generateAuthStoreCode } from "./auth-store.js";
+import { generateAuthStateCode } from "./auth-state.js";
+import { generateAuthAdapterCode } from "./auth-adapter.js";
+import { generateMutationQueueCode } from "./mutation-queue.js";
+import { generateMutationStateCode } from "./mutation-state.js";
+import { generateBackgroundSyncCode } from "./background-sync.js";
+import { generatePushCode } from "./push.js";
+import { generatePwaPromptCode } from "./pwa-prompt.js";
+import { generateGqlWrapperCode } from "./gql-wrapper.js";
+import { generateServerPushCode } from "./server-push.js";
+
+const IIFE_CTX: RuntimeContext = { ts: false, ext: "js" };
+
+function stripModuleWrappers(code: string, renames?: Record<string, string>): string {
+  code = code.replace(/^import\s+.*$/gm, "");
+  code = code.replace(/^import\s+type\s+.*$/gm, "");
+  code = code.replace(/^export\s+default\s+/gm, "");
+  code = code.replace(/^export\s+(async\s+)?function\s+(\w+)\s*\(/gm, (_, asyncKw, name) => {
+    const renamed = renames?.[name] ?? name;
+    return `var ${renamed} = ${asyncKw || ""}function(`;
+  });
+  code = code.replace(/^export\s+(const|let|var)\s+(\w+)/gm, (_, _kw, name) => {
+    const renamed = renames?.[name] ?? name;
+    return `var ${renamed}`;
+  });
+  code = code.replace(/^export\s+(interface|type)\s+\w+/gm, "");
+  code = code.replace(/^export\s+\{\s*[\s\S]*?\s*\};\s*$/gm, "");
+  code = code.replace(/^const\s+/gm, "var ");
+  code = code.replace(/^let\s+/gm, "var ");
+  if (renames) {
+    for (const [from, to] of Object.entries(renames)) {
+      code = code.replace(new RegExp(`\\b${from}\\b`, "g"), to);
+    }
+  }
+  code = code.replace(/\n{3,}/g, "\n\n");
+  return code.trim();
+}
 
 interface SwoffApiBundleFlags {
   authEnabled: boolean;
@@ -40,12 +77,34 @@ export function generateSwoffApiBundleCode(
     ? JSON.stringify(flags.tagInvalidationSingularization)
     : "null";
 
-  const authCode = flags.authEnabled ? generateAuthSection(flags) : "";
-  const mutationCode = flags.mutationQueueEnabled ? generateMutationSection(flags) : "";
-  const pwaCode = flags.pwaEnabled ? generatePwaSection(flags) : "";
-  const gqlCode = flags.gqlEnabled ? generateGqlSection(flags) : "";
-  const pushCode = flags.pushNotificationsEnabled ? generatePushSection() : "";
-  const serverPushCode = flags.serverPushEnabled ? generateServerPushSection(flags) : "";
+  const AUTH_RENAMES: Record<string, string> = { DB_NAME: "AUTH_DB_NAME", STORE_NAME: "AUTH_STORE_NAME" };
+  const authAdapterCode = stripModuleWrappers(generateAuthAdapterCode(IIFE_CTX, flags.authType), AUTH_RENAMES);
+  const authStoreCode = stripModuleWrappers(generateAuthStoreCode(IIFE_CTX, flags.authType, flags.authRoutePaths, flags.mutationQueueEnabled), AUTH_RENAMES);
+  const authStateCode = stripModuleWrappers(generateAuthStateCode(IIFE_CTX), AUTH_RENAMES);
+  const authCode = flags.authEnabled
+    ? authAdapterCode + "\n" + authStoreCode + "\n" + authStateCode
+    : "";
+
+  const MUTATION_RENAMES: Record<string, string> = { DB_NAME: "QUEUE_DB_NAME", STORE_NAME: "QUEUE_STORE_NAME" };
+  const mutationCode = flags.mutationQueueEnabled
+    ? stripModuleWrappers(generateMutationQueueCode(IIFE_CTX, flags.authEnabled, flags.mutationQueueBatchSize, flags.mutationQueueBatchDelayMs, flags.mutationQueueMaxRetries, flags.mutationQueueRetryBackoffMs, flags.mutationQueueRetryMaxBackoffMs, flags.mutationQueueRetryJitterMs), MUTATION_RENAMES)
+      + "\n" + stripModuleWrappers(generateMutationStateCode(IIFE_CTX), MUTATION_RENAMES)
+      + "\n" + stripModuleWrappers(generateBackgroundSyncCode(IIFE_CTX), MUTATION_RENAMES)
+    : "";
+
+  const pwaCode = flags.pwaEnabled
+    ? stripModuleWrappers(generatePwaPromptCode({ ...IIFE_CTX, preventDefaultInstall: flags.pwaPreventDefaultInstall }))
+      + "\nif (typeof window !== \"undefined\" && typeof document !== \"undefined\") { setupPwaInstall(); }"
+    : "";
+  const gqlCode = flags.gqlEnabled
+    ? stripModuleWrappers(generateGqlWrapperCode(IIFE_CTX, flags.gqlEndpoints))
+    : "";
+  const pushCode = flags.pushNotificationsEnabled
+    ? stripModuleWrappers(generatePushCode(IIFE_CTX))
+    : "";
+  const serverPushCode = flags.serverPushEnabled
+    ? stripModuleWrappers(generateServerPushCode(IIFE_CTX, flags.serverPushType, flags.serverPushEndpoint, flags.serverPushReconnectDelayMs))
+    : "";
 
   return `(function () {
   "use strict";
@@ -72,6 +131,11 @@ export function generateSwoffApiBundleCode(
       request.onsuccess = function (e) { resolve(e.target.result); };
       request.onerror = function (e) { reject(e.target.error); };
     });
+  }
+
+  // ── Auth Failure Check ──
+  async function isAuthFailureResponse(response) {
+    return response.status === 401;
   }
 
   // ── Cache Tags ──
@@ -572,248 +636,6 @@ ${flags.serverPushEnabled ? "    startPushEvents: startPushEvents,\n    stopPush
 `;
 }
 
-function generatePushSection(): string {
-  return `
-  // ── Push Notifications ──
-  var pushPermissionState = typeof Notification !== "undefined" ? Notification.permission : undefined;
-
-  function requestNotificationPermission() {
-    if (pushPermissionState === "granted") return Promise.resolve(true);
-    if (pushPermissionState === "denied") return Promise.resolve(false);
-    return Notification.requestPermission().then(function (result) {
-      pushPermissionState = result;
-      window.dispatchEvent(new CustomEvent("push-permission-changed", { detail: { permission: result } }));
-      return result === "granted";
-    });
-  }
-
-  function getPushSubscription() {
-    try {
-      return navigator.serviceWorker.ready.then(function (registration) {
-        return registration.pushManager.getSubscription();
-      });
-    } catch (e) {
-      return Promise.resolve(null);
-    }
-  }
-
-  function subscribeToPush() {
-    return requestNotificationPermission().then(function (granted) {
-      if (!granted) return null;
-      return navigator.serviceWorker.ready.then(function (registration) {
-        return registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-        });
-      }).then(function (subscription) {
-        return openDB("swoff-push", "subscription", "id").then(function (db) {
-          var tx = db.transaction("subscription", "readwrite");
-          tx.objectStore("subscription").put({
-            id: "current",
-            endpoint: subscription.endpoint,
-            keys: subscription.toJSON().keys,
-            subscribedAt: Date.now(),
-          });
-          return new Promise(function (resolve, reject) {
-            tx.oncomplete = function () { db.close(); resolve(); };
-            tx.onerror = function () { db.close(); reject(tx.error); };
-          });
-        }).then(function () {
-          window.dispatchEvent(new CustomEvent("push-subscription-changed", { detail: { subscribed: true } }));
-          return subscription;
-        });
-      });
-    });
-  }
-
-  function unsubscribeFromPush() {
-    return getPushSubscription().then(function (subscription) {
-      if (!subscription) return;
-      return subscription.unsubscribe().then(function () {
-        return openDB("swoff-push", "subscription", "id").then(function (db) {
-          var tx = db.transaction("subscription", "readwrite");
-          tx.objectStore("subscription").delete("current");
-          return new Promise(function (resolve, reject) {
-            tx.oncomplete = function () { db.close(); resolve(); };
-            tx.onerror = function () { db.close(); reject(tx.error); };
-          });
-        });
-      });
-    }).then(function () {
-      window.dispatchEvent(new CustomEvent("push-subscription-changed", { detail: { subscribed: false } }));
-    });
-  }
-
-  function isSubscribed() {
-    return getPushSubscription().then(function (sub) {
-      return sub !== null;
-    });
-  }
-
-  function urlBase64ToUint8Array(base64String) {
-    var padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-    var base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-    var rawData = atob(base64);
-    return Uint8Array.from(rawData, function (c) { return c.charCodeAt(0); });
-  }
-`;
-}
-
-function generateServerPushSection(flags: SwoffApiBundleFlags): string {
-  const connectImpl = flags.serverPushType === "sse"
-    ? `
-    return new Promise(function (resolve) {
-      fetch(API_BASE + SERVER_PUSH_ENDPOINT, {
-        headers: { Accept: "text/event-stream" },
-        credentials: "include",
-        signal: options.signal,
-      }).then(function (response) {
-        serverPushFetchController = null;
-        if (!serverPushActive) { resolve(); return; }
-        if (!response.ok || !response.body) { resolve(); return; }
-        serverPushNotifyStatus(true);
-        var reader = response.body.getReader();
-        var decoder = new TextDecoder();
-        var buffer = "";
-        var eventType = "";
-        var dataStr = "";
-        function readNext() {
-          reader.read().then(function (result) {
-            if (result.done) {
-              serverPushNotifyStatus(false);
-              resolve();
-              return;
-            }
-            buffer += decoder.decode(result.value, { stream: true });
-            var lines = buffer.split("\\n");
-            buffer = lines.pop() || "";
-            for (var i = 0; i < lines.length; i++) {
-              var line = lines[i];
-              if (line.indexOf("event: ") === 0) eventType = line.slice(7).trim();
-              else if (line.indexOf("data: ") === 0) dataStr = line.slice(6);
-              else if (line === "" && eventType === "invalidate" && dataStr) {
-                try {
-                  var p = JSON.parse(dataStr);
-                  if (p.tags) serverPushHandleInvalidation(p.tags);
-                } catch (e) {}
-                eventType = "";
-                dataStr = "";
-              }
-            }
-            readNext();
-          }, function () {
-            serverPushNotifyStatus(false);
-            resolve();
-          });
-        }
-        readNext();
-      }, function () {
-        serverPushNotifyStatus(false);
-        resolve();
-      });
-    });`
-    : `
-    return new Promise(function (resolve) {
-      try {
-        var ws = new WebSocket(API_BASE + SERVER_PUSH_ENDPOINT);
-        serverPushWs = ws;
-        ws.onopen = function () { serverPushNotifyStatus(true); };
-        ws.onmessage = function (event) {
-          try {
-            var d = JSON.parse(event.data);
-            if (d.type === "invalidate" && d.tags) serverPushHandleInvalidation(d.tags);
-          } catch (e) {}
-        };
-        ws.onclose = function () { serverPushWs = null; serverPushNotifyStatus(false); resolve(); };
-        ws.onerror = function () { serverPushWs = null; resolve(); };
-        if (options.signal) {
-          options.signal.addEventListener("abort", function () { ws.close(); serverPushWs = null; });
-        }
-      } catch (e) { resolve(); }
-    });`;
-
-  return `
-  // ── Server Push Events ──
-  var SERVER_PUSH_ENDPOINT = ${JSON.stringify(flags.serverPushEndpoint)};
-  var SERVER_PUSH_RECONNECT_DELAY_MS = ${flags.serverPushReconnectDelayMs};
-  var serverPushActive = false;
-  var serverPushSwConnected = false;
-  var serverPushReconnectTimer = null;
-  var serverPushWs = null;
-  var serverPushFetchController = null;
-
-  function serverPushHandleInvalidation(tags) {
-    var i;
-    for (i = 0; i < tags.length; i++) {
-      invalidateByTag(tags[i]);
-    }
-    window.dispatchEvent(new CustomEvent("cache-invalidated", { detail: { tags: tags } }));
-  }
-
-  function serverPushNotifyStatus(connected) {
-    window.dispatchEvent(new CustomEvent("push-events-status", { detail: { connected: connected } }));
-  }
-
-  if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
-    navigator.serviceWorker.addEventListener("message", function (event) {
-      if (event.data && event.data.type === "SSE_STATUS") {
-        serverPushSwConnected = event.data.connected;
-        serverPushNotifyStatus(serverPushSwConnected);
-      }
-    });
-  }
-
-  function serverPushConnect() {
-    var controller = new AbortController();
-    serverPushFetchController = controller;
-    var options = { signal: controller.signal };
-    ${connectImpl}
-  }
-
-  function startPushEvents() {
-    if (serverPushActive) return;
-    if (navigator.serviceWorker && navigator.serviceWorker.controller) return;
-    var onControllerChange = function () { stopPushEvents(); };
-    if (navigator.serviceWorker) {
-      navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
-    }
-    serverPushActive = true;
-    var delay = Math.max(1000, SERVER_PUSH_RECONNECT_DELAY_MS);
-    function serverPushLoop() {
-      if (!serverPushActive) {
-        if (navigator.serviceWorker) {
-          navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
-        }
-        return;
-      }
-      serverPushConnect().then(function () {
-        if (!serverPushActive) {
-          if (navigator.serviceWorker) {
-            navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
-          }
-          return;
-        }
-        serverPushReconnectTimer = setTimeout(function () {
-          delay = Math.min(delay * 1.5, 30000);
-          serverPushLoop();
-        }, delay);
-      });
-    }
-    serverPushLoop();
-  }
-
-  function stopPushEvents() {
-    serverPushActive = false;
-    if (serverPushReconnectTimer) { clearTimeout(serverPushReconnectTimer); serverPushReconnectTimer = null; }
-    if (serverPushWs) { serverPushWs.close(); serverPushWs = null; }
-    if (serverPushFetchController) { serverPushFetchController.abort(); serverPushFetchController = null; }
-  }
-
-  function isPushConnected() {
-    return serverPushActive || serverPushSwConnected;
-  }
-`;
-}
 
 function compilePatterns(patterns: Record<string, string[]>): string {
   const entries: string[] = [];
@@ -894,170 +716,6 @@ function compilePatternEntry(rawPattern: string, tagTemplates: string[]): Patter
   return { regex, params: paramNames, templates: tagTemplates };
 }
 
-function generateAuthSection(flags: SwoffApiBundleFlags): string {
-  const isCookie = flags.authType === "cookie";
-  return `
-  // ── Auth Store ──
-  var AUTH_DB_NAME = "swoff-auth";
-  var AUTH_STORE_NAME = "auth";
-  var memoryAuth = null;
-  var _fetchingUser = false;
-
-  var adapter = {
-    type: ${JSON.stringify(flags.authType)},
-    getHeaders: function (auth) {
-      if (!auth || !auth.token) return {};
-      return { Authorization: "Bearer " + auth.token };
-    },
-    getAuth: function () { return Promise.resolve(null); },
-    refresh: function () { return Promise.resolve(null); },
-    fetchUser: function () { return Promise.resolve(null); },
-  };
-
-  function persistUserData(authData) {
-    var userData = { user: authData ? authData.user : null, expiresAt: authData ? authData.expiresAt : null };
-    return openDB(AUTH_DB_NAME, AUTH_STORE_NAME, "key").then(function (db) {
-      return new Promise(function (resolve, reject) {
-        var tx = db.transaction(AUTH_STORE_NAME, "readwrite");
-        var store = tx.objectStore(AUTH_STORE_NAME);
-        var request = store.put({ key: "session", value: userData });
-        request.onsuccess = function () { resolve(); };
-        request.onerror = function () { reject(request.error); };
-      }).then(function () { db.close(); });
-    });
-  }
-
-  function loadUserData() {
-    return openDB(AUTH_DB_NAME, AUTH_STORE_NAME, "key").then(function (db) {
-      return new Promise(function (resolve, reject) {
-        var tx = db.transaction(AUTH_STORE_NAME, "readonly");
-        var store = tx.objectStore(AUTH_STORE_NAME);
-        var request = store.get("session");
-        request.onsuccess = function () { resolve(request.result ? request.result.value : null); };
-        request.onerror = function () { reject(request.error); };
-      }).then(function (result) { db.close(); return result; });
-    });
-  }
-
-  function clearPersistedData() {
-    return openDB(AUTH_DB_NAME, AUTH_STORE_NAME, "key").then(function (db) {
-      return new Promise(function (resolve, reject) {
-        var tx = db.transaction(AUTH_STORE_NAME, "readwrite");
-        var store = tx.objectStore(AUTH_STORE_NAME);
-        var request = store.delete("session");
-        request.onsuccess = function () { resolve(); };
-        request.onerror = function () { reject(request.error); };
-      }).then(function () { db.close(); });
-    });
-  }
-
-  function setAuth(authData) {
-    memoryAuth = authData;
-    return persistUserData(authData);
-  }
-
-  function getAuth() {
-    if (memoryAuth) return Promise.resolve(memoryAuth);
-    return adapter.getAuth().then(function (adapterAuth) {
-      if (adapterAuth) {
-        memoryAuth = adapterAuth;
-        return persistUserData(adapterAuth).then(function () { return memoryAuth; });
-      }
-      return null;
-    }).catch(function () {
-      return loadUserData().then(function (userData) {
-        if (userData) {
-          memoryAuth = userData;
-          return memoryAuth;
-        }
-        if (_fetchingUser) return null;
-        _fetchingUser = true;
-        return adapter.fetchUser().then(function (fetched) {
-          if (fetched) {
-            memoryAuth = fetched;
-            return persistUserData(fetched).then(function () { return memoryAuth; });
-          }
-          return null;
-        }).catch(function () { return null; }).then(function (result) { _fetchingUser = false; return result; });
-      });
-    });
-  }
-
-  function clearAuth(options) {
-    options = options || {};
-    if (options.broadcast !== false) {
-      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({ type: "AUTH_CLEARED" });
-      }
-    }
-    memoryAuth = null;
-    return clearPersistedData().then(function () {
-      try {
-        return caches.keys().then(function (keys) {
-          return Promise.all(keys.filter(function (name) { return name.indexOf("swoff-runtime") === 0; }).map(function (name) { return caches.delete(name); }));
-        });
-      } catch (e) { return Promise.resolve(); }
-    }).then(function () {
-      if (typeof clearQueue === "function") return clearQueue();
-    }).then(function () {
-      window.dispatchEvent(new CustomEvent("sw-auth-state-change", { detail: { type: "clear" } }));
-    });
-  }
-${isCookie ? `
-  function ensureValidAuth() {
-    return getAuth();
-  }
-` : `
-  function tryRestoreSession() {
-    return getAuth().then(function (auth) {
-      if (!auth) return null;
-      return adapter.refresh(auth).then(function (refreshed) {
-        if (refreshed) { return setAuth(refreshed).then(function () { return refreshed; }); }
-        return null;
-      });
-    }).catch(function () { return null; });
-  }
-
-  var restorePromise = null;
-  var refreshPromise = null;
-
-  function ensureValidAuth() {
-    return getAuth().then(function (auth) {
-      if (!auth) return null;
-      if (!auth.token) {
-        if (restorePromise) return restorePromise.then(function (r) { restorePromise = null; return r; });
-        restorePromise = tryRestoreSession();
-        return restorePromise.then(function (r) { restorePromise = null; return r; });
-      }
-      if (!auth.expiresAt || Date.now() < auth.expiresAt) return auth;
-      if (!refreshPromise) {
-        refreshPromise = adapter.refresh(auth).then(function (refreshed) {
-          if (refreshed) { return setAuth(refreshed).then(function () { return refreshed; }); }
-          return clearAuth().then(function () { return null; });
-        }).catch(function () {
-          return clearAuth().then(function () { return null; });
-        });
-      }
-      return refreshPromise.then(function (r) { refreshPromise = null; return r; });
-    });
-  }
-`}
-
-  function clearMemoryAuth() {
-    memoryAuth = null;
-  }
-
-  function getAuthState() {
-    return getAuth().then(function (auth) {
-      return {
-        authenticated: !!(auth && (auth.token || auth.user)),
-        auth: auth,
-        online: getCurrentOnlineStatus(),
-      };
-    });
-  }
-`;
-}
 
 function generateAuthFetchBlock(flags: SwoffApiBundleFlags): string {
   return `
@@ -1071,478 +729,4 @@ function generateAuthFetchBlock(flags: SwoffApiBundleFlags): string {
 `;
 }
 
-function generateMutationSection(flags: SwoffApiBundleFlags): string {
-  return `
-  // ── Mutation Queue ──
-  var QUEUE_DB_NAME = "swoff-queue";
-  var QUEUE_STORE_NAME = "mutations";
-  var QUEUE_BATCH_SIZE = ${flags.mutationQueueBatchSize};
-  var QUEUE_BATCH_DELAY_MS = ${flags.mutationQueueBatchDelayMs};
-  var QUEUE_MAX_RETRIES = ${flags.mutationQueueMaxRetries};
-  var QUEUE_RETRY_BACKOFF_MS = ${flags.mutationQueueRetryBackoffMs};
-  var QUEUE_RETRY_MAX_BACKOFF_MS = ${flags.mutationQueueRetryMaxBackoffMs};
-  var QUEUE_RETRY_JITTER_MS = ${flags.mutationQueueRetryJitterMs};
 
-  function queueBackoffDelay(attempt) {
-    var delay = Math.min(QUEUE_RETRY_BACKOFF_MS * Math.pow(2, attempt), QUEUE_RETRY_MAX_BACKOFF_MS);
-    return delay + (QUEUE_RETRY_JITTER_MS > 0 ? Math.random() * QUEUE_RETRY_JITTER_MS : 0);
-  }
-
-  var isSyncing = false;
-
-  function openQueueDB() {
-    return openDB(QUEUE_DB_NAME, QUEUE_STORE_NAME, "id", function (db) {
-      if (!db.objectStoreNames.contains(QUEUE_STORE_NAME)) {
-        var store = db.createObjectStore(QUEUE_STORE_NAME, { keyPath: "id" });
-        store.createIndex("by-timestamp", "timestamp");
-      }
-    });
-  }
-
-  function queueMutation(mutation) {
-    return openQueueDB().then(function (db) {
-      var tx = db.transaction(QUEUE_STORE_NAME, "readwrite");
-      var store = tx.objectStore(QUEUE_STORE_NAME);
-
-      var body = mutation.body;
-      var bodyType = "json";
-      if (typeof body === "string") {
-        bodyType = "text";
-      } else if (body instanceof FormData) {
-        bodyType = "formdata";
-        body = Array.from(body.entries());
-      } else if (body instanceof Blob) {
-        bodyType = "blob";
-      } else if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
-        bodyType = "buffer";
-      }
-
-      var safeHeaders = Object.assign({}, mutation.headers || {});
-      delete safeHeaders["authorization"];
-      delete safeHeaders["Authorization"];
-
-      store.add({
-        id: crypto.randomUUID(),
-        method: mutation.method,
-        url: mutation.url,
-        body: body,
-        bodyType: bodyType,
-        headers: safeHeaders,
-        timestamp: Date.now(),
-        retryCount: 0,
-        nextRetryAt: 0,
-        tags: mutation.tags || [],
-      });
-
-      return new Promise(function (resolve, reject) {
-        tx.oncomplete = function () { db.close(); resolve(); };
-        tx.onerror = function () { db.close(); reject(tx.error); };
-      });
-    }).then(function () {
-      window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
-    });
-  }
-
-  function removeFromQueue(id, db) {
-    var ownDb = false;
-    var p;
-    if (!db) {
-      p = openQueueDB().then(function (d) { db = d; ownDb = true; return db; });
-    } else {
-      p = Promise.resolve(db);
-    }
-    return p.then(function (db) {
-      var tx = db.transaction(QUEUE_STORE_NAME, "readwrite");
-      tx.objectStore(QUEUE_STORE_NAME).delete(id);
-      return new Promise(function (resolve, reject) {
-        tx.oncomplete = function () { if (ownDb) db.close(); resolve(); };
-        tx.onerror = function () { if (ownDb) db.close(); reject(tx.error); };
-      });
-    });
-  }
-
-  function updateInQueue(item, db) {
-    var ownDb = false;
-    var p;
-    if (!db) {
-      p = openQueueDB().then(function (d) { db = d; ownDb = true; return db; });
-    } else {
-      p = Promise.resolve(db);
-    }
-    return p.then(function (db) {
-      var tx = db.transaction(QUEUE_STORE_NAME, "readwrite");
-      tx.objectStore(QUEUE_STORE_NAME).put(item);
-      return new Promise(function (resolve, reject) {
-        tx.oncomplete = function () { if (ownDb) db.close(); resolve(); };
-        tx.onerror = function () { if (ownDb) db.close(); reject(tx.error); };
-      });
-    });
-  }
-
-  function clearQueue() {
-    return openQueueDB().then(function (db) {
-      var tx = db.transaction(QUEUE_STORE_NAME, "readwrite");
-      tx.objectStore(QUEUE_STORE_NAME).clear();
-      return new Promise(function (resolve, reject) {
-        tx.oncomplete = function () { db.close(); resolve(); };
-        tx.onerror = function () { db.close(); reject(tx.error); };
-      });
-    }).then(function () {
-      window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
-    });
-  }
-
-  function processMutationQueue() {
-    if (isSyncing) return Promise.resolve();
-    return openQueueDB().then(function (db) {
-      isSyncing = true;
-      var tx = db.transaction(QUEUE_STORE_NAME, "readonly");
-      var store = tx.objectStore(QUEUE_STORE_NAME);
-      var index = store.index("by-timestamp");
-      return new Promise(function (resolve, reject) {
-        var request = index.getAll();
-        request.onsuccess = function () { resolve(request.result); };
-        request.onerror = function () { reject(request.error); };
-      }).then(function (queue) {
-        if (queue.length === 0) { isSyncing = false; db.close(); return; }
-
-        var succeeded = 0;
-        var failed = 0;
-        var total = queue.length;
-        var earliestRetry = Infinity;
-
-        function processNext(index) {
-          if (index >= queue.length) {
-            window.dispatchEvent(new CustomEvent("mutation-sync-complete", { detail: { succeeded: succeeded, failed: failed, total: total } }));
-            if (earliestRetry < Infinity && earliestRetry > Date.now()) {
-              setTimeout(function () { if (!isSyncing) processMutationQueue(); }, earliestRetry - Date.now());
-            }
-            isSyncing = false;
-            db.close();
-            window.dispatchEvent(new CustomEvent("mutation-queue-changed"));
-            return;
-          }
-
-          var item = queue[index];
-
-          if (item.retryCount >= QUEUE_MAX_RETRIES) {
-            removeFromQueue(item.id, db).then(function () {
-              failed++; emitProgress(succeeded, failed, total);
-              if (QUEUE_BATCH_DELAY_MS > 0 && succeeded + failed < total) {
-                setTimeout(function () { processNext(index + 1); }, QUEUE_BATCH_DELAY_MS);
-              } else { processNext(index + 1); }
-            });
-            return;
-          }
-
-          if (item.nextRetryAt && Date.now() < item.nextRetryAt) {
-            if (item.nextRetryAt < earliestRetry) earliestRetry = item.nextRetryAt;
-            processNext(index + 1);
-            return;
-          }
-
-          replayMutation(item, db).then(function (ok) {
-            if (ok) { succeeded++; } else { failed++; }
-            emitProgress(succeeded, failed, total);
-            if (QUEUE_BATCH_DELAY_MS > 0 && succeeded + failed < total) {
-              setTimeout(function () { processNext(index + 1); }, QUEUE_BATCH_DELAY_MS);
-            } else { processNext(index + 1); }
-          });
-        }
-
-        processNext(0);
-      });
-    });
-  }
-
-  function emitProgress(succeeded, failed, total) {
-    if ((succeeded + failed) % QUEUE_BATCH_SIZE === 0 || succeeded + failed === total) {
-      window.dispatchEvent(new CustomEvent("mutation-sync-progress", { detail: { succeeded: succeeded, failed: failed, total: total } }));
-    }
-  }
-
-  function replayMutation(item, db) {
-    var authPromise = ${flags.authEnabled
-      ? "getAuth().then(function (auth) { return auth; })"
-      : "Promise.resolve(null)"};
-    return authPromise.then(function (auth) {
-      var authHeader = {};
-      if (auth && auth.token) {
-        authHeader = { Authorization: "Bearer " + auth.token };
-      }
-
-      var replayBody = null;
-      var contentType = undefined;
-      var bt = item.bodyType || "json";
-
-      if (bt === "formdata") {
-        replayBody = new FormData();
-        for (var i = 0; i < (item.body || []).length; i++) {
-          replayBody.append(item.body[i][0], item.body[i][1]);
-        }
-      } else if (bt === "blob" || bt === "buffer") {
-        replayBody = item.body;
-      } else if (bt === "text") {
-        replayBody = item.body;
-      } else if (item.body != null) {
-        replayBody = JSON.stringify(item.body);
-        contentType = "application/json";
-      }
-
-      return fetch(item.url, {
-        method: item.method,
-        headers: Object.assign({}, contentType ? { "Content-Type": contentType } : {}, item.headers, authHeader),
-        body: replayBody,
-      }).then(function (response) {
-        return handleReplayResponse(response, item, db);
-      }).catch(function () {
-        item.retryCount++;
-        item.nextRetryAt = Date.now() + queueBackoffDelay(item.retryCount - 1);
-        return updateInQueue(item, db).then(function () { return false; });
-      });
-    });
-  }
-
-  function handleReplayResponse(response, item, db) {
-    if (response.ok) {
-      if (item.tags && item.tags.length > 0) {
-        return invalidateByTags(item.tags).then(function () {
-          return removeFromQueue(item.id, db).then(function () { return true; });
-        });
-      }
-      return removeFromQueue(item.id, db).then(function () { return true; });
-    }
-    if (response.status === 401) {
-      return ensureValidAuth().then(function (refreshed) {
-        if (refreshed && refreshed.token) {
-          var retryHeader = { Authorization: "Bearer " + refreshed.token };
-          return fetch(item.url, {
-            method: item.method,
-            headers: Object.assign({}, item.headers, retryHeader),
-            body: item.body ? JSON.stringify(item.body) : null,
-          }).then(function (retryResponse) {
-            if (retryResponse.ok) {
-              if (item.tags && item.tags.length > 0) {
-                return invalidateByTags(item.tags);
-              }
-              return removeFromQueue(item.id, db).then(function () { return true; });
-            }
-            return removeFromQueue(item.id, db).then(function () { return true; });
-          });
-        }
-        return clearAuth().then(function () { return false; });
-      });
-    }
-    item.retryCount++;
-    item.nextRetryAt = Date.now() + queueBackoffDelay(item.retryCount - 1);
-    return updateInQueue(item, db).then(function () { return false; });
-  }
-
-  function flushMutations() {
-    return processMutationQueue();
-  }
-
-  function getPendingCount() {
-    return openQueueDB().then(function (db) {
-      return new Promise(function (resolve, reject) {
-        var tx = db.transaction(QUEUE_STORE_NAME, "readonly");
-        var request = tx.objectStore(QUEUE_STORE_NAME).count();
-        request.onsuccess = function () { db.close(); resolve(request.result); };
-        request.onerror = function () { db.close(); reject(request.error); };
-      });
-    });
-  }
-
-  function getQueueItems() {
-    return openQueueDB().then(function (db) {
-      var tx = db.transaction(QUEUE_STORE_NAME, "readonly");
-      var store = tx.objectStore(QUEUE_STORE_NAME);
-      var index = store.index("by-timestamp");
-      return new Promise(function (resolve, reject) {
-        var request = index.getAll();
-        request.onsuccess = function () { resolve(request.result); };
-        request.onerror = function () { reject(request.error); };
-      }).then(function (result) { db.close(); return result; });
-    });
-  }
-
-  function getQueuePosition(id) {
-    return getQueueItems().then(function (items) {
-      for (var i = 0; i < items.length; i++) {
-        if (items[i].id === id) return i;
-      }
-      return -1;
-    });
-  }
-
-  function registerSync() {
-    if (!("SyncManager" in window)) {
-      window.addEventListener("online", processMutationQueue, { once: true });
-      return Promise.resolve();
-    }
-    return navigator.serviceWorker.ready.then(function (registration) {
-      return registration.sync.register("sync-mutations").catch(function () {
-        window.addEventListener("online", processMutationQueue, { once: true });
-      });
-    });
-  }
-
-  function syncWhenPossible(mutation) {
-    return queueMutation(mutation).then(function () {
-      return registerSync();
-    });
-  }
-
-  function retrySync() {
-    window.addEventListener("mutation-sync-complete", retrySync, { once: true });
-    if (!("SyncManager" in window)) return Promise.resolve();
-    return getPendingCount().then(function (count) {
-      if (count > 0) return registerSync();
-    });
-  }
-`;
-}
-
-function generatePwaSection(flags: SwoffApiBundleFlags): string {
-  const preventLine = flags.pwaPreventDefaultInstall
-    ? "      e.preventDefault();\n"
-    : "";
-
-  return `
-  // ── PWA Install Prompt ──
-  function setupPwaInstall() {
-    window.addEventListener("beforeinstallprompt", function (e) {
-      window.deferredInstallPrompt = e;
-      window.pwaInstallable = true;
-${preventLine}      window.dispatchEvent(new CustomEvent("pwa-installable", { detail: { isInstallable: true } }));
-    });
-    window.addEventListener("appinstalled", function () {
-      window.deferredInstallPrompt = null;
-      window.pwaInstallable = false;
-      window.dispatchEvent(new CustomEvent("pwa-installed", { detail: { outcome: "accepted" } }));
-    });
-  }
-  if (typeof window !== "undefined" && typeof document !== "undefined") { setupPwaInstall(); }
-
-  function isInstallable() {
-    if (typeof window === "undefined") return false;
-    return !!window.deferredInstallPrompt;
-  }
-
-  function promptInstall() {
-    if (!window.deferredInstallPrompt) {
-      return Promise.reject(new Error("Install prompt not available"));
-    }
-    var promptEvent = window.deferredInstallPrompt;
-    return promptEvent.prompt().then(function () {
-      return promptEvent.userChoice;
-    }).then(function (choice) {
-      if (choice.outcome === "accepted") {
-        window.dispatchEvent(new CustomEvent("pwa-installed", { detail: { outcome: "accepted" } }));
-      } else {
-        window.dispatchEvent(new CustomEvent("pwa-dismissed", { detail: { outcome: "dismissed" } }));
-      }
-      window.deferredInstallPrompt = null;
-      return choice;
-    });
-  }
-`;
-}
-
-function generateGqlSection(flags: SwoffApiBundleFlags): string {
-  const endpointsCode = JSON.stringify(flags.gqlEndpoints);
-  return `
-  // ── GraphQL Wrapper ──
-  var GQL_ENDPOINTS = ${endpointsCode};
-
-  function getOperationName(query) {
-    var match = query.match(/(query|mutation|subscription)\\s+(\\w+)/);
-    return match ? match[2] : null;
-  }
-
-  function isReadOperation(query) {
-    var trimmed = query.trim();
-    if (trimmed.startsWith("mutation") || trimmed.startsWith("subscription")) return false;
-    return true;
-  }
-
-  function simpleHash(str) {
-    var hash = 0;
-    for (var i = 0; i < str.length; i++) {
-      var char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash).toString(16).slice(0, 16);
-  }
-
-  function bodyHash(obj) {
-    var json = JSON.stringify(obj);
-    if (typeof crypto !== "undefined" && crypto.subtle && crypto.subtle.digest) {
-      try {
-        var bytes = new TextEncoder().encode(json);
-        return crypto.subtle.digest("SHA-256", bytes).then(function (hash) {
-          return Array.from(new Uint8Array(hash)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("").slice(0, 16);
-        });
-      } catch (e) {}
-    }
-    return Promise.resolve(simpleHash(json));
-  }
-
-  function tagsFromOpName(name) {
-    if (!name) return [];
-    var stripped = name.replace(/^(get|fetch|list|all|query)/i, "").replace(/^(create|set|add|new|update|delete|remove)/i, "");
-    if (!stripped) return [name.toLowerCase()];
-    var tag = stripped.toLowerCase();
-    var plural = tag.replace(/s$/, "") + "s";
-    return [plural, tag];
-  }
-
-  function fetchWithGql(query, options, endpointIndex) {
-    options = options || {};
-    endpointIndex = endpointIndex || 0;
-    var isRead = isReadOperation(query);
-    var opName = getOperationName(query);
-    var variables = options.variables;
-    var tags = options.tags || tagsFromOpName(opName);
-    var endpoint = GQL_ENDPOINTS[endpointIndex] || GQL_ENDPOINTS[0];
-    var invalidateTags = isRead ? undefined : (options.invalidate ? options.invalidate : (opName ? tagsFromOpName(opName) : undefined));
-
-    return bodyHash({ query: query, variables: variables }).then(function (hash) {
-      return fetchWithCache(endpoint, {
-        method: "POST",
-        body: JSON.stringify({ query: query, variables: variables }),
-        headers: {
-          "Content-Type": "application/json",
-          "X-SW-Cache-Key": "gql:" + hash,
-        },
-        tags: tags,
-        type: isRead ? "read" : "mutation",
-        auth: options.auth,
-        queueOffline: options.queueOffline,
-        invalidate: invalidateTags,
-      });
-    }).then(function (result) {
-      var response = result.response;
-      if (!response.ok) {
-        throw new Error("GraphQL request failed with status " + response.status);
-      }
-      return response.json().then(function (json) {
-        return { data: json.data, fromCache: result.fromCache };
-      });
-    });
-  }
-
-  function queryGql(query, variables, options, endpointIndex) {
-    options = options || {};
-    options.variables = variables;
-    return fetchWithGql(query, options, endpointIndex);
-  }
-
-  function mutateGql(mutation, variables, options, endpointIndex) {
-    options = options || {};
-    options.variables = variables;
-    return fetchWithGql(mutation, options, endpointIndex);
-  }
-`;
-}

@@ -83,11 +83,6 @@
               "description": "Automatically activate newly registered service workers (skipWaiting).",
               "default": false
             },
-            "navCacheOnly": {
-              "type": "boolean",
-              "description": "When true, only intercept and cache navigation requests. Subresource requests (API, JS, CSS, images) pass through to the network — letting in-memory caching libraries manage data freshness independently.",
-              "default": false
-            },
             "precache": {
               "type": "object",
               "description": "Precaching configuration",

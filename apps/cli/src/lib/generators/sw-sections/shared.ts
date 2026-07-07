@@ -57,7 +57,7 @@ export function applySwSections(
 ): string {
   const { features } = config;
   const { serviceWorker } = features;
-  const { strategy, navigation, navCacheOnly } = serviceWorker;
+  const { strategy, navigation } = serviceWorker;
   const { refetchQueue } = features;
   const maxCacheAge = strategy.maxRuntimeCacheAge;
   const spEnabled = shouldIncludeServerPush(config);
@@ -65,7 +65,7 @@ export function applySwSections(
 
   code = code.replace(
     "// [[FETCH_HANDLER]]",
-    () => generateFetchHandler({ navCacheOnly, strategy, navigation, refetchQueue }, features.tagInvalidation.enabled, features.mutationQueue.enabled, features.auth.routePaths, spEnabled ? spEndpoint : undefined, debug),
+    () => generateFetchHandler({ strategy, navigation, refetchQueue }, features.tagInvalidation.enabled, features.mutationQueue.enabled, features.auth.routePaths, spEnabled ? spEndpoint : undefined, debug),
   );
 
   code = code.replace(

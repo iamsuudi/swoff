@@ -13,7 +13,7 @@ Swoff operates at the **browser infrastructure layer** — the Service Worker + 
 | **Swoff**           | Offline infra generator   | Config-driven code gen             |
 | **Workbox**         | SW toolkit                | Build-time + runtime modules       |
 | **vite-plugin-pwa** | SW (Vite)                 | Vite plugin wrapping Workbox       |
-| **Serwist**         | SW (Next.js-first)        | Build-time + runtime modules       |
+| **Serwist**         | SW (Next.js-first)       | Build-time + runtime modules       |
 | **next-pwa**        | SW (Next.js)              | Workbox wrapper plugin             |
 | **TanStack Query**  | Server state              | Runtime JS (app-layer)             |
 | **SWR**             | Server state              | Runtime JS (app-layer)             |
@@ -30,7 +30,7 @@ These tools operate at different layers and solve different problems. Comparison
 
 **Tier 1 — SW toolkits (same layer):** Workbox, Serwist, vite-plugin-pwa, next-pwa. These intercept `fetch` at the Service Worker, cache HTTP responses, and serve offline fallbacks. Same layer as Swoff — apples-to-apples comparison. Each row represents a genuine feature gap or design tradeoff.
 
-**Tier 2 — Server-state libraries (app layer in-memory):** TanStack Query, SWR, Apollo Client. These manage query state in memory with stale-while-revalidate patterns. They do not intercept HTTP, cache responses, or provide offline navigation. Swoff operates below them at the HTTP cache layer — their caching concern is already absorbed by Swoff. They become optional reactivity layers on top of Swoff-cached data. With [`navCacheOnly: true`](/docs/config/service-worker), you can delegate data caching entirely to your in-memory library while Swoff handles offline navigation exclusively. Features marked "—" are out of scope for their paradigm, not gaps.
+**Tier 2 — Server-state libraries (app layer in-memory):** TanStack Query, SWR, Apollo Client. These manage query state in memory with stale-while-revalidate patterns. They do not intercept HTTP, cache responses, or provide offline navigation. Swoff operates below them at the HTTP cache layer — their caching concern is already absorbed by Swoff. They become optional reactivity layers on top of Swoff-cached data. Features marked "—" are out of scope for their paradigm, not gaps.
 
 **Tier 3 — Client databases (local DB + sync):** RxDB, ElectricSQL, PowerSync, TanStack DB. These embed a local database engine and synchronize with the server. They solve local data queries and conflict resolution at the cost of schema management, WASM bundle size, and no offline app skeleton. A different paradigm, not a direct alternative.
 
@@ -38,80 +38,80 @@ These tools operate at different layers and solve different problems. Comparison
 
 ### Tier 1: SW Toolkits
 
-| Feature                        | Swoff                                           | Workbox                               | Serwist / next-pwa                    |
-| ------------------------------ | ----------------------------------------------- | ------------------------------------- | ------------------------------------- |
-| SW code generation             | ✅ Full source                                  | 🟡 Partial runtime                    | 🟡 Partial runtime                    |
-| Disk-backed cache storage      | ✅ Cache API                                    | ✅ Cache API                          | ✅ Cache API                          |
-| Survives hard navigation       | ✅                                              | ✅                                    | ✅                                    |
-| Caching strategies             | ✅ 6                                            | ✅ 5                                  | ✅ 5                                  |
-| Navigation modes               | ✅ 3 (spa, default, ssr)                        | ❌                                    | ❌                                    |
-| HTML cache isolation           | ✅ Content-Type routing                         | ❌                                    | ❌                                    |
-| Auto-prefetch on client nav    | ✅ pushState interceptor                        | ❌                                    | ❌                                    |
-| Request batching (coalescing)  | ✅ 50 ms window                                 | ❌                                    | ❌                                    |
-| Real-time data (SSE/WS)        | ✅ built-in                                     | ❌                                    | ❌                                    |
-| Precaching: non-blocking       | ✅ After activate (background)                  | 🟡 During install (blocks activation) | 🟡 During install (blocks activation) |
-| Precaching: checkpoint resume  | ✅ IndexedDB per-batch                          | ❌ Full re-download                   | ❌ Full re-download                   |
-| Precaching: progress events    | ✅ Built-in `sw-progress` DOM event             | 🟡 Plugin required                    | 🟡 Limited                            |
-| Precaching: client resume      | ✅ Visibility + online → `RESUME_PRECACHE`      | ❌                                    | ❌                                    |
-| Precaching: version reset      | ✅ Content hash of asset list                   | 🟡 Revision manifest                  | 🟡 Revision manifest                  |
-| Tag-based invalidation         | ✅ URL/op-name auto-tags                        | ❌                                    | ❌                                    |
-| Cascading tag dependencies     | ✅ Client-expanded                              | ❌                                    | ❌                                    |
-| Tag introspection              | ✅ URLs ↔ tags                                  | ❌                                    | ❌                                    |
-| Server push invalidation       | ✅ Built-in SSE/WS                              | ❌                                    | ❌                                    |
-| Cross-tab invalidation sync    | ✅ SW broadcast                                 | ❌                                    | ❌                                    |
-| Offline write queue            | ✅ IndexedDB                                    | 🟡 Basic                              | 🟡 Basic                              |
-| Queue: background sync         | ✅ SW via sync API                              | ✅ Plugin                             | ✅ Plugin                             |
-| Queue: per-mutation online chk | ✅ Before each                                  | ❌                                    | ❌                                    |
-| Queue: progress tracking       | ✅ Per-item + batch                             | ❌                                    | ❌                                    |
-| Config-driven setup            | ✅ Single file                                  | ✅ workbox-config                     | 🟡 Config + code                      |
-| Build-tool agnostic            | ✅ Any                                          | ✅ Any                                | 🟡 Next.js first                      |
-| Framework adapters             | ✅ 14                                           | 🟡 Minimal                            | 🟡 Limited                            |
-| Auditable generated code       | ✅ Every file                                   | 🟡 Only SW                            | 🟡 Only SW                            |
-| Auth module                    | ✅ Bearer/cookie/custom, 401 recovery, eviction | ❌                                    | ❌                                    |
-| PWA: manifest generation       | ✅ From config                                  | ✅ From config                        | 🟡 Via Next.js                        |
-| PWA: icon generation           | ✅ `npx @swoff/assets`                          | ❌                                    | ❌                                    |
-| PWA: push notifications        | ✅ Built-in SW handler                          | 🟡 Manual                             | 🟡 Manual                             |
-| PWA: install prompt management | ✅ `isInstallable`/`promptInstall`              | 🟡 registerSW                         | ❌                                    |
-| Resource monitoring            | ✅ Global timeout, storage quota, notifications | 🟡 Per-strategy timeout only          | 🟡 Per-strategy timeout only          |
-| Runtime deps                   | **0 kB** (generated code)                       | ~30 kB SW runtime                     | ~35 kB SW runtime                     |
-| Setup cost                     | 1 config file                                   | Config + imports                      | Config + imports + framework setup    |
+| Feature                        | Swoff                                            | Workbox                               | Serwist / next-pwa                    |
+| ------------------------------ | ------------------------------------------------ | ------------------------------------- | ------------------------------------- |
+| SW code generation             | ✅ Full source                                   | 🟡 Partial runtime                    | 🟡 Partial runtime                    |
+| Disk-backed cache storage      | ✅ Cache API                                     | ✅ Cache API                          | ✅ Cache API                          |
+| Survives hard navigation       | ✅                                               | ✅                                    | ✅                                    |
+| Caching strategies             | ✅ 6                                             | ✅ 5                                  | ✅ 5                                  |
+| Navigation modes               | ✅ 3 (spa, default, ssr)                         | ❌                                    | ❌                                    |
+| HTML cache isolation           | ✅ Content-Type routing                          | ❌                                    | ❌                                    |
+| Auto-prefetch on client nav    | ✅ pushState interceptor                         | ❌                                    | ❌                                    |
+| Request batching (coalescing)  | ✅ 50 ms window                                  | ❌                                    | ❌                                    |
+| Real-time data (SSE/WS)        | ✅ built-in                                      | ❌                                    | ❌                                    |
+| Precaching: non-blocking       | ✅ After activate (background)                   | 🟡 During install (blocks activation) | 🟡 During install (blocks activation) |
+| Precaching: checkpoint resume  | ✅ IndexedDB per-batch                           | ❌ Full re-download                   | ❌ Full re-download                   |
+| Precaching: progress events    | ✅ Built-in `sw-progress` DOM event              | 🟡 Plugin required                    | 🟡 Limited                            |
+| Precaching: client resume      | ✅ Visibility + online → `RESUME_PRECACHE`       | ❌                                    | ❌                                    |
+| Precaching: version reset      | ✅ Content hash of asset list                    | 🟡 Revision manifest                  | 🟡 Revision manifest                  |
+| Tag-based invalidation         | ✅ URL/op-name auto-tags                         | ❌                                    | ❌                                    |
+| Cascading tag dependencies     | ✅ Client-expanded                               | ❌                                    | ❌                                    |
+| Tag introspection              | ✅ URLs ↔ tags                                   | ❌                                    | ❌                                    |
+| Server push invalidation       | ✅ Built-in SSE/WS                               | ❌                                    | ❌                                    |
+| Cross-tab invalidation sync    | ✅ SW broadcast                                  | ❌                                    | ❌                                    |
+| Offline write queue            | ✅ IndexedDB                                     | 🟡 Basic                             | 🟡 Basic                             |
+| Queue: background sync         | ✅ SW via sync API                               | ✅ Plugin                             | ✅ Plugin                             |
+| Queue: per-mutation online chk | ✅ Before each                                   | ❌                                    | ❌                                    |
+| Queue: progress tracking       | ✅ Per-item + batch                              | ❌                                    | ❌                                    |
+| Config-driven setup            | ✅ Single file                                   | ✅ workbox-config                     | 🟡 Config + code                     |
+| Build-tool agnostic            | ✅ Any                                           | ✅ Any                                | 🟡 Next.js first                     |
+| Framework adapters             | ✅ 14                                            | 🟡 Minimal                           | 🟡 Limited                            |
+| Auditable generated code       | ✅ Every file                                    | 🟡 Only SW                           | 🟡 Only SW                           |
+| Auth module                    | ✅ Bearer/cookie/custom, 401 recovery, eviction  | ❌                                    | ❌                                    |
+| PWA: manifest generation       | ✅ From config                                   | ✅ From config                        | 🟡 Via Next.js                       |
+| PWA: icon generation           | ✅ `npx @swoff/assets`                           | ❌                                    | ❌                                    |
+| PWA: push notifications        | ✅ Built-in SW handler                           | 🟡 Manual                            | 🟡 Manual                            |
+| PWA: install prompt management | ✅ `isInstallable`/`promptInstall`               | 🟡 registerSW                         | ❌                                    |
+| Resource monitoring            | ✅ Global timeout, storage quota, notifications  | 🟡 Per-strategy timeout only          | 🟡 Per-strategy timeout only         |
+| Runtime deps                   | **0 kB** (generated code)                        | ~30 kB SW runtime                     | ~35 kB SW runtime                    |
+| Setup cost                     | 1 config file                                    | Config + imports                      | Config + imports + framework setup   |
 
 ### Tier 2: Server-State Libraries (App-Layer In-Memory)
 
 Swoff works below these libraries at the HTTP cache layer. Features marked "—" are out of scope for the app-layer paradigm, not gaps in the library.
 
-| Feature                   | Swoff (SW HTTP cache)                | TanStack Query / SWR / RTK Query | Apollo Client          |
-| ------------------------- | ------------------------------------ | -------------------------------- | ---------------------- |
-| Cache storage             | Cache API (disk, survives nav)       | In-memory (lost on nav)          | In-memory normalized   |
-| Caching strategies        | 6 (cache-first, network-first, etc.) | 1 (stale-while-revalidate)       | fetchPolicy-based      |
-| Offline app skeleton      | ✅ Built-in (HTML/CSS/JS cached)     | ❌ Not provided                  | ❌ Not provided        |
-| Native fetch interception | ✅ Every `fetch()`                   | ❌ Only through `queryFn`        | ❌ Only through client |
-| Third-party API caching   | ✅ Yes                               | ❌ No                            | ❌ No                  |
-| Precaching                | ✅ Background, checkpoint resume     | ❌ N/A                           | ❌ N/A                 |
-| Offline navigation        | ✅ 3 modes, fallback chain           | ❌ N/A                           | ❌ N/A                 |
-| Real-time data            | ✅ Built-in SSE/WS                   | 🟡 Polling on refetchInterval    | 🟡 Subscriptions       |
-| Tag-based invalidation    | ✅ URL/op-name, glob, cascading      | ✅ Query-key based               | 🟡 Custom              |
-| Body-hash GQL caching     | ✅ SHA-256                           | ❌ N/A                           | 🟡 In-memory only      |
-| Offline write queue       | ✅ IndexedDB + Background Sync       | ❌ In-memory (lost on close)     | ❌                     |
-| Auth module               | ✅ Full (eviction, 401, headers)     | ❌ Developer handles             | ❌ Developer handles   |
-| Runtime deps              | **0 kB** (generated code)            | ~3.8 kB gzip                     | ~15 kB gzip            |
+| Feature                        | Swoff (SW HTTP cache)            | TanStack Query / SWR / RTK Query | Apollo Client       |
+| ------------------------------ | -------------------------------- | -------------------------------- | ------------------- |
+| Cache storage                  | Cache API (disk, survives nav)   | In-memory (lost on nav)          | In-memory normalized|
+| Caching strategies             | 6 (cache-first, network-first, etc.) | 1 (stale-while-revalidate)  | fetchPolicy-based   |
+| Offline app skeleton           | ✅ Built-in (HTML/CSS/JS cached) | ❌ Not provided                  | ❌ Not provided     |
+| Native fetch interception      | ✅ Every `fetch()`               | ❌ Only through `queryFn`        | ❌ Only through client |
+| Third-party API caching        | ✅ Yes                           | ❌ No                            | ❌ No               |
+| Precaching                     | ✅ Background, checkpoint resume | ❌ N/A                           | ❌ N/A              |
+| Offline navigation             | ✅ 3 modes, fallback chain       | ❌ N/A                           | ❌ N/A              |
+| Real-time data                 | ✅ Built-in SSE/WS               | 🟡 Polling on refetchInterval    | 🟡 Subscriptions    |
+| Tag-based invalidation         | ✅ URL/op-name, glob, cascading  | ✅ Query-key based               | 🟡 Custom           |
+| Body-hash GQL caching          | ✅ SHA-256                       | ❌ N/A                           | 🟡 In-memory only   |
+| Offline write queue            | ✅ IndexedDB + Background Sync   | ❌ In-memory (lost on close)     | ❌                  |
+| Auth module                    | ✅ Full (eviction, 401, headers) | ❌ Developer handles              | ❌ Developer handles|
+| Runtime deps                   | **0 kB** (generated code)        | ~3.8 kB gzip                     | ~15 kB gzip         |
 
 ### Tier 3: Client Databases (Local DB + Sync Engine)
 
 Client databases solve local data queries and conflict resolution — a fundamentally different problem from HTTP caching. Features marked "—" are design tradeoffs, not gaps.
 
-| Feature                   | Swoff (SW HTTP cache)     | RxDB                    | ElectricSQL / PowerSync             | TanStack DB                         |
-| ------------------------- | ------------------------- | ----------------------- | ----------------------------------- | ----------------------------------- |
-| Paradigm                  | HTTP cache layer          | Local DB + sync engine  | Local DB + sync engine              | Differential dataflow               |
-| Offline app skeleton      | ✅ Built-in               | ❌ Requires separate SW | ❌ Requires separate SW             | ❌ Requires separate SW             |
-| Local SQL queries         | ❌ Server-shaped only     | ✅ MongoDB-like queries | ✅ SQL                              | ✅ Query API                        |
-| Conflict resolution       | ❌ Last-write-wins        | ✅ CRDTs                | ✅ Custom merge                     | ✅ CRDTs                            |
-| Schema required           | ✅ No                     | ❌ Yes                  | ❌ Yes                              | ❌ Yes                              |
-| WASM download             | ✅ None                   | ✅ None                 | ❌ 2–3 MB SQLite WASM               | ✅ None                             |
-| Server as source of truth | ✅ Yes                    | ❌ Diverges during sync | ❌ Diverges during sync             | ❌ Diverges during sync             |
-| Auto-clear on logout      | ✅ `clearAuth()`          | ❌ Data persists        | ❌ Data persists                    | ❌ Data persists                    |
-| Setup cost                | 1 config file             | Schema + DB + sync      | Schema + DB + sync + server adapter | Schema + DB + sync + server adapter |
-| Runtime deps              | **0 kB** (generated code) | ~40 kB gzip             | ~40 kB gzip + WASM                  | ~6 kB + SQLite WASM                 |
+| Feature                        | Swoff (SW HTTP cache)            | RxDB                    | ElectricSQL / PowerSync  | TanStack DB         |
+| ------------------------------ | -------------------------------- | ----------------------- | ------------------------ | ------------------- |
+| Paradigm                       | HTTP cache layer                 | Local DB + sync engine  | Local DB + sync engine   | Differential dataflow |
+| Offline app skeleton           | ✅ Built-in                      | ❌ Requires separate SW | ❌ Requires separate SW  | ❌ Requires separate SW |
+| Local SQL queries              | ❌ Server-shaped only            | ✅ MongoDB-like queries | ✅ SQL                   | ✅ Query API        |
+| Conflict resolution            | ❌ Last-write-wins               | ✅ CRDTs                | ✅ Custom merge          | ✅ CRDTs            |
+| Schema required                | ❌ No                            | ✅ Yes                  | ✅ Yes                   | ✅ Yes              |
+| WASM download                  | ❌ None                          | ❌ None                 | ✅ 2–3 MB SQLite WASM    | ❌ None             |
+| Server as source of truth      | ✅ Yes                           | ❌ Diverges during sync | ❌ Diverges during sync  | ❌ Diverges during sync|
+| Auto-clear on logout           | ✅ `clearAuth()`                 | ❌ Data persists       | ❌ Data persists         | ❌ Data persists    |
+| Setup cost                     | 1 config file                    | Schema + DB + sync     | Schema + DB + sync + server adapter | Schema + DB + sync + server adapter |
+| Runtime deps                   | **0 kB** (generated code)        | ~40 kB gzip            | ~40 kB gzip + WASM       | ~6 kB + SQLite WASM |
 
 ## Deep-Dive Comparisons
 

@@ -122,7 +122,6 @@ export interface SwoffConfig {
     };
     serviceWorker: {
       autoActivate: boolean;
-      navCacheOnly?: boolean;
       precache?: PrecacheConfig;
       strategy: {
         default: "cache-first" | "network-first" | "stale-while-revalidate" | "cache-only" | "network-only" | "reactive";
@@ -285,7 +284,6 @@ export const defaultConfig: SwoffConfig = {
     },
     serviceWorker: {
       autoActivate: false,
-      navCacheOnly: false,
       precache: { concurrency: 1 },
       strategy: {
         default: "cache-first",

@@ -8,8 +8,7 @@ description: Full schema for swoff.config.json features.serviceWorker — every 
 | Field          | Type      | Default | Description                                                                                                                                                      |
 | -------------- | --------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `autoActivate` | `boolean` | `false` | Automatically activate newly registered service workers (`skipWaiting()`). When `false`, the SW activates on next navigation or browser reload — no user prompt. |
-| `navCacheOnly` | `boolean` | `false` | When `true`, only intercept and cache navigation requests. Subresource requests (API, JS, CSS, images) pass through to the network — letting in-memory caching libraries (TanStack Query, SWR, Apollo Client) manage data freshness independently. |
-| `precache`     | `object`  | —       | Controls how assets are precached (see below). |
+| `precache`     | `object`  | —       | Controls how assets are precached (see below).                                                                                                                   |
 
 ### `features.serviceWorker.precache`
 

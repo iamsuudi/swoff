@@ -46,9 +46,9 @@ For the internal mechanics of `serveFromCache`, the fallback chain, and per-mode
 
 - `navigation.mode` — `"spa"`, `"ssr"`, or `"default"`. Controls how navigation requests are served from cache and what fallback chain applies. See the [architecture page](/docs/architecture/caching#navigation-modes) for per-mode lookup and fallback details.
 - `navigation.preload` — when `true`, the SW enables Navigation Preload during activation. The browser starts the network request in parallel with SW startup; the SW races the preload response against half the fetch timeout.
-- `navigation.fallback` — URL path of an HTML page to serve as the offline fallback. In SPA mode, `serveFromCache()` serves it for any navigation request (app shell pattern). In SSR/default mode, used only in `fallback()` after everything else has been tried. Empty string means no fallback (browser shows its own offline page).
+- `navigation.fallback` — URL path of an HTML page to serve as the offline fallback. In SPA mode, `serveFromCache()` serves it for any navigation request (app shell pattern). In SSR/default mode, used only in `navFallback()` after everything else has been tried. Empty string means no fallback (browser shows its own offline page).
 - `navigation.precacheRoutes` — array of URL paths to precache in the background after activation. Example: `["/", "/about", "/offline"]`. Cached alongside scanned build assets from `precacheDirs`.
-- `navigation.rules` — per-route fallback paths, checked inside `fallback()` after precache and runtime-html but before the global fallback path. Each entry has:
+- `navigation.rules` — per-route fallback paths, checked inside `navFallback()` after precache and runtime-html but before the global fallback path. Each entry has:
   - `match` — glob pattern for navigation URLs
   - `fallback` — URL path from precache to serve as fallback
 
@@ -71,33 +71,9 @@ The SW broadcasts `OFFLINE_FALLBACK_ACTIVATED` via postMessage to all clients. T
 | `swoff:offline-fallback`     | Window event (relayed by injector) | SW served an offline fallback page         |
 | `OFFLINE_FALLBACK_ACTIVATED` | SW postMessage                     | Direct SW message (no injector dependency) |
 
-**Detail shape:** `{ route, fallbackLevel: "route-fallback" | "offline-page" | "spa-shell" | "inline-503", timestamp }`
+**Detail shape:** `{ route, fallbackLevel: "route-fallback" | "offline-page" | "inline-503", timestamp }`
 
-**Building the adapter (window event approach — simpler):**
-
-```js
-// Reactive state: { lastEvent, events, clear }
-// 1. Initialize: events = [], lastEvent = null
-// 2. Listen to window event (relayed by injector):
-window.addEventListener("swoff:offline-fallback", (e) => {
-  // Append e.detail to events array
-  // Set lastEvent = e.detail
-});
-// 3. clear(): reset events and lastEvent
-// 4. Return { lastEvent, events, clear }
-```
-
-**Alternative — direct SW message (no injector dependency):**
-
-```js
-navigator.serviceWorker.addEventListener("message", (event) => {
-  if (event.data?.type === "OFFLINE_FALLBACK_ACTIVATED") {
-    // event.data.detail = { route, fallbackLevel, timestamp }
-  }
-});
-```
-
-**If your framework already has these adapters** (React): the CLI generates `useSwoffAnalytics` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+If your framework already has a `useSwoffAnalytics` adapter (React, Vue, Svelte), the CLI generates it into `swoff/adapters/`. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint) for the event reference.
 
 ## Related
 

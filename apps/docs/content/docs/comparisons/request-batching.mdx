@@ -5,23 +5,7 @@ description: 50ms coalescing of concurrent GET requests before the network reque
 
 Request batching coalesces concurrent identical GET requests into a single network fetch. Multiple callers asking for the same URL within a short window receive the same response without duplicating the network request.
 
-## How Swoff does it
-
-Swoff implements a configurable batching window (default 50ms, configurable via `requestBatchWindowMs`) in the generated `fetchWithCache` function:
-
-```
-t=0ms    Component A calls fetchWithCache("/api/notes")
-t=10ms   Component B calls fetchWithCache("/api/notes")
-t=20ms   Component C calls fetchWithCache("/api/notes")
-t=50ms   → single fetch to /api/notes fires
-         → response cloned to A, B, C
-```
-
-Two internal collections manage this: `pendingBatches` (Map collecting callers within the window) and `inFlightRequests` (Map deduplicating late arrivals after the batch fires). AbortController signals remove entries on cancellation.
-
-**Scope:** Any `fetchWithCache` call — hooks, raw calls, GraphQL queries. Set window to 0 to disable.
-
-**Why 50ms?** Short enough to be imperceptible to users (a single animation frame at 60fps is ~16ms), long enough to coalesce concurrent renders from the same route. Increase for very bursty navigation patterns (e.g. page loads that fire 10+ parallel data requests in the same tick).
+> See the [Config reference: request-batching](/docs/config/request-batching) for Swoff's approach. This page focuses on how other tools handle deduplication.
 
 ## Competitor comparison
 

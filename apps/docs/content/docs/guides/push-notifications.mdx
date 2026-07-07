@@ -103,25 +103,7 @@ Exposes push state: `{ subscribed, permission, subscribe, unsubscribe }`.
 | `push-subscription-changed` | `{ subscribed }` | Push subscription added or removed        |
 | `push-permission-changed`   | `{ permission }` | Notification permission granted or denied |
 
-**Building the adapter:**
-
-```js
-// Reactive state: { subscribed, permission, subscribe, unsubscribe }
-// 1. Initialize: subscribed = false, permission = "default"
-// 2. Listen to events:
-window.addEventListener("push-subscription-changed", (e) => {
-  // Set subscribed = e.detail.subscribed
-});
-window.addEventListener("push-permission-changed", (e) => {
-  // Set permission = e.detail.permission
-});
-// 3. subscribe(): Notification.requestPermission(),
-//    then swoff.subscribeToPush(), update state
-// 4. unsubscribe(): swoff.unsubscribeFromPush(), update state
-// 5. Return { subscribed, permission, subscribe, unsubscribe }
-```
-
-**If your framework already has this adapter** (React): the CLI generates `useSwoffPush` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+If your framework already has a `useSwoffPush` adapter (React, Vue, Svelte), the CLI generates it into `swoff/adapters/`. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint) for the event reference and adapter patterns.
 
 ### Server side (example)
 

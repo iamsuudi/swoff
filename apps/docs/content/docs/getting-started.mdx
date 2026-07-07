@@ -4,14 +4,10 @@ description: Getting started with Swoff.
 icon: Rocket
 ---
 
-# Getting Started
-
-This guide walks you through setting up Swoff in your project — from zero to an offline-capable app.
-
 ## Prerequisites
 
 - Node.js 18+
-- A built project with static output (e.g. `dist/`, `public/`, `static/`)
+- A built project with static output (`dist/`, `public/`, etc.)
 - No existing service worker (or one you're ready to replace)
 
 ## 1. Install and init
@@ -20,17 +16,7 @@ This guide walks you through setting up Swoff in your project — from zero to a
 npx @swoff/cli init
 ```
 
-This starts an interactive wizard that asks about your:
-
-- **Framework** — auto-detected from `package.json` (react, nextjs, vike, remix, etc.)
-- **Output directory** — where your built assets live (`dist`, `public`, etc.)
-- **Navigation mode** — SPA (app shell) or SSR (individual pages)
-- **Caching strategy** — cache-first, network-first, stale-while-revalidate, reactive, etc.
-- **Features** — PWA install, auth, offline mutation queue, GraphQL, tag invalidation, server push, push notifications
-
-After answering, it writes `swoff.config.json`.
-
-> Want defaults? Use `npx @swoff/cli init --yes` to skip prompts.
+Interactive wizard: framework (auto-detected), output directory, navigation mode, caching strategy, features. Writes `swoff.config.json`. Use `--yes` to skip prompts.
 
 ## 2. Generate files
 
@@ -38,64 +24,30 @@ After answering, it writes `swoff.config.json`.
 npx @swoff/cli generate
 ```
 
-This creates a `swoff/` directory with:
-
-| File                        | Purpose                                                                               |
-| --------------------------- | ------------------------------------------------------------------------------------- |
-| `sw/template.js`            | Service worker source code                                                            |
-| `sw/injector.{ts,js}`       | SW registration logic                                                                 |
-| `sw/generator.mjs`          | Build-time script to produce the final SW                                             |
-| `client-injector.{ts,js}`   | ESM entry point (bundler projects) — wires registration, PWA, mutation queue          |
-| `client-injector.bundle.js` | IIFE auto-initializing bundle (no-bundler projects) — same as above, no import needed |
-| `swoff-api.bundle.js`       | IIFE bundle for SW communication APIs (no-bundler projects with features enabled)     |
-| `storage.{ts,js}`           | Storage estimation utilities                                                          |
-| `reset.{ts,js}`             | `resetSwoff()` — wipes caches, DBs, unregisters SW                                    |
-| `swoff.d.ts`                | TypeScript declarations (when using TS)                                               |
-
-Feature-specific files (auth adapters, fetch wrappers, etc.) are generated only for enabled features.
+Creates `swoff/` with SW template, injector, generator, client-injector (ESM + IIFE), storage/reset utilities, TS declarations. Feature-specific files (auth, adapters) only for enabled features.
 
 ## 3. Add build step
 
-The SW generator must run after each build to embed the latest assets and cache name. Add it to your `package.json` build script:
+The generator must run after each build to embed the latest assets. Add to `package.json`:
 
 ```json
 "build": "vite build && node swoff/sw/generator.mjs"
 ```
 
-Or run it manually:
-
-```bash
-node swoff/sw/generator.mjs
-```
-
-This reads `sw/template.js`, inlines your built assets, and writes the final service worker to `build.swOutput` (e.g. `dist/sw.js`).
+Or run manually: `node swoff/sw/generator.mjs`
 
 ## 4. Include in your HTML
 
-Add the client injector to your HTML:
-
-**Bundler projects (React, Vue, Svelte, Astro, etc.):**
-
-```ts
-import { initServiceWorker } from "./swoff/client-injector";
-initServiceWorker();
-```
-
-**No-bundler projects (plain HTML, Go, Laravel, Django, etc.):** — include the auto-initializing bundle in `<head>`:
-
-```html
-<script src="/swoff/client-injector.bundle.js"></script>
-```
-
-This registers the service worker, sets up PWA install handling, and initializes any enabled features (auth, mutation queue, etc.).
+| Project type   | Code                                                        |
+| -------------- | ----------------------------------------------------------- |
+| Bundler        | `import { initServiceWorker } from "./swoff/client-injector"; initServiceWorker();` |
+| No-bundler     | `<script src="/swoff/client-injector.bundle.js"></script>`  |
 
 ## 5. Verify
 
-Open your app in Chrome, go to **Application > Service Workers**. You should see your SW registered and activated. Check **Application > Cache Storage** for `swoff-precache` (precached assets), `swoff-runtime` (strategy cache entries) and `swoff-runtime-html` (html pages cached on runtime).
+Open Chrome DevTools → **Application > Service Workers**. Check **Cache Storage** for `swoff-precache`, `swoff-runtime`, `swoff-runtime-html`.
 
 ## What's next?
 
 - [Config Reference](/docs/config) — all config fields explained
 - [Caching Strategies](/docs/guides/caching-strategy) — choose the right strategy per route
-- [Service Worker Setup](/docs/guides/service-worker) — deep dive into SW behavior
-- [Framework Guides](/docs/frameworks) — per-ecosystem setup (React, Vue, Laravel, etc.)

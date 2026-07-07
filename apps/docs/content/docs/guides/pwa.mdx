@@ -114,29 +114,9 @@ Exposes install prompt state: `{ isInstallable, promptInstall }`.
 
 **Events listened to:** `beforeinstallprompt` (browser native event).
 
-**Building the adapter:**
+If your framework already has a `useSwoffPwa` adapter (React, Vue, Svelte), the CLI generates it into `swoff/adapters/`. See the [Blueprint](/docs/frameworks/blueprint) for the event reference and adapter patterns.
 
-```js
-// Reactive state: { isInstallable, promptInstall }
-// 1. Initialize: isInstallable = false, promptInstall = null
-// 2. Listen to beforeinstallprompt:
-window.addEventListener("beforeinstallprompt", (e) => {
-  e.preventDefault();
-  // Set isInstallable = true
-  // Store e for use in promptInstall
-});
-// 3. promptInstall(): call stored event's .prompt(),
-//    listen for .userChoice, reset state
-// 4. Return { isInstallable, promptInstall }
-```
-
-### `useSwoffPrecache`
-
-See the [Service Worker guide](/docs/guides/service-worker#framework-adapters) for the adapter that exposes `{ status, progress }` from background precaching progress.
-
-`useSwoffStorage` now lives in the [Connectivity & Storage guide](/docs/guides/connectivity#usestorageestimate).
-
-**If your framework already has these adapters** (React): the CLI generates `useSwoffPwa` and `useSwoffPrecache` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+`useSwoffPrecache` is covered in the [Service Worker guide](/docs/guides/service-worker#framework-adapters). `useSwoffStorage` is covered in the [Connectivity guide](/docs/guides/connectivity).
 
 ## Related
 

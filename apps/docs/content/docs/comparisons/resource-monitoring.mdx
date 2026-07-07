@@ -5,34 +5,7 @@ description: Fetch timeout, storage quota, and unified error notifications.
 
 Resource monitoring covers two concerns for offline-first apps: **network fetch timeout** (preventing stalled requests from blocking cache fallbacks) and **storage quota awareness** (notifying users before the browser evicts cached data).
 
-## How Swoff does it
-
-### Network fetch timeout
-
-Every network request made by the SW passes through `_fetchWithTimeout()`, wrapping `fetch()` with an `AbortController` configured to `features.serviceWorker.strategy.timeout` seconds (default 10). On timeout or network error, `SW_NOTIFICATION` (`FETCH_FAILED`) is broadcast to all connected clients, and the calling strategy falls through to its cache fallback. The timeout applies uniformly across all 6 caching strategies.
-
-### Storage quota awareness
-
-`storage.ts` exports two utilities; the threshold check runs in `client-injector.ts` after SW activation:
-
-| Function               | Purpose                                                                            |
-| ---------------------- | ---------------------------------------------------------------------------------- |
-| `getStorageEstimate()` | Wraps `navigator.storage.estimate()` — returns `{ usage, quota, percentUsed }`      |
-| `formatBytes(n)`       | Formats byte counts for display (`1572864` → `"1.5 MB"`)                           |
-
-The check fires when `percentUsed` exceeds `features.serviceWorker.strategy.storageThreshold` (default **80%**) and dispatches a `STORAGE_QUOTA_HIGH` notification. The threshold is configurable — set `storageThreshold` under the same strategy config to any value between 0 and 100. The React adapter `useSwoffStorage()` ties these together as a reactive hook that refreshes on visibility change.
-
-### Unified notification channel
-
-All resource events — fetch failures, precache failures, background sync errors, storage quota warnings — are broadcast through a single `swoff:notification` event with a `code` discriminator:
-
-```ts
-window.addEventListener("swoff:notification", (event) => {
-  const { level, code, message } = event.detail;
-  if (level === "error") myToast.error(message);
-  if (level === "warn") myToast.warn(message);
-});
-```
+> See the [Architecture: Observability](/docs/architecture/observability) for Swoff's approach. This page focuses on how other tools handle resource monitoring.
 
 ## How competitors handle it
 

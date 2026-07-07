@@ -15,6 +15,15 @@ Swoff splits responsibilities between two scopes:
 - Handles push notification events
 - Broadcasts invalidation across clients (cross-tab sync)
 - Serves cached responses when offline
+- Intelligently dispatches fallbacks: navigation requests get an HTML fallback chain (precache → runtime-html → per-route → global → 503), while subresources (JS, CSS, images, API) return a clean 502 — preventing the old behavior of serving HTML for non-HTML requests
+
+### SW generation
+
+Swoff splits SW generation into two phases. The CLI reads `swoff.config.json` and produces supporting files in `swoff/`. The SW-specific template has config features baked in (strategies, auth, tags, push handlers) but still has two placeholders for build-time values: `ASSETS_TO_CACHE`, `AUTO_SKIP_WAITING`. A build step (run after your framework build) scans built assets, resolves the cache name, and writes the final SW to the output directory.
+
+### Versioning
+
+SW updates are content-based. Every build produces a byte-different `sw.js` — if your built assets changed, the SW content changes, and the browser detects the update automatically. No version string to manage. Cache names are fixed: `"precache"`, `"swoff-runtime"`, `"swoff-runtime-html"`. Additionally, every build appends a timestamp constant at the end of the SW. This constant is purely a byte-differ — it triggers browser update detection when the SW file changes. On activation, the SW compares this timestamp against an IndexedDB record (`swoff-meta` DB, `cacheName` key). On deploy mismatch, all three caches are deleted before the new SW takes over.
 
 **Client (window) scope** — runs in the page, has access to DOM, IndexedDB, and framework adapters:
 

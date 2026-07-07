@@ -168,24 +168,7 @@ GraphQL uses the same `useSwoffFetch` adapter pattern described in the [Data Fet
 | `cache-invalidated`   | `{ tags }`   | Mutation auto-invalidated by operation name — refetch affected queries |
 | `swoff:cache-updated` | `{ url }`    | Background re-fetch completed (optional, for fine-grained reactivity)  |
 
-**Building the adapter for any framework:**
-
-```js
-// Same pattern as useSwoffFetch:
-window.addEventListener("cache-invalidated", (e) => {
-  // Re-fetch any active GraphQL queries whose operation-name
-  // auto-tags intersect with e.detail.tags
-});
-
-// Optional: listen for specific URL refetches
-window.addEventListener("swoff:cache-updated", (e) => {
-  // e.detail.url — a specific cached GraphQL endpoint was refreshed
-});
-```
-
-No GraphQL-specific adapter is needed — the same `useSwoffFetch` pattern handles both REST and GraphQL. Body-hash caching and operation-name auto-tags happen automatically in the SW.
-
-**If your framework already has this** (React): the CLI generates `useSwoffFetch` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) or the [Blueprint](/docs/frameworks/blueprint).
+No GraphQL-specific adapter is needed — the same `useSwoffFetch` adapter handles both REST and GraphQL. Body-hash caching and operation-name auto-tags happen automatically in the SW. See the [Blueprint](/docs/frameworks/blueprint) for the event reference and adapter patterns.
 
 For a dedicated GraphQL API with operation-name auto-tags, use the generated `queryGql`/`mutateGql` functions instead.
 

@@ -13,6 +13,8 @@ import {
   GitGraphIcon,
   ShieldIcon,
   BarChartIcon,
+  AlertTriangleIcon,
+  DownloadIcon,
 } from "lucide-react";
 
 <Cards>
@@ -22,6 +24,13 @@ import {
     href="/docs/architecture/hybrid-model"
   >
     Why Swoff splits responsibilities between service worker and client scopes.
+  </Card>
+  <Card
+    title="Precaching"
+    icon={<DownloadIcon />}
+    href="/docs/architecture/precaching"
+  >
+    Background activation-first precaching with IndexedDB checkpoint resume and progress reporting.
   </Card>
   <Card
     title="Caching System"
@@ -57,5 +66,12 @@ import {
     href="/docs/architecture/observability"
   >
     Resource monitoring, fetch timeout, storage quota awareness.
+  </Card>
+  <Card
+    title="Optimistic Updates"
+    icon={<AlertTriangleIcon />}
+    href="/docs/architecture/optimistic-updates"
+  >
+    Why Swoff deliberately excludes optimistic updates — design rationale.
   </Card>
 </Cards>

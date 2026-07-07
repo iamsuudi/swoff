@@ -5,21 +5,7 @@ description: Swoff vs BroadcastChannel vs Storage Events.
 
 Cross-tab synchronization keeps cache state consistent across multiple open tabs. When a mutation succeeds in one tab, other tabs should reflect the updated data.
 
-## How Swoff does it
-
-Swoff uses the Service Worker as a central message hub. On mutation success:
-
-```
-Tab A: mutation success → dispatch INVALIDATE_TAG to SW
-  → SW: clears cache entries for tag
-  → SW: posts TAG_INVALIDATED to all clients (self.clients.matchAll())
-  → Tab B: receives TAG_INVALIDATED → dispatches cache-invalidated event
-  → Tab B: useSwoffFetch for matching tag auto-refetches
-```
-
-**Scope:** Every tab with the same origin receives the event — different windows, different tabs. The SW posts to all connected clients via `self.clients.matchAll()`. No BroadcastChannel API needed.
-
-**Coverage:** All invalidation paths — auto-invalidation after mutations, manual `invalidateByTag`, server push (SSE/WebSocket), mutation queue sync completion, auth state changes, and queue progress events.
+> See the [Tag Invalidation guide](/docs/guides/tag-invalidation#cross-tab-invalidation) for Swoff's approach. This page focuses on cross-tab mechanisms in other tools.
 
 ## How competitors handle it
 

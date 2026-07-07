@@ -65,7 +65,8 @@ All six strategies share the same core building blocks:
 - **`serveFromCache(request)`** — looks up request in precache or runtime caches, with mode-specific rules for navigation requests
 - **`_fetchWithTimeout(request)`** — pure fetch with `AbortController` timeout (no cache lookup, no ETag, no 304 handling)
 - **`cacheResponse(response, request)`** — stores responses by content-type, skipping runtime when entry exists in precache
-- **`fallback(request)`** — returns offline/error page per-route → global → inline 503 (SPA skips global fallback path)
+- **`fallback(request)`** — dispatches to `navFallback()` for navigation requests; returns **502 Bad Gateway** for all other subresources (images, scripts, API calls, etc.)
+- **`navFallback(request)`** — the HTML fallback chain: precache → runtime-html (SSR only) → per-route → global fallback (SSR only) → inline 503
 
 ### Per-strategy flow
 
@@ -103,7 +104,6 @@ navigate + SPA:
 
 navigate + SSR/default:
   → precache → runtime-html → null
-  → followed by fallback() which also checks runtime-html first
 
 non-navigate (any mode):
   → runtime cache → precache → null
@@ -192,13 +192,23 @@ For non-navigation requests (JS, CSS, API), the same three-step chain applies re
 
 ### Fallback chain
 
-When the strategy exhausted all options (network failed + `serveFromCache` returned `null`), `fallback()` runs:
+When the strategy exhausted all options (network failed + `serveFromCache` returned `null`), `fallback()` dispatches based on request type:
+
+- **Navigation requests** (`sec-fetch-mode: navigate`) → delegates to `navFallback()`
+- **SSR framework client-nav fetches** (Next.js RSC `text/x-component`, Remix `?_data`, SvelteKit `__data.json`) → delegates to `navFallback()`
+- **All other subresources** (JS, CSS, images, API calls, fonts, etc.) → returns **502 Bad Gateway** with no HTML body
+
+This prevents the old behavior of serving HTML offline pages for non-HTML requests, which caused rendering errors, corrupt asset imports, and broken API responses.
+
+#### navFallback chain (HTML fallback, navigation only)
 
 | Mode      | Fallback steps                                                                |
 | --------- | ----------------------------------------------------------------------------- |
 | `spa`     | precache → per-route rules → inline 503                                       |
 | `ssr`     | precache → runtime-html → per-route rules → global fallback path → inline 503 |
 | `default` | Same as `ssr`                                                                 |
+
+The fallback levels broadcast to clients via `OFFLINE_FALLBACK_ACTIVATED`: `"route-fallback"`, `"offline-page"`, `"inline-503"`. The `"spa-shell"` level is no longer emitted — SPA shell is served directly from `serveFromCache()`, not from the fallback chain.
 
 ### SSR and auto-prefetch
 
@@ -208,7 +218,7 @@ When `"ssr"` mode is enabled, the generated `client-injector` code intercepts `h
 
 The interception is framework-agnostic — every client-side router ultimately calls `pushState`/`replaceState`. No framework-specific integration is needed.
 
-All navigation modes use the same standard strategy dispatch for the actual fetch — the mode only controls `serveFromCache` lookup order and `fallback()` chain depth.
+All navigation modes use the same standard strategy dispatch for the actual fetch — the mode only controls `serveFromCache` lookup order and `navFallback()` chain depth.
 
 ## HTML cache isolation
 
@@ -223,6 +233,21 @@ Swoff isolates HTML responses in their own cache container (`CACHE_NAME_RUNTIME_
 This is framework-agnostic — the rule is simply: "HTML is special for navigation; everything else is normal."
 
 There is no user-facing config — it is always enabled. Both caches participate in eviction, tag invalidation, activate handler cleanup, and online/focus reactive scans.
+
+### RSC frameworks (Next.js, TanStack Start)
+
+The `?_rsc=<token>` query param is safe to strip via `ignoreQueryParams: ["_rsc"]` — RSC payloads and HTML pages for the same URL are stored in different caches and never collide.
+
+**Offline navigation behavior:**
+
+| Scenario                                        | Result |
+| ----------------------------------------------- | ------ |
+| Refresh a previously full-loaded page (offline) | HTML cache hit ✓ |
+| Refresh a page visited only via client-nav (offline) | HTML cache miss → 503 (RSC payload in main cache cannot serve as HTML) |
+| First visit to SSG route (offline)              | Works if in `precacheRoutes` |
+| Client navigation to visited page               | React's in-memory RSC cache (not SW) — works offline if same session |
+
+**Limitations:** Pages never full-loaded cannot be refreshed offline. Dynamic pages require a successful full load to cache their HTML. React's in-memory RSC cache is per-session — a fresh tab or refresh requires the SW or network.
 
 ## 3-tier config resolution
 
@@ -250,8 +275,10 @@ The `strategy` field resolves through three priority levels:
 
 | Request type           | SPA (nav)                     | SSR / Default (nav)               | Any mode (subresource)          |
 | ---------------------- | ----------------------------- | --------------------------------- | ------------------------------- |
-| Reactive strategy      | network → fallback (no cache) | cache → network → fallback        | cache (fresh) → network → cache |
-| Network‑Only           | network → fallback (no cache) | network → fallback (cache on OK)  | network → cache (on OK)         |
-| Network‑First          | network → fallback (no cache) | cache → network → fallback        | cache → network → cache         |
-| Cache‑First            | network → fallback (no cache) | cache → network (miss) → fallback | cache → network (miss) → cache  |
-| Stale‑While‑Revalidate | network (bg) + fallback       | network (bg) + cache → fallback   | network (bg) + cache → fallback |
+| Reactive strategy      | network → navFallback         | cache → network → navFallback     | cache (fresh) → network → 502   |
+| Network‑Only           | network → navFallback         | network → navFallback (cache OK)  | network → 502 (cache on OK)     |
+| Network‑First          | network → navFallback         | cache → network → navFallback     | cache → network → 502           |
+| Cache‑First            | network → navFallback         | cache → network (miss) → navFallback | cache → network (miss) → 502 |
+| Stale‑While‑Revalidate | network (bg) + navFallback    | network (bg) + cache → navFallback | network (bg) + cache → 502      |
+
+`navFallback` expands to the HTML chain above. Subresource `502` returns `new Response(null, { status: 502 })` — no HTML body is served for non-navigation requests.

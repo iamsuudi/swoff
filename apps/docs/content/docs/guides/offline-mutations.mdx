@@ -240,71 +240,7 @@ Exposes mutation queue state: `{ pending, items, isProcessing, retryAll }`.
 | ------------------------ | ------------ | ---------------------------------------------------- |
 | `mutation-queue-changed` | —            | Queue contents changed (mutation added or processed) |
 
-**Building the adapter:**
-
-```js
-// Reactive state: { pending, items, isProcessing, retryAll }
-// 1. Initialize: pending = 0, items = [], isProcessing = false
-// 2. Listen to mutation-queue-changed:
-window.addEventListener("mutation-queue-changed", async () => {
-  // Call swoff.getPendingCount() -> set pending
-  // Call swoff.getQueueItems() -> set items
-});
-// 3. retryAll(): call swoff.flushMutations()
-// 4. Return { pending, items, isProcessing, retryAll }
-```
-
-### `useSwoffMutationState`
-
-Exposes per-mutation lifecycle tracking: `{ states, track, getState }`.
-
-**Events listened to:** `mutation-queue-changed` (same event).
-
-**Building the adapter:**
-
-```js
-// Reactive state: { states, track, getState }
-// 1. Maintain Map<string, "pending"|"processing"|"completed"|"failed">
-// 2. Listen to mutation-queue-changed to sync state from IndexedDB
-// 3. track(id): call swoff.getQueuePosition(id)
-// 4. Return { states, track, getState }
-```
-
-### `useSwoffSync`
-
-Exposes background sync support: `{ supported, registered, triggerSync }`.
-
-**Events listened to:**
-
-| Event                      | Detail shape            | Purpose                        |
-| -------------------------- | ----------------------- | ------------------------------ |
-| `background-sync-complete` | `{ succeeded, failed }` | Background sync event finished |
-
-**Building the adapter:**
-
-```js
-// Reactive state: { supported, registered, triggerSync }
-// 1. Initialize: supported = "sync" in ServiceWorkerRegistration
-// 2. Listen to background-sync-complete:
-window.addEventListener("background-sync-complete", (e) => {
-  // Update UI with e.detail.succeeded / e.detail.failed
-});
-// 3. triggerSync(): call swoff.syncWhenPossible()
-// 4. Return { supported, registered, triggerSync }
-```
-
-### `useSwoffMutation`
-
-Wraps `fetchWithCache(url, { mutation: true })`. No events needed — calls the mutation API directly.
-
-**Building the adapter:**
-
-```js
-// 1. mutate(url, options): call fetchWithCache(url, { ...options, mutation: true })
-// 2. Return { mutate }
-```
-
-**If your framework already has these adapters** (React): the CLI generates `useSwoffMutation`, `useSwoffQueue`, `useSwoffMutationState`, and `useSwoffSync` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+If your framework already has these adapters (`useSwoffMutation`, `useSwoffQueue`, `useSwoffMutationState`, `useSwoffSync` — React, Vue, Svelte), the CLI generates them into `swoff/adapters/`. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint) for the event reference and adapter patterns.
 
 ## Config
 

@@ -31,48 +31,9 @@ Navigation caching, strategy-based fetch interception, and cross-tab sync work i
 
 `client-injector` (or `.bundle.js`) is your app's integration point. It wires up SW registration, online/offline detection, a focus listener for reactive cache refresh, and relays SW messages as DOM events (`cache-updated`, `offline-fallback`, `mutation-sync-progress`, etc.).
 
-After `npx @swoff/cli generate`, everything is already set up. The rest of this page explains what happens under the hood.
+After `npx @swoff/cli generate`, everything is already set up.
 
-## How it works
-
-Swoff splits SW generation into two phases:
-
-### 1. Code generation (`swoff generate`)
-
-Reads `swoff.config.json` and produces all supporting files in `swoff/`. See the [generated files table](/docs/cli#what-is-generated) for the full list. SW-specific files:
-
-```
-swoff/sw/
-  template.js       ← SW source with config features baked in
-  generator.mjs      ← Build script (node swoff/sw/generator.mjs)
-```
-
-The template has config features baked in (strategies, auth, tags, push handlers) but still has two placeholders for build-time values: `ASSETS_TO_CACHE`, `AUTO_SKIP_WAITING`.
-
-### 2. Build step (`node swoff/sw/generator.mjs`)
-
-Run after your build. It reads the template, scans your built assets, resolves the cache name, and writes the final SW to `build.swOutput`:
-
-```bash
-node swoff/sw/generator.mjs
-# Output: dist/sw.js
-```
-
-For Node.js projects, chain it in your `package.json`:
-
-```json
-{
-  "scripts": {
-    "build": "your-build && node swoff/sw/generator.mjs"
-  }
-}
-```
-
-## Versioning
-
-SW updates are content-based. Every build produces a byte-different `sw.js` — if your built assets changed, the SW content changes, and the browser detects the update automatically. No version string to manage.
-
-Cache names are fixed: `"precache"`, `"swoff-runtime"`, `"swoff-runtime-html"`. Additionally, every build appends a timestamp constant `CACHE_NAME = "<Date.now()>"` at the end of the SW. This constant is purely a byte-differ — it triggers browser update detection when the SW file changes. On activation, the SW compares this timestamp against an IndexedDB record (`swoff-meta` DB, `cacheName` key). On deploy mismatch, all three caches are deleted before the new SW takes over.
+> See the [Hybrid SW + Client Model architecture](/docs/architecture/hybrid-model) for the design — SW generation phases, content-based versioning, and cache name strategy.
 
 ## Generated file boundary
 
@@ -170,19 +131,7 @@ Exposes background precaching state: `{ status, progress }`.
 | ------------- | ------------- | ---------------------------- |
 | `sw-progress` | `{ percent }` | During background precaching |
 
-**Building the adapter:**
-
-```js
-// Reactive state shape: { progress }
-// 1. Initialize: progress = 0
-// 2. Listen to events:
-window.addEventListener("sw-progress", (e) => {
-  // Set progress = e.detail.percent
-});
-// 3. Return { progress }
-```
-
-**If your framework already has this adapter** (React): the CLI generates `useSwoffPrecache` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+If your framework already has a `useSwoffPrecache` adapter (React, Vue, Svelte), the CLI generates it into `swoff/adapters/`. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint) for the event reference and adapter patterns.
 
 ## Related
 

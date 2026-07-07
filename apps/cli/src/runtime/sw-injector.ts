@@ -2,9 +2,9 @@ import type { RuntimeContext } from "./utils.js";
 import { T, R } from "./utils.js";
 
 export function generateSwInjectorCode(
-  ctx: RuntimeContext & { autoActivate: boolean; swFilename: string; swUrl?: string },
+  ctx: RuntimeContext & { autoActivate: boolean; swUrl?: string },
 ): string {
-  const { ext, ts, autoActivate, swFilename, swUrl } = ctx;
+  const { ext, ts, autoActivate, swUrl } = ctx;
 
   return `/**
  * Swoff SW Injector
@@ -41,7 +41,7 @@ export async function initServiceWorker()${R(ts, "Promise<void>")}{
   }
 
   try {
-    const registration = await navigator.serviceWorker.register("${swUrl || '/' + swFilename + '.js'}");
+    const registration = await navigator.serviceWorker.register("${swUrl || '/swoff.sw.js'}");
 
     if (registration.installing) {
       registration.installing.addEventListener("statechange", () => {

@@ -22,6 +22,7 @@ import { generateAuthStore } from "./file-generators/auth-store.js";
 import { generateAuthAdapter } from "./file-generators/auth-adapter.js";
 import { generateAuthState } from "./file-generators/auth-state.js";
 import { generateSwGeneratorBuild } from "./file-generators/sw-generator-build.js";
+import { generateSwBuildUtils } from "./file-generators/sw-build-utils.js";
 import { generateGqlWrapper } from "./file-generators/gql-wrapper.js";
 import { generateTypeDefinitions } from "./file-generators/type-definitions.js";
 import { generateFrameworkAdapters } from "./file-generators/generate-framework-adapters.js";
@@ -86,6 +87,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     const hasApiFeatures = f.tagInvalidation || f.auth || f.mutationQueue || f.graphql || f.push;
     const bundleSteps: Step[] = [
       { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
+      { name: "sw-build-utils", gen: () => generateSwBuildUtils(ctx), enabled: true },
       { name: "sw-generator", gen: () => generateSwGeneratorBuild(ctx), enabled: true },
       {
         name: "client-injector-bundle",
@@ -109,6 +111,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
     { name: "api-config", gen: () => generateApiConfig(ctx), enabled: f.serverPush },
     { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
     { name: "sw-injector", gen: () => generateSwInjector(ctx), enabled: true },
+    { name: "sw-build-utils", gen: () => generateSwBuildUtils(ctx), enabled: true },
     {
       name: "client-injector",
       gen: () => generateClientInjector(ctx),

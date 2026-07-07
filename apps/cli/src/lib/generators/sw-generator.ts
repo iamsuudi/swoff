@@ -44,8 +44,7 @@ export async function generateSW(options: GeneratorOptions = {}): Promise<{ outp
     mkdirSync(swOutput, { recursive: true });
   }
 
-  const swFilename = config.build.swFilename;
-  const outputFile = `${swFilename}.js`;
+  const outputFile = "swoff.sw.js";
 
   try {
     writeFileSync(join(swOutput, outputFile), sw);

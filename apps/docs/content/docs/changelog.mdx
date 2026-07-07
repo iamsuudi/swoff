@@ -10,6 +10,19 @@ All releases are tracked on GitHub. View the [full release history →](https://
 
 ---
 
+## @swoff/cli@0.4.6 (2026-07-06)
+
+- refactor: eliminate duplicated feature-section logic in swoff-api-bundle by using stripModuleWrappers() to embed runtime generators directly (958 lines removed, 71 added)
+- refactor: extract shared sw-build-utils.mjs to eliminate duplicated asset-scanning logic between CLI generator and no-bundler template
+- refactor: content-type-aware fallback dispatch — only navigation requests get HTML fallback chain; images, scripts, API calls (etc.) return 502 instead of incorrectly serving HTML
+- refactor: SSR-only pushState prefetch for SPA navigation
+- feat: remove build.swFilename config option, hardcode swoff.sw.js as the service worker filename
+- feat: wipe precache cache in ensurePrecacheVersion during SW activation instead of in activation handler
+- fix: auto-enable feature dependencies (auth, push-notifications, pwa, mutation-queue) in buildMinimalConfig
+- fix: inline prefetchCache utility and gate message handlers on feature flags to avoid unused code in bundles
+- fix: warn when irrelevant flags are passed to CLI commands (--framework on generate, --yes on validate, etc.)
+- fix: remove dead defaultInitConfig export
+
 ## @swoff/cli@0.4.5 (2026-07-04)
 
 - fix: strip redirected flag from cached responses returned by fallback() to prevent browser rejecting event.respondWith() with a NetworkError

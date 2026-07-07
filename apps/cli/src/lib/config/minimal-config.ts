@@ -3,7 +3,6 @@ import type { AuthType } from "../shared/config-types.js";
 export interface WizardAnswers {
   framework: string;
   swOutput: string;
-  swFilename: string;
   navMode: "spa" | "ssr" | "default";
   fallback: string;
   defaultStrategy: string;
@@ -59,12 +58,20 @@ export function buildMinimalConfig(answers: WizardAnswers): Record<string, unkno
     features.mutationQueue = mq;
   }
 
+  if (answers.graphqlEnabled) {
+    features.graphql = { enabled: true };
+  }
+
   if (answers.tagInvalidationEnabled) {
     features.tagInvalidation = { enabled: true };
   }
 
-  if (answers.graphqlEnabled) {
-    features.graphql = { enabled: true };
+  // Auto-enable declared dependencies from the feature registry
+  if (answers.authEnabled) {
+    features.connectivity = { enabled: true };
+  }
+  if (answers.mutationEnabled || answers.graphqlEnabled) {
+    features.tagInvalidation = { enabled: true };
   }
 
   if (answers.serverPushEnabled) {
@@ -81,7 +88,6 @@ export function buildMinimalConfig(answers: WizardAnswers): Record<string, unkno
 
   const build: Record<string, unknown> = {
     swOutput: answers.swOutput,
-    swFilename: answers.swFilename,
   };
 
   if (answers.precacheDir) {

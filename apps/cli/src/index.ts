@@ -50,19 +50,32 @@ async function main() {
 
   switch (command) {
     case "init": {
+      if (values.language) log.warn("--language is not applicable to the init command");
+      if (values.debug) log.warn("--debug is not applicable to the init command");
       await initCommand(projectRoot, !!values.yes, values.framework as string | undefined);
       break;
     }
     case "generate": {
+      if (values.yes) log.warn("--yes is not applicable to the generate command");
+      if (values.framework) log.warn("--framework is not applicable to the generate command");
       await generateCommand(projectRoot, { language: values.language, debug: !!values.debug });
       break;
     }
-    case "validate":
+    case "validate": {
+      if (values.yes) log.warn("--yes is not applicable to the validate command");
+      if (values.framework) log.warn("--framework is not applicable to the validate command");
+      if (values.language) log.warn("--language is not applicable to the validate command");
+      if (values.debug) log.warn("--debug is not applicable to the validate command");
       await validateCommand(projectRoot);
       break;
-    case "clean":
+    }
+    case "clean": {
+      if (values.framework) log.warn("--framework is not applicable to the clean command");
+      if (values.language) log.warn("--language is not applicable to the clean command");
+      if (values.debug) log.warn("--debug is not applicable to the clean command");
       await cleanCommand(projectRoot, { yes: !!values.yes });
       break;
+    }
     case "help":
       showHelp(positionals[1]);
       break;

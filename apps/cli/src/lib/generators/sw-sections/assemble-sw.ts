@@ -6,9 +6,8 @@ import { applySwSections, shouldIncludeBackgroundSync, generateBackgroundSyncCod
 
 export function assembleSW(config: SwoffConfig, projectRoot?: string, debug?: boolean): string {
   const { serviceWorker } = config.features;
-  const swFilename = config.build.swFilename;
 
-  const swFile = `${swFilename}.js`;
+  const swFile = "swoff.sw.js";
   const fallback = buildFallbackList(config);
   const scanned = projectRoot ? scanPrecacheAssets(config, projectRoot, swFile) : [];
   const assetsToCache = [...new Set([...fallback, ...scanned])];

@@ -543,12 +543,6 @@
           "description": "Output directory for generated swoff helper files (relative to project root)",
           "default": "swoff"
         },
-        "swFilename": {
-          "type": "string",
-          "description": "Service worker output filename (without .js extension, e.g. 'sw' produces sw.js)",
-          "default": "sw",
-          "pattern": "^[a-zA-Z0-9-_]+$"
-        },
         "swUrl": {
           "type": "string",
           "description": "Override the service worker registration URL. Use when the SW is served from a non-standard path (e.g. behind a CDN or reverse proxy). Defaults to /<swFilename>.js",
@@ -600,7 +594,7 @@
           }
         }
       },
-      "required": ["swOutput", "swFilename"]
+      "required": ["swOutput"]
     }
   },
   "required": ["features", "build"],

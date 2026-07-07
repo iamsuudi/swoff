@@ -81,8 +81,11 @@ async function startBackgroundPrecache() {
   if (_precachingActive) return;
   _precachingActive = true;
   try {
-  await ensurePrecacheVersion();
   var cache = await caches.open("precache");
+  var keys = await cache.keys();
+  await Promise.all(keys.map(function(req) { return cache.delete(req); }));
+  await resetPrecacheCheckpoint();
+  await ensurePrecacheVersion();
   var total = ASSETS_TO_CACHE.length;
   if (total === 0) return;
 

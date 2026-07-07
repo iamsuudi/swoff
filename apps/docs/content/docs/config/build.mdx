@@ -1,6 +1,6 @@
 ---
 title: Build
-description: Build output configuration — swOutput, swoffPath, swFilename, swUrl, precacheDirs.
+description: Build output configuration — swOutput, swoffPath, swUrl, precacheDirs.
 ---
 
 Controls where generated files are written and how assets are discovered for precaching.
@@ -11,8 +11,7 @@ Controls where generated files are written and how assets are discovered for pre
 |---|---|---|---|
 | `swOutput` | `string` | `"dist"` | Build tool output directory (e.g. `"dist"`, `"public"`, `"static"`) |
 | `swoffPath` | `string` | `"swoff"` | Directory where generated swoff files (client injector, SW template, generator) are written, relative to project root. E.g. `"static/swoff"` places files under `static/swoff/`. No copy step needed — generate directly into your server's static directory. |
-| `swFilename` | `string` | `"sw"` | Service worker filename prefix (must match `^[a-zA-Z0-9-_]+$`). Produces `<swFilename>.js` at the output root. |
-| `swUrl` | `string` | `""` | Override the SW registration URL. Use when serving the SW from a non-standard path (e.g. behind a CDN or reverse proxy). Defaults to `/<swFilename>.js`. |
+| `swUrl` | `string` | `""` | Override the SW registration URL. Use when serving the SW from a non-standard path (e.g. behind a CDN or reverse proxy). Defaults to `/swoff.sw.js`. |
 | `precacheDirs` | `object` | `{}` | Directories to scan for precache assets (see below). When empty, no directory scanning occurs — only explicit fallback routes and `precacheRoutes` are precached. |
 
 ---
@@ -53,10 +52,9 @@ When the service worker file is served from a non-standard URL (e.g. behind a CD
 ```json
 {
   "build": {
-    "swFilename": "sw",
-    "swUrl": "/custom-path/sw.js"
+    "swUrl": "/custom-path/swoff.sw.js"
   }
 }
 ```
 
-If `swUrl` is empty (default), the registration URL is `/<swFilename>.js`.
+If `swUrl` is empty (default), the registration URL is `/swoff.sw.js`.

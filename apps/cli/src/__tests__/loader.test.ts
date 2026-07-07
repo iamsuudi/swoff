@@ -43,7 +43,7 @@ describe("loadConfig", () => {
         },
         tagInvalidation: {},
       },
-      build: { swOutput: "build", swFilename: "service-worker" },
+      build: { swOutput: "build" },
     };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
 

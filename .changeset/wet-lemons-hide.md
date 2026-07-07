@@ -1,0 +1,3 @@
+---
+"@swoff/cli": patch
+---

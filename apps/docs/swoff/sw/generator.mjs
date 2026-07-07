@@ -7,10 +7,11 @@
    *   "build": "your-build && node swoff/sw/generator.mjs"
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
-import { join, dirname, relative, extname } from 'path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
+import { collectAssets, buildFallbackList, scanPrecacheAssets } from './build-utils.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = process.cwd();
@@ -70,88 +71,16 @@ if (config.features?.serverPush?.enabled) {
 }
 
 const swOutput = config.build?.swOutput || 'dist';
-const swFilename = config.build?.swFilename || 'sw';
 
 const outDir = join(projectRoot, swOutput);
 if (!existsSync(outDir)) {
   mkdirSync(outDir, { recursive: true });
 }
 
-function collectAssets(dir, baseDir, excludeDirs) {
-  if (!existsSync(dir)) return [];
-  const entries = readdirSync(dir, { withFileTypes: true });
-  const assets = [];
-  for (const entry of entries) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (excludeDirs && excludeDirs.indexOf(entry.name) !== -1) continue;
-      assets.push(...collectAssets(fullPath, baseDir, excludeDirs));
-    } else {
-      assets.push('/' + relative(baseDir, fullPath));
-    }
-  }
-  return assets;
-}
-
-const dirsRaw = config.build?.precacheDirs || {};
-const dirs = dirsRaw;
-const allAssets = [];
-  for (const [dir, raw] of Object.entries(dirs)) {
-    const dirPath = join(projectRoot, dir);
-    if (existsSync(dirPath)) {
-      const cfg = raw;
-      const normPrefix = cfg.prefix.replace(/\/+$/, '');
-      const matchExtensions = cfg.matchExtensions;
-      const stripExtensions = cfg.stripExtensions;
-      const stripSuffixes = cfg.stripSuffixes;
-      const excludeDirs = cfg.excludeDirs;
-      const excludeFiles = cfg.excludeFiles;
-      for (const a of collectAssets(dirPath, dirPath, excludeDirs)) {
-        if (matchExtensions?.length && !matchExtensions.includes(extname(a))) continue;
-        if (excludeFiles?.length) {
-          var basename = a.split('/').pop() || '';
-          var excluded = false;
-          for (var pi = 0; pi < excludeFiles.length; pi++) {
-            var pat = excludeFiles[pi];
-            if (pat.startsWith('*.') ? basename.endsWith(pat.slice(1)) : basename === pat) {
-              excluded = true;
-              break;
-            }
-          }
-          if (excluded) continue;
-        }
-        let url = normPrefix + '/' + a.slice(1);
-        if (stripExtensions?.includes(extname(a))) url = url.replace(/\.[^/.]+$/, '');
-        if (stripSuffixes) {
-        for (const suffix of stripSuffixes) {
-          if (url.endsWith('/' + suffix)) {
-            url = url.slice(0, -suffix.length - 1) + '/';
-          }
-        }
-      }
-      if (url !== '/' && url.endsWith('/')) {
-        url = url.slice(0, -1);
-      }
-      allAssets.push(url);
-    }
-  }
-}
-const swFile = `${swFilename}.js`;
-const filtered = allAssets.filter(a => a !== `/${swFile}`);
-const nav = config.features?.serviceWorker?.navigation || {};
-const fallback = [];
-if (nav.fallback) fallback.push(nav.fallback);
-if (config.features?.pwa?.enabled) fallback.push('/manifest.json');
-if (nav.precacheRoutes) {
-  for (const route of nav.precacheRoutes) {
-    if (!fallback.includes(route)) fallback.push(route);
-  }
-}
-if (nav.rules) {
-  for (const rule of nav.rules) {
-    if (rule.fallback && !fallback.includes(rule.fallback)) fallback.push(rule.fallback);
-  }
-}
+const swFile = "swoff.sw.js";
+const scanned = scanPrecacheAssets(config, projectRoot, swFile);
+const fallback = buildFallbackList(config);
+const filtered = scanned.filter(a => a !== "/" + swFile);
 const assetsToCache = [...new Set([...fallback, ...filtered])];
 
 const swConfig = config.features?.serviceWorker || {};

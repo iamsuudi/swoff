@@ -170,6 +170,7 @@ describe("generateClientInjector", () => {
       features: {
         ...defaultConfig.features,
         pwa: { ...defaultConfig.features.pwa, enabled: true },
+        mutationQueue: { ...defaultConfig.features.mutationQueue, enabled: true },
       },
     });
     generateClientInjector(ctx);

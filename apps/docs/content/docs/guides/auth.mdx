@@ -209,31 +209,7 @@ Exposes auth state: `{ authenticated, auth, online, setAuth, clearAuth }`.
 | ---------------------- | ------------------------------------------------------- | ------------------ |
 | `sw-auth-state-change` | `{ type: "login" \| "logout" \| "refresh" \| "clear" }` | Auth state changed |
 
-**Building the adapter:**
-
-```js
-// Reactive state: { authenticated, auth, online, setAuth, clearAuth }
-// 1. Initialize: authenticated = false, auth = null, online = navigator.onLine
-// 2. On mount, call getAuthState() for initial 4-state matrix
-// 3. Listen to sw-auth-state-change:
-window.addEventListener("sw-auth-state-change", async (e) => {
-  if (e.detail.type === "login") {
-    // Call getAuthState() -> set authenticated = true
-  }
-  if (e.detail.type === "logout" || e.detail.type === "clear") {
-    // Set authenticated = false, auth = null
-  }
-  if (e.detail.type === "refresh") {
-    // Re-read auth state from store
-  }
-});
-// 4. setAuth(user): call swoff.setAuth(user), update reactive state
-// 5. clearAuth(): call swoff.clearAuth(), update reactive state
-// 6. Track navigator.onLine for the `online` field
-// 7. Return { authenticated, auth, online, setAuth, clearAuth }
-```
-
-**If your framework already has this adapter** (React): the CLI generates `useSwoffAuth` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+If your framework already has a `useSwoffAuth` adapter (React, Vue, Svelte), the CLI generates it into `swoff/adapters/`. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint) for the event reference and adapter patterns.
 
 ## Config
 
@@ -265,4 +241,4 @@ Background sync and server push require cookie auth because they run in the SW s
 ## Related
 
 - [Full comparison: Auth in Swoff vs none](/docs/comparisons/auth)
-- [Auth Libraries Reference](/docs/comparisons/auth-libraries) — library-specific `getHeaders()` configuration
+- [Auth Libraries Reference](/docs/guides/auth-libraries) — library-specific `getHeaders()` configuration

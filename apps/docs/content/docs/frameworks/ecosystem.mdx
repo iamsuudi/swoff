@@ -88,53 +88,9 @@ The final image contains only static JS files — no Node.js runtime required in
 | **HTMX**                                                               | Include `<script>` tag, control via `hx-headers`                                                      | [HTMX guide](/docs/frameworks/htmx/adapters)       |
 | **Plain HTML / Static**                                                | Serve from document root and reference with a `<script>` tag                                          | [Vanilla guide](/docs/frameworks/vanilla/adapters) |
 
-The only thing your project needs is Node.js during development or CI to run the CLI and generator. No `package.json`, no `npm install` — just `npx @swoff/cli` commands. Version mode defaults to `"hash"`, which has no dependency on `package.json`.
-
-## HTML cache isolation
-
-A single URL can serve different content types depending on the request. For example, a Next.js App Router page returns `text/html` on full page load and `text/x-component` (RSC) on client navigation. HTMX can return partial HTML fragments. Any API endpoint can return JSON or HTML depending on the `Accept` header.
-
-If these different content types were stored at the same cache key, a hard refresh while offline could serve the wrong response to the browser.
-
-Swoff isolates `text/html` responses in their own cache container (`CACHE_NAME_RUNTIME_HTML`), separate from all other content. The rule is simple and framework-agnostic:
-
-- `text/html` → HTML cache
-- Everything else (RSC, JSON, JS, CSS, images) → main runtime cache
-
-Navigation requests only read from the HTML cache. Non-navigation requests only read from the main runtime cache. This is always-on with no user-facing config.
-
-**Impact on Next.js / TanStack Start (RSC):**
-
-The `?_rsc=<token>` query param used by RSC frameworks is now safe to strip via `ignoreQueryParams: ["_rsc"]`. RSC payloads and HTML pages for the same URL are stored in different caches — they never collide.
-
-**How offline navigation works:**
-
-| Scenario                                        | Behavior                                                                                                             |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Client navigation to visited page               | React's in-memory RSC cache handles this (not SW). Works offline if page was previously visited in the same session. |
-| Refresh visited page (online)                   | Strategy dispatch fetches fresh HTML from network, caches in HTML cache, returns it                                  |
-| Refresh visited page (offline)                  | Strategy dispatch looks up `/about` in HTML cache → **hit** if previously full-loaded online; otherwise fall through |
-| Refresh but never full-loaded (only client-nav) | HTML cache has no entry for `/about` (RSC payload stored in main cache) → cache miss → 503                           |
-| First visit to SSG route (offline)              | Works if route is in `precacheRoutes` — fetched at install time                                                      |
-| Navigate to new page (offline)                  | Network error → main cache serves RSC/data payload if previously cached                                              |
-
-**Limitations:**
-
-- Pages that have never been full-loaded (only visited via client navigation) cannot be refreshed offline — the RSC payload in the main cache cannot serve as an HTML page
-- Dynamic pages (SSR-only) require a successful full page load to cache their HTML
-- React's in-memory RSC cache is per-session; a fresh tab or refresh requires the SW or network
-
-## Why the layer matters
-
-- **TanStack Query / SWR** — in-memory state only; no SW integration, no offline writes, no push
-- **Workbox** — SW only; no data fetching, auth, or framework hooks
-- **Apollo Client** — GraphQL only; no SW caching
-- **Next.js / Remix** — full meta-frameworks dictating your entire architecture
-
-Swoff is the only tool that combines SW caching, data fetching, offline writes, auth, real-time sync, and push into a single config-driven system — all framework-agnostic at the core, with optional reactive hooks per framework. It operates at the lowest possible layer (the `fetch` event), making it simpler, smaller, and more composable than any application-layer alternative.
-
 ## Related
 
 - [Navigation caching: modes, fallback, preload](/docs/guides/navigation-caching)
 - [Framework integration: per-ecosystem config](/docs/frameworks)
+- [Architecture: HTML cache isolation](/docs/architecture/caching#html-cache-isolation)
 - [Library comparison](/docs/comparisons)

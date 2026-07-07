@@ -3,7 +3,7 @@ title: Optimistic Updates
 description: Why Swoff deliberately excludes optimistic updates.
 ---
 
-## Optimistic Updates: The Distributed System Trap
+## Optimistic Updates: Design Rationale
 
 Optimistic updates — applying mutations to the UI instantly before the server confirms — transform your frontend into a distributed system. Every edge case that follows is a distributed systems problem: conflict resolution, causal ordering, cascade failure, and reconciliation. Swoff does not implement optimistic updates; this is a deliberate architectural boundary.
 
@@ -21,4 +21,4 @@ Optimistic updates — applying mutations to the UI instantly before the server 
 
 **Enterprise reality.** No major enterprise application uses a client-side embedded database for its primary data layer. Google Docs uses operational transformation + WebSocket. Figma uses WebSocket + CRDT for canvas state. Notion uses optimistic local state with server confirmation. These apps invest heavily in distributed systems engineering because their core product is collaborative editing. For a typical web application — dashboards, e-commerce, content management, social feeds — the complexity is disproportionate to the benefit.
 
-**What Swoff says.** Swoff does not generate optimistic update code. The recommended pattern is the Telegram approach: show pending state, disable dependent actions, and replace with confirmed state on server response. See [Offline Write Queue](/docs/comparisons/caching-and-data#offline-write-queue) for the mutation queue design. This works with any API, any data model, and any backend — and it does not require the developer to become a distributed systems engineer.
+**What Swoff says.** Swoff does not generate optimistic update code. The recommended pattern is the Telegram approach: show pending state, disable dependent actions, and replace with confirmed state on server response. See [Offline Write Queue](/docs/guides/offline-mutations) for the mutation queue design. This works with any API, any data model, and any backend — and it does not require the developer to become a distributed systems engineer.

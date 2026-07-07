@@ -5,46 +5,7 @@ description: Swoff vs next-pwa / @serwist/next / Workbox / vite-plugin-pwa.
 
 When a user navigates offline, the browser shows "This site can't be reached" unless the Service Worker intercepts the navigation and serves a fallback. Swoff provides three navigation modes, a configurable multi-step fallback chain, HTML cache isolation, auto-prefetch on client-side navigation, per-route fallback rules, and smart background retry — framework-agnostic.
 
-## How Swoff does it
-
-**Three navigation modes** (set via `navigation.mode`):
-
-| Mode        | Behavior                                                                                                                           | Use case                                                                           |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `"spa"`     | Serves global fallback from precache (no runtime HTML caching for navigation). Default: `"/index.html"`.                           | Traditional SPAs                                                                   |
-| `"default"` | No special nav handling — strategies handle all requests equally                                                                   | SSG sites                                                                          |
-| `"ssr"`     | Checks HTML cache → per-route fallback → global fallback. Auto-prefetch on `pushState`/`replaceState`                              | Meta-frameworks (Next.js, Remix, Nuxt, SvelteKit, TanStack Start, Astro, HTMX)     |
-
-**HTML cache isolation:** HTML responses are stored in their own cache container (`CACHE_NAME_RUNTIME_HTML`), separate from JSON, RSC payloads, JS, CSS, and images. Navigation requests read only from the HTML cache; non-navigation requests read from the main runtime cache. This prevents serving a non-HTML response during hard refresh without framework-specific logic.
-
-**Ultimate fallback chain** (generated as `fromUltimateFallback` in the SW):
-
-```
-serveFromCache miss → _executeStrategy catch
-  → startRetryLoop (background retry for navigation)
-  → per-route fallback (from navigation rules, precache lookup)
-  → global fallback (FALLBACK_PATH from precache)
-  → inline 503 HTML page (guaranteed text/html)
-```
-
-The last step — inline `new Response(...)` with 503 — prevents the browser's native error page.
-
-**Per-route fallback rules:**
-
-```jsonc
-"navigation": {
-  "mode": "ssr",
-  "rules": [
-    { "match": "/blog/*", "fallback": "/blog-offline.html" },
-  ]
-}
-```
-
-Each rule's fallback page is auto-precached at install time.
-
-**Smart navigation retry:** When navigation falls through to the inline 503, the SW starts a background retry loop (`intervalMs`, `maxRetries`). On success, the response is cached and a `swoff:navigation-online` custom event fires.
-
-**Config-driven:** All of the above is configured through `swoff.config.json`. `swoff init` auto-detects the framework (Next.js, Remix, Astro, Nuxt, SvelteKit) and applies appropriate defaults.
+> See the [Navigation Caching guide](/docs/guides/navigation-caching) for Swoff's approach, config, and API. This page focuses on how other SW tools handle the same problem.
 
 ## How competitors handle it
 
@@ -63,7 +24,7 @@ Each rule's fallback page is auto-precached at install time.
 | **Navigation modes**                 | ✅ 3 (spa, default, ssr)      | 🟡 1 (Pages Router)      | 🟡 1 (network-first)         | 🟡 1 (navigateFallback)      | 🟡 1 (navigateFallback) |
 | **SSR auto-prefetch**                | ✅ On pushState interceptor   | ❌                       | ❌                           | ❌                           | ❌                      |
 | **HTML cache isolation**             | ✅ Content-Type routing       | ❌                       | ❌                           | ❌                           | ❌                      |
-| **Fallback chain**                   | ✅ 6-step (includes retry)    | ❌ Single                | ❌ Single                    | ❌ Single                    | ❌ Single               |
+| **Fallback chain**                   | ✅ 5-step SSR / 3-step SPA   | ❌ Single                | ❌ Single                    | ❌ Single                    | ❌ Single               |
 | **Per-route fallback rules**         | ✅ Config rules + precache    | ❌                       | 🟡 Per matcher function      | ❌                           | ❌                      |
 | **Smart retry loop**                 | ✅ Configurable               | ❌                       | ❌                           | ❌                           | ❌                      |
 | **Navigation preload**               | ✅ Flag                       | ✅ Via Workbox           | ✅                           | ✅ Plugin                    | ✅ Plugin               |

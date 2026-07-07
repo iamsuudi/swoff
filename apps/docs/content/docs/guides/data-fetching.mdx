@@ -3,7 +3,7 @@ title: Data Fetching & Caching
 description: fetchWithCache, prefetchCache, and framework adapters for reactive data fetching.
 ---
 
-> **If you're coming from TanStack Query:** `fetchWithCache` returns `{ response, fromCache }` instead of `{ data, isLoading }`. Caching happens in the Service Worker — cached responses survive hard navigation, tab close, and full page reload. No provider wrapper needed. See the [full comparison](/docs/comparisons#data-fetching).
+> **If you're coming from TanStack Query:** `fetchWithCache` returns `{ response, fromCache }` instead of `{ data, isLoading }`. Caching happens in the Service Worker — cached responses survive hard navigation, tab close, and full page reload. No provider wrapper needed. Prefer TanStack Query's data caching? Set its routes to `"network-only"` in [`strategy.patterns`](/docs/config/service-worker) — Swoff still handles offline navigation and all other assets. See the [full comparison](/docs/comparisons#data-fetching).
 
 > **This is the first guide that introduces a swoff API.** Caching Strategy and Navigation Caching (guides 2–3) require no imports — they work purely through `swoff.config.json`. Data fetching is where you start interacting with the cache programmatically.
 
@@ -164,33 +164,7 @@ The primary data-fetching adapter. Exposes reactive request state: `{ data, isLo
 | ------------------- | ------------ | ---------------------------------------------------------------- |
 | `cache-invalidated` | `{ tags }`   | Cache entries invalidated — refetch if your URL's tags intersect |
 
-**Building the adapter:**
-
-```js
-// Reactive state: { data, isLoading, error, fromCache, refetch }
-// 1. Initialize: data = null, isLoading = true, error = null, fromCache = false
-// 2. On mount: await fetchWithCache(url), update { data, isLoading, fromCache }
-// 3. Listen to cache-invalidated — refetch when tags change:
-window.addEventListener("cache-invalidated", (e) => {
-  // Check if e.detail.tags intersect with this URL's auto-tags
-  // If so, set isLoading = true, re-fetch, update state
-});
-// 4. refetch(): re-run fetchWithCache, update state
-// 5. Return { data, isLoading, error, fromCache, refetch }
-```
-
-### `useSwoffPrefetch`
-
-Exposes a `prefetch(url)` function for fire-and-forget cache warming. No events needed — calls `swoff.prefetchCache()` directly.
-
-**Building the adapter:**
-
-```js
-// 1. prefetch(url): call prefetchCache(url)
-// 2. Return { prefetch }
-```
-
-**If your framework already has these adapters** (React): the CLI generates `useSwoffFetch` and `useSwoffPrefetch` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for their APIs. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+If your framework already has these adapters (`useSwoffFetch`, `useSwoffPrefetch` — React, Vue, Svelte), the CLI generates them into `swoff/adapters/`. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint) for the event reference and adapter patterns.
 
 ## Related
 

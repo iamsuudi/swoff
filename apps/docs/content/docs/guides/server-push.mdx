@@ -121,19 +121,7 @@ Server sends tags via SSE/WS
 | ------------------- | ------------ | -------------------------------------------------------------- |
 | `cache-invalidated` | `{ tags }`   | SW invalidated entries — refetch data whose URL tags intersect |
 
-**Building the adapter for any framework:**
-
-```js
-window.addEventListener("cache-invalidated", (e) => {
-  const { tags } = e.detail;
-  // Re-fetch any active data whose tags intersect with `tags`
-  // using fetchWithCache() or swoff.fetchWithCache()
-});
-```
-
-No additional events are needed — the adapter pattern is identical to the one described in the [Tag Invalidation guide](/docs/guides/tag-invalidation#frameworks). The only difference is the source of invalidation: server push instead of manual calls.
-
-**If your framework already has this** (React): the CLI generates `useSwoffFetch` into `swoff/adapters/` which handles `cache-invalidated` automatically. See the [React page](/docs/frameworks/react/adapters) or the [Blueprint](/docs/frameworks/blueprint).
+The adapter pattern is identical to the one described in the [Tag Invalidation guide](/docs/guides/tag-invalidation#frameworks) — the only difference is the source of invalidation (server push instead of manual calls). See the [Blueprint](/docs/frameworks/blueprint) for the event reference and adapter patterns.
 
 ### Important: tagInvalidation is required
 

@@ -200,24 +200,9 @@ The `cache-invalidated` event drives the `useSwoffFetch` adapter (see the [Data 
 | ------------------- | ------------ | --------------------------------------------------------------------- |
 | `cache-invalidated` | `{ tags }`   | Cache entries invalidated — refetch any data whose URL tags intersect |
 
-**Building the adapter for any framework:**
-
-```js
-// 1. Maintain a map of active URLs and their auto-generated tags
-// 2. Listen to cache-invalidated:
-window.addEventListener("cache-invalidated", (e) => {
-  const { tags } = e.detail;
-  // For each active request whose tags intersect with e.detail.tags:
-  //   → Re-fetch by calling fetchWithCache(url) again
-  //   → Update reactive state with fresh data
-});
-// 3. The SW handles the actual cache invalidation — your adapter
-//    only needs to react to the event and re-fetch
-```
+If your framework already has a `useSwoffFetch` adapter (React, Vue, Svelte), the CLI generates it into `swoff/adapters/` — it listens to `cache-invalidated` automatically. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint) for the event reference and adapter patterns.
 
 For introspection (debugging which URLs are tagged), use `getUrlsForTag(tag)` or `swoff.getUrlsForTag(tag)` — see the Introspection section above.
-
-**If your framework already has this** (React): the CLI generates `useSwoffFetch` into `swoff/adapters/` which listens to `cache-invalidated` automatically. See the [React page](/docs/frameworks/react/adapters) or the [Blueprint](/docs/frameworks/blueprint).
 
 ### Introspection
 
@@ -270,4 +255,4 @@ const tags = await getTagsForUrl("/api/notes/123");
 ## Related
 
 - [Full cross-tab comparison](/docs/comparisons/cross-tab)
-- [Full optimistic updates comparison](/docs/comparisons/optimistic-updates)
+- [Optimistic updates design rationale](/docs/architecture/optimistic-updates)

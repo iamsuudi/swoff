@@ -7,25 +7,7 @@ description: Manual prefetchCache and auto-prefetch vs framework-specific soluti
 
 Prefetch fetches resources before navigation so the response is available instantly. The key difference is where the response is stored — SW Cache Storage API (disk-backed, survives reloads) versus in-memory caches (lost on navigation).
 
-## How Swoff does it
-
-Swoff provides two prefetch mechanisms:
-
-**Manual prefetch — `prefetchCache(url)`:** Fire-and-forget. The SW fetches the URL, caches the full HTTP response in the Cache Storage API, and silently swallows errors. Works for any content type — API endpoints, images, pages, third-party resources.
-
-```ts
-import { prefetchCache } from "swoff/fetch/core";
-prefetchCache("/api/todos");
-prefetchCache("/about");
-```
-
-**Auto-prefetch (SSR mode only):** When `navigation.mode` is `"ssr"`, the generated `client-injector` intercepts `history.pushState()` and `history.replaceState()` — the underlying API every client-side router uses — and calls `prefetchCache(url)` for each navigation. This warms the SW cache with HTML pages as the user browses, so refreshes and return visits load instantly. No framework-specific `<Link prefetch>` attributes needed.
-
-**Key properties:**
-- **Storage:** SW Cache Storage API (disk-backed, survives reloads)
-- **Thread:** SW thread — invisible to main thread, no rendering impact
-- **Scope:** Any URL — not limited to route data
-- **Framework coupling:** None — intercepts at the browser API level
+> See the [Data Fetching guide](/docs/guides/data-fetching#prefetchcache) for Swoff's approach. This page focuses on how framework built-ins handle prefetch.
 
 ## How competitors handle it
 

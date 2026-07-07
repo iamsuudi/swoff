@@ -92,34 +92,4 @@ Uses the generated `connectivity.ts` module which runs a HEAD heartbeat every 30
 
 **Imports from `connectivity.ts`:** `CONNECTIVITY_EVENT`, `getCurrentOnlineStatus`, `forceRetry`.
 
-**Building the adapter:**
-
-```js
-import {
-  CONNECTIVITY_EVENT,
-  getCurrentOnlineStatus,
-  forceRetry,
-} from "./swoff/connectivity";
-
-// Reactive state: { online, wasOffline, lastChangedAt, effectiveType, downlink, isRetrying, retry }
-// 1. Initialize: online = true, wasOffline = false, lastChangedAt = null
-// 2. On mount, sync with actual status (avoids SSR hydration mismatch):
-if (!getCurrentOnlineStatus()) {
-  // Set online = false, wasOffline = true, lastChangedAt = Date.now()
-}
-// 3. Listen to verified connectivity events:
-window.addEventListener(CONNECTIVITY_EVENT, (e) => {
-  // Set online = e.detail.online
-  // Track wasOffline across transitions
-  // Set lastChangedAt = Date.now()
-});
-// 4. Listen for bandwidth changes (navigator.connection):
-navigator.connection?.addEventListener("change", () => {
-  // Set effectiveType = navigator.connection.effectiveType
-  // Set downlink = navigator.connection.downlink
-});
-// 5. retry(): call forceRetry() — immediately re-checks connectivity
-// 6. Return { online, wasOffline, lastChangedAt, effectiveType, downlink, isRetrying, retry }
-```
-
-**If your framework already has this adapter** (React): the CLI generates `useSwoffNetwork` into `swoff/adapters/`. See the [React page](/docs/frameworks/react/adapters) for its API. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint).
+If your framework already has a `useSwoffNetwork` adapter (React, Vue, Svelte), the CLI generates it into `swoff/adapters/`. To create adapters for any other framework, see the [Blueprint](/docs/frameworks/blueprint) for the event reference and adapter patterns.

@@ -1,5 +1,6 @@
 export function generateFetchHandler(
   swConfig: {
+    navCacheOnly?: boolean;
     strategy: {
       default: string;
       patterns: Record<
@@ -47,6 +48,7 @@ export function generateFetchHandler(
   debug?: boolean,
 ): string {
   const {
+    navCacheOnly = false,
     strategy: {
       default: defaultStrategy,
       patterns: strategies,
@@ -200,6 +202,7 @@ const REACTIVE_STALE_DEFAULT = ${globalStaleTime != null ? globalStaleTime : 0};
 const FETCH_TIMEOUT_MS = ${fetchTimeout * 1000};
 const SW_DEBUG = ${debugMode};
 ${authRoutePaths.length > 0 ? `const AUTH_ROUTES = ${JSON.stringify(authRoutePaths)};` : ""}
+const NAV_CACHE_ONLY = ${navCacheOnly};
 ${serverPushEndpoint ? `const SERVER_PUSH_ENDPOINT = "${serverPushEndpoint}";` : ""}
 
 ${navRulesCode}// --- Debug Logging ---
@@ -950,6 +953,10 @@ async function handleMutation(event) {
   if (request.method !== "GET") {
     if (!request.headers.get("X-SW-Cache-Key")) { return; }
   }`
+  }
+  if (NAV_CACHE_ONLY && !isNavRequest(request) && !isSsrClientNav(request)) {
+    swLog("fetch", "nav-cache-only-pass-through", request.url, 0);
+    return;
   }
   const cfg = determineCacheStrategy(request);
   swLog("fetch", "strategy=" + cfg.strategy, request.url, 0);

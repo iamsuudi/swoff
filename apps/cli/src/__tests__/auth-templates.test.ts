@@ -120,6 +120,7 @@ describe("auth-state", () => {
 
 describe("fetch-handler", () => {
   const baseSwConfig = {
+    navCacheOnly: false,
     strategy: { ...defaultConfig.features.serviceWorker.strategy },
     navigation: { ...defaultConfig.features.serviceWorker.navigation },
     refetchQueue: { ...defaultConfig.features.refetchQueue },

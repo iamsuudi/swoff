@@ -1,6 +1,8 @@
 let PRECACHE_CONCURRENCY = 1;
 let PRECACHE_DELAY_MS = 0;
 let AUTO_SKIP_WAITING = false;
+let CACHE_NAME = "";
+let ASSETS_TO_CACHE = [];
 
 // --- Shared IndexedDB Utility ---
 
@@ -65,6 +67,7 @@ function broadcastToClients(type, payload) {
 
 var PRECACHE_VERSION_KEY = "precache-version";
 var PRECACHE_CHECKPOINT_KEY = "checkpoint";
+var PRECACHE_CACHE_NAME = "precache-" + computeAssetsVersion();
 var _precachingActive = false;
 
 async function getPrecacheMeta(key) {
@@ -133,6 +136,9 @@ async function ensurePrecacheVersion() {
   var stored = await getPrecacheMeta(PRECACHE_VERSION_KEY);
   var current = computeAssetsVersion();
   if (stored !== current) {
+    var cache = await caches.open(PRECACHE_CACHE_NAME);
+    var keys = await cache.keys();
+    await Promise.all(keys.map(function(req) { return cache.delete(req); }));
     await setPrecacheMeta(PRECACHE_VERSION_KEY, current);
     await setPrecacheMeta(PRECACHE_CHECKPOINT_KEY, 0);
   }
@@ -142,14 +148,11 @@ async function startBackgroundPrecache() {
   if (_precachingActive) return;
   _precachingActive = true;
   try {
-  var cache = await caches.open("precache");
-  var keys = await cache.keys();
-  await Promise.all(keys.map(function(req) { return cache.delete(req); }));
-  await resetPrecacheCheckpoint();
   await ensurePrecacheVersion();
   var total = ASSETS_TO_CACHE.length;
   if (total === 0) return;
 
+  var cache = await caches.open(PRECACHE_CACHE_NAME);
   var checkpoint = await getPrecacheCheckpoint();
   if (checkpoint >= total) return;
 
@@ -280,6 +283,14 @@ async function checkCacheVersion() {
       ["swoff-runtime", "swoff-runtime-html"].map(function(n) { return caches.delete(n); })
     );
   }
+
+  // Clean up old versioned precache caches
+  var allCaches = await caches.keys();
+  await Promise.all(allCaches.map(function(name) {
+    if (name !== PRECACHE_CACHE_NAME && name.startsWith("precache-")) {
+      return caches.delete(name);
+    }
+  }));
 
   try {
     const db = await openDB("swoff-meta", 1);
@@ -553,7 +564,7 @@ function cacheKey(request) {
 
 async function fromPrecache(request) {
   swLog("fromPrecache", "ENTER", request.url, 4);
-  const cache = await caches.open("precache");
+  const cache = await caches.open(PRECACHE_CACHE_NAME);
   const url = new URL(request.url);
   url.search = "";
   const result = await cache.match(url.href);
@@ -589,7 +600,7 @@ async function serveFromCache(request) {
   if (isNavRequest(request)) {
     if (NAV_MODE === "spa") {
       if (FALLBACK_PATH) {
-        const cache = await caches.open("precache");
+        const cache = await caches.open(PRECACHE_CACHE_NAME);
         const match = await cache.match(FALLBACK_PATH);
         if (match) {
           swLog("serveFromCache", "HIT fallback-path", request.url, 3);
@@ -651,7 +662,7 @@ async function cacheResponse(response, request) {
   const key = cacheKey(request);
   const ct = response.headers.get("Content-Type") || "";
   var skipRuntime = false;
-  const precache = await caches.open("precache");
+  const precache = await caches.open(PRECACHE_CACHE_NAME);
   const url = new URL(key);
   url.search = "";
   const precached = await precache.match(url.href);
@@ -729,7 +740,7 @@ async function navFallback(request) {
     }
   if (NAV_MODE !== "spa") {
     if (FALLBACK_PATH) {
-      const cache = await caches.open("precache");
+      const cache = await caches.open(PRECACHE_CACHE_NAME);
       const match = await cache.match(FALLBACK_PATH);
       if (match) {
         swLog("fallback", "HIT global fallback", request.url, 3);
@@ -1116,5 +1127,3 @@ self.addEventListener("fetch", (event) => {
 
 
 
-let CACHE_NAME = "";
-let ASSETS_TO_CACHE = [];

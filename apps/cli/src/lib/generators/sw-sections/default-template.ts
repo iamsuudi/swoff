@@ -7,6 +7,8 @@ export function getDefaultTemplate(): string {
   return `let PRECACHE_CONCURRENCY = 1;
 let PRECACHE_DELAY_MS = 0;
 let AUTO_SKIP_WAITING = false;
+let CACHE_NAME = "";
+let ASSETS_TO_CACHE = [];
 
 // --- Shared IndexedDB Utility ---
 
@@ -79,6 +81,5 @@ self.addEventListener("install", (event) => {
 // [[TAG_MANAGEMENT]]
 // [[PUSH_HANDLERS]]
 // [[SERVER_PUSH_HANDLER]]
-let CACHE_NAME = "";
-let ASSETS_TO_CACHE = [];`;
+`;
 }

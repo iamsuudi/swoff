@@ -4,6 +4,7 @@ export function generateBackgroundPrecache(): string {
 
 var PRECACHE_VERSION_KEY = "precache-version";
 var PRECACHE_CHECKPOINT_KEY = "checkpoint";
+var PRECACHE_CACHE_NAME = "precache-" + computeAssetsVersion();
 var _precachingActive = false;
 
 async function getPrecacheMeta(key) {
@@ -72,6 +73,9 @@ async function ensurePrecacheVersion() {
   var stored = await getPrecacheMeta(PRECACHE_VERSION_KEY);
   var current = computeAssetsVersion();
   if (stored !== current) {
+    var cache = await caches.open(PRECACHE_CACHE_NAME);
+    var keys = await cache.keys();
+    await Promise.all(keys.map(function(req) { return cache.delete(req); }));
     await setPrecacheMeta(PRECACHE_VERSION_KEY, current);
     await setPrecacheMeta(PRECACHE_CHECKPOINT_KEY, 0);
   }
@@ -81,14 +85,11 @@ async function startBackgroundPrecache() {
   if (_precachingActive) return;
   _precachingActive = true;
   try {
-  var cache = await caches.open("precache");
-  var keys = await cache.keys();
-  await Promise.all(keys.map(function(req) { return cache.delete(req); }));
-  await resetPrecacheCheckpoint();
   await ensurePrecacheVersion();
   var total = ASSETS_TO_CACHE.length;
   if (total === 0) return;
 
+  var cache = await caches.open(PRECACHE_CACHE_NAME);
   var checkpoint = await getPrecacheCheckpoint();
   if (checkpoint >= total) return;
 

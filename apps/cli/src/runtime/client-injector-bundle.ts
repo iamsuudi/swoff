@@ -217,6 +217,20 @@ ${tagInvalidationEnabled ? `
     });
   }` : ""}
 ${pwaCode}${ssrPrefetch}
+  // ── Precaching Resume ──
+  if (typeof document !== "undefined" && "serviceWorker" in navigator) {
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "visible" && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: "RESUME_PRECACHE" });
+      }
+    });
+    window.addEventListener("online", function () {
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: "RESUME_PRECACHE" });
+      }
+    });
+  }
+
   // ── SW Message Listener ──
   if (typeof window !== "undefined" && "serviceWorker" in navigator) {
     navigator.serviceWorker.addEventListener("message", function (event) {

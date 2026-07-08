@@ -6,6 +6,8 @@
     "data-sync",
     "graphql-and-push",
     "auth",
-    "observability"
+    "observability",
+    "precaching",
+    "optimistic-updates"
   ]
 }

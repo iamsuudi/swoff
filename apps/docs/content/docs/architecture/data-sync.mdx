@@ -85,3 +85,5 @@ Both the client and SW mutation processors check `navigator.onLine` per-mutation
 3. On next `online` event or Background Sync trigger, processing resumes from where it left off (FIFO order)
 
 This prevents partial network failures from corrupting the queue — if a fetch fails mid-batch due to connectivity loss, the remaining mutations stay queued.
+
+> See the [Library Comparison](/docs/comparisons#tier-1-sw-toolkits) for cross-tab sync and request batching comparisons against TanStack Query, Apollo Client, RxDB, and Workbox.

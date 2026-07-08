@@ -9,20 +9,23 @@ Swoff broadcasts resource-level events from the Service Worker to the client win
 
 ### Architecture
 
-```
-SW scope:
-  bg sync catch                  → postMessage(SW_NOTIFICATION, level: "error", code: "BACKGROUND_SYNC_FAILED")
-  refetchEntry 401               → postMessage({ type: "AUTH_FAILURE" })
-  refetchEntry ok                → postMessage({ type: "CACHE_UPDATED", fetchUrl })
-
-client-injector.ts:
-  message listener               → CustomEvent("swoff:notification", { detail: { level, code, message } })
-  AUTH_FAILURE                   → ensureValidAuth() → clearAuth() fallback
-  swInit() callback              → checkStorage() → navigator.storage.estimate() >= 80%
-                                   → CustomEvent("swoff:notification")
-
-storage.ts:
-  getStorageEstimate()           → raw estimate without dispatch
+```mermaid
+%%{init: {'flowchart': {'useMaxWidth': true, 'padding': 4, 'nodeSpacing': 10, 'rankSpacing': 20}}}%%
+flowchart TB
+    subgraph SW["SW scope"]
+        BG["bg sync catch"] --> NOTIF1["postMessage(SW_NOTIFICATION, error, BACKGROUND_SYNC_FAILED)"]
+        REFETCH["refetchEntry 401"] --> AUTHFAIL["postMessage({ type: 'AUTH_FAILURE' })"]
+        OK["refetchEntry ok"] --> UPDATED["postMessage({ type: 'CACHE_UPDATED', fetchUrl })"]
+    end
+    subgraph CLIENT["client-injector.ts"]
+        LISTENER["message listener"] --> CUSTOM["CustomEvent('swoff:notification')"]
+        AUTHFAIL --> ENSURE["ensureValidAuth() → clearAuth() fallback"]
+        INIT["swInit() callback"] --> CHECK["checkStorage() → ≥80%"]
+        CHECK --> NOTIF2["CustomEvent('swoff:notification')"]
+    end
+    subgraph STORAGE["storage.ts"]
+        ESTIMATE["getStorageEstimate()"] --> RAW["raw estimate without dispatch"]
+    end
 ```
 
 ### Fetch timeout
@@ -43,3 +46,5 @@ This timeout applies uniformly across all strategies, ensuring no single slow re
 ### Why a unified channel?
 
 Rather than one CustomEvent per failure type (`swoff:fetch-failed`, `swoff:precache-failed`, etc.), a single `swoff:notification` event with a `code` discriminator keeps the API surface small and makes it trivial to wire up a toast/notification library.
+
+> See the [Library Comparison](/docs/comparisons#tier-1-sw-toolkits) for resource monitoring comparison against Workbox, TanStack Query, and client databases.

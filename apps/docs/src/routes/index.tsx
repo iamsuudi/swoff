@@ -157,7 +157,7 @@ function Home() {
 
             <div className="text-center">
               <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tight text-fd-foreground leading-[1.05]">
-                Offline Infra
+                Offline Web Infra
                 <br />
                 <span className="bg-linear-to-r from-fd-primary via-orange-400 to-amber-500 bg-clip-text text-transparent text-center">
                   For Any Stack

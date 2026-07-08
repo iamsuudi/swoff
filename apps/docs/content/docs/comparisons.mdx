@@ -112,15 +112,12 @@ Client databases solve local data queries and conflict resolution — a fundamen
 | Setup cost                | 1 config file             | Schema + DB + sync      | Schema + DB + sync + server adapter | Schema + DB + sync + server adapter |
 | Runtime deps              | **0 kB** (generated code) | ~40 kB gzip             | ~40 kB gzip + WASM                  | ~6 kB + SQLite WASM                 |
 
-## Deep-Dive Comparisons
+## Where to find design-level rationale
 
-Some topics need design-level tradeoff analysis — not just a feature table:
+Architecture docs explain how Swoff works internally — if you want to understand the design decisions behind a feature, start there:
 
-- [Caching & Data Layer](/docs/comparisons/caching-and-data) — SW-level HTTP caching vs client databases vs app-layer state libraries
-- [Auth](/docs/comparisons/auth) — SW-level auth header injection, token refresh, 401 detection vs manual approaches
-- [Cross-tab Sync](/docs/comparisons/cross-tab) — SW broadcast vs BroadcastChannel vs storage events
-- [Offline Navigation](/docs/comparisons/offline-navigation) — 3 navigation modes, HTML cache isolation, auto-prefetch, per-route fallback rules
-- [Prefetch](/docs/comparisons/prefetch) — SW Cache Storage API prefetch vs framework in-memory prefetch
-- [Request Batching](/docs/comparisons/request-batching) — 50ms coalescing vs runtime deduplication
-- [Optimistic Updates](/docs/architecture/optimistic-updates) — Why Swoff excludes them (design rationale)
-- [Resource Monitoring](/docs/comparisons/resource-monitoring) — Fetch timeout, storage quota, and unified error notifications
+- [Caching System architecture](/docs/architecture/caching) — strategy resolution, navigation modes, HTML cache isolation
+- [Auth System architecture](/docs/architecture/auth) — adapter system, memory-only tokens, `clearAuth()` cascade
+- [Data Sync architecture](/docs/architecture/data-sync) — batch refresh queue, request batching, mutation queue, dual-replay prevention
+- [Observability architecture](/docs/architecture/observability) — fetch timeout, storage quota, unified notification channel
+- [Optimistic Updates](/docs/architecture/optimistic-updates) — design rationale for exclusion

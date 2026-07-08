@@ -76,12 +76,13 @@ When the SW receives an `invalidate` event, it calls `invalidateByTags(tags)` wh
 
 ## Tag invalidation flow
 
-```
-On tag invalidation:
-  → open tag DB → find all entries matching tag
-  → delete cache entries from runtime cache (by cache key URL)
-  → queueRefresh(entry.actualUrl) for each (deduplicated via batch queue)
-  → on successful refetch → CACHE_UPDATED to all clients
+```mermaid
+%%{init: {'flowchart': {'useMaxWidth': true, 'padding': 4, 'nodeSpacing': 10, 'rankSpacing': 20}}}%%
+flowchart LR
+    INVAL["On tag invalidation"] --> DB["open tag DB → find all entries matching tag"]
+    DB --> DELETE["delete cache entries from runtime cache (by cache key URL)"]
+    DELETE --> QUEUE["queueRefresh(entry.actualUrl) for each (deduplicated via batch queue)"]
+    QUEUE --> NOTIFY["on successful refetch → CACHE_UPDATED to all clients"]
 ```
 
 The tag DB stores both `url` (cache key) and `actualUrl` (the real request URL). `invalidateByTag` deletes cache by `url` but fetches the live endpoint by `actualUrl`, ensuring the server is hit correctly.

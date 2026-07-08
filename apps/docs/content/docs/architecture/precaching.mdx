@@ -11,15 +11,18 @@ Swoff's approach differs from other tools: instead of blocking the install event
 
 ## Background activation-first
 
-```
-install event:
-  → skipWaiting() (if configured)
-  → zero downloads, zero blocking
+```mermaid
+%%{init: {'flowchart': {'useMaxWidth': true, 'padding': 4, 'nodeSpacing': 10, 'rankSpacing': 20}}}%%
+flowchart TB
+    INSTALL["install event"] --> SKIP["skipWaiting() (if configured)"]
+    SKIP --> ZERO["zero downloads, zero blocking"]
 
-activate event:
-  → claim clients immediately
-  → startBackgroundPrecache()     ← OUTSIDE event.waitUntil()
-  → SW is active; page loads normally; precaching runs in background
+    ACTIVATE["activate event"] --> CLAIM["claim clients immediately"]
+    CLAIM --> PRECACHE["startBackgroundPrecache()<br/>(outside event.waitUntil())"]
+    PRECACHE --> ACTIVE["SW is active; page loads normally;<br/>precaching runs in background"]
+
+    style INSTALL fill:#f0fdf4,stroke:#22c55e,stroke-width:1px
+    style ACTIVATE fill:#eff6ff,stroke:#3b82f6,stroke-width:1px
 ```
 
 By running `startBackgroundPrecache()` outside `event.waitUntil()`, the activate event completes immediately and the SW starts controlling the page. Precaching continues as an independent task — the user sees the app load without waiting for assets to download.

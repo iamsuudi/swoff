@@ -265,7 +265,7 @@ function cacheKey(request) {
 
 async function fromPrecache(request) {
   swLog("fromPrecache", "ENTER", request.url, 4);
-  const cache = await caches.open("precache");
+  const cache = await caches.open(PRECACHE_CACHE_NAME);
   const url = new URL(request.url);
   url.search = "";
   const result = await cache.match(url.href);
@@ -301,7 +301,7 @@ async function serveFromCache(request) {
   if (isNavRequest(request)) {
     if (NAV_MODE === "spa") {
       if (FALLBACK_PATH) {
-        const cache = await caches.open("precache");
+        const cache = await caches.open(PRECACHE_CACHE_NAME);
         const match = await cache.match(FALLBACK_PATH);
         if (match) {
           swLog("serveFromCache", "HIT fallback-path", request.url, 3);
@@ -363,7 +363,7 @@ async function cacheResponse(response, request) {
   const key = cacheKey(request);
   const ct = response.headers.get("Content-Type") || "";
   var skipRuntime = false;
-  const precache = await caches.open("precache");
+  const precache = await caches.open(PRECACHE_CACHE_NAME);
   const url = new URL(key);
   url.search = "";
   const precached = await precache.match(url.href);
@@ -443,7 +443,7 @@ async function navFallback(request) {
       ? `
     const routeFallbackPath = matchRouteFallback(request.url);
     if (routeFallbackPath) {
-      const cache = await caches.open("precache");
+      const cache = await caches.open(PRECACHE_CACHE_NAME);
       const match = await cache.match(routeFallbackPath);
       if (match) {
         swLog("fallback", "HIT per-route fallback", request.url, 3);
@@ -455,7 +455,7 @@ async function navFallback(request) {
   }
   if (NAV_MODE !== "spa") {
     if (FALLBACK_PATH) {
-      const cache = await caches.open("precache");
+      const cache = await caches.open(PRECACHE_CACHE_NAME);
       const match = await cache.match(FALLBACK_PATH);
       if (match) {
         swLog("fallback", "HIT global fallback", request.url, 3);

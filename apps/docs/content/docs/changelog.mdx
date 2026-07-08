@@ -10,6 +10,16 @@ All releases are tracked on GitHub. View the [full release history →](https://
 
 ---
 
+## @swoff/cli@0.4.7 (2026-07-08)
+
+- fix: versioned precache cache name `precache-{hash}` — cache only wiped when asset list hash changes, no empty window between old and new SW
+- fix: TDZ crash (`Cannot access 'ASSETS_TO_CACHE' before initialization`) — hoist declarations before background precache section
+- fix: HTTP errors (404, 5xx) now advance checkpoint; network errors (offline, timeout) keep checkpoint for retry — `fetch()` + `cache.put()` replaces `cache.add()`
+- fix: legacy unversioned `"precache"` cache cleaned up on activation alongside versioned `precache-*`
+- fix: add RESUME_PRECACHE listeners (visibilitychange + online) to IIFE client-injector bundle (was ESM-only)
+- refactor: move precaching design rationale from guides to architecture docs
+- feat: replace `navCacheOnly` config with `strategy.patterns` + `"network-only"` — reuse existing mechanism for Tier 2/3 co-existence
+
 ## @swoff/cli@0.4.6 (2026-07-06)
 
 - refactor: eliminate duplicated feature-section logic in swoff-api-bundle by using stripModuleWrappers() to embed runtime generators directly (958 lines removed, 71 added)

@@ -72,6 +72,17 @@ async function checkCacheVersion() {
     );
   }
 
+  // Clean up old versioned precache caches and legacy unversioned precache
+  var allCaches = await caches.keys();
+  await Promise.all(allCaches.map(function(name) {
+    if (name !== PRECACHE_CACHE_NAME && name.startsWith("precache-")) {
+      return caches.delete(name);
+    }
+    if (name === "precache") {
+      return caches.delete(name);
+    }
+  }));
+
   try {
     const db = await openDB("swoff-meta", 1);
     const tx = db.transaction("meta", "readwrite");

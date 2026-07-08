@@ -35,7 +35,6 @@ const { response } = await fetchWithCache("/api/todos");
 | Caching                | 6 strategies                                        |
 | Mutations              | useState-style tracking, offline queue, concurrency |
 | Prefetching            | Cache warming on hover/navigation                   |
-| Dependent queries      | enabled option, nullable URL                        |
 | Query cancellation     | AbortController integration                         |
 | Real-time invalidation | SSE / WebSocket push events                         |
 | Tag invalidation       | URL-derived cache tags                              |
@@ -65,15 +64,15 @@ npx @swoff/assets --source ./logo.svg
 
 ## Documentation
 
-| Guide                                                            | Description                                       |
-| ---------------------------------------------------------------- | ------------------------------------------------- |
-| [Config](https://swoff.netlify.app/docs/config)                  | Full config schema and feature reference          |
-| [API](https://swoff.netlify.app/docs/api)                        | Client API reference (auth, cache, mutations)     |
-| [CLI](https://swoff.netlify.app/docs/cli)                        | CLI commands and options                          |
-| [Guides](https://swoff.netlify.app/docs/guides)                  | Step-by-step guides for each feature              |
-| [Architecture](https://swoff.netlify.app/docs/architecture)      | Design decisions and rationale                    |
-| [Comparison](https://swoff.netlify.app/docs/comparison)          | Swoff vs Workbox / Serwist / SWR / TanStack Query |
-| [Ecosystem](https://swoff.netlify.app/docs/frameworks/ecosystem) | Framework integration guides                      |
+| Guide                                                    | Description                                       |
+| -------------------------------------------------------- | ------------------------------------------------- |
+| [Config](https://swoff.dev/docs/config)                  | Full config schema and feature reference          |
+| [API](https://swoff.dev/docs/api)                        | Client API reference (auth, cache, mutations)     |
+| [CLI](https://swoff.dev/docs/cli)                        | CLI commands and options                          |
+| [Guides](https://swoff.dev/docs/guides)                  | Step-by-step guides for each feature              |
+| [Architecture](https://swoff.dev/docs/architecture)      | Design decisions and rationale                    |
+| [Comparisons](https://swoff.dev/docs/comparisons)        | Swoff vs Workbox / Serwist / SWR / TanStack Query |
+| [Ecosystem](https://swoff.dev/docs/frameworks/ecosystem) | Framework integration guides                      |
 
 ---
 

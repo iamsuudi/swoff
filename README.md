@@ -42,7 +42,10 @@ npx @swoff/cli generate
 node swoff/sw/generator.mjs
 
 # 4. Include in your HTML
-<script src="/swoff/client-injector.js"></script>
+
+**Bundler projects:** `import { initServiceWorker } from "./swoff/client-injector"; initServiceWorker();`
+
+**No-bundler projects:** `<script src="/swoff/client-injector.bundle.js"></script>`
 ```
 
 See the [documentation](https://swoff.dev/docs) for per-ecosystem guides.

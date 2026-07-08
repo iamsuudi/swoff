@@ -34,16 +34,17 @@ The adapter exposes `type`, `getAuth()`, `getHeaders()`, `refresh()`, and `fetch
 
 ### `clearAuth()` cascade
 
-```
-clearAuth()
-  → null memoryAuth
-  → delete "session" from IndexedDB (swoff-auth DB)
-  → delete runtime caches by prefix (swoff-runtime*)
-  → clear mutation queue (if mutationQueue enabled)
-  → dispatch sw-auth-state-change event
-  → postMessage({ type: "AUTH_CLEARED" }) to SW
-    → SW forwards to all clients via clients.matchAll()
-      → each client calls clearMemoryAuth()
+```mermaid
+%%{init: {'flowchart': {'useMaxWidth': true, 'padding': 4, 'nodeSpacing': 10, 'rankSpacing': 20}}}%%
+flowchart TB
+    CA["clearAuth()"] --> NULL["null memoryAuth"]
+    NULL --> DELETE["delete 'session' from IndexedDB (swoff-auth DB)"]
+    DELETE --> CACHE["delete runtime caches by prefix (swoff-runtime*)"]
+    CACHE --> QUEUE["clear mutation queue (if mutationQueue enabled)"]
+    QUEUE --> DISPATCH["dispatch sw-auth-state-change event"]
+    DISPATCH --> POST["postMessage({ type: 'AUTH_CLEARED' }) to SW"]
+    POST --> FORWARD["SW forwards to all clients via clients.matchAll()"]
+    FORWARD --> CLIENT["each client calls clearMemoryAuth()"]
 ```
 
 Cache Storage is per-origin — one tab's cache deletion benefits all tabs. Other tabs only null memory (no redundant IDB/cache ops). The SW is a transparent forwarder only — it never inspects, clears, or manages auth data.
@@ -74,3 +75,5 @@ When any background refresh returns a 401 response, the SW broadcasts `{ type: "
 - SWR background fetches
 
 The client-side `client-injector.ts` listens for `AUTH_FAILURE` and calls `ensureValidAuth()` which delegates to the adapter's `refresh()` method. If refresh fails, it falls back to `clearAuth()`. This ensures session expiry is detected silently without requiring a user-initiated request.
+
+> See the [Library Comparison](/docs/comparisons#tier-1-sw-toolkits) for auth module comparison against Workbox, TanStack Query, and client databases.

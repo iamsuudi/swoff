@@ -5,11 +5,20 @@ description: Framework, backend, and rendering strategy compatibility.
 
 Swoff operates at the **`fetch` event** + **Service Worker** layer — below the application and data-fetching layers. This makes it compatible with any web stack regardless of backend language, frontend framework, or rendering strategy.
 
-```
-Application Layer (React, Vue, Svelte, HTMX, vanilla)
-  Data Fetching Layer (TanStack Query, SWR, Apollo, fetch())
-    SWOFF — SW + Client (fetch interception, cache, offline)
-      Browser APIs (Cache Storage, IndexedDB, fetch, push)
+```mermaid
+%%{init: {'flowchart': {'useMaxWidth': true, 'padding': 6, 'nodeSpacing': 20, 'rankSpacing': 30}}}%%
+flowchart TB
+    App["Application Layer<br/>React, Vue, Svelte, HTMX, vanilla"]
+    Data["Data Fetching Layer<br/>TanStack Query, SWR, Apollo, fetch()"]
+    Swoff["SWOFF — SW + Client<br/>fetch interception, cache, offline"]
+    Browser["Browser APIs<br/>Cache Storage, IndexedDB, fetch, push"]
+
+    App --> Data --> Swoff --> Browser
+
+    style App fill:#f0fdf4,stroke:#22c55e,stroke-width:1px,color:#166534
+    style Data fill:#fff7ed,stroke:#f97316,stroke-width:1px,color:#9a3412
+    style Swoff fill:#eff6ff,stroke:#3b82f6,stroke-width:1px,color:#1e40af
+    style Browser fill:#faf5ff,stroke:#a855f7,stroke-width:1px,color:#6b21a8
 ```
 
 The only framework-specific surface is **view adapters** (React hooks, Vue composables, future Svelte). These are optional thin wrappers over `postMessage` to the SW. The core caching, offline, invalidation, and auth work without them.
@@ -18,7 +27,7 @@ The only framework-specific surface is **view adapters** (React hooks, Vue compo
 
 | Category                   | Examples                                                    | Config Hint                                                                      |
 | -------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| **Backend**                | PHP, Laravel, Django, Flask, Rails, ASP.NET, Go, Java, Node | `navigation.mode: "ssr"`                                                         |
+| **Backend**                | PHP, Laravel, Django, Flask, Rails, ASP.NET, Go, Java, Node | `navigation.mode: "default"`                                                     |
 | **HTML-over-wire**         | HTMX, Turbo Hotwire, Unpoly, Livewire                       | `navigation.mode: "ssr"`                                                         |
 | **SSG**                    | Astro, VitePress, Hugo, 11ty, Jekyll                        | `navigation.mode: "default"`, strategy `cache-first`                             |
 | **SPA frameworks**         | React, Vue, Svelte, Solid, Angular, Alpine                  | `navigation.mode: "spa"` (default)                                               |

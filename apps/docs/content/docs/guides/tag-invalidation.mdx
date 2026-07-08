@@ -3,7 +3,7 @@ title: Tag System
 description: Auto-tags, glob patterns, cascading invalidation, cross-tab, and framework adapters.
 ---
 
-> **If you're coming from TanStack Query:** `invalidateByTag("notes")` is Swoff's equivalent of `queryClient.invalidateQueries({ queryKey: ["notes"] })`. The difference: Swoff auto-generates tags from URL patterns, supports glob matching, cascading invalidation, and works cross-tab — no query key management needed. See the [full comparison](/docs/comparisons#invalidation).
+> **If you're coming from TanStack Query:** `invalidateByTag("notes")` is Swoff's equivalent of `queryClient.invalidateQueries({ queryKey: ["notes"] })`. The difference: Swoff auto-generates tags from URL patterns, supports glob matching, cascading invalidation, and works cross-tab — no query key management needed. See the [GraphQL & Push architecture](/docs/architecture/graphql-and-push).
 
 > **No-bundler projects** do not generate `cache/invalidate.ts`. Use the `X-SW-Cache-Tags` header approach (section 1b below) to set tags via native fetch or HTMX headers, or use the `window.swoff` API: `swoff.invalidateByTag()`, `swoff.invalidateByTags()`, `swoff.invalidateMatching()`, `swoff.getUrlsForTag()`, `swoff.getTagsForUrl()` — all available after including `swoff-api.bundle.js`.
 
@@ -180,12 +180,13 @@ await invalidateByTags(["notes", "users:*"]);
 
 `invalidateByTag` works across all tabs — the SW receives the message and broadcasts a cache-invalidation event to all clients:
 
-```
-Tab A: calls invalidateByTag("notes")
-  → postsMessage to SW
-    → SW invalidates cache entries tagged "notes"
-    → SW broadcasts "cache-invalidated" to all tabs (A, B, C, ...)
-      → Tab B's next fetchWithCache("/api/notes") returns fresh data
+```mermaid
+%%{init: {'flowchart': {'useMaxWidth': true, 'padding': 4, 'nodeSpacing': 10, 'rankSpacing': 20}}}%%
+flowchart TB
+    A["Tab A: calls invalidateByTag('notes')"] --> POST["postMessage to SW"]
+    POST --> INVAL["SW invalidates cache entries tagged 'notes'"]
+    INVAL --> BROADCAST["SW broadcasts 'cache-invalidated' to all tabs (A, B, C, ...)"]
+    BROADCAST --> B["Tab B's next fetchWithCache('/api/notes') returns fresh data"]
 ```
 
 No manual coordination needed. Works out of the box.
@@ -254,5 +255,5 @@ const tags = await getTagsForUrl("/api/notes/123");
 
 ## Related
 
-- [Full cross-tab comparison](/docs/comparisons/cross-tab)
+- [Library Comparison](/docs/comparisons) — cross-tab sync in Tier 1 feature matrix
 - [Optimistic updates design rationale](/docs/architecture/optimistic-updates)

@@ -37,7 +37,7 @@ function MermaidContent({ chart }: { chart: string }) {
     startOnLoad: false,
     securityLevel: "loose",
     fontFamily: "inherit",
-    themeCSS: "margin: 1.5rem auto 0;",
+    themeCSS: "margin: 0 auto; max-width: 100%;",
     theme: resolvedTheme === "dark" ? "dark" : "default",
   });
 
@@ -51,6 +51,10 @@ function MermaidContent({ chart }: { chart: string }) {
     <div
       ref={(container) => {
         if (container) bindFunctions?.(container);
+      }}
+      style={{
+        display: "flex",
+        justifyContent: "center",
       }}
       dangerouslySetInnerHTML={{ __html: svg }}
     />

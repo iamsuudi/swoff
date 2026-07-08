@@ -70,43 +70,63 @@ All six strategies share the same core building blocks:
 
 ### Per-strategy flow
 
-```
-cache-first:
-  → serveFromCache (if available)
-  → fall back to _fetchWithTimeout on miss → cacheResponse
+```mermaid
+%%{init: {'flowchart': {'useMaxWidth': true, 'padding': 4, 'nodeSpacing': 10, 'rankSpacing': 20}}}%%
+flowchart LR
+    CF["cache-first"]
+    CF1["serveFromCache (if available)"]
+    CF2["_fetchWithTimeout on miss → cacheResponse"]
+    CF --> CF1 --> CF2
 
-network-first:
-  → _fetchWithTimeout → on failure → serveFromCache
+    NF["network-first"]
+    NF1["_fetchWithTimeout"]
+    NF2["on failure → serveFromCache"]
+    NF --> NF1 --> NF2
 
-stale-while-revalidate:
-  → _fetchWithTimeout (background, non-blocking)
-  → serveFromCache (stale allowed — return immediately)
-  → on cache miss: wait for network or fallback
+    SWR["stale-while-revalidate"]
+    SWR1["_fetchWithTimeout (background, non-blocking)"]
+    SWR2["serveFromCache (stale allowed — return immediately)"]
+    SWR3["on cache miss: wait for network or fallback"]
+    SWR --> SWR1 & SWR2 --> SWR3
 
-cache-only:
-  → serveFromCache only (never hits network)
+    CO["cache-only"]
+    CO1["serveFromCache only (never hits network)"]
+    CO --> CO1
 
-network-only:
-  → _fetchWithTimeout only (no cache interaction)
+    NO["network-only"]
+    NO1["_fetchWithTimeout only (no cache interaction)"]
+    NO --> NO1
 
-reactive:
-  → serveFromCache (if available)
-  → shouldReactiveRefresh? → stale (past staleTime)? → queueRefresh(url)
-  → also: refetchInterval timer, refetchOnFocus, refetchOnReconnect
-    → all trigger refresh through queueRefresh when stale
+    R["reactive"]
+    R1["serveFromCache (if available)"]
+    R2["shouldReactiveRefresh? → stale? → queueRefresh(url)"]
+    R3["refetchInterval, refetchOnFocus, refetchOnReconnect"]
+    R4["all trigger refresh through queueRefresh when stale"]
+    R --> R1 --> R2
+    R1 --> R3 --> R4
+
+    style CF fill:#f0fdf4,stroke:#22c55e,stroke-width:1px
+    style NF fill:#fff7ed,stroke:#f97316,stroke-width:1px
+    style SWR fill:#eff6ff,stroke:#3b82f6,stroke-width:1px
+    style CO fill:#faf5ff,stroke:#a855f7,stroke-width:1px
+    style NO fill:#fef9c3,stroke:#eab308,stroke-width:1px
+    style R fill:#fce7f3,stroke:#ec4899,stroke-width:1px
 ```
 
 ### serveFromCache by mode
 
-```
-navigate + SPA:
-  → check precache for FALLBACK_PATH → serve if found → null
-
-navigate + SSR/default:
-  → precache → runtime-html → null
-
-non-navigate (any mode):
-  → runtime cache → precache → null
+```mermaid
+%%{init: {'flowchart': {'useMaxWidth': true, 'padding': 4, 'nodeSpacing': 10, 'rankSpacing': 20}}}%%
+flowchart LR
+    subgraph SPA["navigate + SPA"]
+        SPA1["check precache for FALLBACK_PATH"] --> SPA2["serve if found → null"]
+    end
+    subgraph SSR["navigate + SSR / default"]
+        SSR1["precache"] --> SSR2["runtime-html"] --> SSR3["null"]
+    end
+    subgraph NAV["non-navigate (any mode)"]
+        NAV1["runtime cache"] --> NAV2["precache"] --> NAV3["null"]
+    end
 ```
 
 ### Cache rules
@@ -165,13 +185,14 @@ registerReactiveEntry(cacheKey, actualUrl, {
 
 The entry tracks the URL for automatic background refreshes. Intervals are cleaned up on SW deactivation.
 
-```
-Timeline:
-  Request A  →  serve from network, cache, register reactive entry
-  30s later  →  staleTime expires
-  Request B  →  serve stale cache, queue background refresh
-  Background →  fetch fresh, update cache
-  Tab focus  →  refetchOnFocus triggers another refresh
+```mermaid
+%%{init: {'flowchart': {'useMaxWidth': true, 'padding': 4, 'nodeSpacing': 10, 'rankSpacing': 20}}}%%
+flowchart LR
+    A["Request A"] --> B["serve from network, cache, register reactive entry"]
+    B --> C["30s later → staleTime expires"]
+    C --> D["Request B → serve stale cache, queue background refresh"]
+    D --> E["Background → fetch fresh, update cache"]
+    E --> F["Tab focus → refetchOnFocus triggers another refresh"]
 ```
 
 ## Navigation modes
@@ -282,3 +303,5 @@ The `strategy` field resolves through three priority levels:
 | Stale‑While‑Revalidate | network (bg) + navFallback    | network (bg) + cache → navFallback | network (bg) + cache → 502      |
 
 `navFallback` expands to the HTML chain above. Subresource `502` returns `new Response(null, { status: 502 })` — no HTML body is served for non-navigation requests.
+
+> See the [Library Comparison](/docs/comparisons#tier-1-sw-toolkits) for feature matrices comparing Swoff's caching, offline navigation, prefetch, and write queue against Workbox, Serwist, and other tools.

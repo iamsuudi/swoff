@@ -3,7 +3,7 @@ title: Data Fetching & Caching
 description: fetchWithCache, prefetchCache, and framework adapters for reactive data fetching.
 ---
 
-> **If you're coming from TanStack Query:** `fetchWithCache` returns `{ response, fromCache }` instead of `{ data, isLoading }`. Caching happens in the Service Worker — cached responses survive hard navigation, tab close, and full page reload. No provider wrapper needed. Prefer TanStack Query's data caching? Set its routes to `"network-only"` in [`strategy.patterns`](/docs/config/service-worker) — Swoff still handles offline navigation and all other assets. See the [full comparison](/docs/comparisons#data-fetching).
+> **If you're coming from TanStack Query:** `fetchWithCache` returns `{ response, fromCache }` instead of `{ data, isLoading }`. Caching happens in the Service Worker — cached responses survive hard navigation, tab close, and full page reload. No provider wrapper needed. Prefer TanStack Query's data caching? Set its routes to `"network-only"` in [`strategy.patterns`](/docs/config/service-worker) — Swoff still handles offline navigation and all other assets. See the [Library Comparison](/docs/comparisons#tier-2-server-state-libraries-app-layer-in-memory).
 
 > **This is the first guide that introduces a swoff API.** Caching Strategy and Navigation Caching (guides 2–3) require no imports — they work purely through `swoff.config.json`. Data fetching is where you start interacting with the cache programmatically.
 
@@ -168,4 +168,4 @@ If your framework already has these adapters (`useSwoffFetch`, `useSwoffPrefetch
 
 ## Related
 
-- [Full Data Fetching comparison](/docs/comparisons/caching-and-data#data-layer-http-caching-vs-client-databases): Swoff vs TanStack Query / SWR / Workbox, Serwist / Client Databases
+- [Library Comparison](/docs/comparisons#tier-2-server-state-libraries-app-layer-in-memory) — Swoff vs TanStack Query / SWR / Apollo Client

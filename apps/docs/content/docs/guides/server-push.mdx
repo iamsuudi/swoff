@@ -3,7 +3,7 @@ title: Server Push
 description: Real-time cache invalidation from the Service Worker via SSE or WebSocket.
 ---
 
-> **If you're coming from Socket.io for real-time updates:** Swoff's server push connects to your SSE or WebSocket endpoint from the Service Worker, not from the page. The connection survives navigation, tab refresh, and doesn't consume page memory. When the server sends tags, the SW invalidates cached responses across all tabs — no need to manually wire up socket events to cache invalidation. See the [full comparison](/docs/comparisons#real-time).
+> **If you're coming from Socket.io for real-time updates:** Swoff's server push connects to your SSE or WebSocket endpoint from the Service Worker, not from the page. The connection survives navigation, tab refresh, and doesn't consume page memory. When the server sends tags, the SW invalidates cached responses across all tabs — no need to manually wire up socket events to cache invalidation. See the [GraphQL & Push architecture](/docs/architecture/graphql-and-push).
 
 ## Preconditions
 

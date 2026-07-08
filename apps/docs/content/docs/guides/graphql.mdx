@@ -3,7 +3,7 @@ title: GraphQL
 description: Body-hash caching, operation-name auto-tags, and framework adapters for GraphQL.
 ---
 
-> **If you're coming from Apollo Client:** Swoff caches GraphQL responses by body hash (query + variables → SHA-256 digest), not by normalized entities. No schema introspection, no fragment matchers, no `InMemoryCache` config. Each query is a standalone cache entry. Mutations auto-invalidate by operation name tags. See the [full comparison](/docs/comparisons#graphql).
+> **If you're coming from Apollo Client:** Swoff caches GraphQL responses by body hash (query + variables → SHA-256 digest), not by normalized entities. No schema introspection, no fragment matchers, no `InMemoryCache` config. Each query is a standalone cache entry. Mutations auto-invalidate by operation name tags. See the [GraphQL & Push architecture](/docs/architecture/graphql-and-push).
 
 ## Preconditions
 
@@ -218,5 +218,5 @@ No generated files to edit. The wrapper lives at `swoff/graphql/index.ts` and is
 
 ## Related
 
-- [Full comparison: Swoff vs Apollo Client](/docs/comparisons#graphql)
-- [Full Data Fetching comparison](/docs/comparisons/caching-and-data#data-layer-http-caching-vs-client-databases): Swoff vs TanStack Query / SWR / Workbox, Serwist / Client Databases
+- [Library Comparison](/docs/comparisons) — Swoff vs Apollo Client (Tier 2)
+- [Library Comparison](/docs/comparisons#tier-2-server-state-libraries-app-layer-in-memory) — Swoff vs TanStack Query / SWR / Apollo Client

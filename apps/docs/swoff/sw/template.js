@@ -178,11 +178,16 @@ async function startBackgroundPrecache() {
           try {
             var cached = await cache.match(url);
             if (cached) { downloaded++; return; }
-            var request = new Request(url);
-            await cache.add(request);
+            var response = await fetch(url);
+            if (!response.ok) {
+              console.warn("Failed to precache " + url + ": " + response.status);
+              downloaded++;
+              return;
+            }
+            await cache.put(url, response);
             downloaded++;
           } catch(err) {
-            console.warn("Failed to precache " + url + ":", err);
+            console.warn("Network error precaching " + url + ":", err);
             batchFailed = true;
           }
         })();
@@ -284,10 +289,13 @@ async function checkCacheVersion() {
     );
   }
 
-  // Clean up old versioned precache caches
+  // Clean up old versioned precache caches and legacy unversioned precache
   var allCaches = await caches.keys();
   await Promise.all(allCaches.map(function(name) {
     if (name !== PRECACHE_CACHE_NAME && name.startsWith("precache-")) {
+      return caches.delete(name);
+    }
+    if (name === "precache") {
       return caches.delete(name);
     }
   }));

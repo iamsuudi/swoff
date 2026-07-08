@@ -115,11 +115,16 @@ async function startBackgroundPrecache() {
           try {
             var cached = await cache.match(url);
             if (cached) { downloaded++; return; }
-            var request = new Request(url);
-            await cache.add(request);
+            var response = await fetch(url);
+            if (!response.ok) {
+              console.warn("Failed to precache " + url + ": " + response.status);
+              downloaded++;
+              return;
+            }
+            await cache.put(url, response);
             downloaded++;
           } catch(err) {
-            console.warn("Failed to precache " + url + ":", err);
+            console.warn("Network error precaching " + url + ":", err);
             batchFailed = true;
           }
         })();

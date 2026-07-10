@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://swoff.netlify.app/schema/v1.json",
+  "$id": "https://swoff.space/schema/v1.json",
   "title": "Swoff Configuration",
   "description": "Configuration for the Swoff offline-first service worker system",
   "type": "object",
@@ -8,7 +8,7 @@
     "$schema": {
       "type": "string",
       "description": "Reference to the schema version",
-      "example": "https://swoff.netlify.app/schema/v1.json"
+      "example": "https://swoff.space/schema/v1.json"
     },
     "framework": {
       "type": "string",

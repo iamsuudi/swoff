@@ -1,6 +1,6 @@
 # @swoff/cli
 
-CLI for [Swoff](https://swoff.netlify.app) — offline-first web apps made easy.
+CLI for [Swoff](https://swoff.space) — offline-first web apps made easy.
 
 Swoff generates a **service worker** and **client utilities** from a config file — zero runtime
 dependencies, no Workbox, all auditable code. Server-state reactivity, offline queues, PWA install,

@@ -24,7 +24,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "A config-driven offline infrastructure for web apps. Generate an auditable service worker and client code from a single config file. Zero runtime dependencies, works with any stack.",
+          "A config-driven offline infrastructure and PWA tool for web apps. Generate an auditable service worker and client code from a single config file. Zero runtime dependencies, works with any stack.",
       },
       {
         property: "og:title",
@@ -33,7 +33,7 @@ export const Route = createRootRoute({
       {
         property: "og:description",
         content:
-          "Config-driven offline infrastructure for web apps. No runtime deps, works with any frontend or backend.",
+          "Config-driven offline infrastructure and PWA tool for web apps. No runtime deps, works with any frontend or backend.",
       },
       {
         property: "og:type",

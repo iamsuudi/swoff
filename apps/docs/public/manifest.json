@@ -1,7 +1,7 @@
 {
   "name": "Swoff",
   "short_name": "Swoff",
-  "description": "Offline Infrastrute — config-driven code generation for service workers",
+  "description": "Offline Infra — config-driven code generation for service worker and PWA",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",

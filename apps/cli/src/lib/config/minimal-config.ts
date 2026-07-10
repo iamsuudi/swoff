@@ -20,7 +20,9 @@ export interface WizardAnswers {
   precachePrefix?: string;
 }
 
-export function buildMinimalConfig(answers: WizardAnswers): Record<string, unknown> {
+export function buildMinimalConfig(
+  answers: WizardAnswers,
+): Record<string, unknown> {
   const features: Record<string, unknown> = {};
 
   const sw: Record<string, unknown> = {
@@ -97,7 +99,7 @@ export function buildMinimalConfig(answers: WizardAnswers): Record<string, unkno
   }
 
   return {
-    $schema: "https://swoff.netlify.app/schema/v1.json",
+    $schema: "https://swoff.space/schema/v1.json",
     framework: answers.framework,
     features,
     build,

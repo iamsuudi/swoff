@@ -28,13 +28,28 @@ vi.mock("@clack/prompts", () => {
     outro: vi.fn(),
     log: { info: vi.fn(), warn: vi.fn(), success: vi.fn() },
     isCancel: vi.fn(() => false),
-    text: vi.fn((opts) => mockValues[opts.name || Object.keys(mockValues).find(k => k === opts.initialValue) || ""] ?? opts.initialValue ?? ""),
+    text: vi.fn(
+      (opts) =>
+        mockValues[
+          opts.name ||
+            Object.keys(mockValues).find((k) => k === opts.initialValue) ||
+            ""
+        ] ??
+        opts.initialValue ??
+        "",
+    ),
     confirm: vi.fn((opts) => {
       callCount++;
-      return mockValues[opts.name || Object.keys(mockValues).find(k => {
-        const v = mockValues[k];
-        return typeof v === "boolean";
-      }) || ""] ?? true;
+      return (
+        mockValues[
+          opts.name ||
+            Object.keys(mockValues).find((k) => {
+              const v = mockValues[k];
+              return typeof v === "boolean";
+            }) ||
+            ""
+        ] ?? true
+      );
     }),
     select: vi.fn((opts) => opts.initialValue || opts.options[0].value),
   };
@@ -61,14 +76,21 @@ describe("initCommand", () => {
   it("creates swoff.config.json when none exists", async () => {
     await initCommand(testDir, true);
     expect(existsSync(join(testDir, "swoff.config.json"))).toBe(true);
-    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
-    expect(config.$schema).toBe("https://swoff.netlify.app/schema/v1.json");
+    const config = JSON.parse(
+      readFileSync(join(testDir, "swoff.config.json"), "utf8"),
+    );
+    expect(config.$schema).toBe("https://swoff.space/schema/v1.json");
   });
 
   it("skips when swoff.config.json already exists", async () => {
-    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify({ enabled: true }));
+    writeFileSync(
+      join(testDir, "swoff.config.json"),
+      JSON.stringify({ enabled: true }),
+    );
     await initCommand(testDir, true);
-    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
+    const config = JSON.parse(
+      readFileSync(join(testDir, "swoff.config.json"), "utf8"),
+    );
     expect(config.$schema).toBeUndefined();
   });
 
@@ -79,15 +101,22 @@ describe("initCommand", () => {
   });
 
   it("detects framework from package.json", async () => {
-    writeFileSync(join(testDir, "package.json"), JSON.stringify({ dependencies: { react: "^18.0.0" } }));
+    writeFileSync(
+      join(testDir, "package.json"),
+      JSON.stringify({ dependencies: { react: "^18.0.0" } }),
+    );
     await initCommand(testDir, true);
-    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
+    const config = JSON.parse(
+      readFileSync(join(testDir, "swoff.config.json"), "utf8"),
+    );
     expect(config.framework).toBe("react");
   });
 
   it("creates minimal config with only serviceWorker feature", async () => {
     await initCommand(testDir, true);
-    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
+    const config = JSON.parse(
+      readFileSync(join(testDir, "swoff.config.json"), "utf8"),
+    );
     expect(config).toHaveProperty("build");
     expect(config).toHaveProperty("features");
     expect(config.features).toHaveProperty("serviceWorker");
@@ -108,7 +137,10 @@ describe("cleanCommand", () => {
   it("removes swoff/ directory with --yes", async () => {
     mkdirSync(join(testDir, "swoff"), { recursive: true });
     writeFileSync(join(testDir, "swoff/test.js"), "test");
-    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify({ enabled: true }));
+    writeFileSync(
+      join(testDir, "swoff.config.json"),
+      JSON.stringify({ enabled: true }),
+    );
     await cleanCommand(testDir, { yes: true });
     expect(existsSync(join(testDir, "swoff"))).toBe(false);
     expect(existsSync(join(testDir, "swoff.config.json"))).toBe(false);
@@ -122,7 +154,10 @@ describe("cleanCommand", () => {
   });
 
   it("removes only config when no swoff dir", async () => {
-    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify({ enabled: true }));
+    writeFileSync(
+      join(testDir, "swoff.config.json"),
+      JSON.stringify({ enabled: true }),
+    );
     await cleanCommand(testDir, { yes: true });
     expect(existsSync(join(testDir, "swoff.config.json"))).toBe(false);
   });
@@ -131,7 +166,7 @@ describe("cleanCommand", () => {
 describe("generateCommand", () => {
   function writeMinimalConfig() {
     const config = {
-      $schema: "https://swoff.netlify.app/schema/v1.json",
+      $schema: "https://swoff.space/schema/v1.json",
       framework: "react",
       features: {
         serviceWorker: {
@@ -143,11 +178,17 @@ describe("generateCommand", () => {
       },
       build: { swOutput: "dist" },
     };
-    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config, null, 2));
+    writeFileSync(
+      join(testDir, "swoff.config.json"),
+      JSON.stringify(config, null, 2),
+    );
   }
 
   it("generates core files when config exists", async () => {
-    writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
+    writeFileSync(
+      join(testDir, "package.json"),
+      JSON.stringify({ name: "test", version: "1.0.0" }),
+    );
     writeMinimalConfig();
     await generateCommand(testDir);
     expect(existsSync(join(testDir, "swoff"))).toBe(true);
@@ -161,9 +202,14 @@ describe("generateCommand", () => {
   });
 
   it("generates tag-invalidation files when tagInvalidation.enabled", async () => {
-    writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
+    writeFileSync(
+      join(testDir, "package.json"),
+      JSON.stringify({ name: "test", version: "1.0.0" }),
+    );
     writeMinimalConfig();
-    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
+    const config = JSON.parse(
+      readFileSync(join(testDir, "swoff.config.json"), "utf8"),
+    );
     config.features.tagInvalidation = { enabled: true };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
     await generateCommand(testDir);
@@ -173,9 +219,14 @@ describe("generateCommand", () => {
   });
 
   it("generates connectivity files when connectivity.enabled", async () => {
-    writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
+    writeFileSync(
+      join(testDir, "package.json"),
+      JSON.stringify({ name: "test", version: "1.0.0" }),
+    );
     writeMinimalConfig();
-    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
+    const config = JSON.parse(
+      readFileSync(join(testDir, "swoff.config.json"), "utf8"),
+    );
     config.features.connectivity = { enabled: true };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
     await generateCommand(testDir);
@@ -183,8 +234,14 @@ describe("generateCommand", () => {
   });
 
   it("generates files in TypeScript when project uses TS", async () => {
-    writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
-    writeFileSync(join(testDir, "tsconfig.json"), JSON.stringify({ compilerOptions: {} }));
+    writeFileSync(
+      join(testDir, "package.json"),
+      JSON.stringify({ name: "test", version: "1.0.0" }),
+    );
+    writeFileSync(
+      join(testDir, "tsconfig.json"),
+      JSON.stringify({ compilerOptions: {} }),
+    );
     writeMinimalConfig();
     await generateCommand(testDir, { language: "ts" });
     expect(existsSync(join(testDir, "swoff/sw/injector.ts"))).toBe(true);
@@ -200,9 +257,14 @@ describe("generateCommand", () => {
   });
 
   it("generates db and connectivity when auth enabled", async () => {
-    writeFileSync(join(testDir, "package.json"), JSON.stringify({ name: "test", version: "1.0.0" }));
+    writeFileSync(
+      join(testDir, "package.json"),
+      JSON.stringify({ name: "test", version: "1.0.0" }),
+    );
     writeMinimalConfig();
-    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
+    const config = JSON.parse(
+      readFileSync(join(testDir, "swoff.config.json"), "utf8"),
+    );
     config.features.auth = { enabled: true, type: "cookie" };
     config.features.connectivity = { enabled: true };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
@@ -224,7 +286,10 @@ describe("validateCommand", () => {
       },
       build: { swOutput: "dist" },
     };
-    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config, null, 2));
+    writeFileSync(
+      join(testDir, "swoff.config.json"),
+      JSON.stringify(config, null, 2),
+    );
   }
 
   it("passes valid config", async () => {
@@ -245,25 +310,33 @@ describe("validateCommand", () => {
 
   it("reports errors for invalid config", async () => {
     writeValidConfig();
-    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
+    const config = JSON.parse(
+      readFileSync(join(testDir, "swoff.config.json"), "utf8"),
+    );
     config.features.serviceWorker.autoActivate = "yes";
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     await validateCommand(testDir);
     const calls = logSpy.mock.calls.map((c) => c[0]);
-    expect(calls.some((c: string) => c.includes("error") || c.includes("fail"))).toBe(true);
+    expect(
+      calls.some((c: string) => c.includes("error") || c.includes("fail")),
+    ).toBe(true);
     logSpy.mockRestore();
   });
 
   it("reports errors for invalid framework", async () => {
     writeValidConfig();
-    const config = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
+    const config = JSON.parse(
+      readFileSync(join(testDir, "swoff.config.json"), "utf8"),
+    );
     config.framework = "invalid-framework";
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     await validateCommand(testDir);
     const calls = logSpy.mock.calls.map((c) => c[0]);
-    expect(calls.some((c: string) => c.includes("error") || c.includes("fail"))).toBe(true);
+    expect(
+      calls.some((c: string) => c.includes("error") || c.includes("fail")),
+    ).toBe(true);
     logSpy.mockRestore();
   });
 });

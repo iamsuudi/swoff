@@ -1,5 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { writeFileSync, mkdirSync, rmSync, existsSync, readFileSync, readdirSync, unlinkSync, statSync } from "fs";
+import {
+  writeFileSync,
+  mkdirSync,
+  rmSync,
+  existsSync,
+  readFileSync,
+  readdirSync,
+  unlinkSync,
+  statSync,
+} from "fs";
 import { join } from "path";
 import { generateFiles } from "../lib/generators/swoff-files-generator.js";
 import { generateSW } from "../lib/generators/sw-generator.js";
@@ -21,33 +30,58 @@ describe("CLI commands integration", () => {
   describe("init behavior", () => {
     it("creates swoff.config.json with correct structure", () => {
       const config = {
-        $schema: "https://swoff.netlify.app/schema/v1.json",
+        $schema: "https://swoff.space/schema/v1.json",
         features: {
           pwa: { enabled: true, preventDefaultInstall: false },
           serviceWorker: {
             autoActivate: false,
             strategy: {
               default: "cache-first",
-              patterns: { "/api/*": "network-first", "/static/*": "cache-first" },
-              reactive: { staleTime: 0, refetchInterval: 0, refetchOnReconnect: false, refetchOnFocus: false },
+              patterns: {
+                "/api/*": "network-first",
+                "/static/*": "cache-first",
+              },
+              reactive: {
+                staleTime: 0,
+                refetchInterval: 0,
+                refetchOnReconnect: false,
+                refetchOnFocus: false,
+              },
             },
             navigation: {
               mode: "spa",
               fallback: "/index.html",
             },
           },
-          refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
-          mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000, backgroundSync: false },
+          refetchQueue: {
+            batchSize: 5,
+            batchDelayMs: 1000,
+            maxRetries: 3,
+            retryDelayMs: 1000,
+          },
+          mutationQueue: {
+            enabled: false,
+            batchSize: 1,
+            batchDelayMs: 0,
+            maxRetries: 5,
+            retryBackoffMs: 1000,
+            backgroundSync: false,
+          },
           auth: { enabled: false, type: "bearer" },
           tagInvalidation: { enabled: true },
           connectivity: { enabled: false },
         },
         build: { swOutput: "dist" },
       };
-      writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config, null, 2));
+      writeFileSync(
+        join(testDir, "swoff.config.json"),
+        JSON.stringify(config, null, 2),
+      );
 
-      const parsed = JSON.parse(readFileSync(join(testDir, "swoff.config.json"), "utf8"));
-      expect(parsed.$schema).toBe("https://swoff.netlify.app/schema/v1.json");
+      const parsed = JSON.parse(
+        readFileSync(join(testDir, "swoff.config.json"), "utf8"),
+      );
+      expect(parsed.$schema).toBe("https://swoff.space/schema/v1.json");
       expect(parsed.features.pwa.preventDefaultInstall).toBe(false);
     });
 
@@ -64,7 +98,10 @@ describe("CLI commands integration", () => {
       writeFileSync(join(distDir, "sw-v1.0.0.js"), "// current");
       writeFileSync(join(distDir, "sw-v0.9.0.js"), "// old");
       writeFileSync(join(distDir, "sw-v0.8.0.js"), "// old");
-      writeFileSync(join(distDir, "version.json"), JSON.stringify({ version: "1.0.0" }));
+      writeFileSync(
+        join(distDir, "version.json"),
+        JSON.stringify({ version: "1.0.0" }),
+      );
 
       const files = readdirSync(distDir);
       const swPattern = /^sw-v\d+\.\d+\.\d+\.js$/;
@@ -91,7 +128,10 @@ describe("CLI commands integration", () => {
       const distDir = join(testDir, "dist");
       mkdirSync(distDir, { recursive: true });
       writeFileSync(join(distDir, "sw-v2.0.0.js"), "// current");
-      writeFileSync(join(distDir, "version.json"), JSON.stringify({ version: "2.0.0" }));
+      writeFileSync(
+        join(distDir, "version.json"),
+        JSON.stringify({ version: "2.0.0" }),
+      );
 
       const files = readdirSync(distDir);
       const swPattern = /^sw-v\d+\.\d+\.\d+\.js$/;
@@ -122,7 +162,10 @@ describe("CLI commands integration", () => {
       const config = {
         features: {
           pwa: { enabled: true, preventDefaultInstall: false },
-          serviceWorker: { autoActivate: false, strategy: { default: "cache-first", patterns: {} } },
+          serviceWorker: {
+            autoActivate: false,
+            strategy: { default: "cache-first", patterns: {} },
+          },
           auth: 1,
         },
       };
@@ -142,7 +185,7 @@ describe("CLI commands integration", () => {
   describe("end-to-end generate pipeline", () => {
     function writeConfig(overrides: Record<string, unknown> = {}) {
       const config = {
-        $schema: "https://swoff.netlify.app/schema/v1.json",
+        $schema: "https://swoff.space/schema/v1.json",
         framework: "react",
         features: {
           pwa: { enabled: true, preventDefaultInstall: false },
@@ -150,26 +193,61 @@ describe("CLI commands integration", () => {
             autoActivate: false,
             strategy: {
               default: "cache-first",
-              patterns: { "/api/*": "network-first", "/static/*": "cache-first" },
-              reactive: { defaults: { staleTime: 0, refetchInterval: 0, refetchOnReconnect: false, refetchOnFocus: false } },
+              patterns: {
+                "/api/*": "network-first",
+                "/static/*": "cache-first",
+              },
+              reactive: {
+                defaults: {
+                  staleTime: 0,
+                  refetchInterval: 0,
+                  refetchOnReconnect: false,
+                  refetchOnFocus: false,
+                },
+              },
               mode: "all" as const,
               normalizeKey: false,
               ignoreQueryParams: [],
             },
-            navigation: { mode: "spa" as const, preload: true, fallback: "/index.html" },
+            navigation: {
+              mode: "spa" as const,
+              preload: true,
+              fallback: "/index.html",
+            },
           },
-          refetchQueue: { batchSize: 5, batchDelayMs: 1000, maxRetries: 3, retryDelayMs: 1000 },
-          mutationQueue: { enabled: false, batchSize: 1, batchDelayMs: 0, maxRetries: 5, retryBackoffMs: 1000, backgroundSync: false },
+          refetchQueue: {
+            batchSize: 5,
+            batchDelayMs: 1000,
+            maxRetries: 3,
+            retryDelayMs: 1000,
+          },
+          mutationQueue: {
+            enabled: false,
+            batchSize: 1,
+            batchDelayMs: 0,
+            maxRetries: 5,
+            retryBackoffMs: 1000,
+            backgroundSync: false,
+          },
           auth: { enabled: false, type: "bearer" as const },
           tagInvalidation: { enabled: true },
           connectivity: { enabled: false },
           graphql: { enabled: false, endpoints: ["/graphql"] },
-          pushNotifications: false, serverPush: { enabled: false, type: "sse", endpoint: "/api/events", reconnectDelayMs: 5000 },
+          pushNotifications: false,
+          serverPush: {
+            enabled: false,
+            type: "sse",
+            endpoint: "/api/events",
+            reconnectDelayMs: 5000,
+          },
         },
         build: { swOutput: "dist" },
         ...overrides,
       };
-      writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config, null, 2));
+      writeFileSync(
+        join(testDir, "swoff.config.json"),
+        JSON.stringify(config, null, 2),
+      );
     }
 
     it("generates SW and supporting files into swoff/", async () => {
@@ -183,7 +261,10 @@ describe("CLI commands integration", () => {
       expect(swResult.outputFile).toBe("swoff.sw.js");
       expect(existsSync(join(testDir, "dist", "swoff.sw.js"))).toBe(true);
 
-      const swContent = readFileSync(join(testDir, "dist", "swoff.sw.js"), "utf8");
+      const swContent = readFileSync(
+        join(testDir, "dist", "swoff.sw.js"),
+        "utf8",
+      );
       expect(swContent).toContain("self.addEventListener");
       expect(swContent).toContain('CACHE_NAME = "');
       expect(swContent).toContain('"swoff-runtime"');
@@ -220,7 +301,10 @@ describe("CLI commands integration", () => {
       }
 
       // Verify generated SW template has defaults (no placeholders)
-      const templateContent = readFileSync(join(testDir, "swoff/sw/template.js"), "utf8");
+      const templateContent = readFileSync(
+        join(testDir, "swoff/sw/template.js"),
+        "utf8",
+      );
       expect(templateContent).toContain("let ASSETS_TO_CACHE = []");
       expect(templateContent).toContain("let AUTO_SKIP_WAITING = false");
       expect(templateContent).not.toContain("// [[CACHE_NAME]]");
@@ -234,7 +318,10 @@ describe("CLI commands integration", () => {
 
       await generateSW({ projectRoot: testDir });
 
-      const swContent = readFileSync(join(testDir, "dist", "swoff.sw.js"), "utf8");
+      const swContent = readFileSync(
+        join(testDir, "dist", "swoff.sw.js"),
+        "utf8",
+      );
       // Basic structure checks — all event listeners should be properly opened/closed
       const opens = (swContent.match(/self\.addEventListener\(/g) || []).length;
       // At minimum: install, activate, fetch, message

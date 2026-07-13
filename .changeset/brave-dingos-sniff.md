@@ -1,3 +1,0 @@
----
-"@swoff/assets": patch
----

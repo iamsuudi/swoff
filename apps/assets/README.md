@@ -1,6 +1,6 @@
-# @swoff/assets
+# @swoff/assets - The Most Comphrensive PWA Asset Generator
 
-Universal PWA asset generator. No framework lock-in, no config coupling, no CDN downloads.
+[Swoff](https://swoff.space/assets) — Universal PWA asset generator. No framework lock-in, no config coupling, no CDN downloads.
 
 ```bash
 npx @swoff/assets --source ./logo.svg
@@ -74,6 +74,9 @@ Usage: npx @swoff/assets --source <path> [options]
 | `--source <path>`         | _(required)_ | Source image (SVG, PNG, JPG)                                 |
 | `--output-dir <path>`     | `public`     | Output directory for generated files                         |
 | `--app-name <name>`       | `My App`     | App name used in manifest.json                               |
+| `--short-name <name>`     | app-name     | Short name for manifest.json                                 |
+| `--description <text>`    | —            | Description for manifest.json                                |
+| `--start-url <path>`      | `/`          | Start URL and manifest id                                    |
 | `--theme-color <hex>`     | `#000000`    | Theme color for manifest.json and splash screens             |
 | `--bg-color <hex>`        | `#ffffff`    | Background color for manifest.json and splash screens        |
 | `--no-splash`             | `false`      | Skip Apple splash screen generation                          |
@@ -96,6 +99,9 @@ Create `swoff-assets.json` in your project root for repeatable builds. Use `--co
   "source": "./logo.svg",
   "outputDir": "public",
   "appName": "My App",
+  "shortName": "My App",
+  "description": "Your app description",
+  "startUrl": "/",
   "themeColor": "#000000",
   "backgroundColor": "#ffffff",
   "monochrome": true,
@@ -122,20 +128,20 @@ Create `swoff-assets.json` in your project root for repeatable builds. Use `--co
 
 ## Generated Files
 
-| Category                                  | Files                                                                      | Count |
-| ----------------------------------------- | -------------------------------------------------------------------------- | ----- |
-| **PWA icons**                             | `icon-64.png`, `icon-192.png`, `icon-512.png`                              | 3     |
-| **Maskable icons**                        | `maskable-icon-96.png`, `maskable-icon-192.png`, `maskable-icon-512.png`   | 3     |
-| **Apple touch**                           | `apple-touch-icon.png` (180×180)                                           | 1     |
-| **Monochrome** (if `--monochrome`)        | `monochrome-icon-192.png`, `monochrome-icon-512.png`                       | 2     |
-| **Dark mode** (if `--dark-mode-*`)        | `dark-icon-*.png`, `dark-maskable-icon-*.png`, `dark-apple-touch-icon.png` | 8     |
+| Category                                  | Files                                                                                  | Count |
+| ----------------------------------------- | -------------------------------------------------------------------------------------- | ----- |
+| **PWA icons**                             | `icon-64.png`, `icon-192.png`, `icon-512.png`                                          | 3     |
+| **Maskable icons**                        | `maskable-icon-96.png`, `maskable-icon-192.png`, `maskable-icon-512.png`               | 3     |
+| **Apple touch**                           | `apple-touch-icon.png` (180×180)                                                       | 1     |
+| **Monochrome** (if `--monochrome`)        | `monochrome-icon-192.png`, `monochrome-icon-512.png`                                   | 2     |
+| **Dark mode** (if `--dark-mode-*`)        | `dark-icon-*.png`, `dark-maskable-icon-*.png`, `dark-apple-touch-icon.png`             | 8     |
 | **MS tiles** (if `--ms-tile-color`)       | `ms-tile-144.png`, `ms-tile-150x150.png`, `ms-tile-310x150.png`, `ms-tile-310x310.png` | 4     |
-| **Favicon**                               | `favicon.ico` (16+32+48), `favicon.svg` (SVG source only)                  | 1–2   |
-| **OG image**                              | `og-image.png` (1200×630)                                                  | 1     |
-| **Splash screens** (7 Apple sizes)        | `splash-2048x2732.png` through `splash-640x1136.png`                       | 7     |
-| **Manifest**                              | `manifest.json` — icons, screenshots, shortcuts, theme/bg colors           | 1     |
-| **Head tags**                             | `swoff-head-tags.html` — all `<link>` and `<meta>` tags                    | 1     |
-| **Browser config** (if `--ms-tile-color`) | `browserconfig.xml`                                                        | 1     |
+| **Favicon**                               | `favicon.ico` (16+32+48), `favicon.svg` (base64 PNG embedded for raster sources)       | 2     |
+| **OG image**                              | `og-image.png` (1200×630)                                                              | 1     |
+| **Splash screens** (7 Apple sizes)        | `splash-2048x2732.png` through `splash-640x1136.png`                                   | 7     |
+| **Manifest**                              | `manifest.json` — icons, screenshots, shortcuts, theme/bg colors                       | 1     |
+| **Head tags**                             | `swoff-head-tags.html` — all `<link>` and `<meta>` tags                                | 1     |
+| **Browser config** (if `--ms-tile-color`) | `browserconfig.xml`                                                                    | 1     |
 
 **Total: up to 31 files.**
 
@@ -144,7 +150,7 @@ Create `swoff-assets.json` in your project root for repeatable builds. Use `--co
 The generated `manifest.json` includes:
 
 - **Icons array**: all generated icon paths with correct `sizes`, `type`, and `purpose`
-- **Screenshots**: OG image as both `narrow` and `wide` `form_factor`
+- **Screenshots**: OG image as `wide` `form_factor`
 - **Shortcuts**: from config (in-app navigation shortcuts supported by Chrome)
 - **`theme_color`** / **`background_color`**: from your flags or config
 - **Dark mode**: `theme_color` switches to dark variant
@@ -215,6 +221,9 @@ console.log(result.files); // ["public/icon-64.png", "public/manifest.json", ...
 | `source`      | `string`                | _(required)_ | Path to source image                    |
 | `outputDir`   | `string`                | `"public"`   | Output directory                        |
 | `appName`     | `string`                | `"My App"`   | App name for manifest                   |
+| `shortName`   | `string`                | `appName`    | Short name for manifest                 |
+| `description` | `string`                | —            | Description for manifest                |
+| `startUrl`    | `string`                | `"/"`        | Start URL and manifest id               |
 | `themeColor`  | `string`                | `"#000000"`  | Theme color hex                         |
 | `bgColor`     | `string`                | `"#ffffff"`  | Background color hex                    |
 | `appleSplash` | `boolean`               | `true`       | Generate Apple splash screens           |

@@ -1,5 +1,12 @@
 # Changelog
 
+## @swoff/assets@0.1.3 (2026-07-13)
+
+- feat: generate favicon.svg for all source types (base64 PNG embedded for raster sources)
+- fix: remove narrow screenshot from manifest (OG image is 1200×630, only wide form_factor kept)
+- feat: add --short-name, --description, --start-url CLI flags and config options
+- feat: add id to manifest, sizes="any" to favicon.svg link tag in head output
+
 ## @swoff/cli@0.4.7 (2026-07-08)
 
 - fix: versioned precache cache name `precache-{hash}` — cache only wiped when asset list hash changes, no empty window between old and new SW

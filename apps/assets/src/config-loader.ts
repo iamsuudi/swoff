@@ -5,6 +5,9 @@ export interface ConfigFile {
   source?: string;
   outputDir?: string;
   appName?: string;
+  shortName?: string;
+  description?: string;
+  startUrl?: string;
   themeColor?: string;
   backgroundColor?: string;
   noSplash?: boolean;

@@ -29,6 +29,9 @@ interface CliValues {
   source?: string;
   "output-dir"?: string;
   "app-name"?: string;
+  "short-name"?: string;
+  description?: string;
+  "start-url"?: string;
   "theme-color"?: string;
   "bg-color"?: string;
   "no-splash"?: boolean;
@@ -49,6 +52,9 @@ function mergeConfig(
   if (values.source) result.source = values.source;
   if (values["output-dir"]) result.outputDir = values["output-dir"];
   if (values["app-name"]) result.appName = values["app-name"];
+  if (values["short-name"]) result.shortName = values["short-name"];
+  if (values.description) result.description = values.description;
+  if (values["start-url"]) result.startUrl = values["start-url"];
   if (values["theme-color"]) result.themeColor = values["theme-color"];
   if (values["bg-color"]) result.backgroundColor = values["bg-color"];
   if (values["no-splash"] === true) result.noSplash = true;
@@ -73,6 +79,9 @@ export async function main(): Promise<void> {
       source: { type: "string" },
       "output-dir": { type: "string" },
       "app-name": { type: "string" },
+      "short-name": { type: "string" },
+      description: { type: "string" },
+      "start-url": { type: "string" },
       "theme-color": { type: "string" },
       "bg-color": { type: "string" },
       "no-splash": { type: "boolean" },
@@ -110,6 +119,9 @@ export async function main(): Promise<void> {
     source: merged.source,
     outputDir: merged.outputDir || DEFAULT_OUTPUT_DIR,
     appName: merged.appName || DEFAULT_APP_NAME,
+    shortName: merged.shortName,
+    description: merged.description,
+    startUrl: merged.startUrl,
     themeColor: merged.themeColor || DEFAULT_THEME_COLOR,
     bgColor: merged.backgroundColor || DEFAULT_BG_COLOR,
     appleSplash: !merged.noSplash,
@@ -147,6 +159,15 @@ function printHelp(): void {
   console.log("  --output-dir <path>       Output directory [default: public]");
   console.log(
     "  --app-name <name>         App name for manifest.json [default: My App]",
+  );
+  console.log(
+    "  --short-name <name>       Short name for manifest [default: app-name]",
+  );
+  console.log(
+    "  --description <text>      Description for manifest",
+  );
+  console.log(
+    "  --start-url <path>        Start URL for manifest [default: /]",
   );
   console.log("  --theme-color <hex>       Theme color [default: #000000]");
   console.log(

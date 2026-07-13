@@ -33,6 +33,7 @@
   "sideEffects": false,
   "author": "Swoff",
   "license": "MIT",
+  "repository": "https://github.com/iamsuudi/swoff",
   "dependencies": {
     "@clack/prompts": "^1.6.0"
   },

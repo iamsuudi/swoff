@@ -2,8 +2,6 @@ export { generateAssets } from "./generate.js";
 export type { GenerateOptions, GenerateResult, ShortcutEntry, DarkModeConfig } from "./generate.js";
 export { printAssetGuide } from "./guide.js";
 export type { AssetGuideOptions } from "./guide.js";
-export { loadConfigFile, mergeConfig } from "./config-loader.js";
-export type { ConfigFile, CliFlagValues } from "./config-loader.js";
 export { buildWordmarkSvg, rasterizeWordmark, renderWordmarkWithBitmapFont } from "./wordmark.js";
 export type { WordmarkOptions } from "./wordmark.js";
 export { generateAndroidAdaptiveIcons } from "./android.js";

@@ -85,7 +85,7 @@ PWA assets (icons, splash screens, Android adaptive icons, manifests) are genera
 npx @swoff/assets --app-name "My App"
 ```
 
-No source image? A wordmark icon is generated from `--app-name`. Run `npx @swoff/assets --help` for all flags (`--source`, `--no-splash`, `--theme-color`, `--orientation`, `--print-schema`, etc.).
+No source image? A wordmark icon is generated from `--app-name`. Run `npx @swoff/assets --help` for all flags (`--source`, `--splash`, `--android`, `--theme-color`, `--orientation`, etc.).
 
 Generated assets by default:
 
@@ -96,13 +96,21 @@ Generated assets by default:
 | `public/icon-512.png`                 | Large PWA icon (512×512)                                        |
 | `public/maskable-icon-512.png`        | Maskable PWA icon (512×512) with safe zone padding              |
 | `public/apple-touch-icon.png`         | Apple touch icon (180×180)                                      |
-| `public/mipmap-*/ic_launcher*.png`    | Android adaptive icon stack (5 densities + foreground/monochrome, always-on) |
 | `public/favicon.ico`                  | Multi-size favicon (16×16, 32×32, 48×48)                        |
 | `public/og-image.png`                 | Open Graph / social sharing image (1200×630) with centered logo |
-| `public/splash-*.png`                 | Apple splash screens (7 sizes for all iOS devices)              |
 | `public/pwa-debug.html`               | Self-contained asset audit page (open it in the browser to verify installability) |
 
-36 files by default, up to 50 with `--monochrome`, `--ms-tile-color`, and dark mode.
+Opt-in extras via flags:
+
+| Flag            | Adds                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------- |
+| `--android`     | Android adaptive icon stack — `mipmap-*/ic_launcher*.png` (5 densities + foreground/monochrome), `mipmap-anydpi-v26` XMLs, `values/colors.xml` |
+| `--splash`      | Apple splash screens — `splash-*.png` (7 sizes for all iOS devices)                   |
+| `--monochrome`  | Monochrome silhouette icons (`monochrome-icon-192.png`, `monochrome-icon-512.png`)    |
+| `--ms-tile-color <hex>` | Microsoft tiles + `browserconfig.xml`                                         |
+| `--dark-mode-theme <hex>` | Dark-mode icon set (`dark-*.png`)                                             |
+
+13 files by default, up to 50 with `--android`, `--splash`, `--monochrome`, `--ms-tile-color`, and dark mode.
 
 ## `validate`
 

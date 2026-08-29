@@ -29,7 +29,7 @@ export default defineConfig({
     }),
     react(),
     // please see https://tanstack.com/start/latest/docs/framework/react/guide/hosting for guides on hosting
-    netlify(),
+    // netlify(),
   ],
   resolve: {
     tsconfigPaths: true,

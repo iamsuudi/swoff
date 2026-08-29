@@ -4,22 +4,15 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { generateAssets } from "./generate.js";
 import { printAssetGuide } from "./guide.js";
-import { loadConfigFile, mergeConfig } from "./config-loader.js";
 import {
   DEFAULT_OUTPUT_DIR,
   DEFAULT_APP_NAME,
   DEFAULT_THEME_COLOR,
   DEFAULT_BG_COLOR,
+  DEFAULT_DARK_MODE_BG,
 } from "./constants.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-
-function getSchemaJson(): string {
-  return readFileSync(
-    new URL("./schema/swoff-assets.schema.json", import.meta.url),
-    "utf8",
-  );
-}
 
 function getVersion(): string {
   try {
@@ -44,7 +37,8 @@ export async function main(): Promise<void> {
       "start-url": { type: "string" },
       "theme-color": { type: "string" },
       "bg-color": { type: "string" },
-      "no-splash": { type: "boolean" },
+      splash: { type: "boolean" },
+      android: { type: "boolean" },
       monochrome: { type: "boolean" },
       "ms-tile-color": { type: "string" },
       "dark-mode-theme": { type: "string" },
@@ -53,8 +47,6 @@ export async function main(): Promise<void> {
       scope: { type: "string" },
       lang: { type: "string" },
       categories: { type: "string" },
-      config: { type: "string" },
-      "print-schema": { type: "boolean" },
       version: { type: "boolean", short: "v" },
       help: { type: "boolean", short: "h" },
     },
@@ -66,59 +58,68 @@ export async function main(): Promise<void> {
     process.exit(0);
   }
 
-  if (values["print-schema"]) {
-    console.log(getSchemaJson());
-    process.exit(0);
-  }
-
   if (values.help) {
     printHelp();
     process.exit(0);
   }
 
-  const configFile = loadConfigFile(process.cwd(), values.config);
-  const merged = mergeConfig(configFile, values);
-
-  if (!merged.appName && !merged.source) {
+  if (!values["app-name"] && !values.source) {
     console.error("Error: --app-name or --source is required.\n");
     printHelp();
     process.exit(1);
   }
 
+  const themeColor = values["theme-color"] || DEFAULT_THEME_COLOR;
+  const bgColor = values["bg-color"] || DEFAULT_BG_COLOR;
+  const darkTheme = values["dark-mode-theme"];
+  const darkBg = values["dark-mode-bg"];
+  const darkMode =
+    darkTheme !== undefined || darkBg !== undefined
+      ? {
+          themeColor: darkTheme ?? themeColor,
+          backgroundColor: darkBg ?? DEFAULT_DARK_MODE_BG,
+        }
+      : undefined;
+
   const result = await generateAssets({
-    ...(merged.source ? { source: merged.source } : {}),
-    outputDir: merged.outputDir || DEFAULT_OUTPUT_DIR,
-    appName: merged.appName || DEFAULT_APP_NAME,
-    shortName: merged.shortName,
-    description: merged.description,
-    startUrl: merged.startUrl,
-    themeColor: merged.themeColor || DEFAULT_THEME_COLOR,
-    bgColor: merged.backgroundColor || DEFAULT_BG_COLOR,
-    appleSplash: !merged.noSplash,
-    monochrome: merged.monochrome,
-    msTileColor: merged.msTileColor,
-    darkMode: merged.darkMode,
-    orientation: merged.orientation,
-    scope: merged.scope,
-    lang: merged.lang,
-    categories: merged.categories,
-    shortcuts: merged.shortcuts,
+    ...(values.source ? { source: values.source } : {}),
+    outputDir: values["output-dir"] || DEFAULT_OUTPUT_DIR,
+    appName: values["app-name"] || DEFAULT_APP_NAME,
+    shortName: values["short-name"],
+    description: values.description,
+    startUrl: values["start-url"],
+    themeColor,
+    bgColor,
+    appleSplash: values.splash === true,
+    android: values.android === true,
+    monochrome: values.monochrome,
+    msTileColor: values["ms-tile-color"],
+    darkMode,
+    orientation: values.orientation,
+    scope: values.scope,
+    lang: values.lang,
+    categories: values.categories
+      ? values.categories
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined,
     onProgress: (msg) => process.stdout.write(`\r\x1b[K  \x1b[2m→\x1b[0m ${msg}`),
   });
 
   process.stdout.write("\r\x1b[K");
-  const mode = merged.source ? "from source" : "from wordmark";
+  const mode = values.source ? "from source" : "from wordmark";
   console.log(`\x1b[32m✓\x1b[0m Generated ${result.files.length} PWA assets ${mode}`);
   if (result.warnings.length > 0) {
     for (const w of result.warnings) console.warn(`  Warning: ${w}`);
   }
 
   printAssetGuide({
-    appName: merged.appName || DEFAULT_APP_NAME,
-    themeColor: merged.themeColor || DEFAULT_THEME_COLOR,
-    bgColor: merged.backgroundColor || DEFAULT_BG_COLOR,
-    outputDir: merged.outputDir || DEFAULT_OUTPUT_DIR,
-    hasSplash: !merged.noSplash,
+    appName: values["app-name"] || DEFAULT_APP_NAME,
+    themeColor,
+    bgColor,
+    outputDir: values["output-dir"] || DEFAULT_OUTPUT_DIR,
+    hasSplash: values.splash === true,
   });
 }
 
@@ -148,7 +149,10 @@ function printHelp(): void {
   console.log(
     "  --bg-color <hex>          Background color [default: #ffffff]",
   );
-  console.log("  --no-splash               Skip Apple splash screens");
+  console.log("  --splash                  Generate Apple splash screens");
+  console.log(
+    "  --android                 Generate Android adaptive launcher icons",
+  );
   console.log(
     "  --monochrome              Generate monochrome silhouette icons",
   );
@@ -173,18 +177,8 @@ function printHelp(): void {
   console.log(
     "  --categories <list>       manifest categories, comma separated",
   );
-  console.log(
-    "  --config <path>           Path to swoff-assets.json config file",
-  );
-  console.log("  --print-schema            Print the swoff-assets.json JSON schema");
   console.log("  -v, --version             Show version");
   console.log("  -h, --help                Show this help");
-  console.log("");
-  console.log("Config file (swoff-assets.json):");
-  console.log(
-    '  { "appName": "Foo", "monochrome": true, "msTileColor": "#000", "lang": "en-US" }',
-  );
-  console.log("  CLI flags override config file values. See --print-schema for the full shape.");
   console.log("");
   console.log("Examples:");
   console.log("  npx @swoff/assets --app-name Foo");

@@ -1,0 +1,20 @@
+node_modules
+
+.DS_Store
+.cache
+.vercel
+.output
+.nitro
+/build/
+/server/build
+/public/build
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+.tanstack
+
+dist
+.source
+# Local Netlify folder
+.netlify

@@ -170,14 +170,6 @@ function li(cls, text) {
   await check("/og-image.png", "OG image", false);
   await check("/swoff-head-tags.html", "swoff-head-tags.html", false);
 
-  const themeMeta = document.querySelector('meta[name="theme-color"]');
-  if (themeMeta) add(assetResults, true, '<meta name="theme-color"> present (' + (themeMeta.getAttribute("content") || "") + ")");
-  else add(assetResults, false, '<meta name="theme-color"> missing from this document');
-
-  const manifestLink = document.querySelector('link[rel="manifest"]');
-  if (manifestLink) add(assetResults, true, '<link rel="manifest"> present');
-  else add(assetResults, false, '<link rel="manifest"> missing from this document');
-
   if (window.matchMedia("(display-mode: standalone)").matches) {
     add(assetResults, true, "App is running in standalone (installed) mode 🎉");
   }
@@ -189,7 +181,8 @@ function li(cls, text) {
     .map((f) => `"/${f}"`)
     .join(", ")}]) {
     const ok = await probe(sp);
-    addWarn(assetResults, ok ? "splash present: " + sp : "splash missing: " + sp);
+    if (ok) add(assetResults, true, "splash present: " + sp);
+    else addWarn(assetResults, "splash missing: " + sp);
   }
   void splashes;
 

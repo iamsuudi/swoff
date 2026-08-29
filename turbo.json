@@ -17,6 +17,11 @@
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": [".source/**", "dist/**"]
     },
+    "apps/assets-doc#build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["dist/**"]
+    },
     "lint": {
       "dependsOn": ["^lint"]
     },

@@ -40,6 +40,7 @@ export interface GenerateOptions {
   themeColor: string;
   bgColor: string;
   appleSplash?: boolean;
+  android?: boolean;
   monochrome?: boolean;
   msTileColor?: string;
   darkMode?: DarkModeConfig;
@@ -105,6 +106,7 @@ export async function generateAssets(
     outputDir,
     appName,
     appleSplash,
+    android,
     monochrome,
     msTileColor,
     darkMode,
@@ -318,7 +320,7 @@ export async function generateAssets(
     files.push(path);
   }
 
-  if (appleSplash !== false) {
+  if (appleSplash === true) {
     onProgress?.("Splash screens...");
     for (const splash of APPLE_SPLASH_SCREENS) {
       const img = await Jimp.read(basePng);
@@ -343,17 +345,19 @@ export async function generateAssets(
     }
   }
 
-  onProgress?.("Android adaptive icons...");
-  await generateAndroidAdaptiveIcons({
-    basePng,
-    backgroundColor: bgColorInt,
-    backgroundColorHex: bgColor,
-    themeColor: themeColorInt,
-    outputDir,
-    appName,
-    files,
-    onProgress,
-  });
+  if (android === true) {
+    onProgress?.("Android adaptive icons...");
+    await generateAndroidAdaptiveIcons({
+      basePng,
+      backgroundColor: bgColorInt,
+      backgroundColorHex: bgColor,
+      themeColor: themeColorInt,
+      outputDir,
+      appName,
+      files,
+      onProgress,
+    });
+  }
 
   if (msTile) {
     writeBrowserConfig(outputDir, msTile);
@@ -500,7 +504,7 @@ function writeHeadHtml(
   lines.push(`<meta property="og:image:height" content="630" />`);
   lines.push(`<meta name="twitter:card" content="summary_large_image" />`);
 
-  if (opts.appleSplash !== false) {
+  if (opts.appleSplash === true) {
     lines.push(`<!-- Apple splash screens -->`);
     lines.push(
       `<link rel="apple-touch-startup-image" href="/splash-2048x2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />`,

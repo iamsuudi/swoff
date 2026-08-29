@@ -346,16 +346,18 @@ function Home() {
             service worker, no build tool, no framework required.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              to="/assets"
+            <a
+              href="https://assets.swoff.space"
+              target="_blank"
+              rel="noreferrer"
               className={buttonVariants({
                 className:
                   "w-55 flex items-center justify-center bg-green-600 hover:bg-green-700 text-white font-bold h-12 text-[15px] rounded-lg gap-2 shadow-lg group",
               })}
             >
               <Image className="size-4" />
-              Learn More
-            </Link>
+              Explore the Builder
+            </a>
             <code className="h-12 px-4 flex items-center justify-center rounded-lg bg-fd-muted border border-fd-border text-sm font-mono text-fd-foreground">
               npx @swoff/assets --source ./logo.svg
             </code>
@@ -489,12 +491,14 @@ function Home() {
               </span>
             </div>
             <div className="flex items-center gap-5 text-xs text-fd-muted-foreground">
-              <Link
-                to="/assets"
+              <a
+                href="https://assets.swoff.space"
+                target="_blank"
+                rel="noreferrer"
                 className="hover:text-fd-foreground transition-colors"
               >
                 Assets
-              </Link>
+              </a>
               <Link
                 to="/docs/$"
                 params={{ _splat: "" }}

@@ -1,6 +1,5 @@
 import { CommandBuilder } from "@/components/assets/CommandBuilder";
 import { Comparison } from "@/components/assets/Comparison";
-import { Cta } from "@/components/assets/Cta";
 import { Features } from "@/components/assets/Features";
 import { GeneratedFiles } from "@/components/assets/GeneratedFiles";
 import { Hero } from "@/components/assets/Hero";
@@ -15,7 +14,6 @@ export function App() {
       <Features />
       <GeneratedFiles />
       <Comparison />
-      <Cta />
       <footer className="border-t border-fd-border py-6 text-center text-xs text-fd-muted-foreground">
         <p>
           Part of the{" "}

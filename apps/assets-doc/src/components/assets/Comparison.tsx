@@ -69,7 +69,7 @@ const keys = ["swoff", "vitePwa", "pwaBuilder", "workbox"] as const;
 export function Comparison() {
   return (
     <section className="relative py-20 overflow-hidden border-t border-fd-border">
-      <div className="max-w-4xl mx-auto px-6 relative">
+      <div className="max-w-5xl mx-auto px-6 relative">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-black text-fd-foreground mb-4">
             How It Compares
@@ -79,8 +79,8 @@ export function Comparison() {
           </p>
         </div>
 
-        <div className="overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-xl border border-fd-border bg-fd-card">
-          <table className="w-full text-sm min-w-[500px]">
+        <div className="overflow-x-auto [-ms-overflow-style:none] scrollbar-none [&::-webkit-scrollbar]:hidden rounded-xl border border-fd-border bg-fd-card">
+          <table className="w-full text-sm min-w-125">
             <thead>
               <tr className="border-b border-fd-border bg-fd-muted/50">
                 <th className="text-left px-5 py-3 font-semibold text-fd-foreground">

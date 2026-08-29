@@ -1,5 +1,5 @@
-import { Check, Copy, Dices } from "lucide-react";
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { Check, Copy, Dices, RotateCcw } from "lucide-react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "../ui/textarea";
 
 interface BuilderState {
   source: string;
@@ -136,9 +137,9 @@ function randomState(): BuilderState {
 const DEFAULT_STATE: BuilderState = {
   source: "",
   outputDir: "public",
-  appName: "Swoff",
-  shortName: "Swoff",
-  description: "Offline infrastructure for any stack",
+  appName: "My App",
+  shortName: "My App",
+  description: "",
   startUrl: "/",
   themeColor: "#000000",
   bgColor: "#ffffff",
@@ -206,6 +207,31 @@ function TextField({
       <FieldContent>
         <Input
           type="text"
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </FieldContent>
+    </Field>
+  );
+}
+
+function TextAreaField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <Field>
+      <FieldLabel>{label}</FieldLabel>
+      <FieldContent>
+        <Textarea
           value={value}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
@@ -335,10 +361,6 @@ export function CommandBuilder() {
   const [fields, setFields] = useState<BuilderState>(DEFAULT_STATE);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    setFields(randomState());
-  }, []);
-
   const command = useMemo(() => buildCommand(fields), [fields]);
 
   const copy = useCallback(async () => {
@@ -366,8 +388,8 @@ export function CommandBuilder() {
             Command Builder
           </h2>
           <p className="text-fd-muted-foreground text-lg max-w-xl mx-auto">
-            Values default to random picks — tweak anything, then run the
-            command to generate{" "}
+            Starts from the CLI defaults — tweak anything, or hit Randomize for
+            inspiration. Run the command to generate{" "}
             <code className="text-sm bg-fd-muted px-1.5 py-0.5 rounded">
               manifest.json
             </code>
@@ -389,11 +411,13 @@ export function CommandBuilder() {
               placeholder="My App"
               onChange={(v) => update("shortName", v)}
             />
-            <TextField
-              label="Description (--description)"
-              value={fields.description}
-              onChange={(v) => update("description", v)}
-            />
+            <div className="sm:col-span-2">
+              <TextAreaField
+                label="Description (--description)"
+                value={fields.description}
+                onChange={(v) => update("description", v)}
+              />
+            </div>
             <TextField
               label="Source image (--source)"
               value={fields.source}
@@ -411,6 +435,12 @@ export function CommandBuilder() {
               value={fields.startUrl}
               placeholder="/"
               onChange={(v) => update("startUrl", v)}
+            />
+            <TextField
+              label="Scope (--scope)"
+              value={fields.scope}
+              placeholder="/"
+              onChange={(v) => update("scope", v)}
             />
             <ColorField
               label="Theme color (--theme-color)"
@@ -433,12 +463,6 @@ export function CommandBuilder() {
               value={fields.lang}
               options={LOCALES}
               onChange={(v) => update("lang", v)}
-            />
-            <TextField
-              label="Scope (--scope)"
-              value={fields.scope}
-              placeholder="/"
-              onChange={(v) => update("scope", v)}
             />
             <TextField
               label="Categories (--categories)"
@@ -478,17 +502,27 @@ export function CommandBuilder() {
           </div>
 
           <div className="rounded-xl border border-fd-border bg-fd-card p-5 shadow-sm lg:sticky lg:top-24">
-            <p className="text-xs font-semibold uppercase tracking-wider text-fd-muted-foreground mb-3">
-              Your command
-            </p>
-            <pre className="overflow-x-auto rounded-lg bg-fd-muted p-4 text-xs font-mono text-fd-foreground leading-relaxed whitespace-pre-wrap break-words">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-fd-muted-foreground">
+                Your command
+              </p>
+              <button
+                type="button"
+                onClick={() => setFields(structuredClone(DEFAULT_STATE))}
+                className="cursor-pointer  active:scale-95 transition-all inline-flex items-center justify-center gap-2 rounded-lg border border-fd-border px-4 py-0.5 text-xs font-semibold text-background bg-fd-foreground hover:bg-fd-foreground/90"
+              >
+                <RotateCcw className="size-3" />
+                Default
+              </button>
+            </div>
+            <pre className="overflow-x-auto rounded-lg bg-fd-muted p-4 text-xs font-mono text-fd-foreground leading-relaxed whitespace-pre-wrap wrap-break-word">
               {command}
             </pre>
-            <div className="flex gap-2 mt-4">
+            <div className="flex flex-wrap gap-2 mt-4">
               <button
                 type="button"
                 onClick={copy}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-fd-foreground px-4 py-2 text-sm font-semibold text-fd-background hover:opacity-90"
+                className="cursor-pointer active:scale-95 transition-all flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-fd-foreground px-4 py-2 text-sm font-semibold text-fd-background hover:opacity-90"
               >
                 {copied ? (
                   <Check className="size-4" />
@@ -500,7 +534,7 @@ export function CommandBuilder() {
               <button
                 type="button"
                 onClick={() => setFields(randomState())}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-fd-border px-4 py-2 text-sm font-semibold text-fd-foreground hover:bg-fd-muted"
+                className="cursor-pointer  active:scale-95 transition-all flex-1 inline-flex items-center justify-center gap-2 rounded-lg border border-fd-border px-4 py-2 text-sm font-semibold text-fd-foreground hover:bg-fd-muted"
               >
                 <Dices className="size-4" />
                 Randomize

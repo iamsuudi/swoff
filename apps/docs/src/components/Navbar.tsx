@@ -1,12 +1,11 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { ThemeToggle } from "./ThemeToggle";
-import { Menu, X } from "lucide-react";
+import { ExternalLink, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Icons } from "./icons";
 
 export function Navbar() {
   const location = useLocation();
-  const isAssetsActive = location.pathname.startsWith("/assets");
   const isDocsActive = location.pathname.startsWith("/docs/");
   const isApiActive = location.pathname.startsWith("/docs/api");
   const isFrameworksActive = location.pathname.startsWith("/docs/frameworks");
@@ -38,12 +37,6 @@ export function Navbar() {
 
         <div className="hidden md:flex items-center gap-5">
           <Link
-            to="/assets"
-            className={`${linkClass} ${isAssetsActive ? "text-fd-primary" : ""}`}
-          >
-            Assets
-          </Link>
-          <Link
             to="/docs/$"
             params={{ _splat: "" }}
             className={`${linkClass} ${isDocsActive ? "text-fd-primary" : ""}`}
@@ -70,6 +63,15 @@ export function Navbar() {
           >
             About
           </Link>
+          <a
+            href="https://assets.swoff.space"
+            target="_blank"
+            rel="noreferrer"
+            className={`${linkClass} flex items-center gap-1`}
+          >
+            Assets
+            <ExternalLink className="size-3" />
+          </a>
         </div>
 
         <div className="flex items-center gap-2">
@@ -96,13 +98,6 @@ export function Navbar() {
       {/* Mobile Menu */}
       {isOpen && (
         <div className="md:hidden border-t border-fd-border bg-fd-background py-4 px-6 flex flex-col gap-3">
-          <Link
-            to="/assets"
-            className={`${mobileLinkClass} ${isAssetsActive ? "text-fd-primary" : ""}`}
-            onClick={() => setIsOpen(false)}
-          >
-            Assets
-          </Link>
           <Link
             to="/docs/$"
             params={{ _splat: "" }}
@@ -134,6 +129,16 @@ export function Navbar() {
           >
             About
           </Link>
+          <a
+            href="https://assets.swoff.space"
+            target="_blank"
+            rel="noreferrer"
+            className={`${mobileLinkClass} flex items-center gap-1`}
+            onClick={() => setIsOpen(false)}
+          >
+            Assets
+            <ExternalLink className="size-3" />
+          </a>
         </div>
       )}
     </nav>

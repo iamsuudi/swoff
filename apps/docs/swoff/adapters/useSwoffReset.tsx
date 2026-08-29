@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
-import { resetSwoff } from "../reset";
-import type { ResetSwoffOptions } from "../reset";
+import { resetSwoff } from "../reset.ts";
+import type { ResetSwoffOptions } from "../reset.ts";
 
 interface UseSwoffResetResult {
   reset: (options?: ResetSwoffOptions) => Promise<void>;

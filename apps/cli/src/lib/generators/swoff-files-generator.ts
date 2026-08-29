@@ -274,7 +274,7 @@ if (
         const authType = config.features.auth.type;
         console.log(`\n--- Auth Setup ---`);
         console.log(`  Auth adapter: ${authType}`);
-        console.log(`  1. Edit swoff/auth/adapter.ts to match your backend:`);
+        console.log(`  1. Edit swoff/auth/adapter.${ext} to match your backend:`);
         if (authType === "cookie" || authType === "bearer" || authType === "custom") {
           console.log(`     - getHeaders(): return auth headers for fetch requests`);
           console.log(`     - refresh(): implement token/session refresh`);
@@ -286,7 +286,7 @@ if (
           `  2. Use { auth: true } in fetchWithCache for authenticated requests`,
         );
         console.log(
-          `  3. Use setAuth()/clearAuth() from auth/store.ts in login/logout handlers`,
+          `  3. Use setAuth()/clearAuth() from auth/store.${ext} in login/logout handlers`,
         );
       }
     })

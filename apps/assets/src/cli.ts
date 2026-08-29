@@ -4,7 +4,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { generateAssets } from "./generate.js";
 import { printAssetGuide } from "./guide.js";
-import { loadConfigFile, type ConfigFile } from "./config-loader.js";
+import { loadConfigFile, mergeConfig } from "./config-loader.js";
 import {
   DEFAULT_OUTPUT_DIR,
   DEFAULT_APP_NAME,
@@ -13,6 +13,13 @@ import {
 } from "./constants.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function getSchemaJson(): string {
+  return readFileSync(
+    new URL("./schema/swoff-assets.schema.json", import.meta.url),
+    "utf8",
+  );
+}
 
 function getVersion(): string {
   try {
@@ -23,53 +30,6 @@ function getVersion(): string {
   } catch {
     return "0.1.0";
   }
-}
-
-interface CliValues {
-  source?: string;
-  "output-dir"?: string;
-  "app-name"?: string;
-  "short-name"?: string;
-  description?: string;
-  "start-url"?: string;
-  "theme-color"?: string;
-  "bg-color"?: string;
-  "no-splash"?: boolean;
-  monochrome?: boolean;
-  "ms-tile-color"?: string;
-  "dark-mode-theme"?: string;
-  "dark-mode-bg"?: string;
-  config?: string;
-  version?: boolean;
-  help?: boolean;
-}
-
-function mergeConfig(
-  config: ConfigFile,
-  values: CliValues,
-): ConfigFile {
-  const result: ConfigFile = { ...config };
-  if (values.source) result.source = values.source;
-  if (values["output-dir"]) result.outputDir = values["output-dir"];
-  if (values["app-name"]) result.appName = values["app-name"];
-  if (values["short-name"]) result.shortName = values["short-name"];
-  if (values.description) result.description = values.description;
-  if (values["start-url"]) result.startUrl = values["start-url"];
-  if (values["theme-color"]) result.themeColor = values["theme-color"];
-  if (values["bg-color"]) result.backgroundColor = values["bg-color"];
-  if (values["no-splash"] === true) result.noSplash = true;
-  if (values.monochrome === true) result.monochrome = true;
-  if (values["ms-tile-color"])
-    result.msTileColor = values["ms-tile-color"];
-  if (values["dark-mode-theme"]) {
-    if (!result.darkMode) result.darkMode = { themeColor: "", backgroundColor: "" };
-    result.darkMode.themeColor = values["dark-mode-theme"];
-  }
-  if (values["dark-mode-bg"]) {
-    if (!result.darkMode) result.darkMode = { themeColor: "", backgroundColor: "" };
-    result.darkMode.backgroundColor = values["dark-mode-bg"];
-  }
-  return result;
 }
 
 export async function main(): Promise<void> {
@@ -89,7 +49,12 @@ export async function main(): Promise<void> {
       "ms-tile-color": { type: "string" },
       "dark-mode-theme": { type: "string" },
       "dark-mode-bg": { type: "string" },
+      orientation: { type: "string" },
+      scope: { type: "string" },
+      lang: { type: "string" },
+      categories: { type: "string" },
       config: { type: "string" },
+      "print-schema": { type: "boolean" },
       version: { type: "boolean", short: "v" },
       help: { type: "boolean", short: "h" },
     },
@@ -101,6 +66,11 @@ export async function main(): Promise<void> {
     process.exit(0);
   }
 
+  if (values["print-schema"]) {
+    console.log(getSchemaJson());
+    process.exit(0);
+  }
+
   if (values.help) {
     printHelp();
     process.exit(0);
@@ -109,14 +79,14 @@ export async function main(): Promise<void> {
   const configFile = loadConfigFile(process.cwd(), values.config);
   const merged = mergeConfig(configFile, values);
 
-  if (!merged.source) {
-    console.error("Error: --source is required.\n");
+  if (!merged.appName && !merged.source) {
+    console.error("Error: --app-name or --source is required.\n");
     printHelp();
     process.exit(1);
   }
 
   const result = await generateAssets({
-    source: merged.source,
+    ...(merged.source ? { source: merged.source } : {}),
     outputDir: merged.outputDir || DEFAULT_OUTPUT_DIR,
     appName: merged.appName || DEFAULT_APP_NAME,
     shortName: merged.shortName,
@@ -128,12 +98,17 @@ export async function main(): Promise<void> {
     monochrome: merged.monochrome,
     msTileColor: merged.msTileColor,
     darkMode: merged.darkMode,
+    orientation: merged.orientation,
+    scope: merged.scope,
+    lang: merged.lang,
+    categories: merged.categories,
     shortcuts: merged.shortcuts,
     onProgress: (msg) => process.stdout.write(`\r\x1b[K  \x1b[2m→\x1b[0m ${msg}`),
   });
 
   process.stdout.write("\r\x1b[K");
-  console.log(`\x1b[32m✓\x1b[0m Generated ${result.files.length} PWA assets`);
+  const mode = merged.source ? "from source" : "from wordmark";
+  console.log(`\x1b[32m✓\x1b[0m Generated ${result.files.length} PWA assets ${mode}`);
   if (result.warnings.length > 0) {
     for (const w of result.warnings) console.warn(`  Warning: ${w}`);
   }
@@ -150,15 +125,15 @@ export async function main(): Promise<void> {
 function printHelp(): void {
   console.log("@swoff/assets — Universal PWA asset generator");
   console.log("");
-  console.log("Usage: npx @swoff/assets --source <path> [options]");
+  console.log("Usage: npx @swoff/assets --app-name <name> [options]");
   console.log("");
-  console.log("Required:");
-  console.log("  --source <path>           Source image (SVG, PNG, JPG)");
+  console.log("A wordmark icon is generated from --app-name when --source is omitted.");
   console.log("");
   console.log("Options:");
+  console.log("  --source <path>           Source image (SVG, PNG, JPG). Omit to auto-generate a wordmark");
   console.log("  --output-dir <path>       Output directory [default: public]");
   console.log(
-    "  --app-name <name>         App name for manifest.json [default: My App]",
+    "  --app-name <name>         App name for manifest + wordmark [default: My App]",
   );
   console.log(
     "  --short-name <name>       Short name for manifest [default: app-name]",
@@ -187,23 +162,36 @@ function printHelp(): void {
     "  --dark-mode-bg <hex>      Dark mode background color [default: #121212]",
   );
   console.log(
+    "  --orientation <value>     manifest orientation [default: portrait-primary]",
+  );
+  console.log(
+    "  --scope <path>            manifest scope [default: /]",
+  );
+  console.log(
+    "  --lang <tag>              manifest lang [default: en-US]",
+  );
+  console.log(
+    "  --categories <list>       manifest categories, comma separated",
+  );
+  console.log(
     "  --config <path>           Path to swoff-assets.json config file",
   );
+  console.log("  --print-schema            Print the swoff-assets.json JSON schema");
   console.log("  -v, --version             Show version");
   console.log("  -h, --help                Show this help");
   console.log("");
   console.log("Config file (swoff-assets.json):");
   console.log(
-    '  { "source": "./logo.svg", "monochrome": true, "msTileColor": "#000" }',
+    '  { "appName": "Foo", "monochrome": true, "msTileColor": "#000", "lang": "en-US" }',
   );
-  console.log("  CLI flags override config file values.");
+  console.log("  CLI flags override config file values. See --print-schema for the full shape.");
   console.log("");
   console.log("Examples:");
-  console.log("  npx @swoff/assets --source ./logo.svg");
+  console.log("  npx @swoff/assets --app-name Foo");
   console.log(
     "  npx @swoff/assets --source ./logo.svg --monochrome --ms-tile-color #000",
   );
   console.log(
-    "  npx @swoff/assets --source ./logo.svg --dark-mode-theme #fff --dark-mode-bg #121212",
+    "  npx @swoff/assets --app-name Foo --dark-mode-theme #fff --dark-mode-bg #121212 --categories enterprise,productivity",
   );
 }

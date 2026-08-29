@@ -10,7 +10,7 @@ export interface FeatureDef {
   incompatibleAuthTypes: AuthType[];
   /** Returns true if this feature is effectively enabled in the given config */
   checkEnabled: (config: SwoffConfig) => boolean;
-  /** Config update to apply when adding this feature via `swoff add` */
+  /** Config update to apply when this feature is enabled in a generated config */
   configUpdate: Record<string, unknown>;
   /** Whether the feature is a "core" always-available feature (not opt-in) */
   isCore: boolean;

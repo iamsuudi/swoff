@@ -339,10 +339,11 @@ function Home() {
             <code className="text-sm bg-fd-muted px-1.5 py-0.5 rounded">
               @swoff/assets
             </code>{" "}
-            generates 31+ production-ready PWA assets from a single SVG — icons,
-            splash screens, favicons, Apple touch icons, OG images, Microsoft
-            tiles, manifest.json, and HTML head tags. No service worker, no
-            build tool, no framework required.
+            generates up to 50+ production-ready PWA assets from a single source
+            image — or from a wordmark when you don't have one — icons, splash
+            screens, Android adaptive icons, favicons, Apple touch icons, OG
+            images, Microsoft tiles, manifest.json, and HTML head tags. No
+            service worker, no build tool, no framework required.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link

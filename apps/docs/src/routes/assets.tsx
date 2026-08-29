@@ -57,7 +57,7 @@ const assetFeatures = [
   {
     icon: FileJson,
     title: "manifest.json",
-    desc: "Full Web App Manifest with icons, screenshots (narrow + wide), shortcuts, theme color, and background color — ready to deploy.",
+    desc: "Full Web App Manifest with icons, screenshots (wide), shortcuts, theme color, background color, orientation, scope, and lang — ready to deploy.",
     color: "text-violet-500",
     bg: "bg-violet-500/10",
   },
@@ -75,6 +75,20 @@ const assetFeatures = [
     color: "text-cyan-500",
     bg: "bg-cyan-500/10",
   },
+  {
+    icon: Image,
+    title: "Wordmark Auto",
+    desc: "No source image? A rounded-rect wordmark is generated from --app-name in the theme color — with a bitmap-font fallback when no system fonts exist.",
+    color: "text-teal-500",
+    bg: "bg-teal-500/10",
+  },
+  {
+    icon: Monitor,
+    title: "Android Adaptive Icons",
+    desc: "Always-on mipmap stack: density-scaled launcher icons, 66% safe-zone foreground, monochrome layer, and anydpi-v26 XMLs with your background color.",
+    color: "text-emerald-500",
+    bg: "bg-emerald-500/10",
+  },
 ];
 
 const generatedFiles = [
@@ -85,12 +99,14 @@ const generatedFiles = [
   { name: "maskable-icon-192.png", size: "192×192" },
   { name: "maskable-icon-512.png", size: "512×512" },
   { name: "apple-touch-icon.png", size: "180×180" },
+  { name: "mipmap-*, ic_launcher*", size: "16 adaptive" },
   { name: "favicon.ico", size: "16+32+48" },
   { name: "favicon.svg", size: "SVG" },
   { name: "og-image.png", size: "1200×630" },
   { name: "splash-*.png", size: "7 sizes" },
   { name: "manifest.json", size: "—" },
   { name: "swoff-head-tags.html", size: "—" },
+  { name: "pwa-debug.html", size: "—" },
 ];
 
 const comparisons = [
@@ -99,6 +115,20 @@ const comparisons = [
     swoff: "✓",
     vitePwa: "✗",
     pwaBuilder: "✗",
+    workbox: "✗",
+  },
+  {
+    feature: "Wordmark auto (no source)",
+    swoff: "✓",
+    vitePwa: "✗",
+    pwaBuilder: "✗",
+    workbox: "✗",
+  },
+  {
+    feature: "Android adaptive icons",
+    swoff: "✓",
+    vitePwa: "✗",
+    pwaBuilder: "✓",
     workbox: "✗",
   },
   {
@@ -166,30 +196,31 @@ function AssetsPage() {
 
             <div className="text-center">
               <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tight text-fd-foreground leading-[1.05]">
-                Generate 31+ PWA Assets
+                Generate 50+ PWA Assets
                 <br />
                 <span className="bg-linear-to-r from-green-500 via-emerald-500 to-teal-500 bg-clip-text text-transparent">
-                  From One SVG
+                  From One Source
                 </span>
               </h1>
 
               <p className="text-lg md:text-xl text-fd-muted-foreground max-w-2xl mt-6 mb-10 leading-relaxed mx-auto">
-                Icons, splash screens, favicons, Apple touch icons, OG images,
-                Microsoft tiles, and a full{" "}
+                Icons, splash screens, Android adaptive icons, favicons, Apple
+                touch icons, OG images, Microsoft tiles, and a full{" "}
                 <code className="text-sm bg-fd-muted px-1.5 py-0.5 rounded">
                   manifest.json
                 </code>{" "}
-                — all from a single source image. No build tool required, no
-                service worker coupling, no framework lock-in.
+                — from a single source image, or a generated wordmark when no
+                source is provided. No build tool required, no service worker
+                coupling, no framework lock-in.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <code className="px-5 py-3 rounded-lg bg-fd-muted border border-fd-border text-sm font-mono text-fd-foreground">
-                  npx @swoff/assets --source ./logo.svg
+                  npx @swoff/assets --app-name "My App"
                 </code>
               </div>
               <p className="text-xs text-fd-muted-foreground mt-3">
-                Works with SVG, PNG, and JPG sources
+                Works with SVG, PNG, and JPG sources — or no source at all
               </p>
             </div>
           </div>
@@ -362,11 +393,11 @@ function AssetsPage() {
             Ready to generate?
           </h2>
           <p className="text-fd-muted-foreground text-lg max-w-lg mx-auto mb-10">
-            One command. One source file. 31+ production-ready assets.
+            One command. One source file (or none). 50+ production-ready assets.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <code className="px-5 py-3 rounded-lg bg-fd-muted border border-fd-border text-sm font-mono text-fd-foreground">
-              npx @swoff/assets --source ./logo.svg
+              npx @swoff/assets --app-name "My App"
             </code>
           </div>
           <div className="flex items-center justify-center flex-wrap gap-6 mt-8">

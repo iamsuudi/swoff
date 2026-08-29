@@ -19,14 +19,16 @@ export async function rasterizeSource(
   targetSize: number,
 ): Promise<Buffer> {
   const ext = sourcePath.toLowerCase().split(".").pop() || "";
-  if (ext === "svg") return rasterizeSvg(sourcePath, targetSize);
+  if (ext === "svg") return rasterizeSvgString(readFileSync(sourcePath, "utf-8"), targetSize);
   return rasterizeRaster(sourcePath, targetSize);
 }
 
-async function rasterizeSvg(sourcePath: string, targetSize: number): Promise<Buffer> {
+export async function rasterizeSvgString(
+  svg: string,
+  targetSize: number,
+): Promise<Buffer> {
   await ensureResvg();
 
-  const svg = readFileSync(sourcePath, "utf-8");
   const resvg = new Resvg(svg, {
     fitTo: { mode: "width" as const, value: targetSize },
     background: "rgba(0,0,0,0)",

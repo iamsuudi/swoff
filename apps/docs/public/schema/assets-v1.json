@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://swoff.space/schema/assets-v1.json",
+  "title": "swoff-assets",
+  "description": "Config file for @swoff/assets — the universal PWA asset generator.",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Schema reference for editors."
+    },
+    "source": {
+      "type": "string",
+      "description": "Source image (SVG, PNG, JPG). Omit to generate icons from the app name."
+    },
+    "outputDir": {
+      "type": "string",
+      "description": "Output directory for generated files.",
+      "default": "public"
+    },
+    "appName": {
+      "type": "string",
+      "description": "App name used in manifest.json and wordmark icons.",
+      "default": "My App"
+    },
+    "shortName": {
+      "type": "string",
+      "description": "Short name for manifest.json (defaults to appName)."
+    },
+    "description": {
+      "type": "string",
+      "description": "Description for manifest.json."
+    },
+    "startUrl": {
+      "type": "string",
+      "description": "Start URL and manifest id.",
+      "default": "/"
+    },
+    "themeColor": {
+      "type": "string",
+      "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$",
+      "description": "Theme color hex used in manifest, monochrome icons, and wordmark."
+    },
+    "backgroundColor": {
+      "type": "string",
+      "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$",
+      "description": "Background color hex used in manifest and icon canvases."
+    },
+    "noSplash": {
+      "type": "boolean",
+      "description": "Skip Apple splash screen generation."
+    },
+    "monochrome": {
+      "type": "boolean",
+      "description": "Generate monochrome silhouette icons (purpose: monochrome)."
+    },
+    "msTileColor": {
+      "type": "string",
+      "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$",
+      "description": "Microsoft tile color — also enables MS tile icons, browserconfig.xml, and tile meta tags."
+    },
+    "darkMode": {
+      "type": "object",
+      "properties": {
+        "themeColor": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$",
+          "description": "Dark-mode theme color (defaults to themeColor)."
+        },
+        "backgroundColor": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$",
+          "description": "Dark-mode background color.",
+          "default": "#121212"
+        }
+      },
+      "description": "Generates a parallel dark icon set."
+    },
+    "orientation": {
+      "type": "string",
+      "enum": [
+        "any",
+        "natural",
+        "landscape",
+        "landscape-primary",
+        "landscape-secondary",
+        "portrait",
+        "portrait-primary",
+        "portrait-secondary"
+      ],
+      "description": "manifest.json orientation."
+    },
+    "scope": {
+      "type": "string",
+      "description": "manifest.json scope."
+    },
+    "lang": {
+      "type": "string",
+      "pattern": "^[a-zA-Z]{2,3}(-[a-zA-Z]{2})?$",
+      "description": "manifest.json lang tag.",
+      "default": "en-US"
+    },
+    "categories": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "manifest.json categories."
+    },
+    "shortcuts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "url"],
+        "properties": {
+          "name": { "type": "string" },
+          "url": { "type": "string" },
+          "description": { "type": "string" },
+          "icons": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "src": { "type": "string" },
+                "sizes": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "description": "manifest.json app shortcuts."
+    }
+  }
+}

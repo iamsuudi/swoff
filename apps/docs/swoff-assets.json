@@ -1,0 +1,17 @@
+{
+  "source": "./public/swoff-black.svg",
+  "outputDir": "public",
+  "appName": "Swoff",
+  "shortName": "Swoff",
+  "description": "Offline Infra — config-driven code generation for service worker and PWA",
+  "startUrl": "/",
+  "themeColor": "#000000",
+  "backgroundColor": "#ffffff",
+  "msTileColor": "#000000",
+  "monochrome": false,
+  "darkMode": {
+    "themeColor": "#ffffff",
+    "backgroundColor": "#121212"
+  },
+  "categories": ["utilities", "developer"]
+}

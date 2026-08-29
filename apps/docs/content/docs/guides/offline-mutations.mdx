@@ -23,18 +23,7 @@ description: Queue writes offline, replay online, background-sync, and framework
 
 ## Enable
 
-```bash
-# Step 1: queue mutations when offline
-npx @swoff/cli add mutation-queue
-```
-
-```bash
-# Step 2 (optional): enable Background Sync API for sync after tab close
-# Requires cookie auth
-npx @swoff/cli add background-sync
-```
-
-Or set config manually:
+Set the mutation queue (and optionally Background Sync) in `swoff.config.json`, then regenerate:
 
 ```json
 {
@@ -54,6 +43,12 @@ Or set config manually:
   }
 }
 ```
+
+```bash
+npx @swoff/cli generate
+```
+
+?> Background Sync requires cookie auth and is not supported in Firefox or Safari.
 
 ## Generated files
 

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PWA assets audit — Swoff</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0 auto; max-width: 860px; padding: 24px; }
+  h1 { font-size: 1.4rem; }
+  h2 { font-size: 1.1rem; margin-top: 28px; }
+  .summary { padding: 12px 16px; border-radius: 8px; font-weight: 600; }
+  .pass { background: rgba(34,197,94,.12); color: #16a34a; }
+  .fail { background: rgba(239,68,68,.12); color: #dc2626; }
+  .warn { background: rgba(245,158,11,.14); color: #b45309; }
+  ul.results { list-style: none; padding: 0; }
+  ul.results li { padding: 6px 0; border-bottom: 1px solid rgba(128,128,128,.15); }
+  .ok::before { content: "✓ "; color: #16a34a; }
+  .bad::before { content: "✗ "; color: #dc2626; }
+  .warn-item::before { content: "△ "; color: #b45309; }
+  code { background: rgba(128,128,128,.12); padding: 1px 5px; border-radius: 4px; font-size: .85em; }
+  .assets { display: flex; flex-wrap: wrap; gap: 8px; }
+  .assets span { font-size: .78rem; background: rgba(128,128,128,.1); padding: 3px 8px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<h1>PWA assets audit — Swoff</h1>
+<p id="summary" class="summary">Checking…</p>
+
+<h2>manifest.json</h2>
+<ul class="results" id="manifest-results"></ul>
+
+<h2>Icons</h2>
+<ul class="results" id="icon-results"></ul>
+
+<h2>Head tags &amp; assets</h2>
+<ul class="results" id="asset-results"></ul>
+
+<h2>Generated files present</h2>
+<div class="assets" id="file-list"></div>
+
+<script>
+const EXPECTED_FILES = ["public/icon-64.png", "public/icon-192.png", "public/icon-512.png", "public/maskable-icon-96.png", "public/maskable-icon-192.png", "public/maskable-icon-512.png", "public/apple-touch-icon.png", "public/ms-tile-144.png", "public/ms-tile-150x150.png", "public/ms-tile-310x150.png", "public/ms-tile-310x310.png", "public/dark-icon-64.png", "public/dark-icon-192.png", "public/dark-icon-512.png", "public/dark-maskable-icon-96.png", "public/dark-maskable-icon-192.png", "public/dark-maskable-icon-512.png", "public/dark-apple-touch-icon.png", "public/favicon.ico", "public/og-image.png", "public/splash-2048x2732.png", "public/splash-1668x2224.png", "public/splash-1536x2048.png", "public/splash-1125x2436.png", "public/splash-1242x2208.png", "public/splash-750x1334.png", "public/splash-640x1136.png", "public/mipmap-mdpi/ic_launcher.png", "public/mipmap-mdpi/ic_launcher_round.png", "public/mipmap-hdpi/ic_launcher.png", "public/mipmap-hdpi/ic_launcher_round.png", "public/mipmap-xhdpi/ic_launcher.png", "public/mipmap-xhdpi/ic_launcher_round.png", "public/mipmap-xxhdpi/ic_launcher.png", "public/mipmap-xxhdpi/ic_launcher_round.png", "public/mipmap-xxxhdpi/ic_launcher.png", "public/mipmap-xxxhdpi/ic_launcher_round.png", "public/mipmap-xxxhdpi/ic_launcher_foreground.png", "public/mipmap-xxxhdpi/ic_launcher_monochrome.png", "public/mipmap-anydpi-v26/ic_launcher.xml", "public/mipmap-anydpi-v26/ic_launcher_round.xml", "public/values/colors.xml", "public/android-adaptive-icons.txt", "public/browserconfig.xml", "public/favicon.svg", "public/manifest.json", "public/swoff-head-tags.html"];
+
+async function probe(src) {
+  try {
+    const res = await fetch(src, { method: "GET" });
+    return res.ok ? res.status : false;
+  } catch { return false; }
+}
+
+function li(cls, text) {
+  const el = document.createElement("li");
+  el.className = cls;
+  el.textContent = text;
+  return el;
+}
+
+(async () => {
+  const results = document.getElementById("manifest-results");
+  const iconResults = document.getElementById("icon-results");
+  const assetResults = document.getElementById("asset-results");
+  let failures = 0, warnings = 0;
+
+  const add = (list, ok, msg) => {
+    list.appendChild(li(ok ? "ok" : "bad", msg));
+    if (!ok) failures++;
+  };
+  const addWarn = (list, msg) => {
+    list.appendChild(li("warn-item", msg));
+    warnings++;
+  };
+
+  // --- manifest ---
+  const manifestRes = await fetch("/manifest.json").catch(() => null);
+  if (!manifestRes) {
+    add(results, false, "manifest.json not reachable at /manifest.json");
+  } else {
+    let manifest;
+    try { manifest = await manifestRes.json(); }
+    catch { add(results, false, "manifest.json is not valid JSON"); manifest = null; }
+    if (manifest) {
+      for (const field of ["name", "short_name", "start_url", "display", "icons"]) {
+        add(results, !!manifest[field], "field '" + field + "' present");
+      }
+      if (!Array.isArray(manifest.icons) || manifest.icons.length === 0) {
+        add(results, false, "icons array is empty");
+      }
+      if (manifest.background_color && manifest.theme_color) {
+        // no-op, present
+      }
+    }
+  }
+
+  // --- icons (declared sizes vs actual) ---
+  const iconMeta = [];
+  if (manifestRes && manifestRes.ok) {
+    const manifest = await manifestRes.json().catch(() => null);
+    if (manifest && Array.isArray(manifest.icons)) {
+      for (const icon of manifest.icons) {
+        iconMeta.push({ src: icon.src, sizes: icon.sizes, purpose: icon.purpose || "any" });
+        add(iconResults, /^(64|96|192|180|512)/.test(icon.sizes.split("x")[0] || "") || icon.sizes.includes("512"),
+          "icon declared: " + icon.src + " (" + icon.sizes + ", " + (icon.purpose || "any") + ")");
+        if (String(icon.purpose || "").includes("maskable")) {
+          // safe-zone note
+          addWarn(iconResults, "maskable icon " + icon.src + " — ensure the logo sits inside the 80% safe zone");
+        }
+        if (String(icon.purpose || "").includes("monochrome")) {
+          addWarn(iconResults, "monochrome icon " + icon.src + " — single-color silhouette for Android 13+ themed icons");
+        }
+      }
+    }
+  }
+
+  // verify each declared icon actually returns a raster of the declared size
+  for (const icon of iconMeta.slice(0, 8)) {
+    const url = icon.src.startsWith("/") ? icon.src : "/" + icon.src;
+    const ok = await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const [w, h] = icon.sizes.split("x").map(Number);
+        resolve(!w || !h || (img.naturalWidth === w && img.naturalHeight === h));
+      };
+      img.onerror = () => resolve(false);
+      img.src = url;
+    }).catch(() => false);
+    add(iconResults, ok, "icon renders: " + icon.src + " at " + icon.sizes);
+  }
+
+  // --- head tags / asset files ---
+  const check = async (path, label, warnOnly) => {
+    const ok = await probe(path);
+    if (warnOnly) addWarn(assetResults, label + " (" + path + ") — optional asset");
+    else add(assetResults, ok, label + " reachable at " + path);
+  };
+
+  await check("/favicon.ico", "favicon.ico", false);
+  await check("/favicon.svg", "favicon.svg", false);
+  await check("/apple-touch-icon.png", "apple-touch-icon.png", false);
+  await check("/og-image.png", "OG image", false);
+  await check("/swoff-head-tags.html", "swoff-head-tags.html", false);
+
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) add(assetResults, true, '<meta name="theme-color"> present (' + (themeMeta.getAttribute("content") || "") + ")");
+  else add(assetResults, false, '<meta name="theme-color"> missing from this document');
+
+  const manifestLink = document.querySelector('link[rel="manifest"]');
+  if (manifestLink) add(assetResults, true, '<link rel="manifest"> present');
+  else add(assetResults, false, '<link rel="manifest"> missing from this document');
+
+  if (window.matchMedia("(display-mode: standalone)").matches) {
+    add(assetResults, true, "App is running in standalone (installed) mode 🎉");
+  }
+
+  // splash screens (7 apple)
+  const splashes = 7;
+  for (const sp of ["/splash-2048x2732.png", "/splash-1668x2224.png", "/splash-1536x2048.png", "/splash-1125x2436.png", "/splash-1242x2208.png", "/splash-750x1334.png", "/splash-640x1136.png"]) {
+    const ok = await probe(sp);
+    addWarn(assetResults, ok ? "splash present: " + sp : "splash missing: " + sp);
+  }
+  void splashes;
+
+  // --- generated files manifest ---
+  const list = document.getElementById("file-list");
+  for (const f of EXPECTED_FILES) {
+    const s = document.createElement("span");
+    s.textContent = f;
+    list.appendChild(s);
+  }
+
+  const summary = document.getElementById("summary");
+  if (failures === 0) {
+    summary.className = "summary pass";
+    summary.textContent = "All checks passed" + (warnings ? " (" + warnings + " warnings)" : "") + ".";
+  } else {
+    summary.className = "summary fail";
+    summary.textContent = failures + " issue(s) found" + (warnings ? " (" + warnings + " warnings)" : "") + ".";
+  }
+})();
+</script>
+</body>
+</html>

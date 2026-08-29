@@ -52,7 +52,6 @@ const { response } = await fetchWithCache("/api/todos");
 | `init`           | Create `swoff.config.json` with auto-detection |
 | `generate`       | Generate SW + all supporting files             |
 | `validate`       | Validate `swoff.config.json`                   |
-| `info [feature]` | Show summary or per-feature details            |
 | `clean`          | Remove all generated files and config          |
 | `help [command]` | Show help for a specific command               |
 

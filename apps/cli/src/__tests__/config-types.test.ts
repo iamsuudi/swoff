@@ -16,18 +16,21 @@ describe("config-types", () => {
 
     it("has correct default values", () => {
       expect(defaultConfig.features.serviceWorker.autoActivate).toBe(false);
-      expect(defaultConfig.features.serviceWorker.strategy.default).toBe(
+      expect(defaultConfig.features.caching.enabled).toBe(false);
+      expect(defaultConfig.features.caching.strategy.default).toBe(
         "cache-first",
       );
       expect(
-        defaultConfig.features.serviceWorker.strategy.maxRuntimeCacheAge,
+        defaultConfig.features.caching.strategy.maxRuntimeCacheAge,
       ).toBe(2592000);
-      expect(defaultConfig.features.serviceWorker.navigation.mode).toBe("spa");
-      expect(defaultConfig.features.serviceWorker.navigation.fallback).toBe("");
-      expect(defaultConfig.features.serviceWorker.navigation.rules).toEqual([]);
-      expect(defaultConfig.features.serviceWorker.navigation.mode).toBe("spa");
+      expect(defaultConfig.features.caching.navigation.mode).toBe("spa");
+      expect(defaultConfig.features.caching.navigation.fallback).toBe("");
+      expect(defaultConfig.features.caching.navigation.rules).toEqual([]);
+      expect(defaultConfig.features.connectivity.enabled).toBe(false);
+      expect(defaultConfig.features.connectivity.heartbeatIntervalMs).toBe(
+        30000,
+      );
       expect(defaultConfig.build.swOutput).toBe("dist");
-      expect(defaultConfig.build.swFilename).toBeUndefined();
       expect(defaultConfig.features.pwa.enabled).toBe(false);
       expect(defaultConfig.features.pwa.preventDefaultInstall).toBe(false);
     });
@@ -35,18 +38,13 @@ describe("config-types", () => {
     it("has all known features with correct types", () => {
       for (const feature of KNOWN_FEATURES) {
         expect(defaultConfig.features).toHaveProperty(feature);
-        if (
-          feature === "auth" ||
-          feature === "serverPush" ||
-          feature === "mutationQueue" ||
-          feature === "graphql" ||
-          feature === "refetchQueue"
-        ) {
-          expect(typeof defaultConfig.features[feature]).toBe("object");
-        } else {
-          expect(typeof defaultConfig.features[feature]).toBe("boolean");
-        }
       }
+      expect(typeof defaultConfig.features.connectivity).toBe("object");
+      expect(typeof defaultConfig.features.pushNotifications).toBe("boolean");
+      expect(typeof defaultConfig.features.pwa).toBe("object");
+      expect(typeof defaultConfig.features.auth).toBe("object");
+      expect(typeof defaultConfig.features.serviceWorker).toBe("object");
+      expect(typeof defaultConfig.features.caching).toBe("object");
     });
 
     it("has object features with correct shape", () => {
@@ -55,67 +53,81 @@ describe("config-types", () => {
       expect(typeof defaultConfig.features.pwa.preventDefaultInstall).toBe(
         "boolean",
       );
+      expect(typeof defaultConfig.features.caching.mutationQueue).toBe(
+        "object",
+      );
+      expect(typeof defaultConfig.features.caching.tagInvalidation).toBe(
+        "object",
+      );
+      expect(typeof defaultConfig.features.caching.graphql).toBe("object");
+      expect(typeof defaultConfig.features.caching.serverPush).toBe("object");
     });
 
     it("has empty patterns by default", () => {
-      expect(defaultConfig.features.serviceWorker.strategy.patterns).toEqual(
-        {},
-      );
+      expect(defaultConfig.features.caching.strategy.patterns).toEqual({});
     });
 
     it("has reactive defaults", () => {
       expect(
-        defaultConfig.features.serviceWorker.strategy.reactive
-          .staleTime,
+        defaultConfig.features.caching.strategy.reactive.staleTime,
       ).toBe(0);
       expect(
-        defaultConfig.features.serviceWorker.strategy.reactive
-          .refetchInterval,
+        defaultConfig.features.caching.strategy.reactive.refetchInterval,
       ).toBe(0);
       expect(
-        defaultConfig.features.serviceWorker.strategy.reactive
-          .refetchOnReconnect,
+        defaultConfig.features.caching.strategy.reactive.refetchOnReconnect,
       ).toBe(false);
       expect(
-        defaultConfig.features.serviceWorker.strategy.reactive
-          .refetchOnFocus,
+        defaultConfig.features.caching.strategy.reactive.refetchOnFocus,
       ).toBe(false);
     });
 
     it("has refetchQueue defaults", () => {
-      expect(defaultConfig.features.refetchQueue.retry.maxRetries).toBe(3);
-      expect(defaultConfig.features.refetchQueue.retry.backoffMs).toBe(1000);
-      expect(defaultConfig.features.refetchQueue.retry.maxBackoffMs).toBe(
-        10000,
+      expect(defaultConfig.features.caching.refetchQueue.retry.maxRetries).toBe(
+        3,
       );
-      expect(defaultConfig.features.refetchQueue.retry.jitterMs).toBe(100);
+      expect(defaultConfig.features.caching.refetchQueue.retry.backoffMs).toBe(
+        1000,
+      );
+      expect(
+        defaultConfig.features.caching.refetchQueue.retry.maxBackoffMs,
+      ).toBe(10000);
+      expect(defaultConfig.features.caching.refetchQueue.retry.jitterMs).toBe(
+        100,
+      );
     });
 
     it("has tagInvalidation with debounceMs", () => {
-      expect(defaultConfig.features.tagInvalidation.debounceMs).toBe(0);
+      expect(defaultConfig.features.caching.tagInvalidation.debounceMs).toBe(
+        0,
+      );
     });
   });
 
   describe("constants", () => {
     it("KNOWN_FEATURES lists all known features", () => {
-      expect(KNOWN_FEATURES).toContain("mutationQueue");
+      expect(KNOWN_FEATURES).toContain("connectivity");
+      expect(KNOWN_FEATURES).toContain("pushNotifications");
       expect(KNOWN_FEATURES).toContain("auth");
-      expect(KNOWN_FEATURES).toContain("graphql");
+      expect(KNOWN_FEATURES).toContain("pwa");
+      expect(KNOWN_FEATURES).toContain("serviceWorker");
+      expect(KNOWN_FEATURES).toContain("caching");
       expect(KNOWN_FEATURES).not.toContain("realtime");
       expect(KNOWN_FEATURES).not.toContain("clientRegistration");
-      expect(KNOWN_FEATURES).not.toContain("pwa");
-      expect(KNOWN_FEATURES).not.toContain("serviceWorker");
+      expect(KNOWN_FEATURES).not.toContain("mutationQueue");
       expect(KNOWN_FEATURES).not.toContain("versionedSw");
     });
 
     it("OBJECT_FEATURES lists object-typed features", () => {
+      expect(OBJECT_FEATURES).toContain("connectivity");
       expect(OBJECT_FEATURES).toContain("pwa");
       expect(OBJECT_FEATURES).toContain("serviceWorker");
       expect(OBJECT_FEATURES).toContain("auth");
-      expect(OBJECT_FEATURES).toContain("serverPush");
-      expect(OBJECT_FEATURES).toContain("graphql");
-      expect(OBJECT_FEATURES).toContain("mutationQueue");
-      expect(OBJECT_FEATURES).toContain("tagInvalidation");
+      expect(OBJECT_FEATURES).toContain("caching");
+      expect(OBJECT_FEATURES).not.toContain("serverPush");
+      expect(OBJECT_FEATURES).not.toContain("graphql");
+      expect(OBJECT_FEATURES).not.toContain("mutationQueue");
+      expect(OBJECT_FEATURES).not.toContain("tagInvalidation");
     });
 
     it("VALID_STRATEGIES contains all 6 strategies", () => {

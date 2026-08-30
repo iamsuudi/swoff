@@ -10,7 +10,9 @@ export function generateClientInjectorBundleCode(
   mutationQueueEnabled?: boolean,
   connectivityEnabled?: boolean,
   tagInvalidationEnabled?: boolean,
+  cachingEnabled?: boolean,
   storageThreshold?: number,
+  onlineStatus?: boolean,
 ): string {
   const pwaCode = pwaEnabled ? `
   // ── PWA Install Prompt ──
@@ -46,6 +48,110 @@ export function generateClientInjectorBundleCode(
         fetch(new Request(url)).catch(function() {});
       }
     };
+  }` : "";
+
+  const sharedOnlineStatus = onlineStatus || connectivityEnabled ? `
+  // ── Shared Online Status Primitive ──
+  // Single source of truth for online state, also embedded in
+  // swoff-api.bundle.js. Both connectivity and auth rely on it.
+  var CONNECTIVITY_EVENT = "app-connectivity-change";
+  var _currentOnlineStatus = typeof navigator !== "undefined" ? navigator.onLine : true;
+
+  function getCurrentOnlineStatus() {
+    return _currentOnlineStatus;
+  }
+
+  function dispatchState(isTrulyOnline) {
+    _currentOnlineStatus = isTrulyOnline;
+    window.dispatchEvent(new CustomEvent(CONNECTIVITY_EVENT, { detail: { online: isTrulyOnline } }));
+  }` : "";
+
+  const connectivityFeature = connectivityEnabled ? `
+  // ── Connectivity Heartbeat ──
+  var heartbeatIntervalId = null;
+  var HEARTBEAT_DELAY = 30000;
+
+  function createTimeoutSignal(ms) {
+    if (typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms);
+    var ctrl = new AbortController();
+    setTimeout(function () { ctrl.abort(); }, ms);
+    return ctrl.signal;
+  }
+
+  async function verifyAndNotify() {
+    if (typeof window === "undefined") return false;
+    if (!navigator.onLine) {
+      dispatchState(false);
+      return false;
+    }
+    try {
+      await fetch("/" + Date.now() + "?hb=1", {
+        method: "HEAD",
+        cache: "no-cache",
+        signal: createTimeoutSignal(5000),
+      });
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: "ONLINE" });
+      }
+      dispatchState(true);
+      return true;
+    } catch (error) {
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: "OFFLINE" });
+      }
+      dispatchState(false);
+      return false;
+    }
+  }
+
+  function startHeartbeat() {
+    if (heartbeatIntervalId) return;
+    heartbeatIntervalId = setInterval(async function () {
+      if (document.hidden) return;
+      await verifyAndNotify();
+    }, HEARTBEAT_DELAY);
+  }
+
+  function stopHeartbeat() {
+    if (!heartbeatIntervalId) return;
+    clearInterval(heartbeatIntervalId);
+    heartbeatIntervalId = null;
+  }
+
+  function forceRetry() {
+    stopHeartbeat();
+    return verifyAndNotify().then(function () {
+      startHeartbeat();
+    });
+  }
+
+  // ── Online / Offline / Visibility Listeners ──
+  if (typeof window !== "undefined") {
+    window.addEventListener("online", async function () {
+      await verifyAndNotify();
+      startHeartbeat();
+    });
+
+    window.addEventListener("offline", function () {
+      stopHeartbeat();
+      dispatchState(false);
+    });
+
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) {
+        verifyAndNotify();
+        startHeartbeat();
+      } else {
+        stopHeartbeat();
+      }
+    });
+
+    if (navigator.onLine) {
+      verifyAndNotify();
+      startHeartbeat();
+    } else {
+      queueMicrotask(function () { dispatchState(false); });
+    }
   }` : "";
 
   return `(function () {
@@ -90,76 +196,8 @@ export function generateClientInjectorBundleCode(
     }
   }
 
-${connectivityEnabled ? `
-  // ── Connectivity ──
-  var CONNECTIVITY_EVENT = "app-connectivity-change";
-  var heartbeatIntervalId = null;
-  var HEARTBEAT_DELAY = 30000;
-  var _currentOnlineStatus = typeof navigator !== "undefined" ? navigator.onLine : true;
-
-  function getCurrentOnlineStatus() {
-    return _currentOnlineStatus;
-  }
-
-  function createTimeoutSignal(ms) {
-    if (typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms);
-    var ctrl = new AbortController();
-    setTimeout(function () { ctrl.abort(); }, ms);
-    return ctrl.signal;
-  }
-
-  async function verifyAndNotify() {
-    if (typeof window === "undefined") return false;
-    if (!navigator.onLine) {
-      dispatchState(false);
-      return false;
-    }
-    try {
-      await fetch("/" + Date.now() + "?hb=1", {
-        method: "HEAD",
-        cache: "no-cache",
-        signal: createTimeoutSignal(5000),
-      });
-      if (navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({ type: "ONLINE" });
-      }
-      dispatchState(true);
-      return true;
-    } catch (error) {
-      if (navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({ type: "OFFLINE" });
-      }
-      dispatchState(false);
-      return false;
-    }
-  }
-
-  function dispatchState(isTrulyOnline) {
-    _currentOnlineStatus = isTrulyOnline;
-    window.dispatchEvent(new CustomEvent(CONNECTIVITY_EVENT, { detail: { online: isTrulyOnline } }));
-  }
-
-  function startHeartbeat() {
-    if (heartbeatIntervalId) return;
-    heartbeatIntervalId = setInterval(async function () {
-      if (document.hidden) return;
-      await verifyAndNotify();
-    }, HEARTBEAT_DELAY);
-  }
-
-  function stopHeartbeat() {
-    if (!heartbeatIntervalId) return;
-    clearInterval(heartbeatIntervalId);
-    heartbeatIntervalId = null;
-  }
-
-  function forceRetry() {
-    stopHeartbeat();
-    return verifyAndNotify().then(function () {
-      startHeartbeat();
-    });
-  }
-
+${sharedOnlineStatus}${connectivityFeature}
+${cachingEnabled ? `
   // ── Storage ──
   async function getStorageEstimate() {
     if (!navigator.storage || !navigator.storage.estimate) {
@@ -177,37 +215,8 @@ ${connectivityEnabled ? `
     var units = ["B", "KB", "MB", "GB"];
     var i = Math.floor(Math.log(bytes) / Math.log(1024));
     return (bytes / Math.pow(1024, i)).toFixed(1) + " " + units[i];
-  }
-
-  // ── Online / Offline / Visibility Listeners ──
-  if (typeof window !== "undefined") {
-    window.addEventListener("online", async function () {
-      await verifyAndNotify();
-      startHeartbeat();
-    });
-
-    window.addEventListener("offline", function () {
-      stopHeartbeat();
-      dispatchState(false);
-    });
-
-    document.addEventListener("visibilitychange", function () {
-      if (!document.hidden) {
-        verifyAndNotify();
-        startHeartbeat();
-      } else {
-        stopHeartbeat();
-      }
-    });
-
-    if (navigator.onLine) {
-      verifyAndNotify();
-      startHeartbeat();
-    } else {
-      queueMicrotask(function () { dispatchState(false); });
-    }
   }` : ""}
-${tagInvalidationEnabled ? `
+${cachingEnabled ? `
   // ── Focus Listener (reactive strategy) ──
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", function () {
@@ -218,7 +227,7 @@ ${tagInvalidationEnabled ? `
   }` : ""}
 ${pwaCode}${ssrPrefetch}
   // ── Precaching Resume ──
-  if (typeof document !== "undefined" && "serviceWorker" in navigator) {
+${cachingEnabled ? `  if (typeof document !== "undefined" && "serviceWorker" in navigator) {
     document.addEventListener("visibilitychange", function () {
       if (document.visibilityState === "visible" && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: "RESUME_PRECACHE" });
@@ -230,6 +239,7 @@ ${pwaCode}${ssrPrefetch}
       }
     });
   }
+` : ""}
 
   // ── SW Message Listener ──
   if (typeof window !== "undefined" && "serviceWorker" in navigator) {
@@ -243,12 +253,12 @@ ${pwaCode}${ssrPrefetch}
       if (event.data.type === "OFFLINE_FALLBACK_ACTIVATED") {
         window.dispatchEvent(new CustomEvent("swoff:offline-fallback", { detail: event.data.detail }));
       }
-      if (event.data.type === "SW_PROGRESS") {
+${cachingEnabled ? `      if (event.data.type === "SW_PROGRESS") {
         window.dispatchEvent(new CustomEvent("sw-progress", {
           detail: { percent: event.data.percent, downloaded: event.data.downloaded, total: event.data.total },
         }));
       }
-      if (event.data.type === "SW_NOTIFICATION") {
+` : ""}      if (event.data.type === "SW_NOTIFICATION") {
         window.dispatchEvent(new CustomEvent("swoff:notification", {
           detail: { level: event.data.level, code: event.data.code, message: event.data.message },
         }));
@@ -280,14 +290,14 @@ ${authEnabled ? `
             if (window.swoff && typeof window.swoff.clearQueue === "function") {
               await window.swoff.clearQueue();
             }
-            try {
+            ${cachingEnabled ? `try {
               var _names = ["swoff-runtime", "swoff-runtime-html"];
               for (var _i = 0; _i < _names.length; _i++) {
                 var _cache = await caches.open(_names[_i]);
                 var _keys = await _cache.keys();
                 await Promise.all(_keys.map(function (k) { return _cache.delete(k); }));
               }
-            } catch (e) {}
+            } catch (e) {}` : `// Caching is disabled — auth failure does not touch caches.`}
             window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
           }
         })();
@@ -304,7 +314,7 @@ ${tagInvalidationEnabled ? `
   // ── Main Entry ──
   async function initServiceWorker() {
     await registerSW();
-${connectivityEnabled ? `
+${cachingEnabled ? `
     var storage = await getStorageEstimate();
     if (storage.percentUsed > ${storageThreshold ?? 80}) {
       window.dispatchEvent(new CustomEvent("swoff:notification", {

@@ -1,9 +1,11 @@
 ---
 title: Server Push
-description: Full schema for swoff.config.json features.serverPush — every field, its type, default, and description.
+description: Full schema for swoff.config.json features.caching.serverPush — every field, its type, default, and description.
 ---
 
-## `features.serverPush`
+## `features.caching.serverPush`
+
+Requires `features.caching.enabled` and `features.caching.tagInvalidation.enabled` to be `true`. Not supported with `auth.type: "bearer"` or `"custom"` — use `"cookie"` auth.
 
 | Field              | Type                     | Default         | Description                                                                                        |
 | ------------------ | ------------------------ | --------------- | -------------------------------------------------------------------------------------------------- |
@@ -11,3 +13,7 @@ description: Full schema for swoff.config.json features.serverPush — every fie
 | `type`             | `"sse"` \| `"websocket"` | `"sse"`         | Transport protocol                                                                                 |
 | `endpoint`         | `string`                 | `"/api/events"` | Push endpoint URL                                                                                  |
 | `reconnectDelayMs` | `number`                 | `5000`          | Initial reconnect delay on connection loss (exponential backoff, capped at 30s)                    |
+
+<Callout type="info" title="Schema v2">
+Previously `features.serverPush`. Move it under the `caching` umbrella and set `features.caching.enabled` plus `features.caching.tagInvalidation.enabled` to `true`. See the [migration guide](/docs/config/migration-v2).
+</Callout>

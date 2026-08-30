@@ -14,11 +14,14 @@ A React SPA downloads a single HTML shell, then all routing happens client-side.
 
 ```json
 {
-  "$schema": "https://swoff.space/schema/v1.json",
+  "$schema": "https://swoff.space/schema/v2.json",
   "framework": "react",
   "features": {
     "serviceWorker": {
-      "autoActivate": true,
+      "autoActivate": true
+    },
+    "caching": {
+      "enabled": true,
       "navigation": {
         "mode": "spa",
         "fallback": "/offline"
@@ -40,11 +43,11 @@ A React SPA downloads a single HTML shell, then all routing happens client-side.
 }
 ```
 
-| Setting            | Value           | Why                                                                                        |
-| ------------------ | --------------- | ------------------------------------------------------------------------------------------ |
-| `navigation.mode`  | `"spa"`         | Client router handles all navigation. SW serves app shell from precache for any route.     |
-| `strategy.default` | `"cache-first"` | All JS bundles and assets are hashed filenames — once cached, they never need the network. |
-| `precacheDirs`     | `dist` → `/`    | Precache the entire build output so everything is available on first load.                 |
+| Setting                   | Value           | Why                                                                                        |
+| ------------------------- | --------------- | ------------------------------------------------------------------------------------------ |
+| `caching.navigation.mode` | `"spa"`         | Client router handles all navigation. SW serves app shell from precache for any route.     |
+| `caching.strategy.default`| `"cache-first"` | All JS bundles and assets are hashed filenames — once cached, they never need the network. |
+| `precacheDirs`            | `dist` → `/`    | Precache the entire build output so everything is available on first load.                 |
 
 ### Offline fallback page
 

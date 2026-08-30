@@ -1,0 +1,104 @@
+---
+title: Schema v2 Migration
+description: What changed in swoff.config.json schema v2 and how to migrate your config.
+---
+
+# Schema v2 Migration
+
+Schema v2 groups every cache-related feature under a single `features.caching` umbrella and makes it **opt-in**. Before v2, features lived flat at the top of `features`; after v2, Swoff refuses to generate a fetch-intercepting service worker until you explicitly enable `features.caching.enabled`.
+
+## What moved
+
+| v1 path                                  | v2 path                                |
+| ---------------------------------------- | -------------------------------------- |
+| `features.serviceWorker.strategy`        | `features.caching.strategy`            |
+| `features.serviceWorker.navigation`      | `features.caching.navigation`          |
+| `features.serviceWorker.precache`        | `features.caching.precache`            |
+| `features.requestBatchWindowMs`          | `features.caching.requestBatchWindowMs`|
+| `features.refetchQueue`                  | `features.caching.refetchQueue`        |
+| `features.mutationQueue`                 | `features.caching.mutationQueue`       |
+| `features.tagInvalidation`               | `features.caching.tagInvalidation`     |
+| `features.graphql`                       | `features.caching.graphql`             |
+| `features.serverPush`                    | `features.caching.serverPush`          |
+
+## What didn't change
+
+- `features.connectivity` — still top-level, but now **explicit opt-in** (`enabled` defaults to `false`; in v1 it defaulted to `true`)
+- `features.pwa`, `features.auth`, `features.serviceWorker.autoActivate`, `features.pushNotifications`
+- `build` — `swOutput`, `swoffPath`, `swUrl`, `precacheDirs`
+
+## Migration checklist
+
+1. Add `features.caching.enabled: true` and nest the moved sub-features under it.
+2. Move `strategy`, `navigation`, and `precache` out of `features.serviceWorker` into `features.caching`.
+3. Update `$schema` to `https://swoff.space/schema/v2.json`.
+4. If you used `features.serverPush`, ensure `features.caching.tagInvalidation.enabled: true` and that `features.auth.type` is not `"bearer"`/`"custom"`.
+5. If you used `features.mutationQueue.backgroundSync`, ensure `features.caching.mutationQueue.enabled: true`.
+6. Delete the old flat keys — the validator flags them with migration hints, but they are ignored and should be removed.
+
+## Before / after
+
+### Before (v1)
+
+```json
+{
+  "$schema": "https://swoff.space/schema/v1.json",
+  "features": {
+    "serviceWorker": {
+      "autoActivate": false,
+      "strategy": { "default": "cache-first" },
+      "navigation": { "mode": "spa", "fallback": "/index.html" }
+    },
+    "mutationQueue": { "enabled": true, "batchSize": 1 },
+    "tagInvalidation": { "enabled": true },
+    "serverPush": { "enabled": true, "type": "sse", "endpoint": "/api/events" }
+  }
+}
+```
+
+### After (v2)
+
+```json
+{
+  "$schema": "https://swoff.space/schema/v2.json",
+  "features": {
+    "connectivity": { "enabled": false },
+    "auth": { "enabled": true, "type": "cookie" },
+    "serviceWorker": { "autoActivate": false },
+    "caching": {
+      "enabled": true,
+      "strategy": { "default": "cache-first" },
+      "navigation": { "mode": "spa", "fallback": "/index.html" },
+      "mutationQueue": { "enabled": true, "batchSize": 1 },
+      "tagInvalidation": { "enabled": true },
+      "serverPush": { "enabled": true, "type": "sse", "endpoint": "/api/events" }
+    }
+  }
+}
+```
+
+## Behavior change
+
+With schema v1, a `serviceWorker.strategy` config implied caching was active. In v2, **no fetch listener** is written until `features.caching.enabled` is `true`. If your v1 config relied on the implicit enable (e.g. it only set `strategy`/`navigation` without any other cache feature), you must now add the umbrella explicitly:
+
+```json
+"caching": {
+  "enabled": true,
+  "strategy": { "default": "cache-first" },
+  "navigation": { "mode": "spa", "fallback": "/index.html" }
+}
+```
+
+### Connectivity is now off by default
+
+`features.connectivity.enabled` was `true` by default in v1 (and set automatically by `swoff init`). In v2 it defaults to `false`. If you relied on online/offline detection, add it back explicitly:
+
+```json
+"connectivity": { "enabled": true, "heartbeatIntervalMs": 30000 }
+```
+
+> **Auth users:** the shared `online-status.{ts,js}` module is generated whenever `connectivity.enabled` **or** `auth.enabled` is on, so `auth/state` keeps working without the connectivity feature.
+
+## Quick re-write
+
+Run `swoff init` in a scratch project to regenerate a valid v2 config, or move the blocks per the table above. `swoff validate` reports exactly which rule each config violates.

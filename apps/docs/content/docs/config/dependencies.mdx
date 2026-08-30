@@ -7,10 +7,10 @@ description: Feature dependencies and boolean sub-features in swoff.config.json.
 
 These boolean flags nest under their parent object feature:
 
-| Feature            | Config path                             | Default |
-| ------------------ | --------------------------------------- | ------- |
-| Background Sync    | `features.mutationQueue.backgroundSync` | `false` |
-| Push Notifications | `features.pushNotifications`            | `false` |
+| Feature            | Config path                                   | Default |
+| ------------------ | --------------------------------------------- | ------- |
+| Background Sync    | `features.caching.mutationQueue.backgroundSync` | `false` |
+| Push Notifications | `features.pushNotifications`                  | `false` |
 
 ---
 
@@ -18,9 +18,45 @@ These boolean flags nest under their parent object feature:
 
 Some features work best together:
 
-| Feature                        | Recommended combo                     | Why                                                                                      |
-| ------------------------------ | ------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `mutationQueue.backgroundSync` | + `mutationQueue`                     | Background Sync processes mutations even after tab close                                 |
-| `serverPush`                   | + `tagInvalidation`                   | Server push triggers `invalidateByTag()` — requires tag invalidation to function         |
-| `auth` + `mutationQueue`       | —                                     | `clearAuth()` also clears the mutation queue — no manual `clearQueue()` needed on logout |
-| `graphql`                      | + `mutationQueue` + `tagInvalidation` | Offline GQL mutations queue in IndexedDB; mutations auto-invalidate operation-name tags  |
+| Feature                                  | Recommended combo                     | Why                                                                                      |
+| ---------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `caching.mutationQueue.backgroundSync`   | + `caching.mutationQueue`             | Background Sync processes mutations even after tab close                                 |
+| `caching.serverPush`                     | + `caching.tagInvalidation`           | Server push triggers `invalidateByTag()` — requires tag invalidation to function         |
+| `auth` + `caching.mutationQueue`         | —                                     | `clearAuth()` also clears the mutation queue — no manual `clearQueue()` needed on logout |
+| `caching.graphql`                        | + `caching.mutationQueue` + `caching.tagInvalidation` | Offline GQL mutations queue in IndexedDB; mutations auto-invalidate operation-name tags  |
+
+## The caching umbrella
+
+Every sub-feature listed above requires `features.caching.enabled: true`. The umbrella gate means a config with, say, `features.caching.mutationQueue` but no `features.caching.enabled` (or with `enabled: false`) is **invalid** — the CLI reports a migration hint. Turning off `features.caching.enabled` produces a service worker with **no fetch listener**; cache-related sub-feature flags are then ignored/forbidden.
+
+## Shared infrastructure
+
+One module is shared across features and generated when **either** side is on:
+
+| Module                  | Generated when                                      | Consumers                                                      |
+| ----------------------- | --------------------------------------------------- | -------------------------------------------------------------- |
+| `swoff/online-status`   | `features.connectivity.enabled` **or** `auth.enabled` | `connectivity` (heartbeat/`verifyAndNotify`) and `auth/state` (`getCurrentOnlineStatus`) |
+
+The online/offline primitive (`CONNECTIVITY_EVENT`, `getCurrentOnlineStatus`, `dispatchState`) has a single source of truth across both features. In no-bundler mode the same template is embedded into `swoff-api.bundle.js` and `client-injector.bundle.js`, so `auth/state` no longer depends on the connectivity module being generated.
+
+## How the cache-related features interlock
+
+Think of the four blocks under `caching` as layers on the same mechanism:
+
+1. **`caching`** is the core mechanism: `fetch/core` (fetch-with-cache), the service-worker fetch listener, and cache-key handling. Nothing below it works without the umbrella.
+2. **`tagInvalidation`** is the *purge-by-tags* layer. Fetch responses can be annotated with `tags`; `invalidateByTags()` purges matching cache entries. It generates `cache/tags` + `cache/invalidate`.
+3. **`graphql`** is a client built on `fetch/core`. It hashes query + variables for deterministic cache keys and auto-derives tags from operation names (`getTodos` → `["todos"]`, `createTodo` → `["todos", "todo"]`). `mutateGql` auto-invalidates those tags — so GraphQL uses tag invalidation to stay coherent. Without `tagInvalidation` it still caches fine (just no auto-purge).
+4. **`mutationQueue`** is the offline write buffer (IndexedDB). REST and GraphQL writes queue when offline; when flushed, each mutation calls `invalidateByTags(item.tags)` — again only taking effect when `tagInvalidation` is on.
+
+`caching.graphql` is the layer that touches all three: it caches through `fetch/core`, auto-invalidates via `tagInvalidation`, and can queue offline writes through `mutationQueue`.
+
+## Validation
+
+The CLI validates these rules at `generate` / `validate` time:
+
+| Rule                                                                                     |
+| ---------------------------------------------------------------------------------------- |
+| Any effective `features.caching.*` leaf requires `features.caching.enabled === true`      |
+| `features.caching.serverPush.enabled` requires `features.caching.tagInvalidation.enabled` |
+| `features.caching.mutationQueue.backgroundSync` requires `features.caching.mutationQueue.enabled` |
+| `features.caching.serverPush` is not supported with `auth.type: "bearer"` or `"custom"`   |

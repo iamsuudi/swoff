@@ -31,8 +31,10 @@ import { generateReset } from "./file-generators/reset.js";
 import { generateOpenDB } from "./file-generators/open-db.js";
 import { generateStorage } from "./file-generators/storage.js";
 import { generateConnectivity } from "./file-generators/connectivity.js";
+import { generateOnlineStatus } from "./file-generators/online-status.js";
 import { generateAuthCheck } from "./file-generators/auth-check.js";
 import { hasBundler } from "./file-generators/context.js";
+import { resolveSwoffPath } from "../shared/config-types.js";
 
 interface Step {
   name: string;
@@ -42,6 +44,8 @@ interface Step {
 
 interface ResolvedFeatures {
   connectivity: boolean;
+  onlineStatus: boolean;
+  caching: boolean;
   tagInvalidation: boolean;
   auth: boolean;
   mutationQueue: boolean;
@@ -54,27 +58,29 @@ interface ResolvedFeatures {
 }
 
 function resolveFeatures(config: SwoffConfig): ResolvedFeatures {
-  const auth = config.features.auth.enabled;
-  const mutationQueue = config.features.mutationQueue.enabled;
-  const tagInvalidation = config.features.tagInvalidation.enabled || mutationQueue || config.features.graphql.enabled;
-  const connectivity = config.features.connectivity.enabled || auth;
-  const push = config.features.pushNotifications;
-  const graphql = config.features.graphql.enabled;
-  const pwa = config.features.pwa.enabled;
+  const { caching, connectivity, auth, pushNotifications, pwa } = config.features;
+
+  // Read explicitly. No auto-forcing — dependency violations are validator
+  // errors, so a leaf being on without `caching.enabled` can never reach here.
+  const mutationQueue = caching.mutationQueue.enabled;
+  const tagInvalidation = caching.tagInvalidation.enabled;
+  const graphql = caching.graphql.enabled;
   const serverPush = shouldIncludeServerPush(config);
   const backgroundSync = shouldIncludeBackgroundSync(config);
 
   return {
-    connectivity,
+    connectivity: connectivity.enabled,
+    onlineStatus: connectivity.enabled || auth.enabled,
+    caching: caching.enabled,
     tagInvalidation,
-    auth,
+    auth: auth.enabled,
     mutationQueue,
     backgroundSync,
-    push,
+    push: pushNotifications,
     graphql,
-    pwa,
+    pwa: pwa.enabled,
     serverPush,
-    needDb: auth || mutationQueue || push,
+    needDb: auth.enabled || mutationQueue || pushNotifications,
   };
 }
 
@@ -84,7 +90,7 @@ export function generateFiles(ctx: GeneratorContext): string[] {
 
   if (!bundler) {
     ctx.hasBundler = false;
-    const hasApiFeatures = f.tagInvalidation || f.auth || f.mutationQueue || f.graphql || f.push;
+    const hasApiFeatures = f.caching || f.auth || f.mutationQueue || f.graphql || f.push;
     const bundleSteps: Step[] = [
       { name: "sw-template", gen: () => generateSwTemplate(ctx), enabled: true },
       { name: "sw-build-utils", gen: () => generateSwBuildUtils(ctx), enabled: true },
@@ -122,13 +128,18 @@ export function generateFiles(ctx: GeneratorContext): string[] {
       gen: () => generateConnectivity(ctx),
       enabled: f.connectivity,
     },
+    {
+      name: "online-status",
+      gen: () => generateOnlineStatus(ctx),
+      enabled: f.onlineStatus,
+    },
     { name: "storage", gen: () => generateStorage(ctx), enabled: true },
     { name: "reset", gen: () => generateReset(ctx), enabled: true },
     { name: "db", gen: () => generateOpenDB(ctx), enabled: f.needDb },
     {
       name: "fetch/core",
       gen: () => generateFetchWrapper(ctx),
-      enabled: f.tagInvalidation,
+      enabled: f.caching,
     },
     {
       name: "cache/tags",
@@ -247,7 +258,7 @@ if (
   loadConfigAsync(projectRoot, configPath)
     .then(({ config }) => {
       const ext = language === "ts" ? "ts" : "js";
-      const swoffDir = join(projectRoot, config.build?.swoffPath || "swoff");
+      const swoffDir = join(projectRoot, resolveSwoffPath(config.build?.swoffPath));
       const generatedFiles: string[] = [];
 
       const fwName = config.framework ?? "no-bundler";

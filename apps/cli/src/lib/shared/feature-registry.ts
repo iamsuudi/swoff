@@ -4,7 +4,7 @@ export interface FeatureDef {
   id: string;
   label: string;
   description: string;
-  /** Other features that must also be enabled */
+  /** Other features that must also be enabled (hard errors, never auto-forced) */
   requires: string[];
   /** Auth types that are incompatible (feature cannot function with these) */
   incompatibleAuthTypes: AuthType[];
@@ -48,11 +48,11 @@ export const FEATURES: Record<string, FeatureDef> = {
   "tag-invalidation": {
     id: "tag-invalidation",
     label: "Tag Invalidation",
-    description: "Tag-based cache invalidation system with fetch wrapper",
+    description: "Tag-based cache invalidation (optional add-on over caching)",
     requires: [],
     incompatibleAuthTypes: [],
-    checkEnabled: buildCheck("features.tagInvalidation.enabled"),
-    configUpdate: { tagInvalidation: { enabled: true } },
+    checkEnabled: buildCheck("features.caching.tagInvalidation.enabled"),
+    configUpdate: { caching: { tagInvalidation: { enabled: true } } },
     isCore: false,
   },
   pwa: {
@@ -68,8 +68,8 @@ export const FEATURES: Record<string, FeatureDef> = {
   auth: {
     id: "auth",
     label: "Authentication",
-    description: "Auth token management, session refresh, and protected routes",
-    requires: ["connectivity"],
+    description: "Auth session management, token refresh, and auth-route handling",
+    requires: [],
     incompatibleAuthTypes: [],
     checkEnabled: buildCheck("features.auth.enabled"),
     configUpdate: { auth: { enabled: true, type: "cookie" } },
@@ -79,16 +79,18 @@ export const FEATURES: Record<string, FeatureDef> = {
     id: "mutation-queue",
     label: "Mutation Queue",
     description: "Queue POST/PUT/DELETE mutations when offline and replay when online",
-    requires: ["tag-invalidation"],
+    requires: [],
     incompatibleAuthTypes: [],
-    checkEnabled: buildCheck("features.mutationQueue.enabled"),
+    checkEnabled: buildCheck("features.caching.mutationQueue.enabled"),
     configUpdate: {
-      mutationQueue: {
-        enabled: true,
-        batchSize: 1,
-        batchDelayMs: 0,
-        backgroundSync: false,
-        retry: { maxRetries: 5, backoffMs: 1000, maxBackoffMs: 30000, jitterMs: 250 },
+      caching: {
+        mutationQueue: {
+          enabled: true,
+          batchSize: 1,
+          batchDelayMs: 0,
+          backgroundSync: false,
+          retry: { maxRetries: 5, backoffMs: 1000, maxBackoffMs: 30000, jitterMs: 250 },
+        },
       },
     },
     isCore: false,
@@ -100,22 +102,22 @@ export const FEATURES: Record<string, FeatureDef> = {
     requires: ["mutation-queue"],
     incompatibleAuthTypes: AUTH_INCOMPATIBLE,
     checkEnabled: (config) => {
-      const mq = config.features.mutationQueue;
+      const mq = config.features?.caching?.mutationQueue;
       if (!mq || !mq.backgroundSync || !mq.enabled) return false;
-      const a = config.features.auth;
+      const a = config.features?.auth;
       return !a || !a.enabled || a.type === "cookie";
     },
-    configUpdate: { mutationQueue: { enabled: true, backgroundSync: true } },
+    configUpdate: { caching: { mutationQueue: { enabled: true, backgroundSync: true } } },
     isCore: false,
   },
   graphql: {
     id: "graphql",
     label: "GraphQL",
     description: "GraphQL endpoint integration with tag-based cache invalidation",
-    requires: ["tag-invalidation"],
+    requires: [],
     incompatibleAuthTypes: [],
-    checkEnabled: buildCheck("features.graphql.enabled"),
-    configUpdate: { graphql: { enabled: true, endpoints: ["/graphql"] } },
+    checkEnabled: buildCheck("features.caching.graphql.enabled"),
+    configUpdate: { caching: { graphql: { enabled: true, endpoints: ["/graphql"] } } },
     isCore: false,
   },
   "push-notification": {
@@ -132,20 +134,22 @@ export const FEATURES: Record<string, FeatureDef> = {
     id: "server-push",
     label: "Server Push",
     description: "Real-time server push over SSE or WebSocket for live cache invalidation",
-    requires: [],
+    requires: ["tag-invalidation"],
     incompatibleAuthTypes: AUTH_INCOMPATIBLE,
     checkEnabled: (config) => {
-      const sp = config.features.serverPush;
+      const sp = config.features?.caching?.serverPush;
       if (!sp || !sp.enabled) return false;
-      const a = config.features.auth;
+      const a = config.features?.auth;
       return !a || !a.enabled || a.type === "cookie";
     },
     configUpdate: {
-      serverPush: {
-        enabled: true,
-        type: "sse",
-        endpoint: "/api/events",
-        reconnectDelayMs: 5000,
+      caching: {
+        serverPush: {
+          enabled: true,
+          type: "sse",
+          endpoint: "/api/events",
+          reconnectDelayMs: 5000,
+        },
       },
     },
     isCore: false,
@@ -182,7 +186,7 @@ export function getAuthConflicts(
   featureIds: string[],
   config: SwoffConfig,
 ): string[] {
-  if (!config.features.auth.enabled) return [];
+  if (!config.features?.auth?.enabled) return [];
   const authType = config.features.auth.type;
   return featureIds.filter((id) => {
     const feature = FEATURES[id];

@@ -1,11 +1,11 @@
 ---
 title: Mutation Queue
-description: Full schema for swoff.config.json features.mutationQueue — every field, its type, default, and description.
+description: Full schema for swoff.config.json features.caching.mutationQueue — every field, its type, default, and description.
 ---
 
-## `features.mutationQueue`
+## `features.caching.mutationQueue`
 
-Object-only feature (boolean shorthand not supported).
+Object-only feature (boolean shorthand not supported). Requires `features.caching.enabled` to be `true`.
 
 | Field                | Type      | Default | Description                                               |
 | -------------------- | --------- | ------- | --------------------------------------------------------- |
@@ -16,4 +16,8 @@ Object-only feature (boolean shorthand not supported).
 | `retry.backoffMs`    | `number`  | `1000`  | Base delay in ms for retry backoff (delay × 2^retryCount) |
 | `retry.maxBackoffMs` | `number`  | `30000` | Maximum delay cap for backoff (30s)                       |
 | `retry.jitterMs`     | `number`  | `250`   | Random jitter in ms added to each backoff delay           |
-| `backgroundSync`     | `boolean` | `false` | Enable Background Sync API (Chrome/Edge only)             |
+| `backgroundSync`     | `boolean` | `false` | Enable Background Sync API (Chrome/Edge only). Requires `mutationQueue.enabled` |
+
+<Callout type="info" title="Schema v2">
+Previously `features.mutationQueue`. Move it under the `caching` umbrella and set `features.caching.enabled` to `true`. See the [migration guide](/docs/config/migration-v2).
+</Callout>

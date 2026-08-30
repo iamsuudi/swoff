@@ -11,13 +11,14 @@ export function generateAuthStore(ctx: GeneratorContext): void {
   const ext = ctx.ext;
   const ts = ext === "ts";
   const authConfig = ctx.config.features.auth;
-  const mutationQueueEnabled = ctx.config.features.mutationQueue.enabled;
+  const caching = ctx.config.features.caching;
 
   const code = generateAuthStoreCode(
     { ts, ext },
     authConfig.type,
     authConfig.routePaths,
-    mutationQueueEnabled,
+    caching.mutationQueue.enabled,
+    caching.enabled,
   );
 
   writeFile(ctx, `auth/store.${ext}`, code);

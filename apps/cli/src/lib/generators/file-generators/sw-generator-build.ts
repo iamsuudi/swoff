@@ -36,7 +36,8 @@ if (!existsSync(templatePath)) {
 const config = JSON.parse(readFileSync(configPath, 'utf8'));
 let template = readFileSync(templatePath, 'utf8');
 
-const swoffDir = join(projectRoot, config.build?.swoffPath || 'swoff');
+const rawSwoffPath = config.build?.swoffPath || 'swoff';
+const swoffDir = join(projectRoot, rawSwoffPath === '.' ? 'swoff' : rawSwoffPath);
 
 // Prepend isAuthFailureResponse from user's auth/check, or use default fallback
 const authCheckTsPath = join(swoffDir, 'auth', 'check.ts');

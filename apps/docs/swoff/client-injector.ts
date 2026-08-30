@@ -24,7 +24,19 @@
  *   sw-auth-state-change  - Login or logout (detail: { authenticated: boolean })
  */
 import { initServiceWorker as swInit } from "./sw/injector.ts";
+import { getStorageEstimate, formatBytes } from "./storage.ts";
 
+
+// --- Focus Listener for Reactive Strategy ---
+// Notifies the SW when the tab gains focus so it can refresh stale reactive entries.
+// Uses visibilitychange only (covers tab switch, window refocus, alt-tab) — single source avoids duplicate FOCUS messages.
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: "FOCUS" });
+    }
+  });
+}
 
 // --- Auto-prefetch HTML on client-side navigation (SSR mode) ---
 // Intercepts history.pushState/replaceState to warm the SW cache with HTML
@@ -70,14 +82,6 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
         })
       );
     }
-    if (event.data.type === "SW_PROGRESS") {
-      const { percent, downloaded, total } = event.data;
-      window.dispatchEvent(
-        new CustomEvent("sw-progress", {
-          detail: { percent, downloaded, total },
-        })
-      );
-    }
     if (event.data.type === "SW_NOTIFICATION") {
       window.dispatchEvent(
         new CustomEvent("swoff:notification", {
@@ -86,6 +90,14 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
             code: event.data.code,
             message: event.data.message,
           },
+        })
+      );
+    }
+    if (event.data.type === "SW_PROGRESS") {
+      const { percent, downloaded, total } = event.data;
+      window.dispatchEvent(
+        new CustomEvent("sw-progress", {
+          detail: { percent, downloaded, total },
         })
       );
     }  });
@@ -106,7 +118,21 @@ if (typeof document !== "undefined" && "serviceWorker" in navigator) {
   window.addEventListener("online", _resumeP);
 }
 
+
 /** Initialize SW registration and all client-side features (PWA install, mutation queue, cross-tab sync). Call once at app startup. */
 export async function initServiceWorker(): Promise<void>{
   await swInit();
+  const storage = await getStorageEstimate();
+  if (storage.percentUsed > 80) {
+    window.dispatchEvent(
+      new CustomEvent("swoff:notification", {
+        detail: {
+          level: "warn",
+          code: "STORAGE_QUOTA_HIGH",
+          message: `Storage at ${storage.percentUsed}% capacity (${formatBytes(storage.usage)} / ${formatBytes(storage.quota)})`,
+        },
+      }),
+    );
+  }
+
 }

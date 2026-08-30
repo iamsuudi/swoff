@@ -34,15 +34,7 @@ For the internal mechanics of strategy resolution, `serveFromCache`, the fallbac
           "/api/*": "network-first",
           "/static/*": "cache-first"
         },
-        "timeout": 10,
-        "reactive": {
-          "defaults": {
-            "staleTime": 0,
-            "refetchInterval": 0,
-            "refetchOnReconnect": false,
-            "refetchOnFocus": false
-          }
-        }
+        "timeout": 10
       }
     }
   }
@@ -121,25 +113,25 @@ Available headers: `X-SW-Strategy`, `X-SW-Stale-Time`, `X-SW-Refetch-Interval`, 
   "features": {
     "serviceWorker": {
       "strategy": {
-        "default": "cache-first",
+        "default": "reactive",
         "timeout": 10,
         "maxRuntimeCacheAge": 2592000,
         "normalizeKey": false,
         "ignoreQueryParams": [],
         "patterns": {},
         "reactive": {
-          "defaults": {
-            "staleTime": 0,
-            "refetchInterval": 0,
-            "refetchOnReconnect": false,
-            "refetchOnFocus": false
-          }
+          "staleTime": 0,
+          "refetchInterval": 0,
+          "refetchOnReconnect": false,
+          "refetchOnFocus": false
         }
       }
     }
   }
 }
 ```
+
+> `strategy.reactive` is present when `strategy.default` is `"reactive"`. For any other default strategy the block is omitted from generated configs (it only carries defaults for the reactive strategy).
 
 - `strategy.default` — fallback strategy when no pattern matches or header override is present. One of: `"cache-first"`, `"network-first"`, `"stale-while-revalidate"`, `"cache-only"`, `"network-only"`, `"reactive"`.
 - `strategy.timeout` — fetch timeout in seconds applied to all SW-initiated network requests. Default: `10`. If the fetch doesn't respond within this time, the strategy falls back (e.g., `network-first` returns cached content).

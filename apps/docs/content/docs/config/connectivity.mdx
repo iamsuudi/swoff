@@ -7,5 +7,7 @@ description: Full schema for swoff.config.json features.connectivity — every f
 
 | Field                 | Type      | Default | Description                                                                   |
 | --------------------- | --------- | ------- | ----------------------------------------------------------------------------- |
-| `enabled`             | `boolean` | `false` | Enable connectivity monitoring (online/offline detection with HEAD heartbeat) |
+| `enabled`             | `boolean` | `false` | Enable connectivity monitoring (online/offline detection with HEAD heartbeat). Explicit opt-in. |
 | `heartbeatIntervalMs` | `number`  | `30000` | Interval in ms between HEAD heartbeat requests to verify connectivity         |
+
+> **Shared primitive.** Online status lives in `swoff/online-status.{ts,js}`, generated when `connectivity.enabled` **or** `auth.enabled` is on. The connectivity module imports it and re-exports `CONNECTIVITY_EVENT`, `getCurrentOnlineStatus`, and `dispatchState`.

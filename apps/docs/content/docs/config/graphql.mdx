@@ -1,13 +1,21 @@
 ---
 title: GraphQL
-description: Full schema for swoff.config.json features.graphql — every field, its type, default, and description.
+description: Full schema for swoff.config.json features.caching.graphql — every field, its type, default, and description.
 ---
 
-## `features.graphql`
+## `features.caching.graphql`
 
-Object-only feature (boolean shorthand not supported).
+Object-only feature (boolean shorthand not supported). Requires `features.caching.enabled` to be `true`.
 
 | Field       | Type       | Default        | Description                                                                                                                                              |
 | ----------- | ---------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `enabled`   | `boolean`  | `false`        | Generate GraphQL wrapper (`queryGql` / `mutateGql`)                                                                                                      |
 | `endpoints` | `string[]` | `["/graphql"]` | GraphQL API endpoints. Supports multiple — pass `endpointIndex` to `fetchWithCache()`, `useSwoffFetch()`, `queryGql()`, or `mutateGql()` to select one. |
+
+<Callout type="info" title="How GraphQL relates to the other caching blocks">
+GraphQL sits on `fetch/core` (caching) and hashes query + variables for deterministic cache keys. It auto-derives tags from operation names (e.g. `getTodos` → `["todos"]`) and `mutateGql` auto-invalidates them — so pairing with `caching.tagInvalidation` makes cache purging automatic. Offline-writes can be queued through `caching.mutationQueue` via `queueOffline`. See [Dependencies](/docs/config/dependencies) for the full interlock.
+</Callout>
+
+<Callout type="info" title="Schema v2">
+Previously `features.graphql`. Move it under the `caching` umbrella and set `features.caching.enabled` to `true`. See the [migration guide](/docs/config/migration-v2).
+</Callout>

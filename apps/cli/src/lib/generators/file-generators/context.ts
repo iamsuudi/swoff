@@ -6,6 +6,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join, dirname } from "path";
 import type { SwoffConfig } from "../../shared/config-types.js";
+import { resolveSwoffPath } from "../../shared/config-types.js";
 
 const BUNDLER_FRAMEWORKS = new Set([
   "nextjs", "remix", "tanstack-start-react", "astro",
@@ -38,6 +39,6 @@ export function writeFile(ctx: GeneratorContext, filename: string, code: string)
   const fullPath = join(ctx.swoffDir, filename);
   ensureDir(dirname(fullPath));
   writeFileSync(fullPath, code);
-  const relPath = join(ctx.config.build?.swoffPath || "swoff", filename);
+  const relPath = join(resolveSwoffPath(ctx.config.build?.swoffPath), filename);
   ctx.generatedFiles.push(relPath);
 }

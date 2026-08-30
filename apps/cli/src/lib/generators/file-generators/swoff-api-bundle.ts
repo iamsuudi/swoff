@@ -19,13 +19,15 @@ import { generateSwoffApiBundleCode } from "../../../runtime/swoff-api-bundle.js
 
 export function generateSwoffApiBundle(ctx: GeneratorContext): void {
   const ext = ctx.ext;
-  const sw = ctx.config.features.serviceWorker;
-  const mq = ctx.config.features.mutationQueue;
-  const ti = ctx.config.features.tagInvalidation;
+  const caching = ctx.config.features.caching;
+  const mq = caching.mutationQueue;
+  const ti = caching.tagInvalidation;
 
   const code = generateSwoffApiBundleCode(
     { ts: ext === "ts", ext },
     {
+      cachingEnabled: caching.enabled,
+      tagInvalidationEnabled: caching.tagInvalidation.enabled,
       authEnabled: ctx.config.features.auth.enabled,
       authType: ctx.config.features.auth.type,
       authRoutePaths: ctx.config.features.auth.routePaths,
@@ -38,18 +40,18 @@ export function generateSwoffApiBundle(ctx: GeneratorContext): void {
       mutationQueueRetryJitterMs: mq.retry.jitterMs,
       pwaEnabled: ctx.config.features.pwa.enabled,
       pwaPreventDefaultInstall: ctx.config.features.pwa.preventDefaultInstall,
-      requestBatchWindowMs: ctx.config.features.requestBatchWindowMs,
+      requestBatchWindowMs: caching.requestBatchWindowMs,
       tagInvalidationSkipPrefixes: ti.skipPrefixes ?? [],
       tagInvalidationPatterns: ti.patterns ?? {},
       tagInvalidationSingularization: ti.singularization ?? {},
       tagInvalidationCascading: ti.cascading ?? {},
-      gqlEnabled: ctx.config.features.graphql.enabled,
-      gqlEndpoints: ctx.config.features.graphql.endpoints ?? [],
+      gqlEnabled: caching.graphql.enabled,
+      gqlEndpoints: caching.graphql.endpoints ?? [],
       pushNotificationsEnabled: ctx.config.features.pushNotifications,
-      serverPushEnabled: ctx.config.features.serverPush.enabled,
-      serverPushType: ctx.config.features.serverPush.type,
-      serverPushEndpoint: ctx.config.features.serverPush.endpoint,
-      serverPushReconnectDelayMs: ctx.config.features.serverPush.reconnectDelayMs,
+      serverPushEnabled: caching.serverPush.enabled,
+      serverPushType: caching.serverPush.type,
+      serverPushEndpoint: caching.serverPush.endpoint,
+      serverPushReconnectDelayMs: caching.serverPush.reconnectDelayMs,
     },
   );
 

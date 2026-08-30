@@ -1,11 +1,11 @@
 ---
 title: Tag Invalidation
-description: Full schema for swoff.config.json features.tagInvalidation — every field, its type, default, and description.
+description: Full schema for swoff.config.json features.caching.tagInvalidation — every field, its type, default, and description.
 ---
 
-## `features.tagInvalidation`
+## `features.caching.tagInvalidation`
 
-Object-only feature (boolean shorthand not supported).
+Object-only feature (boolean shorthand not supported). Requires `features.caching.enabled` to be `true`.
 
 | Field             | Type                       | Default                                         | Description                                                                                                                                                                             |
 | ----------------- | -------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -15,3 +15,7 @@ Object-only feature (boolean shorthand not supported).
 | `patterns`        | `object`                   | `{}`                                            | Custom glob patterns for tag generation. Keys are URL patterns (`/api/:id`), values are tag template arrays (`["{id}"]`)                                                                |
 | `singularization` | `object`                   | `{}`                                            | Custom plural→singular mapping (e.g. `{"categories": "category"}`). Default: strips trailing `s`.                                                                                       |
 | `cascading`       | `Record<string, string[]>` | `{}`                                            | Cascading tag dependencies. `{"todos": ["categories"]}` — invalidating `todos` also invalidates `categories`                                                                            |
+
+<Callout type="info" title="Schema v2">
+Previously `features.tagInvalidation`. Move it under the `caching` umbrella and set `features.caching.enabled` to `true`. See the [migration guide](/docs/config/migration-v2).
+</Callout>

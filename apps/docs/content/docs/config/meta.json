@@ -12,6 +12,7 @@
     "tag-invalidation",
     "push-notifications",
     "server-push",
-    "dependencies"
+    "dependencies",
+    "migration-v2"
   ]
 }

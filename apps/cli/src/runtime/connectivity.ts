@@ -2,19 +2,29 @@ import type { RuntimeContext } from "./utils.js";
 import { T } from "./utils.js";
 
 export function generateConnectivityCode(ctx: RuntimeContext): string {
-  const { ts } = ctx;
+  const { ext, ts } = ctx;
   return `/**
-  **/
-export const CONNECTIVITY_EVENT = 'app-connectivity-change'
+ * Connectivity — verified online/offline detection with a periodic heartbeat.
+ *
+ * Depends on the shared online/offline primitive in ./online-status.${ext}
+ * (single source of truth also used by auth/state). Re-exports the primitive's
+ * public surface for convenience.
+ *
+ * Public API:
+ *   CONNECTIVITY_EVENT      — (re-exported) window event name for status changes
+ *   getCurrentOnlineStatus  — (re-exported) latest known online status
+ *   dispatchState           — (re-exported) publish a status change to listeners
+ *   verifyAndNotify         — HEAD-verify connectivity, dispatch + notify SW
+ *   startHeartbeat          — start periodic verification while visible
+ *   stopHeartbeat           — stop periodic verification
+ *   forceRetry              — stop heartbeat, verify once, restart
+ */
+
+import { dispatchState, getCurrentOnlineStatus } from "./online-status.${ext}";
+export { CONNECTIVITY_EVENT, dispatchState, getCurrentOnlineStatus } from "./online-status.${ext}";
 
 let heartbeatIntervalId${T(ts, "ReturnType<typeof setInterval> | null")} = null
 const HEARTBEAT_DELAY = 30000
-
-let _currentOnlineStatus = typeof navigator !== 'undefined' ? navigator.onLine : true
-
-export function getCurrentOnlineStatus(): boolean {
-  return _currentOnlineStatus
-}
 
 function createTimeoutSignal(ms) {
   if (typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms);
@@ -51,14 +61,6 @@ export async function verifyAndNotify() {
     dispatchState(false)
     return false
   }
-}
-
-export function dispatchState(isTrulyOnline: boolean) {
-  _currentOnlineStatus = isTrulyOnline
-  const event = new CustomEvent(CONNECTIVITY_EVENT, {
-    detail: { online: isTrulyOnline },
-  })
-  window.dispatchEvent(event)
 }
 
 export function startHeartbeat() {

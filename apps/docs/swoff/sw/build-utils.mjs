@@ -25,7 +25,7 @@ export function collectAssets(dir, baseDir, excludeDirs) {
 export function buildFallbackList(config) {
   const fallback = [];
   if (config.features?.pwa?.enabled) fallback.push('/manifest.json');
-  const nav = config.features?.serviceWorker?.navigation || {};
+  const nav = config.features?.caching?.navigation || {};
   if (nav.fallback && fallback.indexOf(nav.fallback) === -1) {
     fallback.push(nav.fallback);
   }

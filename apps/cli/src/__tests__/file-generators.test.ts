@@ -14,6 +14,7 @@ import { generateBackgroundSync } from "../lib/generators/file-generators/backgr
 import { generateSwGeneratorBuild } from "../lib/generators/file-generators/sw-generator-build.js";
 import { generateTypeDefinitions } from "../lib/generators/file-generators/type-definitions.js";
 import { generateAuthCheck } from "../lib/generators/file-generators/auth-check.js";
+import { generateOnlineStatus } from "../lib/generators/file-generators/online-status.js";
 
 const testDir = "/tmp/swoff-test-generators";
 
@@ -28,6 +29,10 @@ function makeContext(overrides?: Partial<SwoffConfig>): GeneratorContext {
       serviceWorker: {
         ...defaultConfig.features.serviceWorker,
         ...overrides?.features?.serviceWorker,
+      },
+      caching: {
+        ...defaultConfig.features.caching,
+        ...overrides?.features?.caching,
       },
     },
     build: { ...defaultConfig.build, ...overrides?.build },
@@ -44,6 +49,13 @@ function makeContext(overrides?: Partial<SwoffConfig>): GeneratorContext {
   };
 }
 
+/** Default context with the caching umbrella turned on. */
+function makeCachingOnContext(overrides?: Partial<SwoffConfig>): GeneratorContext {
+  const ctx = makeContext(overrides);
+  ctx.config.features.caching.enabled = true;
+  return ctx;
+}
+
 beforeEach(() => {
   if (existsSync(testDir)) rmSync(testDir, { recursive: true });
   mkdirSync(testDir, { recursive: true });
@@ -55,7 +67,7 @@ afterEach(() => {
 
 describe("generateSwTemplate", () => {
   it("produces a standalone template with defaults", () => {
-    const ctx = makeContext();
+    const ctx = makeCachingOnContext();
     generateSwTemplate(ctx);
     const content = readFileSync(
       join(ctx.swoffDir, "sw", "template.js"),
@@ -73,14 +85,16 @@ describe("generateSwTemplate", () => {
   });
 
   it("includes config-driven strategy code", () => {
-    const ctx = makeContext({
+    const ctx = makeCachingOnContext({
       features: {
-        ...defaultConfig.features,
-        tagInvalidation: { ...defaultConfig.features.tagInvalidation, enabled: true },
-        serviceWorker: {
-          ...defaultConfig.features.serviceWorker,
+        caching: {
+          ...defaultConfig.features.caching,
+          tagInvalidation: {
+            ...defaultConfig.features.caching.tagInvalidation,
+            enabled: true,
+          },
           strategy: {
-            ...defaultConfig.features.serviceWorker.strategy,
+            ...defaultConfig.features.caching.strategy,
             patterns: { "/api/*": "network-first" },
           },
         },
@@ -95,6 +109,19 @@ describe("generateSwTemplate", () => {
     expect(content).toContain("fromPrecache");
     expect(content).toContain("network-first");
     expect(content).toContain("invalidateByTag");
+  });
+
+  it("emits a minimal SW template when caching is disabled", () => {
+    const ctx = makeContext();
+    generateSwTemplate(ctx);
+    const content = readFileSync(
+      join(ctx.swoffDir, "sw", "template.js"),
+      "utf8",
+    );
+    expect(content).toContain("SKIP_WAITING");
+    expect(content).not.toContain("fromPrecache");
+    expect(content).not.toContain('self.addEventListener("fetch"');
+    expect(content).not.toContain("SW_PROGRESS");
   });
 });
 
@@ -166,11 +193,16 @@ describe("generateSwInjector", () => {
 
 describe("generateClientInjector", () => {
   it("generates orchestrator with PWA setup and SW message listener when pwa enabled", () => {
-    const ctx = makeContext({
+    const ctx = makeCachingOnContext({
       features: {
-        ...defaultConfig.features,
         pwa: { ...defaultConfig.features.pwa, enabled: true },
-        mutationQueue: { ...defaultConfig.features.mutationQueue, enabled: true },
+        caching: {
+          ...defaultConfig.features.caching,
+          mutationQueue: {
+            ...defaultConfig.features.caching.mutationQueue,
+            enabled: true,
+          },
+        },
       },
     });
     generateClientInjector(ctx);
@@ -185,12 +217,14 @@ describe("generateClientInjector", () => {
   });
 
   it("includes TAG_INVALIDATED handler when tagInvalidation enabled", () => {
-    const ctx = makeContext({
+    const ctx = makeCachingOnContext({
       features: {
-        ...defaultConfig.features,
-        tagInvalidation: {
-          ...defaultConfig.features.tagInvalidation,
-          enabled: true,
+        caching: {
+          ...defaultConfig.features.caching,
+          tagInvalidation: {
+            ...defaultConfig.features.caching.tagInvalidation,
+            enabled: true,
+          },
         },
       },
     });
@@ -201,6 +235,17 @@ describe("generateClientInjector", () => {
     );
     expect(content).toContain("TAG_INVALIDATED");
     expect(content).toContain('"cache-invalidated"');
+  });
+
+  it("excludes SW_PROGRESS when caching is disabled", () => {
+    const ctx = makeContext();
+    generateClientInjector(ctx);
+    const content = readFileSync(
+      join(ctx.swoffDir, "client-injector.js"),
+      "utf8",
+    );
+    expect(content).not.toContain("SW_PROGRESS");
+    expect(content).toContain("CACHE_UPDATED");
   });
 
   it("includes setupPwaInstall and beforeinstallprompt import when pwa enabled", () => {
@@ -235,6 +280,92 @@ describe("generateClientInjector", () => {
     expect(content).toContain("./sw/injector");
     expect(content).toContain("setupPwaInstall");
     expect(content).not.toContain("No SW registration configured");
+  });
+});
+
+describe("generateOnlineStatus", () => {
+  it("emits the shared primitive when connectivity is enabled", () => {
+    const ctx = makeContext({
+      features: {
+        ...defaultConfig.features,
+        connectivity: { ...defaultConfig.features.connectivity, enabled: true },
+      },
+    });
+    generateOnlineStatus(ctx);
+    const content = readFileSync(
+      join(ctx.swoffDir, "online-status.js"),
+      "utf8",
+    );
+    expect(content).toContain("CONNECTIVITY_EVENT");
+    expect(content).toContain("getCurrentOnlineStatus");
+    expect(content).toContain("dispatchState");
+    expect(content).toContain("app-connectivity-change");
+    expect(content).not.toContain(": :");
+    expect(content).not.toContain(": boolean");
+  });
+
+  it("emits TS-typed signatures in TS mode without double colons", () => {
+    const ctx = makeContext({
+      features: {
+        ...defaultConfig.features,
+        auth: { ...defaultConfig.features.auth, enabled: true },
+      },
+    });
+    ctx.ext = "ts";
+    generateOnlineStatus(ctx);
+    const content = readFileSync(
+      join(ctx.swoffDir, "online-status.ts"),
+      "utf8",
+    );
+    expect(content).toContain("dispatchState(isTrulyOnline: boolean)");
+    expect(content).not.toContain(": :");
+  });
+
+  it("emits the shared primitive when only auth is enabled", () => {
+    const ctx = makeContext({
+      features: {
+        ...defaultConfig.features,
+        auth: { ...defaultConfig.features.auth, enabled: true },
+      },
+    });
+    generateOnlineStatus(ctx);
+    const content = readFileSync(
+      join(ctx.swoffDir, "online-status.js"),
+      "utf8",
+    );
+    expect(content).toContain("getCurrentOnlineStatus");
+  });
+
+  it("client-injector imports dispatchState from online-status when connectivity enabled", () => {
+    const ctx = makeContext({
+      features: {
+        ...defaultConfig.features,
+        connectivity: { ...defaultConfig.features.connectivity, enabled: true },
+      },
+    });
+    generateClientInjector(ctx);
+    const content = readFileSync(
+      join(ctx.swoffDir, "client-injector.js"),
+      "utf8",
+    );
+    expect(content).toContain("from './connectivity.js'");
+    expect(content).toContain("from './online-status.js'");
+  });
+
+  it("client-injector keeps heartbeat imports split when only auth enabled", () => {
+    const ctx = makeContext({
+      features: {
+        ...defaultConfig.features,
+        auth: { ...defaultConfig.features.auth, enabled: true },
+      },
+    });
+    generateClientInjector(ctx);
+    const content = readFileSync(
+      join(ctx.swoffDir, "client-injector.js"),
+      "utf8",
+    );
+    expect(content).not.toContain("from './online-status.js'");
+    expect(content).not.toContain("from './connectivity.js'");
   });
 });
 

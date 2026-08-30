@@ -109,12 +109,13 @@ describe("auth-store", () => {
 });
 
 describe("auth-state", () => {
-  it("uses connectivity for online status", () => {
+  it("uses shared online-status primitive for online status", () => {
     const ctx = makeContext({ features: { ...defaultConfig.features, auth: authConfig("cookie") } });
     generateAuthState(ctx);
     const content = readFileSync(join(ctx.swoffDir, "auth", "state.js"), "utf8");
     expect(content).toContain("getCurrentOnlineStatus");
-    expect(content).toContain("../connectivity");
+    expect(content).toContain("../online-status");
+    expect(content).not.toContain("../connectivity");
   });
 });
 

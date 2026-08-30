@@ -10,7 +10,7 @@ export function generateInvalidationTags(ctx: GeneratorContext): void {
   const ext = ctx.ext;
   const ts = ext === "ts";
 
-  const tiConfig = ctx.config.features.tagInvalidation;
+  const tiConfig = ctx.config.features.caching.tagInvalidation;
 
   const prefixes = tiConfig.skipPrefixes ?? [
     "api",

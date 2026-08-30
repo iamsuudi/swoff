@@ -5,14 +5,17 @@ import { generateConfigHeader } from "./config-header.js";
 import { applySwSections, shouldIncludeBackgroundSync, generateBackgroundSyncCode } from "./shared.js";
 
 export function assembleSW(config: SwoffConfig, projectRoot?: string, debug?: boolean): string {
-  const { serviceWorker } = config.features;
+  const { caching, serviceWorker } = config.features;
 
   const swFile = "swoff.sw.js";
+
+  // Precaching only applies when the caching feature is on.
+  const concurrency = caching.precache?.concurrency ?? 1;
+  const delayMs = caching.precache?.delayMs ?? 0;
+
   const fallback = buildFallbackList(config);
   const scanned = projectRoot ? scanPrecacheAssets(config, projectRoot, swFile) : [];
-  const assetsToCache = [...new Set([...fallback, ...scanned])];
-  const concurrency = serviceWorker.precache?.concurrency ?? 1;
-  const delayMs = serviceWorker.precache?.delayMs ?? 0;
+  const assetsToCache = caching.enabled ? [...new Set([...fallback, ...scanned])] : [];
 
   let sw = getDefaultTemplate();
 
@@ -24,7 +27,7 @@ export function assembleSW(config: SwoffConfig, projectRoot?: string, debug?: bo
   sw = sw.replace(/let AUTO_SKIP_WAITING = (?:true|false);?/, () => `let AUTO_SKIP_WAITING = ${serviceWorker.autoActivate};`);
   sw = `${generateConfigHeader(config)}\n\n${sw}`;
 
-  if (shouldIncludeBackgroundSync(config)) {
+  if (caching.enabled && shouldIncludeBackgroundSync(config)) {
     sw += generateBackgroundSyncCode(config);
   }
 

@@ -1,9 +1,9 @@
 ---
 title: Refetch Queue
-description: Full schema for swoff.config.json features.refetchQueue — every field, its type, default, and description.
+description: Full schema for swoff.config.json features.caching.refetchQueue — every field, its type, default, and description.
 ---
 
-## `features.refetchQueue`
+## `features.caching.refetchQueue`
 
 | Field                | Type     | Default | Description                                                                |
 | -------------------- | -------- | ------- | -------------------------------------------------------------------------- |
@@ -13,3 +13,7 @@ description: Full schema for swoff.config.json features.refetchQueue — every f
 | `retry.backoffMs`    | `number` | `1000`  | Base delay in ms for retry backoff (delay × 2^retryCount)                  |
 | `retry.maxBackoffMs` | `number` | `10000` | Maximum delay cap for backoff (10s)                                        |
 | `retry.jitterMs`     | `number` | `100`   | Random jitter in ms added to each backoff delay to prevent thundering herd |
+
+<Callout type="info" title="Schema v2">
+Previously `features.refetchQueue`. Move it under the `caching` umbrella. Only effective when `features.caching.enabled` is `true`. See the [migration guide](/docs/config/migration-v2).
+</Callout>

@@ -9,8 +9,8 @@ export function generateConfigHeader(config: SwoffConfig): string {
  * Swoff Service Worker - Auto-Generated
  * Generated from swoff.config.json
  * DO NOT EDIT MANUALLY
- * Features: auth=${config.features.auth.enabled}, authType=${config.features.auth.type}, mutationQueue=${config.features.mutationQueue.enabled}, backgroundSync=${config.features.mutationQueue.backgroundSync}, pwa=${config.features.pwa.enabled}, graphql=${config.features.graphql.enabled}, tagInvalidation=${config.features.tagInvalidation.enabled}, push=${config.features.pushNotifications}, serverPush=${config.features.serverPush?.enabled}
- * Default Strategy: ${config.features.serviceWorker.strategy.default}
+ * Features: auth=${config.features.auth.enabled}, authType=${config.features.auth.type}, caching=${config.features.caching.enabled}, mutationQueue=${config.features.caching.mutationQueue.enabled}, backgroundSync=${config.features.caching.mutationQueue.backgroundSync}, pwa=${config.features.pwa.enabled}, graphql=${config.features.caching.graphql.enabled}, tagInvalidation=${config.features.caching.tagInvalidation.enabled}, push=${config.features.pushNotifications}, serverPush=${config.features.caching.serverPush?.enabled}
+ * Default Strategy: ${config.features.caching.strategy.default}
  * See: https://swoff.space/docs
  */`;
 }

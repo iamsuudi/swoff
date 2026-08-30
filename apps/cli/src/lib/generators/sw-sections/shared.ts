@@ -18,8 +18,9 @@ function isCookieAuth(authType: string): boolean {
 export function shouldIncludeBackgroundSync(config: SwoffConfig): boolean {
   const { features } = config;
   return !!(
-    features.mutationQueue.backgroundSync &&
-    features.mutationQueue.enabled &&
+    features.caching.mutationQueue.backgroundSync &&
+    features.caching.mutationQueue.enabled &&
+    features.caching.enabled &&
     (!features.auth.enabled || isCookieAuth(features.auth.type))
   );
 }
@@ -27,17 +28,19 @@ export function shouldIncludeBackgroundSync(config: SwoffConfig): boolean {
 export function shouldIncludeServerPush(config: SwoffConfig): boolean {
   const { features } = config;
   return !!(
-    features.serverPush?.enabled &&
+    features.caching.serverPush?.enabled &&
+    features.caching.enabled &&
     (!features.auth.enabled || isCookieAuth(features.auth.type))
   );
 }
 
 export function generateBackgroundSyncCode(config: SwoffConfig): string {
   const { features } = config;
+  const { caching } = features;
   const authType = features.auth.enabled ? features.auth.type : undefined;
-  const mq = features.mutationQueue;
-  const maxCacheAge = features.serviceWorker.strategy.maxRuntimeCacheAge;
-  return `\n\n${generateBackgroundSyncHandler(authType, mq.batchSize, mq.batchDelayMs, mq.retry, true, maxCacheAge)}`;
+  const mq = caching.mutationQueue;
+  const maxCacheAge = caching.strategy.maxRuntimeCacheAge;
+  return `\n\n${generateBackgroundSyncHandler(authType, mq.batchSize, mq.batchDelayMs, mq.retry, caching.tagInvalidation.enabled, maxCacheAge)}`;
 }
 
 /**
@@ -56,22 +59,38 @@ export function applySwSections(
   debug?: boolean,
 ): string {
   const { features } = config;
-  const { serviceWorker } = features;
-  const { strategy, navigation } = serviceWorker;
-  const { refetchQueue } = features;
+  const { caching, serviceWorker } = features;
+  const { strategy, navigation, refetchQueue } = caching;
   const maxCacheAge = strategy.maxRuntimeCacheAge;
   const spEnabled = shouldIncludeServerPush(config);
-  const spEndpoint = features.serverPush?.endpoint ?? "";
+  const spEndpoint = caching.serverPush?.endpoint ?? "";
 
-  code = code.replace(
-    "// [[FETCH_HANDLER]]",
-    () => generateFetchHandler({ strategy, navigation, refetchQueue }, features.tagInvalidation.enabled, features.mutationQueue.enabled, features.auth.routePaths, spEnabled ? spEndpoint : undefined, debug),
-  );
+  if (caching.enabled) {
+    code = code.replace(
+      "// [[FETCH_HANDLER]]",
+      () => generateFetchHandler({ strategy, navigation, refetchQueue }, caching.tagInvalidation.enabled, caching.mutationQueue.enabled, features.auth.routePaths, spEnabled ? spEndpoint : undefined, debug),
+    );
 
-  code = code.replace(
-    "// [[ACTIVATE_HANDLER]]",
-    () => generateActivateHandler(navigation.preload, maxCacheAge),
-  );
+    code = code.replace(
+      "// [[ACTIVATE_HANDLER]]",
+      () => generateActivateHandler(navigation.preload, maxCacheAge),
+    );
+  } else {
+    code = code.replace("// [[MESSAGE_HANDLER]]", () => generateMessageHandler(false, 0, false));
+    code = code
+      .replace("// [[FETCH_HANDLER]]", "")
+      .replace("// [[ACTIVATE_HANDLER]]", "")
+      .replace("// [[BACKGROUND_PRECACHE]]", "")
+      .replace("// [[BATCH_REFRESH_QUEUE]]", "")
+      .replace("// [[TAG_MANAGEMENT]]", "")
+      .replace("// [[SERVER_PUSH_HANDLER]]", "");
+
+    code = features.pushNotifications
+      ? code.replace("// [[PUSH_HANDLERS]]", () => generateSwPushHandlers())
+      : code.replace("// [[PUSH_HANDLERS]]", "");
+
+    return code;
+  }
 
   code = code.replace("// [[BACKGROUND_PRECACHE]]", () => generateBackgroundPrecache());
   code = code.replace("// [[BATCH_REFRESH_QUEUE]]", () => generateBatchRefreshQueue(
@@ -80,8 +99,8 @@ export function applySwSections(
     refetchQueue.batchDelayMs,
   ));
 
-  code = code.replace("// [[MESSAGE_HANDLER]]", () => generateMessageHandler(features.tagInvalidation.enabled, features.tagInvalidation.debounceMs ?? 0));
-  code = features.tagInvalidation.enabled
+  code = code.replace("// [[MESSAGE_HANDLER]]", () => generateMessageHandler(caching.tagInvalidation.enabled, caching.tagInvalidation.debounceMs ?? 0, true));
+  code = caching.tagInvalidation.enabled
     ? code.replace("// [[TAG_MANAGEMENT]]", () => generateTagManagement(maxCacheAge))
     : code.replace("// [[TAG_MANAGEMENT]]", "");
 
@@ -97,9 +116,9 @@ export function applySwSections(
     ? code.replace(
         "// [[SERVER_PUSH_HANDLER]]",
         () => generateServerPushHandler(
-          features.serverPush.type,
+          caching.serverPush.type,
           endpoint,
-          features.serverPush.reconnectDelayMs,
+          caching.serverPush.reconnectDelayMs,
         ),
       )
     : code.replace("// [[SERVER_PUSH_HANDLER]]", "");

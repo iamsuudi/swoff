@@ -38,6 +38,8 @@ function stripModuleWrappers(code: string, renames?: Record<string, string>): st
 }
 
 interface SwoffApiBundleFlags {
+  cachingEnabled: boolean;
+  tagInvalidationEnabled: boolean;
   authEnabled: boolean;
   authType: string;
   authRoutePaths: string[];
@@ -79,7 +81,7 @@ export function generateSwoffApiBundleCode(
 
   const AUTH_RENAMES: Record<string, string> = { DB_NAME: "AUTH_DB_NAME", STORE_NAME: "AUTH_STORE_NAME" };
   const authAdapterCode = stripModuleWrappers(generateAuthAdapterCode(IIFE_CTX, flags.authType), AUTH_RENAMES);
-  const authStoreCode = stripModuleWrappers(generateAuthStoreCode(IIFE_CTX, flags.authType, flags.authRoutePaths, flags.mutationQueueEnabled), AUTH_RENAMES);
+  const authStoreCode = stripModuleWrappers(generateAuthStoreCode(IIFE_CTX, flags.authType, flags.authRoutePaths, flags.mutationQueueEnabled, flags.cachingEnabled), AUTH_RENAMES);
   const authStateCode = stripModuleWrappers(generateAuthStateCode(IIFE_CTX), AUTH_RENAMES);
   const authCode = flags.authEnabled
     ? authAdapterCode + "\n" + authStoreCode + "\n" + authStateCode
@@ -87,7 +89,7 @@ export function generateSwoffApiBundleCode(
 
   const MUTATION_RENAMES: Record<string, string> = { DB_NAME: "QUEUE_DB_NAME", STORE_NAME: "QUEUE_STORE_NAME" };
   const mutationCode = flags.mutationQueueEnabled
-    ? stripModuleWrappers(generateMutationQueueCode(IIFE_CTX, flags.authEnabled, flags.mutationQueueBatchSize, flags.mutationQueueBatchDelayMs, flags.mutationQueueMaxRetries, flags.mutationQueueRetryBackoffMs, flags.mutationQueueRetryMaxBackoffMs, flags.mutationQueueRetryJitterMs), MUTATION_RENAMES)
+    ? stripModuleWrappers(generateMutationQueueCode(IIFE_CTX, flags.authEnabled, flags.tagInvalidationEnabled, flags.mutationQueueBatchSize, flags.mutationQueueBatchDelayMs, flags.mutationQueueMaxRetries, flags.mutationQueueRetryBackoffMs, flags.mutationQueueRetryMaxBackoffMs, flags.mutationQueueRetryJitterMs), MUTATION_RENAMES)
       + "\n" + stripModuleWrappers(generateMutationStateCode(IIFE_CTX), MUTATION_RENAMES)
       + "\n" + stripModuleWrappers(generateBackgroundSyncCode(IIFE_CTX), MUTATION_RENAMES)
     : "";
@@ -296,14 +298,21 @@ export function generateSwoffApiBundleCode(
   }
 
   // ── Connectivity ──
+  // onOnline/onOffline listen to the shared, verified status change event
+  // (CONNECTIVITY_EVENT), so callbacks fire only after real HEAD-verified
+  // transitions — not raw navigator.onLine flips.
   function onOnline(callback) {
     if (typeof window === "undefined") return;
-    window.addEventListener("online", callback);
+    window.addEventListener(CONNECTIVITY_EVENT, function (event) {
+      if (event.detail && event.detail.online) callback();
+    });
   }
 
   function onOffline(callback) {
     if (typeof window === "undefined") return;
-    window.addEventListener("offline", callback);
+    window.addEventListener(CONNECTIVITY_EVENT, function (event) {
+      if (event.detail && !event.detail.online) callback();
+    });
   }
 ${authCode}${mutationCode}${pwaCode}${gqlCode}${pushCode}${serverPushCode}
   // ── Fetch with Cache ──
@@ -581,8 +590,19 @@ ${flags.authEnabled && flags.authType === "cookie" ? "    fetchOptions.credentia
     }
   }
 
+  // ── Shared Online Status Primitive ──
+  // Single source of truth for online state, also embedded in
+  // client-injector.bundle.js. Both connectivity and auth rely on it.
+  var CONNECTIVITY_EVENT = "app-connectivity-change";
+  var _currentOnlineStatus = typeof navigator !== "undefined" ? navigator.onLine : true;
+
   function getCurrentOnlineStatus() {
-    return typeof navigator !== "undefined" ? navigator.onLine : true;
+    return _currentOnlineStatus;
+  }
+
+  function dispatchState(isTrulyOnline) {
+    _currentOnlineStatus = isTrulyOnline;
+    window.dispatchEvent(new CustomEvent(CONNECTIVITY_EVENT, { detail: { online: isTrulyOnline } }));
   }
 
   // ── Configuration ──

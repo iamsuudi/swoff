@@ -1,25 +1,56 @@
 {
-  "$schema": "https://swoff.space/schema/v1.json",
+  "$schema": "https://swoff.space/schema/v2.json",
   "framework": "tanstack-start-react",
   "features": {
     "serviceWorker": {
-      "autoActivate": true,
+      "autoActivate": true
+    },
+    "caching": {
+      "enabled": true,
       "strategy": {
-        "default": "network-first"
+        "default": "network-first",
+        "maxRuntimeCacheAge": 2592000,
+        "normalizeKey": false,
+        "ignoreQueryParams": [],
+        "timeout": 10,
+        "storageThreshold": 80,
+        "patterns": {}
       },
       "navigation": {
         "mode": "ssr",
-        "fallback": "/offline"
+        "preload": true,
+        "fallback": "/offline",
+        "precacheRoutes": [],
+        "rules": []
+      },
+      "precache": {
+        "concurrency": 1
+      },
+      "requestBatchWindowMs": 50,
+      "refetchQueue": {
+        "batchSize": 5,
+        "batchDelayMs": 1000,
+        "retry": {
+          "maxRetries": 3,
+          "backoffMs": 1000,
+          "maxBackoffMs": 10000,
+          "jitterMs": 100
+        }
       }
     }
   },
   "build": {
     "swOutput": "dist/client",
+    "swoffPath": ".",
+    "swUrl": "/swoff.sw.js",
     "precacheDirs": {
       "dist/client": {
         "prefix": "/",
-        "stripExtensions": [".html"],
-        "stripSuffixes": ["index"]
+        "matchExtensions": [],
+        "stripExtensions": [],
+        "stripSuffixes": [],
+        "excludeDirs": [],
+        "excludeFiles": []
       }
     }
   }

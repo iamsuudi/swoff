@@ -88,6 +88,47 @@ export interface PrecacheDirConfig {
   excludeFiles?: string[];
 }
 
+export interface CachingStrategyConfig {
+  default: "cache-first" | "network-first" | "stale-while-revalidate" | "cache-only" | "network-only" | "reactive";
+  patterns: Record<string, string | StrategyEntry>;
+  reactive: {
+    staleTime?: number;
+    refetchInterval?: number;
+    refetchOnReconnect?: boolean;
+    refetchOnFocus?: boolean;
+  };
+  maxRuntimeCacheAge?: number;
+  normalizeKey?: boolean;
+  ignoreQueryParams?: string[];
+  timeout?: number;
+  storageThreshold?: number;
+}
+
+export interface CachingNavigationConfig {
+  mode: "spa" | "ssr" | "default";
+  preload?: boolean;
+  fallback: string;
+  precacheRoutes?: string[];
+  rules?: NavigationRule[];
+}
+
+export interface CachingConfig {
+  enabled: boolean;
+  strategy: CachingStrategyConfig;
+  navigation: CachingNavigationConfig;
+  precache?: PrecacheConfig;
+  requestBatchWindowMs: number;
+  refetchQueue: RefetchQueueConfig;
+  mutationQueue: MutationQueueConfig;
+  tagInvalidation: TagInvalidationConfig;
+  graphql: GqlConfig;
+  serverPush: ServerPushConfig;
+}
+
+export interface ServiceWorkerConfig {
+  autoActivate: boolean;
+}
+
 export interface SwoffConfig {
   $schema?: string;
   framework?:
@@ -116,45 +157,20 @@ export interface SwoffConfig {
     | "no-bundler"
     | "vanilla";
   features: {
+    /** Online/offline detection with periodic heartbeat. Explicit opt-in. */
+    connectivity: ConnectivityConfig;
+    /** Web Push API notifications (SW push event handling). Explicit opt-in. */
+    pushNotifications: boolean;
     pwa: {
       enabled: boolean;
       preventDefaultInstall: boolean;
     };
-    serviceWorker: {
-      autoActivate: boolean;
-      precache?: PrecacheConfig;
-      strategy: {
-        default: "cache-first" | "network-first" | "stale-while-revalidate" | "cache-only" | "network-only" | "reactive";
-        patterns: Record<string, string | StrategyEntry>;
-        reactive: {
-            staleTime?: number;
-            refetchInterval?: number;
-            refetchOnReconnect?: boolean;
-            refetchOnFocus?: boolean;
-          };
-        maxRuntimeCacheAge?: number;
-        normalizeKey?: boolean;
-        ignoreQueryParams?: string[];
-        timeout?: number;
-        storageThreshold?: number;
-      };
-      navigation: {
-        mode: "spa" | "ssr" | "default";
-        preload?: boolean;
-        fallback: string;
-        precacheRoutes?: string[];
-        rules?: NavigationRule[];
-      };
-    };
-    requestBatchWindowMs: number;
-    refetchQueue: RefetchQueueConfig;
-    mutationQueue: MutationQueueConfig;
+    /** Session/identity management. Top-level, does not depend on caching. */
     auth: AuthConfig;
-    connectivity: ConnectivityConfig;
-    tagInvalidation: TagInvalidationConfig;
-    graphql: GqlConfig;
-    pushNotifications: boolean;
-    serverPush: ServerPushConfig;
+    /** SW lifecycle only. Strategy/navigation/precache live under caching. */
+    serviceWorker: ServiceWorkerConfig;
+    /** The caching umbrella. When disabled, the SW has no fetch listener. */
+    caching: CachingConfig;
   };
   build: {
     swOutput: string;
@@ -164,24 +180,32 @@ export interface SwoffConfig {
   };
 }
 
+export const DEFAULT_SWOFF_PATH = "swoff";
+
+/**
+ * Resolve the swoff source directory. Generated configs express the default as
+ * "." (or omit it); both normalize to the same "swoff" directory.
+ */
+export function resolveSwoffPath(swoffPath?: string): string {
+  if (!swoffPath || swoffPath === ".") return DEFAULT_SWOFF_PATH;
+  return swoffPath;
+}
+
 export const KNOWN_FEATURES = [
-  "refetchQueue",
-  "mutationQueue",
-  "auth",
-  "graphql",
+  "connectivity",
   "pushNotifications",
+  "pwa",
+  "auth",
+  "serviceWorker",
+  "caching",
 ] as const;
 
 export const OBJECT_FEATURES = [
-  "pwa",
-  "serviceWorker",
-  "auth",
-  "graphql",
-  "tagInvalidation",
-  "mutationQueue",
-  "refetchQueue",
-  "serverPush",
   "connectivity",
+  "pwa",
+  "auth",
+  "serviceWorker",
+  "caching",
 ] as const;
 
 export const VALID_STRATEGIES = [
@@ -241,6 +265,39 @@ export const defaultTagInvalidation: TagInvalidationConfig = {
   cascading: {},
 };
 
+export const defaultCaching: CachingConfig = {
+  enabled: false,
+  strategy: {
+    default: "cache-first",
+    maxRuntimeCacheAge: 2592000,
+    normalizeKey: false,
+    ignoreQueryParams: [],
+    timeout: 10,
+    storageThreshold: 80,
+    patterns: {},
+    reactive: {
+      staleTime: 0,
+      refetchInterval: 0,
+      refetchOnReconnect: false,
+      refetchOnFocus: false,
+    },
+  },
+  navigation: {
+    mode: "spa",
+    preload: true,
+    fallback: "",
+    precacheRoutes: [],
+    rules: [],
+  },
+  precache: { concurrency: 1 },
+  requestBatchWindowMs: 50,
+  refetchQueue: { ...defaultRefetchQueue },
+  mutationQueue: { ...defaultMutationQueue },
+  tagInvalidation: { ...defaultTagInvalidation },
+  graphql: { ...defaultGql },
+  serverPush: { ...defaultServerPushConfig },
+};
+
 export function deepMerge<T>(
   base: T,
   override: Partial<T> | Record<string, unknown>,
@@ -273,50 +330,20 @@ export function mergeConfigs(
 export const defaultConfig: SwoffConfig = {
   build: {
     swOutput: "dist",
-    swoffPath: "swoff",
+    swoffPath: ".",
     precacheDirs: {},
   },
   features: {
-    requestBatchWindowMs: 50,
+    connectivity: { ...defaultConnectivity },
+    pushNotifications: false,
     pwa: {
       enabled: false,
       preventDefaultInstall: false,
     },
+    auth: { ...defaultAuth },
     serviceWorker: {
       autoActivate: false,
-      precache: { concurrency: 1 },
-      strategy: {
-        default: "cache-first",
-        maxRuntimeCacheAge: 2592000,
-        normalizeKey: false,
-        ignoreQueryParams: [],
-        timeout: 10,
-        storageThreshold: 80,
-        patterns: {},
-        reactive: {
-          staleTime: 0,
-          refetchInterval: 0,
-          refetchOnReconnect: false,
-          refetchOnFocus: false,
-        },
-      },
-      navigation: {
-        mode: "spa",
-        preload: true,
-        fallback: "",
-        precacheRoutes: [],
-        rules: [],
-      },
     },
-    refetchQueue: { ...defaultRefetchQueue },
-    mutationQueue: { ...defaultMutationQueue },
-    auth: { ...defaultAuth },
-    connectivity: { ...defaultConnectivity },
-    tagInvalidation: { ...defaultTagInvalidation },
-    graphql: { ...defaultGql },
-    pushNotifications: false,
-    serverPush: { ...defaultServerPushConfig },
+    caching: { ...defaultCaching },
   },
 };
-
-

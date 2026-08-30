@@ -9,6 +9,7 @@ export function generateClientInjectorCode(
   authEnabled?: boolean,
   connectivityEnabled?: boolean,
   tagInvalidationEnabled?: boolean,
+  cachingEnabled?: boolean,
   storageThreshold?: number,
 ): string {
   const { ext, ts } = ctx;
@@ -42,18 +43,18 @@ export function generateClientInjectorCode(
 `
     : "";
 
-  const storageImport = connectivityEnabled
+  const storageImport = cachingEnabled
     ? `import { getStorageEstimate, formatBytes } from "./storage.${ext}";
 `
     : "";
 
   const connectivityImport = connectivityEnabled
     ? `import {
-  dispatchState,
   startHeartbeat,
   stopHeartbeat,
   verifyAndNotify,
 } from './connectivity.${ext}'
+import { dispatchState } from './online-status.${ext}'
 `
     : "";
 
@@ -94,7 +95,7 @@ if (typeof window !== 'undefined') {
 `
     : "";
 
-  const focusListener = tagInvalidationEnabled
+  const focusListener = cachingEnabled
     ? `
 // --- Focus Listener for Reactive Strategy ---
 // Notifies the SW when the tab gains focus so it can refresh stale reactive entries.
@@ -149,7 +150,7 @@ if (typeof history !== "undefined") {
     : "";
 
   const threshold = storageThreshold ?? 80;
-  const storageInit = connectivityEnabled
+  const storageInit = cachingEnabled
     ? `
   const storage = await getStorageEstimate();
   if (storage.percentUsed > ${threshold}) {
@@ -217,14 +218,6 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
         })
       );
     }
-    if (event.data.type === "SW_PROGRESS") {
-      const { percent, downloaded, total } = event.data;
-      window.dispatchEvent(
-        new CustomEvent("sw-progress", {
-          detail: { percent, downloaded, total },
-        })
-      );
-    }
     if (event.data.type === "SW_NOTIFICATION") {
       window.dispatchEvent(
         new CustomEvent("swoff:notification", {
@@ -273,11 +266,11 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
         if (typeof ensureValidAuth === "undefined") return;
         const refreshed = await ensureValidAuth();
         if (!refreshed) {
-          // Session expired — clear queue and runtime caches
+          // Session expired — clear queue and, when caching is on, runtime caches
           if (typeof clearQueue !== "undefined") {
             await clearQueue();
           }
-          try {
+          ${cachingEnabled ? `try {
             for (const name of ["swoff-runtime", "swoff-runtime-html"]) {
               const cache = await caches.open(name);
               const keys = await cache.keys();
@@ -285,18 +278,26 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
             }
           } catch {
             // Handle cache deletion errors
-          }
+          }` : `// Caching is disabled — auth failure does not touch caches.`}
           window.dispatchEvent(new CustomEvent("sw-auth-unauthorized"));
         }
       })();
-    }` : ""}${invalidationHandler}  });
+    }` : ""}${invalidationHandler}${cachingEnabled ? `
+    if (event.data.type === "SW_PROGRESS") {
+      const { percent, downloaded, total } = event.data;
+      window.dispatchEvent(
+        new CustomEvent("sw-progress", {
+          detail: { percent, downloaded, total },
+        })
+      );
+    }` : ""}  });
 }
 
 // --- Background Precache Resume ---
 // Tells the SW to resume background precaching when the page becomes visible
 // or the browser comes back online. The SW tracks progress via IndexedDB
 // checkpoint so it safely picks up where it left off.
-if (typeof document !== "undefined" && "serviceWorker" in navigator) {
+${cachingEnabled ? `if (typeof document !== "undefined" && "serviceWorker" in navigator) {
   var _resumeP = function() {
     if (navigator.serviceWorker.controller)
       navigator.serviceWorker.controller.postMessage({ type: "RESUME_PRECACHE" });
@@ -306,6 +307,7 @@ if (typeof document !== "undefined" && "serviceWorker" in navigator) {
   });
   window.addEventListener("online", _resumeP);
 }
+` : ""}
 
 /** Initialize SW registration and all client-side features (PWA install, mutation queue, cross-tab sync). Call once at app startup. */
 export async function initServiceWorker()${ts ? ": Promise<void>" : " "}{

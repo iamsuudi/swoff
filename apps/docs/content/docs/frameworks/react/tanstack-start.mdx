@@ -20,11 +20,14 @@ The service worker precaches the JS bundles and assets. Navigation requests for 
 
 ```json
 {
-  "$schema": "https://swoff.space/schema/v1.json",
+  "$schema": "https://swoff.space/schema/v2.json",
   "framework": "tanstack-start-react",
   "features": {
     "serviceWorker": {
-      "autoActivate": true,
+      "autoActivate": true
+    },
+    "caching": {
+      "enabled": true,
       "navigation": {
         "mode": "ssr",
         "fallback": "/offline"
@@ -46,11 +49,11 @@ The service worker precaches the JS bundles and assets. Navigation requests for 
 }
 ```
 
-| Setting                 | Value             | Why                                                                                    |
-| ----------------------- | ----------------- | -------------------------------------------------------------------------------------- |
-| `navigation.mode`       | `"ssr"`           | Pages are server-rendered with hydration. SW checks precache first, then runtime-html. |
-| `strategy.default`      | `"network-first"` | Try the network first; if offline, serve from precache or runtime cache.               |
-| `patterns./_serverFn/*` | `"network-only"`  | Server function calls must reach the server. Never serve stale cached responses.       |
+| Setting                               | Value             | Why                                                                                    |
+| ------------------------------------- | ----------------- | -------------------------------------------------------------------------------------- |
+| `caching.navigation.mode`             | `"ssr"`           | Pages are server-rendered with hydration. SW checks precache first, then runtime-html. |
+| `caching.strategy.default`            | `"network-first"` | Try the network first; if offline, serve from precache or runtime cache.               |
+| `patterns./_serverFn/*`               | `"network-only"`  | Server function calls must reach the server. Never serve stale cached responses.       |
 
 ### Pre-rendered pages (SPA mode)
 

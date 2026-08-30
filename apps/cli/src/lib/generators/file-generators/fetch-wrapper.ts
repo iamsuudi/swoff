@@ -13,8 +13,9 @@ export function generateFetchWrapper(ctx: GeneratorContext): void {
   const code = generateFetchWrapperCode(
     { ts, ext },
     ctx.config.features.auth.enabled,
-    ctx.config.features.mutationQueue.enabled,
-    ctx.config.features.requestBatchWindowMs,
+    ctx.config.features.caching.mutationQueue.enabled,
+    ctx.config.features.caching.tagInvalidation.enabled,
+    ctx.config.features.caching.requestBatchWindowMs,
   );
 
   writeFile(ctx, `fetch/core.${ext}`, code);

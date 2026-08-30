@@ -40,6 +40,7 @@ vi.mock("@clack/prompts", () => {
     ),
     confirm: vi.fn((opts) => {
       callCount++;
+      if (opts.message === "Write swoff.config.json?") return true;
       return (
         mockValues[
           opts.name ||
@@ -59,6 +60,7 @@ import { initCommand } from "../lib/commands/init.js";
 import { cleanCommand } from "../lib/commands/clean.js";
 import { generateCommand } from "../lib/commands/generate.js";
 import { validateCommand } from "../lib/commands/validate.js";
+import { select } from "@clack/prompts";
 
 const testDir = "/tmp/swoff-test-commands";
 
@@ -79,7 +81,7 @@ describe("initCommand", () => {
     const config = JSON.parse(
       readFileSync(join(testDir, "swoff.config.json"), "utf8"),
     );
-    expect(config.$schema).toBe("https://swoff.space/schema/v1.json");
+    expect(config.$schema).toBe("https://swoff.space/schema/v2.json");
   });
 
   it("skips when swoff.config.json already exists", async () => {
@@ -120,11 +122,19 @@ describe("initCommand", () => {
     expect(config).toHaveProperty("build");
     expect(config).toHaveProperty("features");
     expect(config.features).toHaveProperty("serviceWorker");
-    expect(config.features).not.toHaveProperty("pwa");
-    expect(config.features).not.toHaveProperty("mutationQueue");
-    expect(config.features).not.toHaveProperty("auth");
-    expect(config.features).not.toHaveProperty("tagInvalidation");
     expect(config.features).not.toHaveProperty("connectivity");
+    expect(config.features).not.toHaveProperty("pwa");
+    expect(config.features).not.toHaveProperty("caching");
+    expect(config.features).not.toHaveProperty("auth");
+  });
+
+  it("interactive: skips caching descendant prompts when caching is declined", async () => {
+    await initCommand(testDir);
+    const config = JSON.parse(
+      readFileSync(join(testDir, "swoff.config.json"), "utf8"),
+    );
+    expect(config.features).not.toHaveProperty("caching");
+    expect(select).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -166,10 +176,15 @@ describe("cleanCommand", () => {
 describe("generateCommand", () => {
   function writeMinimalConfig() {
     const config = {
-      $schema: "https://swoff.space/schema/v1.json",
+      $schema: "https://swoff.space/schema/v2.json",
       framework: "react",
       features: {
+        connectivity: { enabled: true },
         serviceWorker: {
+          autoActivate: false,
+        },
+        caching: {
+          enabled: true,
           strategy: {
             default: "cache-first",
           },
@@ -210,12 +225,27 @@ describe("generateCommand", () => {
     const config = JSON.parse(
       readFileSync(join(testDir, "swoff.config.json"), "utf8"),
     );
-    config.features.tagInvalidation = { enabled: true };
+    config.features.caching.tagInvalidation = { enabled: true };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
     await generateCommand(testDir);
     expect(existsSync(join(testDir, "swoff/cache/invalidate.js"))).toBe(true);
     expect(existsSync(join(testDir, "swoff/cache/tags.js"))).toBe(true);
     expect(existsSync(join(testDir, "swoff/fetch/core.js"))).toBe(true);
+  });
+
+  it("emits no fetch/core without caching enabled", async () => {
+    writeFileSync(
+      join(testDir, "package.json"),
+      JSON.stringify({ name: "test", version: "1.0.0" }),
+    );
+    writeMinimalConfig();
+    const config = JSON.parse(
+      readFileSync(join(testDir, "swoff.config.json"), "utf8"),
+    );
+    config.features.caching.enabled = false;
+    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
+    await generateCommand(testDir);
+    expect(existsSync(join(testDir, "swoff/fetch/core.js"))).toBe(false);
   });
 
   it("generates connectivity files when connectivity.enabled", async () => {
@@ -256,7 +286,7 @@ describe("generateCommand", () => {
     warnSpy.mockRestore();
   });
 
-  it("generates db and connectivity when auth enabled", async () => {
+  it("generates db and online-status (not connectivity) when auth enabled", async () => {
     writeFileSync(
       join(testDir, "package.json"),
       JSON.stringify({ name: "test", version: "1.0.0" }),
@@ -266,20 +296,67 @@ describe("generateCommand", () => {
       readFileSync(join(testDir, "swoff.config.json"), "utf8"),
     );
     config.features.auth = { enabled: true, type: "cookie" };
-    config.features.connectivity = { enabled: true };
+    config.features.connectivity = { enabled: false };
     writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
     await generateCommand(testDir);
     expect(existsSync(join(testDir, "swoff/db.js"))).toBe(true);
-    expect(existsSync(join(testDir, "swoff/connectivity.js"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/online-status.js"))).toBe(true);
+    expect(existsSync(join(testDir, "swoff/connectivity.js"))).toBe(false);
+    const authState = readFileSync(
+      join(testDir, "swoff/auth/state.js"),
+      "utf8",
+    );
+    expect(authState).toContain("../online-status");
+    expect(authState).not.toContain("../connectivity");
+  });
+
+  it("no-bundler: auth without connectivity falls back to the shared inline primitive", async () => {
+    writeFileSync(
+      join(testDir, "package.json"),
+      JSON.stringify({ name: "test", version: "1.0.0" }),
+    );
+    const config = {
+      $schema: "https://swoff.space/schema/v2.json",
+      framework: "no-bundler",
+      features: {
+        connectivity: { enabled: false },
+        serviceWorker: { autoActivate: false },
+        auth: { enabled: true, type: "cookie" },
+        caching: { enabled: false },
+      },
+      build: { swOutput: "dist" },
+    };
+    writeFileSync(join(testDir, "swoff.config.json"), JSON.stringify(config));
+    await generateCommand(testDir);
+    const api = readFileSync(
+      join(testDir, "swoff/swoff-api.bundle.js"),
+      "utf8",
+    );
+    const injector = readFileSync(
+      join(testDir, "swoff/client-injector.bundle.js"),
+      "utf8",
+    );
+    expect(existsSync(join(testDir, "swoff/connectivity.js"))).toBe(false);
+    expect(existsSync(join(testDir, "swoff/online-status.js"))).toBe(false);
+    expect(api).toContain("CONNECTIVITY_EVENT");
+    expect(api).toContain("function getCurrentOnlineStatus()");
+    expect(api).toContain("function dispatchState(");
+    expect(injector).toContain("CONNECTIVITY_EVENT");
+    expect(api).not.toContain('from "../connectivity');
+    expect(api).not.toContain('from "../online-status');
   });
 });
 
 describe("validateCommand", () => {
   function writeValidConfig() {
     const config = {
+      $schema: "https://swoff.space/schema/v2.json",
       framework: "vanilla",
       features: {
-        serviceWorker: {
+        connectivity: { enabled: true },
+        serviceWorker: { autoActivate: false },
+        caching: {
+          enabled: true,
           strategy: { default: "cache-first" },
           navigation: { mode: "spa", fallback: "/index.html" },
         },

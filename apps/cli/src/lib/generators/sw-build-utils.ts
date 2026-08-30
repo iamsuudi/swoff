@@ -22,7 +22,7 @@ export function buildFallbackList(config: SwoffConfig): string[] {
   const fallback: string[] = [];
   if (config.features.pwa.enabled) fallback.push("/manifest.json");
 
-  const nav = config.features.serviceWorker.navigation;
+  const nav = config.features.caching.navigation;
   if (nav.fallback && !fallback.includes(nav.fallback)) {
     fallback.push(nav.fallback);
   }

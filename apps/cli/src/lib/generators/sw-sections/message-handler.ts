@@ -1,4 +1,15 @@
-export function generateMessageHandler(tagInvalidation: boolean, debounceMs: number = 0): string {
+export function generateMessageHandler(tagInvalidation: boolean, debounceMs: number = 0, cachingEnabled: boolean = true): string {
+  if (!cachingEnabled) {
+    return `self.addEventListener("message", (event) => {
+  if (event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+  if (event.data.type === "AUTH_CLEARED") {
+    event.waitUntil(broadcastToClients("AUTH_CLEARED"));
+  }
+});`;
+  }
+
   const debouncePrologue = tagInvalidation && debounceMs > 0
     ? `
 const INVALIDATION_DEBOUNCE_MS = ${debounceMs};

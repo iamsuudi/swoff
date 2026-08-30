@@ -17,6 +17,7 @@ export function generateAuthStoreCode(
   authType: string,
   authRoutePaths: string[] = DEFAULT_AUTH_ROUTES,
   mutationQueueEnabled: boolean = false,
+  cachingEnabled: boolean = false,
 ): string {
   const { ext, ts } = ctx;
   const isCookie = authType === "cookie";
@@ -173,7 +174,7 @@ export async function clearAuth(options${T(ts, "{ broadcast?: boolean }")} = {})
   }
   memoryAuth = null;
   await clearPersistedData();
-  try {
+  ${cachingEnabled ? `try {
     const cacheNames = await caches.keys();
     await Promise.all(
       cacheNames
@@ -181,7 +182,8 @@ export async function clearAuth(options${T(ts, "{ broadcast?: boolean }")} = {})
         .map(name => caches.delete(name))
     );
   } catch { /* caches API unavailable */ }
-  ${mutationQueueEnabled ? `await clearQueue();\n` : ""}  window.dispatchEvent(new CustomEvent("sw-auth-state-change", { detail: { type: "clear" } }));
+` : `  // Caching is disabled — auth logout does not touch runtime caches.
+`}  ${mutationQueueEnabled ? `await clearQueue();\n` : ""}  window.dispatchEvent(new CustomEvent("sw-auth-state-change", { detail: { type: "clear" } }));
 }
 
 /** Check if auth exists and has not expired. Returns true if no expiresAt is set. */

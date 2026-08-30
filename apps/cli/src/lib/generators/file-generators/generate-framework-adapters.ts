@@ -2,6 +2,7 @@ import { readFileSync, existsSync, mkdirSync, writeFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import type { GeneratorContext } from "./context.js";
+import { resolveSwoffPath } from "../../shared/config-types.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const templatesDir = join(__dirname, "../../../../templates");
@@ -100,18 +101,18 @@ interface AdapterDef {
 const ADAPTERS: AdapterDef[] = [
   { name: "useSwoffNetwork", condition: (c) => c.config.features.connectivity.enabled },
   { name: "useSwoffStorage" },
-  { name: "useSwoffFetch", condition: (c) => c.config.features.tagInvalidation.enabled },
-  { name: "useSwoffMutation", condition: (c) => c.config.features.mutationQueue.enabled },
-  { name: "useSwoffPrefetch", condition: (c) => c.config.features.tagInvalidation.enabled },
-  { name: "useSwoffMutationState", condition: (c) => c.config.features.mutationQueue.enabled },
+  { name: "useSwoffFetch", condition: (c) => c.config.features.caching.tagInvalidation.enabled },
+  { name: "useSwoffMutation", condition: (c) => c.config.features.caching.mutationQueue.enabled },
+  { name: "useSwoffPrefetch", condition: (c) => c.config.features.caching.tagInvalidation.enabled },
+  { name: "useSwoffMutationState", condition: (c) => c.config.features.caching.mutationQueue.enabled },
   { name: "useSwoffReset" },
   { name: "useSwoffAnalytics" },
   { name: "useSwoffPrecache" },
   { name: "useSwoffAuth", condition: (c) => c.config.features.auth.enabled },
-  { name: "useSwoffQueue", condition: (c) => c.config.features.mutationQueue.enabled },
+  { name: "useSwoffQueue", condition: (c) => c.config.features.caching.mutationQueue.enabled },
   { name: "useSwoffPwa", condition: (c) => c.config.features.pwa.enabled },
   { name: "useSwoffPush", condition: (c) => c.config.features.pushNotifications },
-  { name: "useSwoffSync", condition: (c) => !!c.config.features.mutationQueue.backgroundSync },
+  { name: "useSwoffSync", condition: (c) => !!c.config.features.caching.mutationQueue.backgroundSync },
 ];
 
 const BASE_FRAMEWORK: Record<string, string> = {
@@ -150,7 +151,7 @@ export function generateFrameworkAdapters(ctx: GeneratorContext): void {
     if (a.condition && !a.condition(ctx)) continue;
     const adapter = readAdapter(frameworkDir, a.name, baseFramework, ctx.ext as "ts" | "js");
     if (!adapter) continue;
-    const relPath = join(ctx.config.build?.swoffPath || "swoff", subdir, adapter.output);
+    const relPath = join(resolveSwoffPath(ctx.config.build?.swoffPath), subdir, adapter.output);
     const outPath = join(ctx.swoffDir, subdir, adapter.output);
     writeFileSync(outPath, adapter.content);
     ctx.generatedFiles.push(relPath);

@@ -4,6 +4,7 @@ import { T, R, PT, AS } from "./utils.js";
 export function generateMutationQueueCode(
   ctx: RuntimeContext,
   authEnabled: boolean,
+  tagInvalidation: boolean,
   batchSize: number,
   batchDelayMs: number,
   maxRetries: number,
@@ -18,7 +19,11 @@ export function generateMutationQueueCode(
 `
     : "";
 
-  const additionalImports = `import { invalidateByTags } from "../cache/invalidate.${ext}";
+  const tagImports = tagInvalidation
+    ? `import { invalidateByTags } from "../cache/invalidate.${ext}";
+`
+    : "";
+  const additionalImports = `${tagImports}
 ${
   ts
     ? `import type { MutationQueueItem } from "../swoff.d.ts";
@@ -53,9 +58,9 @@ ${
         });
         if (retryResponse.ok) {
           // Success after auth refresh — normal flow
-          if (item.tags && item.tags.length > 0) {
+          ${tagInvalidation ? `if (item.tags && item.tags.length > 0) {
             await invalidateByTags(item.tags);
-          }
+          }` : ""}
           await removeFromQueue(item.id, db);
           return true;
         }
@@ -209,10 +214,10 @@ ${authHeaderSpread}      },
 
 ${auth401ReplayBlock}    if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
 
-    if (item.tags && item.tags.length > 0) {
+    ${tagInvalidation ? `if (item.tags && item.tags.length > 0) {
       await invalidateByTags(item.tags);
     }
-
+` : ""}
     await removeFromQueue(item.id, db);
     return true;
   } catch {

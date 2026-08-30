@@ -1,25 +1,21 @@
 ---
 title: Service Worker
-description: Full schema for swoff.config.json features.serviceWorker — every field, its type, default, and description.
+description: Full schema for features.serviceWorker — SW lifecycle settings, plus features.caching.{strategy,navigation,precache}.
 ---
 
 ## `features.serviceWorker`
 
-| Field          | Type      | Default | Description                                                                                                                                                      |
-| -------------- | --------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Field          | Type      | Default | Description                                                                                                                               |
+| -------------- | --------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `autoActivate` | `boolean` | `false` | Automatically activate newly registered service workers (`skipWaiting()`). When `false`, the SW activates on next navigation or browser reload — no user prompt. |
-| `precache`     | `object`  | —       | Controls how assets are precached (see below).                                                                                                                   |
 
-### `features.serviceWorker.precache`
+> In schema v1 this object also held `strategy`, `navigation`, and `precache`. They moved to the [`features.caching`](/docs/config) umbrella in v2 — see below.
 
-Controls the background precache behavior.
+---
 
-| Field         | Type     | Default | Description                                                                                                                                                                                                                                                                                                                                                                          |
-| ------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `concurrency` | `number` | `1`     | Number of assets to download simultaneously during background precaching. Higher values (e.g. `5`) speed up large precaches but may increase bandwidth contention. All assets (build output, fallback routes, per-route fallbacks, manifest) are cached in the background after activation — nothing is cached during the install event. |
-| `delayMs`     | `number` | `0`     | Delay in milliseconds between starting individual asset requests within a batch. Spaces out requests to avoid network saturation.                                                                                                                                                                                                                                                    |
+## `features.caching.strategy`
 
-### `features.serviceWorker.strategy`
+The request/response caching engine. Only effective when `features.caching.enabled` is `true`.
 
 | Field                         | Type       | Default         | Description                                                                                                                                                                                                                                                                                    |
 | ----------------------------- | ---------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -35,7 +31,7 @@ Controls the background precache behavior.
 | `timeout`                     | `number`   | `10`            | Network fetch timeout in seconds. The SW's `_fetch` wraps `fetch()` with an `AbortController` that aborts after this duration. On timeout or network error, a `SW_NOTIFICATION` is broadcast (level: `"error"`, code: `"FETCH_FAILED"`), and the strategy falls through to its cache fallback. |
 | `storageThreshold`              | `number`   | `80`            | Storage quota warning threshold (percent). When `navigator.storage.estimate().percentUsed` exceeds this value after SW init, a `STORAGE_QUOTA_HIGH` notification is dispatched. Range: 0–100. |
 
-### `features.serviceWorker.navigation`
+## `features.caching.navigation`
 
 | Field            | Type                              | Default | Description                                                                                                                                                                                                                                                                                                                                                                                       |
 | ---------------- | --------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -55,15 +51,27 @@ Controls the background precache behavior.
 #### Example — per-route fallback rules
 
 ```json
-"navigation": {
-  "mode": "ssr",
-  "fallback": "/offline.html",
-  "rules": [
-    { "match": "/blog/*", "fallback": "/blog-offline.html" },
-    { "match": "/dashboard/**", "fallback": "/dashboard-offline.html" }
-  ]
+"caching": {
+  "enabled": true,
+  "navigation": {
+    "mode": "ssr",
+    "fallback": "/offline.html",
+    "rules": [
+      { "match": "/blog/*", "fallback": "/blog-offline.html" },
+      { "match": "/dashboard/**", "fallback": "/dashboard-offline.html" }
+    ]
+  }
 }
 ```
+
+## `features.caching.precache`
+
+Controls the background precache behavior.
+
+| Field         | Type     | Default | Description                                                                                                                                                                                                               |
+| ------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `concurrency` | `number` | `1`     | Number of assets to download simultaneously during background precaching. Higher values (e.g. `5`) speed up large precaches but may increase bandwidth contention. All assets (build output, fallback routes, per-route fallbacks, manifest) are cached in the background after activation — nothing is cached during the install event. |
+| `delayMs`     | `number` | `0`     | Delay in milliseconds between starting individual asset requests within a batch. Spaces out requests to avoid network saturation.                                                                                          |
 
 ### `StrategyEntry` object
 
@@ -91,10 +99,10 @@ When a strategy value is an object instead of a string:
 `strategy` and `staleTime` resolve in 3 tiers (highest to lowest priority):
 
 1. **Per-request** — passed as options to `fetchWithCache({ strategy })` or `useSwoffFetch()`, or via `X-SW-Strategy` / `X-SW-Stale-Time` headers
-2. **Route pattern** — configured in `features.serviceWorker.strategy.patterns`
-3. **Global default** — configured at `features.serviceWorker.strategy.reactive.*` (for `staleTime`) or `features.serviceWorker.strategy.default` (for `strategy`)
+2. **Route pattern** — configured in `features.caching.strategy.patterns`
+3. **Global default** — configured at `features.caching.strategy.reactive.*` (for `staleTime`) or `features.caching.strategy.default` (for `strategy`)
 
 `refetchInterval`, `refetchOnReconnect`, and `refetchOnFocus` are SW-initiated (interval timers, online/focus event handlers) and resolve in 2 tiers only:
 
 1. **Route pattern** — configured in the pattern entry
-2. **Global default** — configured at `features.serviceWorker.strategy.reactive.*`
+2. **Global default** — configured at `features.caching.strategy.reactive.*`

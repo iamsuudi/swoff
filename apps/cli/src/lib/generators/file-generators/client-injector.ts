@@ -10,17 +10,18 @@ export function generateClientInjector(ctx: GeneratorContext): void {
   const ext = ctx.ext;
   const ts = ext === "ts";
 
-  const storageThreshold = ctx.config.features.serviceWorker.strategy.storageThreshold;
+  const storageThreshold = ctx.config.features.caching.strategy.storageThreshold;
 
   const code = generateClientInjectorCode(
     { ts, ext },
     ctx.config.features.pwa.enabled,
-    ctx.config.features.mutationQueue.enabled,
+    ctx.config.features.caching.mutationQueue.enabled,
     shouldIncludeServerPush(ctx.config),
-    ctx.config.features.serviceWorker.navigation.mode,
+    ctx.config.features.caching.navigation.mode,
     ctx.config.features.auth.enabled,
-    ctx.config.features.connectivity.enabled || ctx.config.features.auth.enabled,
-    ctx.config.features.tagInvalidation.enabled || ctx.config.features.mutationQueue.enabled || ctx.config.features.graphql.enabled,
+    ctx.config.features.connectivity.enabled,
+    ctx.config.features.caching.tagInvalidation.enabled,
+    ctx.config.features.caching.enabled,
     storageThreshold,
   );
 

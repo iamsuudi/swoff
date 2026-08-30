@@ -30,13 +30,26 @@ export async function validateCommand(projectRoot: string) {
   log.success("Configuration is valid!");
   log.info("\nConfig summary:");
   log.help(
-    `Default strategy: ${config.features.serviceWorker.strategy.default}`,
+    `Default strategy: ${config.features.caching.strategy.default}`,
   );
   log.help(`Auto activate: ${config.features.serviceWorker.autoActivate}`);
+  log.help(`Caching enabled: ${config.features.caching.enabled}`);
   log.help(
     `Features enabled: ${Object.entries(config.features)
       .filter(([k, v]) => {
         if (k === "serviceWorker") return false;
+        if (k === "caching") return false;
+        if (typeof v === "object" && v !== null)
+          return (v as Record<string, unknown>).enabled === true;
+        return typeof v === "boolean" && v === true;
+      })
+      .map(([k]) => k)
+      .join(", ")}`,
+  );
+  log.help(
+    `Caching features: ${Object.entries(config.features.caching)
+      .filter(([k, v]) => {
+        if (k === "strategy" || k === "navigation" || k === "precache" || k === "enabled") return false;
         if (typeof v === "object" && v !== null)
           return (v as Record<string, unknown>).enabled === true;
         return typeof v === "boolean" && v === true;

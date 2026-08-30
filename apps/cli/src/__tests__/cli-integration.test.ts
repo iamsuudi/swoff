@@ -30,11 +30,17 @@ describe("CLI commands integration", () => {
   describe("init behavior", () => {
     it("creates swoff.config.json with correct structure", () => {
       const config = {
-        $schema: "https://swoff.space/schema/v1.json",
+        $schema: "https://swoff.space/schema/v2.json",
         features: {
+          connectivity: { enabled: true },
+          pushNotifications: false,
           pwa: { enabled: true, preventDefaultInstall: false },
+          auth: { enabled: false, type: "bearer" },
           serviceWorker: {
             autoActivate: false,
+          },
+          caching: {
+            enabled: true,
             strategy: {
               default: "cache-first",
               patterns: {
@@ -52,24 +58,38 @@ describe("CLI commands integration", () => {
               mode: "spa",
               fallback: "/index.html",
             },
+            requestBatchWindowMs: 50,
+            refetchQueue: {
+              batchSize: 5,
+              batchDelayMs: 1000,
+              retry: {
+                maxRetries: 3,
+                backoffMs: 1000,
+                maxBackoffMs: 10000,
+                jitterMs: 100,
+              },
+            },
+            mutationQueue: {
+              enabled: false,
+              batchSize: 1,
+              batchDelayMs: 0,
+              backgroundSync: false,
+              retry: {
+                maxRetries: 5,
+                backoffMs: 1000,
+                maxBackoffMs: 30000,
+                jitterMs: 250,
+              },
+            },
+            tagInvalidation: { enabled: true },
+            graphql: { enabled: false, endpoints: ["/graphql"] },
+            serverPush: {
+              enabled: false,
+              type: "sse",
+              endpoint: "/api/events",
+              reconnectDelayMs: 5000,
+            },
           },
-          refetchQueue: {
-            batchSize: 5,
-            batchDelayMs: 1000,
-            maxRetries: 3,
-            retryDelayMs: 1000,
-          },
-          mutationQueue: {
-            enabled: false,
-            batchSize: 1,
-            batchDelayMs: 0,
-            maxRetries: 5,
-            retryBackoffMs: 1000,
-            backgroundSync: false,
-          },
-          auth: { enabled: false, type: "bearer" },
-          tagInvalidation: { enabled: true },
-          connectivity: { enabled: false },
         },
         build: { swOutput: "dist" },
       };
@@ -81,7 +101,7 @@ describe("CLI commands integration", () => {
       const parsed = JSON.parse(
         readFileSync(join(testDir, "swoff.config.json"), "utf8"),
       );
-      expect(parsed.$schema).toBe("https://swoff.space/schema/v1.json");
+      expect(parsed.$schema).toBe("https://swoff.space/schema/v2.json");
       expect(parsed.features.pwa.preventDefaultInstall).toBe(false);
     });
 
@@ -185,25 +205,29 @@ describe("CLI commands integration", () => {
   describe("end-to-end generate pipeline", () => {
     function writeConfig(overrides: Record<string, unknown> = {}) {
       const config = {
-        $schema: "https://swoff.space/schema/v1.json",
+        $schema: "https://swoff.space/schema/v2.json",
         framework: "react",
         features: {
+          connectivity: { enabled: true },
+          pushNotifications: false,
           pwa: { enabled: true, preventDefaultInstall: false },
+          auth: { enabled: false, type: "bearer" as const },
           serviceWorker: {
             autoActivate: false,
+          },
+          caching: {
+            enabled: true,
             strategy: {
-              default: "cache-first",
+              default: "cache-first" as const,
               patterns: {
                 "/api/*": "network-first",
                 "/static/*": "cache-first",
               },
               reactive: {
-                defaults: {
-                  staleTime: 0,
-                  refetchInterval: 0,
-                  refetchOnReconnect: false,
-                  refetchOnFocus: false,
-                },
+                staleTime: 0,
+                refetchInterval: 0,
+                refetchOnReconnect: false,
+                refetchOnFocus: false,
               },
               mode: "all" as const,
               normalizeKey: false,
@@ -214,31 +238,37 @@ describe("CLI commands integration", () => {
               preload: true,
               fallback: "/index.html",
             },
-          },
-          refetchQueue: {
-            batchSize: 5,
-            batchDelayMs: 1000,
-            maxRetries: 3,
-            retryDelayMs: 1000,
-          },
-          mutationQueue: {
-            enabled: false,
-            batchSize: 1,
-            batchDelayMs: 0,
-            maxRetries: 5,
-            retryBackoffMs: 1000,
-            backgroundSync: false,
-          },
-          auth: { enabled: false, type: "bearer" as const },
-          tagInvalidation: { enabled: true },
-          connectivity: { enabled: false },
-          graphql: { enabled: false, endpoints: ["/graphql"] },
-          pushNotifications: false,
-          serverPush: {
-            enabled: false,
-            type: "sse",
-            endpoint: "/api/events",
-            reconnectDelayMs: 5000,
+            requestBatchWindowMs: 50,
+            refetchQueue: {
+              batchSize: 5,
+              batchDelayMs: 1000,
+              retry: {
+                maxRetries: 3,
+                backoffMs: 1000,
+                maxBackoffMs: 10000,
+                jitterMs: 100,
+              },
+            },
+            mutationQueue: {
+              enabled: false,
+              batchSize: 1,
+              batchDelayMs: 0,
+              backgroundSync: false,
+              retry: {
+                maxRetries: 5,
+                backoffMs: 1000,
+                maxBackoffMs: 30000,
+                jitterMs: 250,
+              },
+            },
+            tagInvalidation: { enabled: true },
+            graphql: { enabled: false, endpoints: ["/graphql"] },
+            serverPush: {
+              enabled: false,
+              type: "sse" as const,
+              endpoint: "/api/events",
+              reconnectDelayMs: 5000,
+            },
           },
         },
         build: { swOutput: "dist" },

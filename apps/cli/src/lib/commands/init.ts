@@ -17,6 +17,7 @@ import {
   buildMinimalConfig,
   type WizardAnswers,
 } from "../config/minimal-config.js";
+import type { PrecacheDirConfig } from "../shared/config-types.js";
 
 const FRAMEWORK_PRESETS: Record<string, Record<string, unknown>> = {
   react: {
@@ -221,22 +222,29 @@ export async function initCommand(
   const preset = FRAMEWORK_PRESETS[detected] || {};
 
   if (yesMode) {
+    const cachingPrescribed = !!(preset.patterns || preset.precacheDirs);
     const answers: WizardAnswers = {
       framework: detected,
       swOutput: (preset.swOutput as string) || "dist",
+      autoActivate: false,
       navMode: (preset.navMode as "spa" | "ssr" | "default") || "default",
       fallback: "/offline",
       defaultStrategy: (preset.defaultStrategy as string) || "cache-first",
       patterns: preset.patterns as Record<string, string> | undefined,
+      ignoreQueryParams: preset.ignoreQueryParams as string[] | undefined,
       pwaEnabled: false,
       authEnabled: false,
+      connectivityEnabled: false,
+      cachingEnabled: cachingPrescribed,
       mutationEnabled: false,
+      backgroundSync: false,
       tagInvalidationEnabled: false,
       graphqlEnabled: false,
       serverPushEnabled: false,
       pushNotificationsEnabled: false,
-      precacheDir: preset.swOutput ? (preset.swOutput as string) : "dist",
-      precachePrefix: "/",
+      precacheDirs: preset.precacheDirs as
+        | Record<string, PrecacheDirConfig>
+        | undefined,
     };
     writeConfig(projectRoot, answers);
     return;
@@ -262,35 +270,23 @@ export async function initCommand(
   });
   if (isCancel(swOutput)) process.exit(0);
 
-  const navMode = await select({
-    message: "Navigation mode",
-    options: [
-      { value: "spa", label: "SPA" },
-      { value: "ssr", label: "SSR" },
-      { value: "default", label: "Default" },
-    ],
-    initialValue: (activePreset.navMode as string) || "default",
+  const autoActivate = await confirm({
+    message: "Auto-register the service worker?",
+    initialValue: false,
   });
-  if (isCancel(navMode)) process.exit(0);
-
-  const fallback = await text({
-    message: "Offline fallback path",
-    initialValue: "/offline",
-  });
-  if (isCancel(fallback)) process.exit(0);
-
-  const defaultStrategy = await select({
-    message: "Default caching strategy",
-    options: [...STRATEGIES],
-    initialValue: (activePreset.defaultStrategy as string) || "cache-first",
-  });
-  if (isCancel(defaultStrategy)) process.exit(0);
+  if (isCancel(autoActivate)) process.exit(0);
 
   const pwaEnabled = await confirm({
     message: "Enable PWA install prompt?",
     initialValue: false,
   });
   if (isCancel(pwaEnabled)) process.exit(0);
+
+  const connectivityEnabled = await confirm({
+    message: "Enable connectivity (online/offline detection)?",
+    initialValue: false,
+  });
+  if (isCancel(connectivityEnabled)) process.exit(0);
 
   let authType: string | undefined;
   const authEnabled = await confirm({
@@ -311,29 +307,109 @@ export async function initCommand(
     if (isCancel(authType)) process.exit(0);
   }
 
-  const mutationEnabled = await confirm({
-    message: "Enable mutation queue (offline mutations)?",
-    initialValue: false,
+  const cachingEnabled = await confirm({
+    message: "Enable caching (fetch listener + offline cache)?",
+    initialValue:
+      !!(activePreset.patterns || activePreset.precacheDirs),
   });
-  if (isCancel(mutationEnabled)) process.exit(0);
+  if (isCancel(cachingEnabled)) process.exit(0);
 
-  const tagInvalidationEnabled = await confirm({
-    message: "Enable tag invalidation?",
-    initialValue: false,
-  });
-  if (isCancel(tagInvalidationEnabled)) process.exit(0);
+  let navMode: "spa" | "ssr" | "default" = "default";
+  let fallback = "/offline";
+  let defaultStrategy = "cache-first";
+  let mutationEnabled = false;
+  let backgroundSync: boolean | undefined;
+  let tagInvalidationEnabled = false;
+  let graphqlEnabled = false;
+  let serverPushEnabled = false;
+  let precacheDirs: Record<string, PrecacheDirConfig> | undefined;
 
-  const graphqlEnabled = await confirm({
-    message: "Enable GraphQL support?",
-    initialValue: false,
-  });
-  if (isCancel(graphqlEnabled)) process.exit(0);
+  if (cachingEnabled) {
+    navMode = (await select({
+      message: "Navigation mode",
+      options: [
+        { value: "spa", label: "SPA" },
+        { value: "ssr", label: "SSR" },
+        { value: "default", label: "Default" },
+      ],
+      initialValue: (activePreset.navMode as string) || "default",
+    })) as "spa" | "ssr" | "default";
+    if (isCancel(navMode)) process.exit(0);
 
-  const serverPushEnabled = await confirm({
-    message: "Enable server push?",
-    initialValue: false,
-  });
-  if (isCancel(serverPushEnabled)) process.exit(0);
+    fallback = (await text({
+      message: "Offline fallback path",
+      initialValue: "/offline",
+    })) as string;
+    if (isCancel(fallback)) process.exit(0);
+
+    defaultStrategy = (await select({
+      message: "Default caching strategy",
+      options: [...STRATEGIES],
+      initialValue: (activePreset.defaultStrategy as string) || "cache-first",
+    })) as string;
+    if (isCancel(defaultStrategy)) process.exit(0);
+
+    mutationEnabled = (await confirm({
+      message: "Enable mutation queue (offline mutations)?",
+      initialValue: false,
+    })) as boolean;
+    if (isCancel(mutationEnabled)) process.exit(0);
+
+    if (mutationEnabled) {
+      backgroundSync = (await confirm({
+        message: "Enable background sync for queued mutations?",
+        initialValue: false,
+      })) as boolean;
+      if (isCancel(backgroundSync)) process.exit(0);
+    }
+
+    graphqlEnabled = (await confirm({
+      message: "Enable GraphQL support?",
+      initialValue: false,
+    })) as boolean;
+    if (isCancel(graphqlEnabled)) process.exit(0);
+
+    tagInvalidationEnabled = (await confirm({
+      message: "Enable tag invalidation?",
+      initialValue: false,
+    })) as boolean;
+    if (isCancel(tagInvalidationEnabled)) process.exit(0);
+
+    if (tagInvalidationEnabled) {
+      serverPushEnabled = (await confirm({
+        message: "Enable server push (requires tag invalidation)?",
+        initialValue: false,
+      })) as boolean;
+      if (isCancel(serverPushEnabled)) process.exit(0);
+    }
+
+    const precacheDir = (await text({
+      message: "Directory to precache (leave empty to skip)",
+      initialValue: (activePreset.swOutput as string) || "dist",
+    })) as string;
+    if (isCancel(precacheDir)) process.exit(0);
+
+    if (precacheDir) {
+      let precachePrefix = "/";
+      precachePrefix = (await text({
+        message: "Precache URL prefix",
+        initialValue: "/",
+      })) as string;
+      if (isCancel(precachePrefix)) process.exit(0);
+
+      const presetEntry = (
+        activePreset.precacheDirs as
+          | Record<string, PrecacheDirConfig>
+          | undefined
+      )?.[precacheDir];
+      precacheDirs = {
+        [precacheDir]: {
+          prefix: precachePrefix || "/",
+          ...(presetEntry ?? {}),
+        },
+      };
+    }
+  }
 
   const pushNotificationsEnabled = await confirm({
     message: "Enable push notifications?",
@@ -341,38 +417,29 @@ export async function initCommand(
   });
   if (isCancel(pushNotificationsEnabled)) process.exit(0);
 
-  const precacheDir = await text({
-    message: "Directory to precache (leave empty to skip)",
-    initialValue: (activePreset.swOutput as string) || "dist",
-  });
-  if (isCancel(precacheDir)) process.exit(0);
-
-  let precachePrefix = "/";
-  if (precacheDir) {
-    precachePrefix = (await text({
-      message: "Precache URL prefix",
-      initialValue: "/",
-    })) as string;
-    if (isCancel(precachePrefix)) process.exit(0);
-  }
-
   log.info("");
   log.info("─".repeat(40));
   log.info("Summary");
   log.info(`  Framework:    ${framework}`);
   log.info(`  SW output:    ${swOutput}/swoff.sw.js`);
-  log.info(`  Fallback:     ${fallback}`);
-  log.info(`  Navigation:   ${navMode}`);
-  log.info(`  Strategy:     ${defaultStrategy}`);
+  if (autoActivate) log.info("  SW:           auto-activate");
   if (pwaEnabled) log.info("  PWA:          enabled");
+  if (connectivityEnabled) log.info("  Connectivity: enabled");
   if (authEnabled) log.info(`  Auth:         ${authType}`);
-  if (mutationEnabled) log.info("  Mutation Q:   enabled");
-  if (tagInvalidationEnabled) log.info("  Tag Inval:    enabled");
-  if (graphqlEnabled) log.info("  GraphQL:      enabled");
-  if (serverPushEnabled) log.info("  Server Push:  enabled");
+  if (cachingEnabled) {
+    log.info(`  Caching:      enabled (${defaultStrategy}, ${navMode})`);
+    log.info(`  Fallback:     ${fallback}`);
+    if (mutationEnabled) log.info("  Mutation Q:   enabled");
+    if (tagInvalidationEnabled) log.info("  Tag Inval:    enabled");
+    if (graphqlEnabled) log.info("  GraphQL:      enabled");
+    if (serverPushEnabled) log.info("  Server Push:  enabled");
+    if (precacheDirs)
+      for (const [dir, entry] of Object.entries(precacheDirs))
+        log.info(`  Precache:     ${dir} → ${entry.prefix}`);
+  } else {
+    log.info("  Caching:      disabled");
+  }
   if (pushNotificationsEnabled) log.info("  Push Notif:   enabled");
-  if (precacheDir)
-    log.info(`  Precache:     ${precacheDir} → ${precachePrefix}`);
   log.info("─".repeat(40));
   log.info("");
 
@@ -388,20 +455,24 @@ export async function initCommand(
   const answers: WizardAnswers = {
     framework: framework as string,
     swOutput: swOutput as string,
-    navMode: navMode as "spa" | "ssr" | "default",
-    fallback: fallback as string,
-    defaultStrategy: defaultStrategy as string,
+    autoActivate: autoActivate as boolean,
+    navMode,
+    fallback,
+    defaultStrategy,
     patterns: activePreset.patterns as Record<string, string> | undefined,
+    ignoreQueryParams: activePreset.ignoreQueryParams as string[] | undefined,
     pwaEnabled: pwaEnabled as boolean,
     authEnabled: authEnabled as boolean,
     authType,
-    mutationEnabled: mutationEnabled as boolean,
-    tagInvalidationEnabled: tagInvalidationEnabled as boolean,
-    graphqlEnabled: graphqlEnabled as boolean,
-    serverPushEnabled: serverPushEnabled as boolean,
+    connectivityEnabled: connectivityEnabled as boolean,
+    cachingEnabled: cachingEnabled as boolean,
+    mutationEnabled,
+    backgroundSync,
+    tagInvalidationEnabled,
+    graphqlEnabled,
+    serverPushEnabled,
     pushNotificationsEnabled: pushNotificationsEnabled as boolean,
-    precacheDir: precacheDir as string | undefined,
-    precachePrefix: precachePrefix as string | undefined,
+    precacheDirs,
   };
 
   writeConfig(projectRoot, answers);

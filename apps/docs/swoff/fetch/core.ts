@@ -1,159 +1,10 @@
-import type { RuntimeContext } from "./utils.js";
-import { T, R, G, AS } from "./utils.js";
-
-export function generateFetchWrapperCode(
-  ctx: RuntimeContext,
-  authEnabled: boolean,
-  mutationQueue: boolean,
-  tagInvalidation: boolean,
-  requestBatchWindowMs: number,
-): string {
-  const { ext, ts } = ctx;
-
-  const importLines = [
-    tagInvalidation
-      ? `import { generateTags } from "../cache/tags.${ext}";`
-      : "",
-    tagInvalidation
-      ? `import { invalidateByTags, invalidateUrl${mutationQueue ? ", expandCascading" : ""} } from "../cache/invalidate.${ext}";`
-      : "",
-
-    authEnabled
-      ? `import { getAuth, withAuthHeaders, AUTH_WITH_CREDENTIALS } from "../auth/store.${ext}";`
-      : "",
-    mutationQueue
-      ? `import { queueMutation } from "../mutation/queue.${ext}";`
-      : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  const interfaceBlock = ts
-    ? `
-export interface FetchWithCacheResult${G(ts, "T")} {
-  response${T(ts, "Response & { json(): Promise<T> }")};
-  fromCache${T(ts, "boolean")};
-  queued${T(ts, "boolean")};
-}
-`
-    : "";
-
-  const optionsInterface = ts
-    ? `
-export interface FetchWithCacheOptions extends RequestInit {
-  tags?: string[];
-  auth?: boolean;
-  queueOffline?: boolean;
-  invalidate?: 'auto' | string[] | false;
-  type?: 'read' | 'mutation';
-  strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only' | 'reactive';
-  staleTime?: number;
-  refetchInterval?: number;
-  refetchOnFocus?: boolean;
-  refetchOnReconnect?: boolean;
-  /** Custom response validation for mutation success. Default: res.ok. Use this when your API returns 200 with { success: false } for logical failures. */
-  validateSuccess?: (response: Response) => boolean | Promise<boolean>;
-  /** Override the URL used for auto-invalidation. Defaults to the request URL. Useful when the mutation URL differs from the cache tag URL. */
-  invalidateUrl?: string;
-
-}
-`
-    : "";
-
-  const authBlock = authEnabled
-    ? `
-  if (options.auth) {
-    const auth = await getAuth();
-    withAuthHeaders(headers, auth);
-  }`
-    : "";
-
-  const authCredentialsBlock = authEnabled
-    ? `
-  if (AUTH_WITH_CREDENTIALS) {
-    fetchOptions.credentials = "include";
-  }`
-    : "";
-
-
-
-  const mutationTagsBlock = mutationQueue && tagInvalidation
-    ? `  // Pre-compute invalidation tags for SW-side IDB storage
-  let mutationTags: string[] = [];
-  if (!isRead) {
-    const invalidateSetting = options.invalidate !== false ? (options.invalidate || 'auto') : false;
-    if (invalidateSetting !== false) {
-      if (Array.isArray(invalidateSetting)) {
-        mutationTags = invalidateSetting;
-      } else {
-        mutationTags = generateTags(url);
-        mutationTags = expandCascading(mutationTags);
-      }
-      headers.set("X-SW-Invalidate-Tags", mutationTags.join(","));
-    }
-  }`
-    : "";
-
-  const offlineReadCatchBlock = `    if (options.signal?.aborted) throw new DOMException("The operation was aborted", "AbortError");
-      const cached = await caches.match(resolvedInput);
-      if (cached) return { response: cached, fromCache: true, queued: false };
-      throw new Error("Offline: no cached data available", { cause: err });`;
-
-  const offlineWriteFallbackBlock = mutationQueue
-    ? `    if (options.queueOffline !== false) {
-      const ct = headers.get("Content-Type");
-      await queueMutation({
-        method,
-        url,
-        body: options.body,
-        headers: ct ? { "Content-Type": ct } : {},
-        tags: mutationTags,
-        timestamp: Date.now(),
-      });
-      return {
-        response: new Response(JSON.stringify({ queued: true }), { status: 202, headers: { "Content-Type": "application/json" } }),
-        fromCache: false,
-        queued: true,
-      };
-    }`
-    : ``;
-
-  const autoInvalidateBlock = tagInvalidation
-    ? `
-  // Auto-invalidate after mutation success (skip if SW queued it)
-  const mutationSuccess = options.validateSuccess ? await options.validateSuccess(response) : response.ok;
-  const mutationQueued = response.headers.get("X-SW-Mutation-Queued") === "true";
-  if (!isRead && mutationSuccess && !mutationQueued) {
-    const invalidateSetting = options.invalidate !== false ? (options.invalidate || 'auto') : false;
-    if (invalidateSetting !== false) {
-      const invalidateTarget = options.invalidateUrl || url;
-      if (Array.isArray(invalidateSetting)) {
-        await invalidateByTags(invalidateSetting);
-      } else {
-        await invalidateUrl(invalidateTarget);
-      }
-    }
-  }`
-    : "";
-
-  const autoTagsBlock = tagInvalidation
-    ? `
-  // Auto-generate tags from URL if not provided
-  if (!options.tags && isRead) {
-    const urlTags = generateTags(url);
-    if (urlTags.length > 0) {
-      headers.set("X-SW-Cache-Tags", urlTags.join(","));
-    }
-  }`
-    : "";
-
-  return `/**
+/**
  * Swoff Fetch Wrapper
  * Unified fetch with caching, auth, offline queue, auto-invalidation, staleTime, prefetching, and
  * per-request strategy override.
  *
  * Usage:
- *   import { fetchWithCache, prefetchCache } from './swoff/fetch/core.${ext}';
+ *   import { fetchWithCache, prefetchCache } from './swoff/fetch/core.ts';
  *
  *   // GET — cached with auto-generated tags
  *   const { response } = await fetchWithCache("/api/todos");
@@ -211,14 +62,38 @@ export interface FetchWithCacheOptions extends RequestInit {
  *   // When back online, processMutationQueue() replays them
  */
 
-${importLines}
-${interfaceBlock}${optionsInterface}
-const inFlightRequests = new Map${G(ts, "string, Promise<Response>")}();
-const pendingBatches = new Map${G(ts, "string, { resolvers: Array<(r: Response) => void>; rejectors: Array<(e: unknown) => void>; timer: ReturnType<typeof setTimeout> }")}();
-const BATCH_WINDOW_MS = ${requestBatchWindowMs};
+
+
+export interface FetchWithCacheResult<T> {
+  response: Response & { json(): Promise<T> };
+  fromCache: boolean;
+  queued: boolean;
+}
+
+export interface FetchWithCacheOptions extends RequestInit {
+  tags?: string[];
+  auth?: boolean;
+  queueOffline?: boolean;
+  invalidate?: 'auto' | string[] | false;
+  type?: 'read' | 'mutation';
+  strategy?: 'cache-first' | 'network-first' | 'stale-while-revalidate' | 'cache-only' | 'network-only' | 'reactive';
+  staleTime?: number;
+  refetchInterval?: number;
+  refetchOnFocus?: boolean;
+  refetchOnReconnect?: boolean;
+  /** Custom response validation for mutation success. Default: res.ok. Use this when your API returns 200 with { success: false } for logical failures. */
+  validateSuccess?: (response: Response) => boolean | Promise<boolean>;
+  /** Override the URL used for auto-invalidation. Defaults to the request URL. Useful when the mutation URL differs from the cache tag URL. */
+  invalidateUrl?: string;
+
+}
+
+const inFlightRequests = new Map<string, Promise<Response>>();
+const pendingBatches = new Map<string, { resolvers: Array<(r: Response) => void>; rejectors: Array<(e: unknown) => void>; timer: ReturnType<typeof setTimeout> }>();
+const BATCH_WINDOW_MS = 50;
 
 /** Fetch with caching, auth, offline queue, auto-invalidation, and per-request strategy override. Returns { response, fromCache }. Use { auth: true } for authenticated requests — works with bearer, cookie, and custom auth types. */
-export async function fetchWithCache${G(ts, "T")}(input${T(ts, "RequestInfo")}, options${T(ts, "RequestInit & FetchWithCacheOptions")} = {})${R(ts, "Promise<FetchWithCacheResult<T>>")}{
+export async function fetchWithCache<T>(input: RequestInfo, options: RequestInit & FetchWithCacheOptions = {}): Promise<FetchWithCacheResult<T>> {
   const method = (options.method || "GET").toUpperCase();
   const isRead = options.type === "read" || (options.type !== "mutation" && (method === "GET" || method === "HEAD" || method === "OPTIONS"));
   const resolvedInput = input;
@@ -230,7 +105,7 @@ export async function fetchWithCache${G(ts, "T")}(input${T(ts, "RequestInfo")}, 
   if (!headers.has("X-SW-Type")) {
     headers.set("X-SW-Type", isRead ? "read" : "mutation");
   }
-${autoTagsBlock}
+
   // Custom tags override auto-generated
   if (options.tags && options.tags.length > 0) {
     headers.set("X-SW-Cache-Tags", options.tags.join(","));
@@ -251,22 +126,22 @@ ${autoTagsBlock}
   if (options.refetchOnReconnect !== undefined) {
     headers.set("X-SW-Refetch-On-Reconnect", String(options.refetchOnReconnect));
   }
-${authBlock}
+
   // Forward no-queue option to SW
   if (options.queueOffline === false) {
     headers.set("X-SW-No-Queue", "true");
   }
 
-  const fetchOptions${T(ts, "RequestInit")} = { ...options, headers };
-${authCredentialsBlock}
+  const fetchOptions: RequestInit = { ...options, headers };
+
 
   // Check for abort before proceeding
   if (options.signal?.aborted) {
     throw new DOMException("The operation was aborted", "AbortError");
   }
-${mutationTagsBlock}
+
   // Request batching + dedup for concurrent reads
-  let responsePromise${T(ts, "Promise<Response>")};
+  let responsePromise: Promise<Response>;
   if (isRead && inFlightRequests.has(url)) {
     responsePromise = inFlightRequests.get(url)!.then((r) => r.clone());
   } else if (isRead && pendingBatches.has(url)) {
@@ -288,7 +163,7 @@ ${mutationTagsBlock}
       options.signal.addEventListener("abort", abortHandler, { once: true });
     }
     if (isRead && BATCH_WINDOW_MS > 0) {
-      const batch${T(ts, "{ resolvers: Array<(r: Response) => void>; rejectors: Array<(e: unknown) => void>; timer: ReturnType<typeof setTimeout> }")} = { resolvers: [], rejectors: [], timer: 0${AS(ts, "unknown as ReturnType<typeof setTimeout>")} };
+      const batch: { resolvers: Array<(r: Response) => void>; rejectors: Array<(e: unknown) => void>; timer: ReturnType<typeof setTimeout> } = { resolvers: [], rejectors: [], timer: 0 as unknown as ReturnType<typeof setTimeout> };
       pendingBatches.set(url, batch);
       batch.timer = setTimeout(() => {
         pendingBatches.delete(url);
@@ -320,32 +195,33 @@ ${mutationTagsBlock}
     }
   }
 
-  let response${T(ts, "Response")};
+  let response: Response;
   try {
     response = await responsePromise;
   } catch (err) {
     if (err instanceof TypeError) {
       if (isRead) {
-${offlineReadCatchBlock}
+    if (options.signal?.aborted) throw new DOMException("The operation was aborted", "AbortError");
+      const cached = await caches.match(resolvedInput);
+      if (cached) return { response: cached, fromCache: true, queued: false };
+      throw new Error("Offline: no cached data available", { cause: err });
       }
       // SW not controlling — fallback to client-side queue
       if (!navigator.serviceWorker?.controller) {
-${offlineWriteFallbackBlock}
+
       }
     }
     throw err;
   }
-${autoInvalidateBlock}
+
   const fromCache = response.headers.get("X-SW-From-Cache") === "true";
   const queued = response.headers.get("X-SW-Mutation-Queued") === "true";
   return { response, fromCache, queued };
 }
 
 /** Fire-and-forget prefetch: warms the cache for a URL without blocking. Useful for route prefetching or link hover prefetching. */
-export function prefetchCache(input${T(ts, "RequestInfo")}, options${T(ts, "RequestInit & FetchWithCacheOptions")} = {})${R(ts, "void")}{
+export function prefetchCache(input: RequestInfo, options: RequestInit & FetchWithCacheOptions = {}): void {
   fetchWithCache(input, options).catch(() => {
     // Prefetch failures are intentionally silent
   });
-}
-`;
 }

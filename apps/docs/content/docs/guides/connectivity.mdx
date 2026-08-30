@@ -39,9 +39,12 @@ The connectivity module provides real online/offline detection that goes beyond 
 
 ## Generated files
 
-| File                    | What it does                                                                      | Import in your code? |
-| ----------------------- | --------------------------------------------------------------------------------- | -------------------- |
-| `swoff/connectivity.ts` | `getCurrentOnlineStatus()`, `startHeartbeat()`, `stopHeartbeat()`, `forceRetry()` | Yes                  |
+| File                     | What it does                                                                      | Import in your code? |
+| ------------------------ | --------------------------------------------------------------------------------- | -------------------- |
+| `swoff/connectivity.ts`  | `startHeartbeat()`, `stopHeartbeat()`, `verifyAndNotify()`, `forceRetry()` + re-exported primitives | Yes                  |
+| `swoff/online-status.ts` | Shared primitive (`CONNECTIVITY_EVENT`, `getCurrentOnlineStatus()`, `dispatchState()`) — also used by `auth/state.ts` | Usually no            |
+
+> **Shared primitive.** `online-status.{ts,js}` is generated when `connectivity.enabled` **or** `auth.enabled` is on. The connectivity module imports it and re-exports `CONNECTIVITY_EVENT`, `getCurrentOnlineStatus`, and `dispatchState`, so existing imports from `connectivity.ts` keep working.
 
 ## Exports
 

@@ -7,27 +7,36 @@ describe("assembleSW", () => {
     ...defaultConfig,
   };
 
+  /** Default config with the caching umbrella turned on. */
+  const cacheOn = (c: SwoffConfig = config): SwoffConfig => ({
+    ...c,
+    features: {
+      ...c.features,
+      caching: { ...c.features.caching, enabled: true },
+    },
+  });
+
   it("generates a service worker string", () => {
-    const sw = assembleSW(config);
+    const sw = assembleSW(cacheOn());
     expect(sw).toContain("self.addEventListener");
     expect(sw).toContain('"swoff-runtime"');
     expect(sw).toContain('"swoff-runtime-html"');
   });
 
   it("includes install skipWaiting and background precache progress", () => {
-    const sw = assembleSW(config);
+    const sw = assembleSW(cacheOn());
     expect(sw).toContain('self.addEventListener("install"');
     expect(sw).toContain("SW_PROGRESS");
   });
 
   it("includes activate handler with clients.claim()", () => {
-    const sw = assembleSW(config);
+    const sw = assembleSW(cacheOn());
     expect(sw).toContain('self.addEventListener("activate"');
     expect(sw).toContain("self.clients.claim()");
   });
 
   it("includes fetch handler with strategies", () => {
-    const sw = assembleSW(config);
+    const sw = assembleSW(cacheOn());
     expect(sw).toContain('self.addEventListener("fetch"');
     expect(sw).toContain("cacheFirst");
     expect(sw).toContain("networkFirst");
@@ -38,7 +47,7 @@ describe("assembleSW", () => {
   });
 
   it("checks serve-from-cache from all strategies", () => {
-    const sw = assembleSW(config);
+    const sw = assembleSW(cacheOn());
     expect(sw).toContain("fromPrecache");
     expect(sw).toContain("async function fromPrecache");
     expect(sw).toContain("cache.match(url.href)");
@@ -52,36 +61,51 @@ describe("assembleSW", () => {
     expect(sw).toContain("SKIP_WAITING");
   });
 
+  it("emits a minimal SW when caching is disabled", () => {
+    const sw = assembleSW(config);
+    expect(sw).not.toContain('self.addEventListener("fetch"');
+    expect(sw).not.toContain('self.addEventListener("activate"');
+    expect(sw).not.toContain("SW_PROGRESS");
+    expect(sw).not.toContain("BACKGROUND_SYNC");
+    expect(sw).toContain("AUTH_CLEARED");
+  });
+
   it("includes tag management when tagInvalidation enabled", () => {
-    const configWithTags: SwoffConfig = {
+    const configWithTags: SwoffConfig = cacheOn({
       ...config,
       features: {
         ...config.features,
-        tagInvalidation: { ...config.features.tagInvalidation, enabled: true },
+        caching: {
+          ...config.features.caching,
+          tagInvalidation: { ...config.features.caching.tagInvalidation, enabled: true },
+        },
       },
-    };
+    });
     const sw = assembleSW(configWithTags);
     expect(sw).toContain("invalidateByTag");
     expect(sw).toContain("INVALIDATE_TAG");
   });
 
   it("excludes tag management when tagInvalidation disabled", () => {
-    const sw = assembleSW(config);
+    const sw = assembleSW(cacheOn());
     expect(sw).not.toContain("invalidateByTag");
   });
 
   it("includes background sync handler when enabled", () => {
-    const configWithSync: SwoffConfig = {
+    const configWithSync: SwoffConfig = cacheOn({
       ...config,
       features: {
         ...config.features,
-        mutationQueue: {
-          ...config.features.mutationQueue,
-          enabled: true,
-          backgroundSync: true,
+        caching: {
+          ...config.features.caching,
+          mutationQueue: {
+            ...config.features.caching.mutationQueue,
+            enabled: true,
+            backgroundSync: true,
+          },
         },
       },
-    };
+    });
     const sw = assembleSW(configWithSync);
     expect(sw).toContain('self.addEventListener("sync"');
     expect(sw).toContain("sync-mutations");
@@ -123,13 +147,13 @@ describe("assembleSW", () => {
   });
 
   it("includes PWA assets when pwa feature is enabled", () => {
-    const configWithPwa: SwoffConfig = {
+    const configWithPwa: SwoffConfig = cacheOn({
       ...config,
       features: {
         ...config.features,
         pwa: { enabled: true, preventDefaultInstall: false },
       },
-    };
+    });
     const sw = assembleSW(configWithPwa);
     expect(sw).toContain("/manifest.json");
   });
@@ -147,19 +171,19 @@ describe("assembleSW", () => {
   });
 
   it("includes custom strategies in fetch handler", () => {
-    const configWithStrategies: SwoffConfig = {
+    const configWithStrategies: SwoffConfig = cacheOn({
       ...config,
       features: {
         ...config.features,
-        serviceWorker: {
-          ...config.features.serviceWorker,
+        caching: {
+          ...config.features.caching,
           strategy: {
-            ...config.features.serviceWorker.strategy,
+            ...config.features.caching.strategy,
             patterns: { "/api/*": "network-first" },
           },
         },
       },
-    };
+    });
     const sw = assembleSW(configWithStrategies);
     expect(sw).toContain("/api/*");
     expect(sw).toContain("network-first");
@@ -169,14 +193,14 @@ describe("assembleSW", () => {
 
   describe("navigation rules", () => {
     it("generates NAV_RULES constant when rules are configured", () => {
-      const configWithRules: SwoffConfig = {
+      const configWithRules: SwoffConfig = cacheOn({
         ...config,
         features: {
           ...config.features,
-          serviceWorker: {
-            ...config.features.serviceWorker,
+          caching: {
+            ...config.features.caching,
             navigation: {
-              ...config.features.serviceWorker.navigation,
+              ...config.features.caching.navigation,
               rules: [
                 { match: "/blog/*", fallback: "/blog-offline.html" },
                 { match: "/dashboard/**", fallback: "/dashboard-offline.html" },
@@ -184,7 +208,7 @@ describe("assembleSW", () => {
             },
           },
         },
-      };
+      });
       const sw = assembleSW(configWithRules);
       expect(sw).toContain("NAV_RULES");
       expect(sw).toContain("/blog/*");
@@ -192,33 +216,33 @@ describe("assembleSW", () => {
     });
 
     it("generates matchRouteFallback function", () => {
-      const configWithRules: SwoffConfig = {
+      const configWithRules: SwoffConfig = cacheOn({
         ...config,
         features: {
           ...config.features,
-          serviceWorker: {
-            ...config.features.serviceWorker,
+          caching: {
+            ...config.features.caching,
             navigation: {
-              ...config.features.serviceWorker.navigation,
+              ...config.features.caching.navigation,
               rules: [{ match: "/blog/*" }],
             },
           },
         },
-      };
+      });
       const sw = assembleSW(configWithRules);
       expect(sw).toContain("function matchRouteFallback(url)");
       expect(sw).toContain("matchGlob(path, rule.match)");
     });
 
     it("includes rule offline fallback pages in ASSETS_TO_CACHE", () => {
-      const configWithRules: SwoffConfig = {
+      const configWithRules: SwoffConfig = cacheOn({
         ...config,
         features: {
           ...config.features,
-          serviceWorker: {
-            ...config.features.serviceWorker,
+          caching: {
+            ...config.features.caching,
             navigation: {
-              ...config.features.serviceWorker.navigation,
+              ...config.features.caching.navigation,
               rules: [
                 { match: "/blog/*", fallback: "/blog-offline.html" },
                 { match: "/dashboard/**", fallback: "/dashboard-offline.html" },
@@ -226,21 +250,21 @@ describe("assembleSW", () => {
             },
           },
         },
-      };
+      });
       const sw = assembleSW(configWithRules);
       expect(sw).toContain("/blog-offline.html");
       expect(sw).toContain("/dashboard-offline.html");
     });
 
     it("includes cache-first rule routes in ASSETS_TO_CACHE", () => {
-      const configWithRules: SwoffConfig = {
+      const configWithRules: SwoffConfig = cacheOn({
         ...config,
         features: {
           ...config.features,
-          serviceWorker: {
-            ...config.features.serviceWorker,
+          caching: {
+            ...config.features.caching,
             navigation: {
-              ...config.features.serviceWorker.navigation,
+              ...config.features.caching.navigation,
               rules: [
                 { match: "/", fallback: "/offline.html" },
                 { match: "/about" },
@@ -248,7 +272,7 @@ describe("assembleSW", () => {
             },
           },
         },
-      };
+      });
       const sw = assembleSW(configWithRules);
       expect(sw).toContain("/");
       expect(sw).toContain("/about");
@@ -262,49 +286,49 @@ describe("assembleSW", () => {
 
   describe("offline fallback analytics", () => {
     it("generates OFFLINE_FALLBACK_ACTIVATED postMessage in ultimate fallback", () => {
-      const sw = assembleSW(config);
+      const sw = assembleSW(cacheOn());
       expect(sw).toContain("OFFLINE_FALLBACK_ACTIVATED");
     });
 
     it("generates FALLBACK_PATH constant for global fallback", () => {
-      const configWithOfflineFallback: SwoffConfig = {
+      const configWithOfflineFallback: SwoffConfig = cacheOn({
         ...config,
         features: {
           ...config.features,
-          serviceWorker: {
-            ...config.features.serviceWorker,
+          caching: {
+            ...config.features.caching,
             navigation: {
-              ...config.features.serviceWorker.navigation,
+              ...config.features.caching.navigation,
               fallback: "/offline.html",
             },
           },
         },
-      };
+      });
       const sw = assembleSW(configWithOfflineFallback);
       expect(sw).toContain('FALLBACK_PATH = "/offline.html"');
     });
 
     it("generates OFFLINE_FALLBACK_ACTIVATED postMessage for route fallback in fromUltimateFallback", () => {
-      const configWithRules: SwoffConfig = {
+      const configWithRules: SwoffConfig = cacheOn({
         ...config,
         features: {
           ...config.features,
-          serviceWorker: {
-            ...config.features.serviceWorker,
+          caching: {
+            ...config.features.caching,
             navigation: {
-              ...config.features.serviceWorker.navigation,
+              ...config.features.caching.navigation,
               rules: [{ match: "/blog/*", fallback: "/blog-offline.html" }],
             },
           },
         },
-      };
+      });
       const sw = assembleSW(configWithRules);
       expect(sw).toContain("OFFLINE_FALLBACK_ACTIVATED");
       expect(sw).toContain("route-fallback");
     });
 
     it("generates inline-503 fallback with reset button", () => {
-      const sw = assembleSW(config);
+      const sw = assembleSW(cacheOn());
       expect(sw).toContain("inline-503");
       expect(sw).toContain("sbtn");
       expect(sw).toContain("RESET_CACHE");

@@ -31,11 +31,14 @@ Next.js Pages Router (12.x and earlier) fetches page data as JSON via `/_next/da
 
 ```json
 {
-  "$schema": "https://swoff.space/schema/v1.json",
+  "$schema": "https://swoff.space/schema/v2.json",
   "framework": "nextjs",
   "features": {
     "serviceWorker": {
-      "autoActivate": true,
+      "autoActivate": true
+    },
+    "caching": {
+      "enabled": true,
       "navigation": {
         "mode": "ssr",
         "fallback": "/offline"
@@ -64,13 +67,13 @@ Next.js Pages Router (12.x and earlier) fetches page data as JSON via `/_next/da
 }
 ```
 
-| Setting                         | Value           | Why                                                                                      |
-| ------------------------------- | --------------- | ---------------------------------------------------------------------------------------- |
-| `ignoreQueryParams`             | `["_rsc"]`      | Strips `_rsc` from cache keys. `GET /page` and `GET /page?_rsc=1` map to the same entry. |
-| `pattern./_next/static*`        | `cache-first`   | Hashed filenames — once cached, never stale.                                             |
-| `strategy.default`              | `network-first` | Dynamic SSR pages try the network first, fall back to cached HTML.                       |
-| `precacheDirs..next/static`     | `/_next/static` | Build assets (JS, CSS, images).                                                          |
-| `precacheDirs..next/server/app` | `/`             | Prerendered HTML pages with `.html` extension stripped.                                  |
+| Setting                                | Value           | Why                                                                                      |
+| -------------------------------------- | --------------- | ---------------------------------------------------------------------------------------- |
+| `caching.strategy.ignoreQueryParams`   | `["_rsc"]`      | Strips `_rsc` from cache keys. `GET /page` and `GET /page?_rsc=1` map to the same entry. |
+| `pattern./_next/static*`               | `cache-first`   | Hashed filenames — once cached, never stale.                                             |
+| `caching.strategy.default`             | `network-first` | Dynamic SSR pages try the network first, fall back to cached HTML.                       |
+| `precacheDirs..next/static`            | `/_next/static` | Build assets (JS, CSS, images).                                                          |
+| `precacheDirs..next/server/app`        | `/`             | Prerendered HTML pages with `.html` extension stripped.                                  |
 
 ### How `ignoreQueryParams` works
 

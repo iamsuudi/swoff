@@ -13,8 +13,10 @@ const testDir = "/tmp/swoff-test-adapters";
 function makeContext(frameworkName: string, ext: "ts" | "js"): GeneratorContext {
   const config = deepMerge(defaultConfig, {
     features: {
-      tagInvalidation: { enabled: true },
-      mutationQueue: { enabled: true, backgroundSync: false },
+      caching: {
+        tagInvalidation: { enabled: true },
+        mutationQueue: { enabled: true, backgroundSync: false },
+      },
       auth: { enabled: true, type: "cookie" },
       pushNotifications: true,
       connectivity: { enabled: true },
@@ -139,8 +141,7 @@ describe("generateFrameworkAdapters", () => {
 
   it("skips adapters whose feature is disabled", () => {
     const ctx = makeContext("react", "ts");
-    ctx.config.features.backgroundSync = false;
-    ctx.config.features.mutationQueue.backgroundSync = false;
+    ctx.config.features.caching.mutationQueue.backgroundSync = false;
     generateFrameworkAdapters(ctx);
     expect(existsSync(join(ctx.swoffDir, "adapters", "useSwoffSync.tsx"))).toBe(false);
   });

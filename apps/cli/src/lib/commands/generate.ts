@@ -6,6 +6,7 @@ import type { GeneratorContext } from "../generators/file-generators/context.js"
 import { hasBundler } from "../generators/file-generators/context.js";
 import { join } from "path";
 import { log } from "../cli/logger.js";
+import { resolveSwoffPath } from "../shared/config-types.js";
 
 export interface GenerateOptions {
   language?: string;
@@ -43,7 +44,7 @@ export async function generateCommand(
   log.dim(`Language: ${detectedLang}`);
 
   const ext = detectedLang === "ts" ? "ts" : "js";
-  const swoffDir = join(projectRoot, config.build?.swoffPath || "swoff");
+  const swoffDir = join(projectRoot, resolveSwoffPath(config.build?.swoffPath));
   const generatedFiles: string[] = [];
 
   const fwName = config.framework ?? "no-bundler";
@@ -108,7 +109,7 @@ export async function generateCommand(
   }
 
   log.normal("");
-  const genPath = join(config.build?.swoffPath || "swoff", "sw", "generator.mjs");
+  const genPath = join(resolveSwoffPath(config.build?.swoffPath), "sw", "generator.mjs");
   log.normal("After each build, run the SW generator:");
   log.normal(
     `  node ${genPath} (Add this to your build script if you want it automated)`,

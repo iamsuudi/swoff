@@ -7,8 +7,6 @@ import { Icons } from "./icons";
 export function Navbar() {
   const location = useLocation();
   const isDocsActive = location.pathname.startsWith("/docs/");
-  const isApiActive = location.pathname.startsWith("/docs/api");
-  const isFrameworksActive = location.pathname.startsWith("/docs/frameworks");
   const isAboutActive = location.pathname.startsWith("/about");
   const [isOpen, setIsOpen] = useState(false);
 

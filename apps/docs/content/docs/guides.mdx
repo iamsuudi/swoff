@@ -98,7 +98,7 @@ How the features stack, top to bottom — each is an accordion you can expand. �
     | Runtime deps | 0 kB (generated code) | Bundled Workbox runtime | Bundled runtime |
     | Extent | Auth, tags, mutation queue, server push | Routing + precache only | Routing + precache only |
 
-    **Relates to.** [API](/docs/api) · [SW config](/docs/config/service-worker) · [Build config](/docs/config/build) · [Hybrid SW + Client architecture](/docs/architecture/hybrid-model)
+    **Relates to.** `API` · [SW config](/docs/config/service-worker) · [Build config](/docs/config/build) · [Hybrid SW + Client architecture](/docs/architecture/hybrid-model)
 </Accordion>
   <Accordion id="connectivity" title="2 · Connectivity — verified online/offline">
       **What it gives you.** Real network reachability, not just `navigator.onLine`. A HEAD heartbeat every 30s (visible-tab only) re-verifies connectivity; on change it dispatches `app-connectivity-change` (`{ online }`) and notifies the SW. `useSwoffNetwork` exposes `{ online, wasOffline, lastChangedAt, effectiveType, downlink, isRetrying, retry }`.
@@ -232,7 +232,7 @@ How the features stack, top to bottom — each is an accordion you can expand. �
 
     **Flow.** `strategy + patterns` decide what gets cached → `navigation` + `precache` handle offline app shell → `tag invalidation` + `data fetching` let you read and invalidate the cache programmatically → `graphql`, `mutation queue`, and `server push` build on top.
 
-    **Relates to.** [Config reference](/docs/config) · [Service-worker config](/docs/config/service-worker) · [Caching architecture](/docs/architecture/caching) · [Schema v2 umbrella](/docs/config)
+    **Relates to.** `Config reference` · [Service-worker config](/docs/config/service-worker) · [Caching architecture](/docs/architecture/caching) · [Schema v2 umbrella](/docs/config/migration-v2)
   <Accordions type="single">
     <Accordion id="caching-strategy" title="6.1 · Caching strategies & patterns — under features.caching">
         **What it gives you.** Six strategies that run in the SW — `cache-first`, `network-first`, `stale-while-revalidate`, `cache-only`, `network-only`, and `reactive`. Fetch events are matched against glob URL patterns with per-route overrides (`staleTime`, `refetchInterval`, `refetchOnFocus`, `refetchOnReconnect`, `timeout`), plus request-level `X-SW-*` header overrides from any HTTP client (auto-stripped before the request hits the network).
@@ -278,7 +278,7 @@ How the features stack, top to bottom — each is an accordion you can expand. �
         | Header overrides | Yes, auto-stripped | No |
         | Layer | SW — survives nav & tab close | Page (SWR) or SW (Workbox) |
 
-        **Relates to.** [API](/docs/api) · [SW config](/docs/config/service-worker) · [Caching System architecture](/docs/architecture/caching) · [Comparison tier 1](/docs/comparisons#tier-1-sw-toolkits)
+        **Relates to.** `API` · [SW config](/docs/config/service-worker) · [Caching System architecture](/docs/architecture/caching) · [Comparison tier 1](/docs/comparisons#tier-1-sw-toolkits)
     </Accordion>
     <Accordion id="navigation" title="6.2 · Navigation caching — under features.caching">
         **What it gives you.** Offline navigation for three modes: `spa` (app-shell fallback), `ssr` (repeat visits serve cached HTML), and `default` (static / mixed). Navigation Preload races the browser's network request against half the fetch timeout, and a fallback chain (precache → runtime-html → per-route → global → 503) serves HTML to navigations while subresources get a clean non-HTML response.
@@ -297,7 +297,7 @@ How the features stack, top to bottom — each is an accordion you can expand. �
         | Preload | Built-in, races at half timeout | Requires plugin config | Partial |
         | Fallback telemetry | `useSwoffAnalytics` | Manual | No |
 
-        **Relates to.** [API](/docs/api) · [SW config](/docs/config/service-worker) · [Navigation modes architecture](/docs/architecture/caching#navigation-modes)
+        **Relates to.** `API` · [SW config](/docs/config/service-worker) · [Navigation modes architecture](/docs/architecture/caching#navigation-modes)
     </Accordion>
     <Accordion id="precaching" title="6.3 · Precaching — under features.caching">
         **What it gives you.** The SW activates immediately (install downloads nothing) and precaches in the background with an IndexedDB checkpoint — terminate mid-way and it resumes, not restarts. Progress events (`sw-progress` → `useSwoffPrecache`), concurrency + inter-request spacing control, and version-aware reset when a deploy changes the asset list.
@@ -324,7 +324,7 @@ How the features stack, top to bottom — each is an accordion you can expand. �
         | Resume | ✅ IDB checkpoint | ❌ Full re-download | ❌ |
         | Progress + concurrency | ✅ Built-in | 🟡 Plugin | 🟡 Limited |
 
-        **Relates to.** [API](/docs/api) · [SW config](/docs/config/service-worker#features-serviceworker-precache) · [Precaching architecture](/docs/architecture/precaching)
+        **Relates to.** `API` · [SW config](/docs/config/service-worker#features-serviceworker-precache) · [Precaching architecture](/docs/architecture/precaching)
     </Accordion>
     <Accordion id="caching-umbrella" title="6.4 · Data fetching — fetchWithCache, batching, refresh queue (under features.caching)">
         **What it gives you.** `fetchWithCache()` returns `{ response, fromCache }` — the cache lives in the SW, so cached responses survive hard navigation and tab close. `prefetchCache()` warms entries, `features.caching.requestBatchWindowMs` coalesces duplicate in-flight requests (default `50`), and the refetch queue schedules prioritized re-fetching when connectivity returns.
@@ -490,7 +490,7 @@ How the features stack, top to bottom — each is an accordion you can expand. �
 ## Next steps
 
 - Deep library-by-library matrices: [Library Comparison](/docs/comparisons)
-- Config schema for every feature: [Config Reference](/docs/config)
-- All generated APIs: [API Reference](/docs/api)
-- Design rationale and internal mechanics: [Architecture](/docs/architecture)
-- Per-ecosystem setup: [Framework Integration](/docs/frameworks)
+- Config schema for every feature: `Config Reference`
+- All generated APIs: `API Reference`
+- Design rationale and internal mechanics: `Architecture`
+- Per-ecosystem setup: [Framework Integration](/docs/frameworks/ecosystem)

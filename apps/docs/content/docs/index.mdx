@@ -1,7 +1,6 @@
 ---
 title: Overview
 description: Generate offline-first infrastructure from config.
-icon: Zap
 ---
 
 Swoff is the most comprehensive offline web infrastructure for any tech stack with zero runtime dependencies.
@@ -22,23 +21,21 @@ import {
 
 <Cards>
   <Card
-    title="Integration Guides"
+    title="Feature Map"
     icon={<BookOpenIcon />}
     href="/docs/guides"
   >
-    SW, caching, auth, offline mutations — step by step.
+    Every feature module-by-module, with library comparisons.
   </Card>
   <Card
     title="API Reference"
     icon={<CodeIcon />}
-    href="/docs/api"
   >
     Generated API: fetch, cache, mutation, auth, push, storage.
   </Card>
   <Card
     title="Architecture"
     icon={<CogIcon />}
-    href="/docs/architecture"
   >
     Design decisions, hybrid model, data sync internals.
   </Card>
@@ -52,61 +49,13 @@ import {
   <Card
     title="Config Reference"
     icon={<SettingsIcon />}
-    href="/docs/config"
   >
     Full swoff.config.json schema and feature flags.
   </Card>
   <Card
     title="Framework Integration"
     icon={<CableIcon />}
-    href="/docs/frameworks"
   >
     Per-ecosystem setup: React, vanilla, no-bundler, HTMX.
   </Card>
 </Cards>
-
-```mermaid
-graph TD
-    A[features.connectivity] --> B((no deps))
-    P[features.pushNotifications] --> B
-    W[features.pwa] --> B
-    AU[features.auth] --> B
-    C[features.caching.enabled] --> TI[tag-invalidation]
-    C --> GQL[graphql]
-    C --> MQ[mutation-queue]
-    C --> LEAVES[strategy / navigation / precache / requestBatchWindowMs / refetchQueue]
-    MQ --> BS[background-sync]
-    TI --> SP[server-push]
-    BS -.requires.-> MQ
-    SP -.requires.-> TI
-    BS -.✗ bearer/custom.-> AU
-    SP -.✗ bearer/custom.-> AU
-```
-
-```mermaid
-graph TD
-    CS[connectivity.js] --> OL[online-status.js]
-    AST[auth/state.js] --> OL
-    AST --> ASTR[auth/store.js]
-    ASTR --> AD[auth/adapter.js]
-    ASTR --> DB[db.js]
-    ASTR -. clearQueue .-> MQ[mutation/queue.js]
-    ASTR -. when mq .-> MQ
-    DB -.-> AST
-    FC[fetch/core.js] --> TAGS[cache/tags.js]
-    FC --> INV[cache/invalidate.js]
-    FC -. when auth .-> ASTR
-    FC -. when mq .-> MQ
-    MQ --> DB
-    MQ -. when auth .-> ASTR
-    MQ --> INV
-    INV --> TAGS
-    GQL[graphql/index.js] --> FC
-    SP[server-push/client.js] --> API[api-config.js]
-    PUSH[push-notification] --> DB
-    CI[client-injector.js] --> DB
-    CI --> INS[sw/injector.js]
-    CI -.-> CS
-    CI -. when mq .-> MQ
-    CI -. when auth .-> ASTR
-```

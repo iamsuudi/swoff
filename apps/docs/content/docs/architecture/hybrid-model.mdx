@@ -39,3 +39,35 @@ The hybrid model exists because:
 - **Background refresh** requires the SW to initiate fetches without page involvement (SW scope)
 - **Mutation state tracking** needs per-component reactivity (client scope)
 - **IndexedDB writes** for offline queue need to survive page navigation (SW could work for reads, but client writes are simpler and more reliable)
+
+### Generated module wiring
+
+How the generated `swoff/` modules depend on each other. Dashed edges are conditional on the referenced feature being enabled:
+
+<Mermaid
+  chart={`graph TD
+  CS[connectivity.js] --> OL[online-status.js]
+  AST[auth/state.js] --> OL
+  AST --> ASTR[auth/store.js]
+  ASTR --> AD[auth/adapter.js]
+  ASTR --> DB[db.js]
+  ASTR -. clearQueue .-> MQ[mutation/queue.js]
+  ASTR -. when mq .-> MQ
+  DB -.-> AST
+  FC[fetch/core.js] --> TAGS[cache/tags.js]
+  FC --> INV[cache/invalidate.js]
+  FC -. when auth .-> ASTR
+  FC -. when mq .-> MQ
+  MQ --> DB
+  MQ -. when auth .-> ASTR
+  MQ --> INV
+  INV --> TAGS
+  GQL[graphql/index.js] --> FC
+  SP[server-push/client.js] --> API[api-config.js]
+  PUSH[push-notification] --> DB
+  CI[client-injector.js] --> DB
+  CI --> INS[sw/injector.js]
+  CI -.-> CS
+  CI -. when mq .-> MQ
+  CI -. when auth .-> ASTR`}
+/>

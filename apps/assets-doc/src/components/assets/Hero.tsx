@@ -53,7 +53,7 @@ export function Hero() {
             href="https://github.com/iamsuudi/swoff"
             target="_blank"
             rel="noreferrer"
-            className="flex items-center justify-center bg-primary text-white hover:opacity-90 font-bold h-11 text-[14px] rounded-lg gap-2 px-4 shadow-lg group"
+            className="flex items-center justify-center bg-green-600 text-white hover:opacity-90 font-bold h-11 text-[14px] rounded-lg gap-2 px-4 shadow-lg group"
           >
             Github
             <GithubIcon className="size-3.5 group-hover:translate-x-0.5 transition-transform" />

@@ -1,0 +1,496 @@
+---
+title: Feature Map
+description: Every Swoff feature, module-by-module — what it gives you, how to enable it, and how it compares to other libraries.
+---
+
+A single-page map of every Swoff feature. Start with `npx @swoff/cli init`, pick the features your app needs, and Swoff generates offline infrastructure — service worker, caches, auth, mutations — from your config. Everything here is module-by-module: what it does, how to turn it on, what it depends on, and which libraries solve the same problem.
+
+## Start
+
+```bash
+npx @swoff/cli init
+npx @swoff/cli generate
+node swoff/sw/generator.mjs
+```
+
+1. `init` — writes `swoff.config.json`.
+2. `generate` — produces the `swoff/` source modules (fetch, cache, auth, mutation, …).
+3. `generator.mjs` — a build step (added to your build script) that scans built assets and writes the final `sw.js`.
+
+Register the service worker in your app entry:
+
+```ts
+import { initServiceWorker } from "./swoff/client-injector";
+initServiceWorker();
+```
+
+See the [CLI reference](/docs/cli) and [Build config](/docs/config/build) for the full workflow.
+
+## Feature map
+
+Two layers. **Top-level features** (`features.*`) are independent capabilities. **Caching sub-features** live under the `features.caching` umbrella and all activate through it. Solid edges are dependencies; dashed edges carry extra constraints.
+
+<Mermaid
+  chart={`graph TD
+  SW[features.serviceWorker] --> R((registered SW))
+  CONN[features.connectivity] --> R
+  PUSH[features.pushNotifications] --> R
+  PWA[features.pwa] --> R
+  AUTH[features.auth] --> R
+  C["features.caching (umbrella)"]
+  C --> CS[strategy + patterns]
+  C --> NAV[navigation]
+  C --> PC[precache]
+  C --> DF[data fetching: fetch / batching / refetch queue]
+  C --> TI[tag invalidation]
+  C --> GQL[graphql]
+  C --> MQ[mutation queue]
+  C --> BS[background sync]
+  C --> SP[server push]
+  TI -. requires .-> DF
+  GQL -. rich invalidation .-> TI
+  MQ -. when bg-sync .-> BS
+  SP -. requires .-> TI
+  BS -.✗ bearer/custom.-> AUTH
+  SP -.✗ bearer/custom.-> AUTH
+  BS -. requires .-> MQ`}
+/>
+
+Rules the map implies:
+
+- **The umbrella gates everything cache-related.** Any caching sub-feature needs `features.caching.enabled: true`. When it's `false`, the SW has **no fetch listener**.
+- **Every sub-feature is opt-in with an explicit `enabled: true`** — including `tagInvalidation`. Its `fetch/core`, `cache/tags`, and `cache/invalidate` modules are only generated when `features.caching.tagInvalidation.enabled` is `true`.
+- **Background sync and server push** need cookie auth — they run in the SW scope with no DOM to refresh bearer tokens.
+- **`strategy.reactive`** is generated only when `strategy.default` is `"reactive"`.
+
+## Module timeline
+
+How the features stack, top to bottom — each is an accordion you can expand. §6 (the caching umbrella) holds its sub-features as a nested accordion. Click a title to open its details.
+
+<Accordions type="single">
+<Accordion id="sw-lifecycle" title="1 · Service worker & lifecycle — the foundation">
+    **What it gives you.** A complete, auditable service worker generated from config — no manual SW code, no runtime Workbox modules. The `client-injector` one-liner wires SW registration, online/offline detection, a focus listener for reactive refresh, and relays SW messages as DOM events. The generated SW handles `install`, `activate`, `fetch`, `message`, `push`, and `sync` based on your config.
+
+    **Enable.** On by default after `init`. Configure `features.serviceWorker.autoActivate` (default `false` — skip waiting and activate new SWs immediately).
+
+    **Dependencies.** None. Every other feature plugs into this.
+
+    **Integrate.**
+
+    ```ts
+    import { initServiceWorker } from "./swoff/client-injector";
+    initServiceWorker();
+    ```
+
+    No-bundler projects include the auto-initializing bundle instead:
+
+    ```html
+    <script src="/swoff/client-injector.bundle.js"></script>
+    ```
+
+    Every file under `swoff/` is regenerated from config. Two intentional edit points: `swoff/auth/check.ts` (auth-failure detection) and editable sections in `swoff/sw/template.js` (e.g. the push handler).
+
+    **Alternatives.**
+
+    | | Swoff | Workbox | Serwist / next-pwa / vite-plugin-pwa |
+    |---|---|---|---|
+    | SW code | Generated from config, readable & committed | Hand-written route registrations + runtime modules | Plugin wrappers, framework-locked |
+    | Runtime deps | 0 kB (generated code) | Bundled Workbox runtime | Bundled runtime |
+    | Extent | Auth, tags, mutation queue, server push | Routing + precache only | Routing + precache only |
+
+    **Relates to.** [API](/docs/api) · [SW config](/docs/config/service-worker) · [Build config](/docs/config/build) · [Hybrid SW + Client architecture](/docs/architecture/hybrid-model)
+</Accordion>
+  <Accordion id="connectivity" title="2 · Connectivity — verified online/offline">
+      **What it gives you.** Real network reachability, not just `navigator.onLine`. A HEAD heartbeat every 30s (visible-tab only) re-verifies connectivity; on change it dispatches `app-connectivity-change` (`{ online }`) and notifies the SW. `useSwoffNetwork` exposes `{ online, wasOffline, lastChangedAt, effectiveType, downlink, isRetrying, retry }`.
+
+      **Enable.** `features.connectivity.enabled: true` — off by default. Configure `heartbeatIntervalMs`.
+
+      **Dependencies.** A registered SW. The `online-status` primitive is shared with the auth module.
+
+      **Integrate.**
+
+      ```ts
+      import { CONNECTIVITY_EVENT, getCurrentOnlineStatus, forceRetry } from "./swoff/connectivity";
+      ```
+
+      The client-injector starts the heartbeat automatically. Use `forceRetry()` for retry buttons in your UI.
+
+      **Alternatives.**
+
+      | | Swoff | `navigator.onLine` | Online-status libs |
+      |---|---|---|---|
+      | Verification | HEAD heartbeat (true reachability) | Network-interface only | Mostly event-based |
+      | SW notification | ✅ Posted automatically | Manual | Manual |
+      | Adapters | `useSwoffNetwork` | — | react-use etc. |
+
+      **Relates to.** [Connectivity API](/docs/api/connectivity) · [Connectivity config](/docs/config/connectivity) · [Framework blueprint](/docs/frameworks/blueprint)
+  </Accordion>
+  <Accordion id="auth" title="3 · Auth-aware caching — headers, 401 refresh, clearAuth">
+      **What it gives you.** Automatic auth header injection on `{ auth: true }` requests, 401 detection with silent token refresh + retry (bearer), a 4-state matrix (online/offline × authed/unauthed), and `clearAuth()` — one call that purges memory, IndexedDB, runtime caches, the mutation queue, and broadcasts logout to other tabs. Bearer tokens live in memory only, never exposed to the SW scope.
+
+      **Enable.** `features.auth.enabled: true` + `features.auth.type` (`"cookie" | "bearer" | "custom"`) + `features.auth.routePaths`. Off by default.
+
+      **Dependencies.** A backend with login/logout + session/token mechanism. Cookie auth is required for SW-scope features (background sync, server push).
+
+      **Integrate.**
+
+      ```ts
+      import { fetchWithCache } from "./swoff/fetch/core";
+      import { setAuth, clearAuth } from "./swoff/auth/store";
+
+      const user = await fetchWithCache("/api/me", { auth: true }).then((r) => r.json());
+      await setAuth(user);
+
+      await fetchWithCache("/api/protected", { auth: true }); // headers injected
+      await clearAuth(); // on logout — wipes everything
+      ```
+
+      Edit `swoff/auth/adapter.ts` (the `getHeaders`/`refresh`/`fetchUser` plugin points) and `swoff/auth/check.ts` (what counts as auth failure).
+
+      **Feature compatibility:** `cookie` supports everything; `bearer`/`custom` cannot use background sync or server push (SW scope has no DOM to refresh tokens).
+
+      **Alternatives.**
+
+      | | Swoff | Fetch/Axios interceptors | Framework auth SDKs (NextAuth, Firebase) |
+      |---|---|---|---|
+      | Scope | SW + client, any framework | Page only, per-framework | Framework-coupled |
+      | 401 refresh | ✅ Silent, SW-initiated | 🟡 Manual | 🟡 |
+      | Full purge on logout | ✅ Cross-tab | Manual | Manual |
+
+      **Relates to.** [Auth API](/docs/api/auth) · [Auth config](/docs/config/auth) · [Auth libraries reference](/docs/frameworks/auth-libraries) · [Auth architecture](/docs/architecture/auth) · [Comparison tier 1](/docs/comparisons#tier-1-sw-toolkits)
+  </Accordion>
+  <Accordion id="push-notifications" title="4 · Push notifications — subscription management">
+      **What it gives you.** Browser-side subscription management (`requestNotificationPermission`, `subscribeToPush`, `unsubscribeFromPush`, `isSubscribed`) plus a generated SW `push` handler that displays notifications. You just need a server endpoint to store subscriptions and send pushes (via the Web Push protocol).
+
+      **Enable.** `features.pushNotifications: true`. VAPID public key set at runtime for no-bundler (`swoff.configure({ push: { vapidPublicKey } })`), or directly in `swoff/push-notification/index.ts` for bundler projects.
+
+      **Dependencies.** A registered SW + a push server (VAPID keys).
+
+      **Integrate.**
+
+      ```ts
+      import { requestNotificationPermission, subscribeToPush } from "./swoff/push-notification";
+
+      if (await requestNotificationPermission()) {
+        const subscription = await subscribeToPush();
+        await fetch("/api/push/subscribe", {
+          method: "POST",
+          body: JSON.stringify(subscription.toJSON()),
+        });
+      }
+      ```
+
+      **Alternatives.**
+
+      | | Swoff | Raw Web Push | OneSignal / FCM |
+      |---|---|---|---|
+      | Subscription + SW handler | ✅ Generated | Hand-written | SaaS (provider lock-in) |
+      | Server | Your own | Your own | Theirs |
+
+      **Relates to.** [Push API](/docs/api/push-notification) · [Push config](/docs/config/push-notifications)
+  </Accordion>
+  <Accordion id="pwa" title="5 · PWA foundation — install prompt, manifest, assets">
+      **What it gives you.** Install prompt handling (`isInstallable`, `promptInstall`, `preventDefaultInstall`), `autoActivate` for instant SW takeover, and the generated manifest is precached automatically. For icons/splash/manifest assets, `@swoff/assets` generates platform-ready files from a source image — see the [assets generation page](/assets).
+
+      **Enable.** `features.pwa.enabled` (on by default after `init`) + `features.pwa.preventDefaultInstall` + `features.serviceWorker.autoActivate`.
+
+      **Dependencies.** A registered SW.
+
+      **Integrate.**
+
+      ```ts
+      import { isInstallable, promptInstall } from "./swoff/pwa/prompt";
+
+      if (isInstallable()) {
+        const result = await promptInstall(); // accepted | dismissed
+      }
+      ```
+
+      Generate PWA assets from a source icon:
+
+      ```bash
+      npx @swoff/assets --source <path-to-icon> --output swoff/assets
+      ```
+
+      **Alternatives.**
+
+      | | Swoff | vite-plugin-pwa / next-pwa | Manifest generators |
+      |---|---|---|---|
+      | Install prompt | ✅ Generated | 🟡 Plugin | ❌ |
+      | Assets | ✅ `@swoff/assets` (any stack) | Framework workflow only | One-shot tools |
+      | SW generation | Schema-driven, all modules | Plugin-scoped | ❌ |
+
+      **Relates to.** [PWA API](/docs/api/pwa) · [PWA config](/docs/config/pwa) · [Comparison tier 1](/docs/comparisons#tier-1-sw-toolkits)
+  </Accordion>
+
+<Accordion id="caching" title="6 · The caching umbrella — features.caching">
+    **What it gives you.** The parent feature for everything cache-related. When `features.caching.enabled` is `true`, the SW gets a fetch listener and the sub-features below (strategy, navigation, precache, data fetching, tag invalidation, graphql, mutation queue, server push) become available. When it's `false`, the generated service worker has **no fetch listener at all** — it never intercepts network requests.
+
+    **Enable.** `features.caching.enabled: true`. Then opt into any sub-feature below with its own explicit `enabled: true`.
+
+    **Dependencies.** A registered service worker (§1).
+
+    **Flow.** `strategy + patterns` decide what gets cached → `navigation` + `precache` handle offline app shell → `tag invalidation` + `data fetching` let you read and invalidate the cache programmatically → `graphql`, `mutation queue`, and `server push` build on top.
+
+    **Relates to.** [Config reference](/docs/config) · [Service-worker config](/docs/config/service-worker) · [Caching architecture](/docs/architecture/caching) · [Schema v2 umbrella](/docs/config)
+  <Accordions type="single">
+    <Accordion id="caching-strategy" title="6.1 · Caching strategies & patterns — under features.caching">
+        **What it gives you.** Six strategies that run in the SW — `cache-first`, `network-first`, `stale-while-revalidate`, `cache-only`, `network-only`, and `reactive`. Fetch events are matched against glob URL patterns with per-route overrides (`staleTime`, `refetchInterval`, `refetchOnFocus`, `refetchOnReconnect`, `timeout`), plus request-level `X-SW-*` header overrides from any HTTP client (auto-stripped before the request hits the network).
+
+        **Enable.** On by default when caching is on, with `/api/*` → `network-first` and `/static/*` → `cache-first`. Configure `features.caching.strategy`.
+
+        **Dependencies.** `initServiceWorker()` registered. This is the base for data fetching, navigation, and precaching.
+
+        **Integrate.** Config-only — no imports needed:
+
+        ```json
+        {
+          "features": {
+            "caching": {
+              "enabled": true,
+              "strategy": {
+                "default": "network-first",
+                "timeout": 10,
+                "patterns": {
+                  "/api/*": "network-first",
+                  "/api/notes": { "strategy": "reactive", "staleTime": 30 }
+                }
+              }
+            }
+          }
+        }
+        ```
+
+        Per-request override from any client:
+
+        ```html
+        <button hx-get="/api/notes" hx-headers='{"X-SW-Strategy": "network-first"}'>
+          Fresh Notes
+        </button>
+        ```
+
+        **Alternatives.**
+
+        | | Swoff | Workbox / SWR strategies |
+        |---|---|---|
+        | Strategy set | 6 incl. `reactive` (stale-time based refresh) | 5 classic (SWR-like requires extra code) |
+        | Config | Declarative `strategy.patterns` | Imperative `registerRoute()` |
+        | Header overrides | Yes, auto-stripped | No |
+        | Layer | SW — survives nav & tab close | Page (SWR) or SW (Workbox) |
+
+        **Relates to.** [API](/docs/api) · [SW config](/docs/config/service-worker) · [Caching System architecture](/docs/architecture/caching) · [Comparison tier 1](/docs/comparisons#tier-1-sw-toolkits)
+    </Accordion>
+    <Accordion id="navigation" title="6.2 · Navigation caching — under features.caching">
+        **What it gives you.** Offline navigation for three modes: `spa` (app-shell fallback), `ssr` (repeat visits serve cached HTML), and `default` (static / mixed). Navigation Preload races the browser's network request against half the fetch timeout, and a fallback chain (precache → runtime-html → per-route → global → 503) serves HTML to navigations while subresources get a clean non-HTML response.
+
+        **Enable.** On by default with caching (`"spa"` mode, preload on). Configure `features.caching.navigation` — `mode`, `preload`, `fallback`, `precacheRoutes`, and per-route `rules`.
+
+        **Dependencies.** `initServiceWorker()` — nothing else. Zero API calls.
+
+        **Integrate.** Works automatically. The `useSwoffAnalytics` adapter observes offline-fallback usage for analytics: `{ lastEvent, events, clear }`.
+
+        **Alternatives.**
+
+        | | Swoff | Workbox | vite-plugin-pwa |
+        |---|---|---|---|
+        | Modes | `spa` / `ssr` / `default` + per-route `rules` | Manual routes + `setCatchHandler` | Single URL fallback only |
+        | Preload | Built-in, races at half timeout | Requires plugin config | Partial |
+        | Fallback telemetry | `useSwoffAnalytics` | Manual | No |
+
+        **Relates to.** [API](/docs/api) · [SW config](/docs/config/service-worker) · [Navigation modes architecture](/docs/architecture/caching#navigation-modes)
+    </Accordion>
+    <Accordion id="precaching" title="6.3 · Precaching — under features.caching">
+        **What it gives you.** The SW activates immediately (install downloads nothing) and precaches in the background with an IndexedDB checkpoint — terminate mid-way and it resumes, not restarts. Progress events (`sw-progress` → `useSwoffPrecache`), concurrency + inter-request spacing control, and version-aware reset when a deploy changes the asset list.
+
+        **Enable.** On by default with caching. Configure `build.precacheDirs`, `features.caching.precache` (`concurrency`, `delayMs`), and `features.caching.navigation.precacheRoutes`.
+
+        **Dependencies.** A registered SW.
+
+        **Integrate.**
+
+        ```tsx
+        function PrecacheIndicator() {
+          const { progress } = useSwoffPrecache();
+          if (progress === 0 || progress === 100) return null;
+          return <div>Precaching: {progress}%</div>;
+        }
+        ```
+
+        **Alternatives.**
+
+        | Aspect | Swoff | Workbox | Serwist |
+        |---|---|---|---|
+        | Timing | After `activate`, non-blocking | During `install`, blocks activation | During `install` |
+        | Resume | ✅ IDB checkpoint | ❌ Full re-download | ❌ |
+        | Progress + concurrency | ✅ Built-in | 🟡 Plugin | 🟡 Limited |
+
+        **Relates to.** [API](/docs/api) · [SW config](/docs/config/service-worker#features-serviceworker-precache) · [Precaching architecture](/docs/architecture/precaching)
+    </Accordion>
+    <Accordion id="caching-umbrella" title="6.4 · Data fetching — fetchWithCache, batching, refresh queue (under features.caching)">
+        **What it gives you.** `fetchWithCache()` returns `{ response, fromCache }` — the cache lives in the SW, so cached responses survive hard navigation and tab close. `prefetchCache()` warms entries, `features.caching.requestBatchWindowMs` coalesces duplicate in-flight requests (default `50`), and the refetch queue schedules prioritized re-fetching when connectivity returns.
+
+        **Enable.** On by default with caching; tune `features.caching.requestBatchWindowMs` and `features.caching.refetchQueue`. The programmatic `fetchWithCache` API itself is gated behind [tag invalidation](#tag-invalidation): only with `features.caching.tagInvalidation.enabled: true` are `fetch/core`, `cache/tags`, and `cache/invalidate` generated. Without it the SW still intercepts and applies strategies; you just can't call this API.
+
+        **Dependencies.** [Strategies](#caching-strategy), [negotiation invalidation](#tag-invalidation).
+
+        **Integrate.**
+
+        ```ts
+        import { fetchWithCache, prefetchCache } from "./swoff/fetch/core";
+
+        const { response, fromCache } = await fetchWithCache("/api/notes");
+        prefetchCache("/api/notes/123");
+        ```
+
+        React/Vue/Svelte get generated hooks (`useSwoffFetch`, `useSwoffPrefetch`) in `swoff/adapters/`. Any other client just uses `fetch` with `X-SW-*` headers.
+
+        **Alternatives.**
+
+        | | Swoff | TanStack Query | SWR |
+        |---|---|---|---|
+        | Cache location | SW (disk, survives nav/tab close) | In-memory | In-memory |
+        | Provider wrapper | None | Required | Required |
+        | Cross-tab invalidation | ✅ SW broadcast | 🟡 `visibilitychange` tricks | ❌ |
+        | Entity granularity | URL-tag based | Query-key based | Key-based |
+
+        **Relates to.** [fetch API](/docs/api/fetch) · [cache API](/docs/api/cache) · [Request batching config](/docs/config/request-batching) · [Refetch queue config](/docs/config/refetch-queue) · [Data sync architecture](/docs/architecture/data-sync) · [Comparison tier 2](/docs/comparisons#tier-2-server-state-libraries-app-layer-in-memory)
+    </Accordion>
+    <Accordion id="tag-invalidation" title="6.5 · Tag invalidation — under features.caching">
+        **What it gives you.** Every cached request is auto-tagged from its URL (`GET /api/notes/123` → `["notes", "note:123"]`). Invalidate by tag, glob-match on URLs, cascade tags, set tags from any HTTP client via `X-SW-Cache-Tags`, and get cross-tab invalidation — the SW broadcasts `cache-invalidated` to every tab. Introspection helpers (`getUrlsForTag`, `getTagsForUrl`) exist for debugging. This module is also the gateway to programmatic data fetching ([6.4](#caching-umbrella)) and server push.
+
+        **Enable.** Explicitly — `features.caching.tagInvalidation.enabled: true` (off by default; the object being present is not enough, the `enabled` boolean must be `true`). Configure `skipPrefixes`, `patterns`, `singularization`, `cascading`, `debounceMs`.
+
+        **Integrate.**
+
+        ```json
+        {
+          "features": {
+            "caching": {
+              "enabled": true,
+              "tagInvalidation": { "enabled": true }
+            }
+          }
+        }
+        ```
+
+        ```ts
+        import { invalidateByTag, invalidateMatching } from "./swoff/cache/invalidate";
+
+        await invalidateByTag("notes");        // after creating a note
+        await invalidateMatching("/api/**");   // glob on cached URLs
+        ```
+
+        Header-based (any client — the SW reads it and tags the cached response):
+
+        ```js
+        fetch("/api/notes", { headers: { "X-SW-Cache-Tags": "notes, dashboard" } });
+        ```
+
+        **Alternatives.**
+
+        | | Swoff | TanStack Query | SWR |
+        |---|---|---|---|
+        | Invalidation | Tag-based, auto-generated from URLs | Manual `queryKey` management | `mutate(key)` only |
+        | Cross-tab | ✅ Broadcasts to all tabs | ❌ | ❌ |
+        | Cascading / globs | ✅ | 🟡 `predicate` | ❌ |
+
+        **Relates to.** [cache API](/docs/api/cache) · [Tag config](/docs/config/tag-invalidation) · [Caching architecture](/docs/architecture/caching) · [Comparison tier 1](/docs/comparisons#tier-1-sw-toolkits)
+    </Accordion>
+    <Accordion id="graphql" title="6.6 · GraphQL — under features.caching">
+        **What it gives you.** Caches GraphQL responses by body hash (query + variables → SHA-256) — no schema introspection, no fragment matchers, no `InMemoryCache`. Mutations auto-invalidate by operation name (`CreateNote` → `["notes", "note"]`), offline mutations auto-queue, and multiple endpoints are supported. The SW also caches plain `POST /graphql` requests from *any* HTTP client by detecting the `query` field.
+
+        **Enable.** `features.caching.graphql.enabled: true` + `features.caching.graphql.endpoints` (default `["/graphql"]`). Built on the [caching umbrella](#caching-strategy).
+
+        **Dependencies.** [Strategies](#caching-strategy); rich invalidation needs [tag invalidation](#tag-invalidation).
+
+        **Integrate.**
+
+        ```ts
+        import { queryGql, mutateGql } from "./swoff/graphql";
+
+        const { data, fromCache } = await queryGql(
+          `query GetNotes { notes { id title } }`,
+        );
+        const { data: created } = await mutateGql(
+          `mutation CreateNote($title: String!) { createNote(title: $title) { id } }`,
+          { title: "New note" },
+        );
+        ```
+
+        **Alternatives.**
+
+        | | Swoff | Apollo Client |
+        |---|---|---|
+        | Cross-query invalidation | Op-name tags (entity-level needs explicit tags) | Automatic normalized store |
+        | Schema coupling | None | Requires `__typename` + `id` |
+        | Runtime | 0 kB generated | ~32 kB gzip |
+        | Cache persistence | Cache API (disk) | In-memory |
+        | Offline replay | ✅ Auto-invalidates on replay | ❌ |
+
+        **Relates to.** [GraphQL API](/docs/api/graphql) · [GraphQL config](/docs/config/graphql) · [GraphQL & Push architecture](/docs/architecture/graphql-and-push) · [Comparison tier 2](/docs/comparisons#tier-2-server-state-libraries-app-layer-in-memory)
+    </Accordion>
+    <Accordion id="mutation-queue" title="6.7 · Offline mutations & sync — queued writes (under features.caching)">
+        **What it gives you.** Queues POST/PUT/PATCH/DELETE in IndexedDB when offline and replays them when connectivity returns, auto-invalidating the request's tags on successful replay. `flushMutations()` force-replays now; `syncWhenPossible()` registers the browser Background Sync API (survives tab close — cookie auth only). Queue introspection, per-mutation state, and retry policy with exponential backoff + jitter.
+
+        **Enable.** `features.caching.mutationQueue.enabled: true` — off by default — then configure `batchSize`, `batchDelayMs`, `backgroundSync`, and `retry` (`maxRetries`, `backoffMs`, `maxBackoffMs`, `jitterMs`). `backgroundSync: true` additionally requires `mutationQueue.enabled` and [cookie auth](#auth).
+
+        **Dependencies.** [Strategies](#caching-strategy) + data fetching; background sync additionally requires [cookie auth](#auth).
+
+        **Integrate.**
+
+        ```ts
+        import { fetchWithCache } from "./swoff/fetch/core";
+        import { getPendingCount, flushMutations } from "./swoff/mutation/queue";
+
+        const { response, queued } = await fetchWithCache("/api/notes", {
+          method: "POST",
+          body: JSON.stringify({ title: "New Note" }),
+          mutation: true, // offline → queued, replays on reconnect
+        });
+        // queued === true means it was stored for later replay
+        ```
+
+        Any client can opt in via the `X-SW-Type: mutation` header (HTMX, native fetch, server-rendered forms).
+
+        **Alternatives.**
+
+        | | Swoff | RxDB / PouchDB | Workbox Background Sync |
+        |---|---|---|---|
+        | Model | Request queue (no schema) | Client-side DB + replication | Request replay |
+        | Tag invalidation on replay | ✅ | — | ❌ |
+        | Survival | IDB + (optionally) Background Sync | IDB | Background Sync only |
+        | Setup | Config | Schema + sync protocol | Manual queue + plugin |
+
+        **Relates to.** [Mutation API](/docs/api/mutation) · [Mutation config](/docs/config/mutation-queue) · [Data sync architecture](/docs/architecture/data-sync) · [Optimistic updates rationale](/docs/architecture/optimistic-updates)
+    </Accordion>
+    <Accordion id="server-push" title="6.8 · Server push — SSE/WebSocket from the SW (under features.caching)">
+        **What it gives you.** Real-time cache invalidation. The SW, not the page, keeps an SSE or WebSocket connection open — it survives navigation and tab refresh and costs no page memory. When the server sends `{ "tags": [...] }`, the SW invalidates matching entries and broadcasts `cache-invalidated` to all tabs. Auto-connect on activation, exponential-backoff reconnection.
+
+        **Enable.** `features.caching.serverPush.enabled: true` + `type` (`"sse" | "websocket"`) + `endpoint` + `reconnectDelayMs`.
+        **Dependencies.** [Tag invalidation](#tag-invalidation) (mandatory) + [cookie auth](#auth) (the SW has no DOM for token refresh).
+
+        **Integrate.** Config-only for bundler projects — the SW connects on activation. No-bundler projects control it via `swoff.startPushEvents()` / `stopPushEvents()` / `isPushConnected()`.
+
+        **SSE vs WebSocket:** SSE is one-directional with built-in reconnection; WebSocket is bidirectional (needs 2-way communication) with Swoff-managed reconnection.
+
+        **Alternatives.**
+
+        | | Swoff | Socket.io client |
+        |---|---|---|
+        | Connection owner | SW (survives nav, 0 page memory) | Page (dies on nav) |
+        | Invalidation wiring | Automatic `invalidateByTags` | Manual socket → cache code |
+        | Auth constraint | Cookie auth | None |
+
+        **Relates to.** [Server push API](/docs/api/server-push) · [Server push config](/docs/config/server-push) · [GraphQL & Push architecture](/docs/architecture/graphql-and-push) · [Comparison tier 2](/docs/comparisons#tier-2-server-state-libraries-app-layer-in-memory)
+    </Accordion>
+  </Accordions>
+</Accordion>
+</Accordions>
+
+## Next steps
+
+- Deep library-by-library matrices: [Library Comparison](/docs/comparisons)
+- Config schema for every feature: [Config Reference](/docs/config)
+- All generated APIs: [API Reference](/docs/api)
+- Design rationale and internal mechanics: [Architecture](/docs/architecture)
+- Per-ecosystem setup: [Framework Integration](/docs/frameworks)

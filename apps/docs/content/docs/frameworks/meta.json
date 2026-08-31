@@ -3,6 +3,7 @@
   "pages": [
     "ecosystem",
     "blueprint",
+    "auth-libraries",
     "react",
     "astro",
     "vue",

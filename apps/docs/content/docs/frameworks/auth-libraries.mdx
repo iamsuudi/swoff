@@ -5,7 +5,7 @@ description: How popular auth libraries transmit identity under the hood — and
 
 ## Auth Libraries Reference
 
-Identify your auth library's mechanism to know whether you need to configure `getHeaders()` in your [adapter](/docs/guides/auth#customize) or can skip it entirely.
+Identify your auth library's mechanism to know whether you need to configure `getHeaders()` in your [adapter](/docs/guides#auth) or can skip it entirely.
 
 ## The Three Categories
 
@@ -217,6 +217,6 @@ const { data: notes } = await supabase.from("notes").select("*");
 
 ## Next Steps
 
-- [Auth-Aware Caching guide](/docs/guides/auth) — full setup walkthrough
+- [Auth module in the Feature Map](/docs/guides#auth) — full setup walkthrough
 - [Config reference: auth](/docs/config/auth) — all configuration options
 - [Library Comparison](/docs/comparisons#tier-1-sw-toolkits) — auth awareness in SW toolkits

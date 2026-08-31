@@ -29,8 +29,10 @@ export default defineConfig({
     }),
     react(),
     // please see https://tanstack.com/start/latest/docs/framework/react/guide/hosting for guides on hosting
-    // netlify(),
-  ],
+    process.env.NETLIFY === "true" || process.env.NODE_ENV === "production"
+      ? netlify()
+      : null,
+  ].filter(Boolean),
   resolve: {
     tsconfigPaths: true,
     alias: {

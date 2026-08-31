@@ -44,20 +44,6 @@ export function Navbar() {
             Docs
           </Link>
           <Link
-            to="/docs/$"
-            params={{ _splat: "api" }}
-            className={`${linkClass} ${isApiActive ? "text-fd-primary" : ""}`}
-          >
-            API
-          </Link>
-          <Link
-            to="/docs/$"
-            params={{ _splat: "frameworks" }}
-            className={`${linkClass} ${isFrameworksActive ? "text-fd-primary" : ""}`}
-          >
-            Frameworks
-          </Link>
-          <Link
             to="/about"
             className={`${linkClass} ${isAboutActive ? "text-fd-primary" : ""}`}
           >
@@ -105,22 +91,6 @@ export function Navbar() {
             onClick={() => setIsOpen(false)}
           >
             Docs
-          </Link>
-          <Link
-            to="/docs/$"
-            params={{ _splat: "api" }}
-            className={`${mobileLinkClass} ${isApiActive ? "text-fd-primary" : ""}`}
-            onClick={() => setIsOpen(false)}
-          >
-            API
-          </Link>
-          <Link
-            to="/docs/$"
-            params={{ _splat: "frameworks" }}
-            className={`${mobileLinkClass} ${isFrameworksActive ? "text-fd-primary" : ""}`}
-            onClick={() => setIsOpen(false)}
-          >
-            Frameworks
           </Link>
           <Link
             to="/about"

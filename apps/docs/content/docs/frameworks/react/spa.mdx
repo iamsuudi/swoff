@@ -69,7 +69,7 @@ Points to it via `fallback: "/offline"` in the config.
 
 ## API routes
 
-React SPAs often have API routes (`/api/*`) for data fetching. These use `network-first` — they work offline only if visited before and cached in runtime. Mutations (POST/PUT/DELETE) always need the network — see [Offline Mutations](/docs/guides/offline-mutations) for queueing.
+React SPAs often have API routes (`/api/*`) for data fetching. These use `network-first` — they work offline only if visited before and cached in runtime. Mutations (POST/PUT/DELETE) always need the network — see [Offline Mutations](/docs/guides#mutation-queue) for queueing.
 
 ## Router-specific notes
 
@@ -89,5 +89,5 @@ Add the SW generator to your build:
 
 ## Related
 
-- [Navigation Caching guide](/docs/guides/navigation-caching) — SPA/SSR modes, fallback, preload
-- [Caching Strategy guide](/docs/guides/caching-strategy) — default, network-first, cache-first
+- [Navigation Caching guide](/docs/guides#navigation) — SPA/SSR modes, fallback, preload
+- [Caching Strategy guide](/docs/guides#caching-strategy) — default, network-first, cache-first

@@ -47,8 +47,8 @@
       "dist/client": {
         "prefix": "/",
         "matchExtensions": [],
-        "stripExtensions": [],
-        "stripSuffixes": [],
+        "stripExtensions": [".html"],
+        "stripSuffixes": ["index"],
         "excludeDirs": [],
         "excludeFiles": []
       }

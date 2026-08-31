@@ -162,11 +162,11 @@ The SW generator must run after `next build` so it can scan the `.next` output d
 | **Static assets**        | `/_next/static/*` are hashed — cache invalidation is automatic on rebuild.                                                     |
 | **Dynamic pages**        | Only prerendered static pages are precached. Pages with `dynamic = 'force-dynamic'` require runtime caching after first visit. |
 | **API routes**           | `pages/api/*` or `app/api/*` are network-first. They work offline only if visited before.                                      |
-| **Server Actions**       | Mutations always need network. Use [Offline Mutations](/docs/guides/offline-mutations) for queueing.                           |
+| **Server Actions**       | Mutations always need network. Use [Offline Mutations](/docs/guides#mutation-queue) for queueing.                           |
 | **Middleware**           | Next.js Middleware runs on every request — it's transparent to the SW.                                                         |
 
 ## Related
 
-- [Navigation Caching guide](/docs/guides/navigation-caching) — SPA/SSR modes, fallback, preload
-- [Caching Strategy guide](/docs/guides/caching-strategy) — default, network-first, cache-first
-- [Offline Mutations guide](/docs/guides/offline-mutations) — queue Server Actions when offline
+- [Navigation Caching guide](/docs/guides#navigation) — SPA/SSR modes, fallback, preload
+- [Caching Strategy guide](/docs/guides#caching-strategy) — default, network-first, cache-first
+- [Offline Mutations guide](/docs/guides#mutation-queue) — queue Server Actions when offline

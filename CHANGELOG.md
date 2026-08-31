@@ -1,5 +1,35 @@
 # Changelog
 
+## @swoff/cli@0.5.0 (2026-08-30)
+
+- feat: schema v2 — all cache-related features moved under `features.caching` (`strategy`, `navigation`, `precache`, `mutationQueue`, `tagInvalidation`, `graphql`, `serverPush`, `requestBatchWindowMs`, `refetchQueue`)
+- feat: `$schema` now points to `https://swoff.space/schema/v2.json`; old flat keys rejected with migration hints; SW emits no fetch listener unless `caching.enabled`
+- feat: dependency rules enforced — `serverPush` requires `tagInvalidation`, `backgroundSync` requires `mutationQueue`, `serverPush` unsupported with bearer/custom auth
+- feat: `connectivity` is explicit opt-in; online-status shared module generated when connectivity or auth is enabled
+- feat: generated configs fully explicit — every enabled feature materializes its complete subtree (booleans included), disabled optional features omitted; `strategy.reactive` only emitted when reactive is the default strategy
+- feat: `build.swoffPath` defaults to `.` (resolves to `swoff/`) via `resolveSwoffPath` normalization across CLI + emitted generator
+- feat: wizard rework — caching gate asked before strategy/navigation, descendants only when enabled; autoActivate prompt; backgroundSync nested under mutationQueue; serverPush chained on tagInvalidation; precacheDirs materialized with all fields
+- docs: config reference with callouts, dependencies/connectivity guides, migration-v2 guide, caching interlock diagram
+
+## @swoff/assets@0.3.0 (2026-08-29)
+
+- feat: asset generation is now explicit-only — `--android` adds the Android adaptive launcher stack and `--splash` adds Apple splash screens (replacing the old `--no-splash` opt-out)
+- feat: default output is now 13 files (icons, favicons, OG image, manifest, head tags, audit page), up to 50 with the opt-in flags
+- feat: programmatic `appleSplash` and the new `android` option now default to off
+
+## @swoff/cli@0.4.8 (2026-08-29)
+
+- fix: generated framework adapters written via read-write transforms instead of brittle file copies — fixes a broken `realtime/notifications` import (mapped to `push-notification/index`) and normalizes module specifiers to each project's file extension
+- chore: remove unused guide generator and dead `swoff add`/`swoff info` command surface
+
+## @swoff/assets@0.2.0 (2026-08-29)
+
+- feat: wordmark auto-generation — `--source` is now optional; omit it to generate a text-derived icon from `--app-name` (with a bitmap-font fallback when no system fonts exist)
+- feat: always-on Android adaptive icons — density-scaled `ic_launcher`/`ic_launcher_round` PNGs, 66% safe-zone foreground, monochrome layer, `mipmap-anydpi-v26` launcher XMLs, and `values/colors.xml`
+- feat: new `pwa-debug.html` audit page; new manifest flags `--orientation`, `--scope`, `--lang`, `--categories`; and a `--print-schema` flag exposing the `swoff-assets.json` JSON schema
+- fix: invalid color hexes, undersized sources, and similar issues now produce non-fatal warnings instead of silently generating wrong output
+- feat: generation counts — 36 files by default, up to 50 with monochrome, MS tiles, and dark mode
+
 ## @swoff/assets@0.1.3 (2026-07-13)
 
 - feat: generate favicon.svg for all source types (base64 PNG embedded for raster sources)

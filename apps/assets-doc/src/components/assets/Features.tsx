@@ -14,8 +14,8 @@ import {
 const assetFeatures = [
   {
     icon: Image,
-    title: "PWA Icons",
-    desc: "64×64, 192×192, and 512×512 icons plus maskable variants with an 80% safe-zone crop.",
+    title: "PWA Icons & Manifest",
+    desc: "Full manifest with all icons (including maskable variants with an 80% safe-zone crop), colors, etc.",
     color: "text-sky-500",
     bg: "bg-sky-500/10",
   },
@@ -47,13 +47,13 @@ const assetFeatures = [
     color: "text-orange-500",
     bg: "bg-orange-500/10",
   },
-  {
-    icon: FileJson,
-    title: "manifest.json",
-    desc: "Full manifest with icons, screenshots, shortcuts, colors, orientation, scope, and lang.",
-    color: "text-violet-500",
-    bg: "bg-violet-500/10",
-  },
+  // {
+  //   icon: FileJson,
+  //   title: "manifest.json",
+  //   desc: "Full manifest with icons, screenshots, shortcuts, colors, orientation, scope, and lang.",
+  //   color: "text-violet-500",
+  //   bg: "bg-violet-500/10",
+  // },
   {
     icon: FileCode,
     title: "HTML Head Tags",
@@ -61,26 +61,26 @@ const assetFeatures = [
     color: "text-amber-500",
     bg: "bg-amber-500/10",
   },
-  {
-    icon: Terminal,
-    title: "Standalone CLI",
-    desc: "No build tool, framework, or service worker dependency — works with any stack.",
-    color: "text-cyan-500",
-    bg: "bg-cyan-500/10",
-  },
+  // {
+  //   icon: Terminal,
+  //   title: "Standalone CLI",
+  //   desc: "No build tool, framework, or service worker dependency — works with any stack.",
+  //   color: "text-cyan-500",
+  //   bg: "bg-cyan-500/10",
+  // },
   {
     icon: Type,
     title: "Wordmark Auto",
     desc: "No source? A rounded-rect wordmark from --app-name in the theme color, with bitmap-font fallback.",
-    color: "text-teal-500",
-    bg: "bg-teal-500/10",
+    color: "text-emerald-500",
+    bg: "bg-emerald-500/10",
   },
   {
     icon: Layers,
     title: "Android Adaptive Icons",
     desc: "Add --android for the mipmap stack: density-scaled launchers, 66% safe-zone foreground, and anydpi-v26 XMLs.",
-    color: "text-emerald-500",
-    bg: "bg-emerald-500/10",
+    color: "text-cyan-500",
+    bg: "bg-cyan-500/10",
   },
 ];
 

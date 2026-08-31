@@ -11,6 +11,11 @@ npx @swoff/cli init          # create swoff.config.json
 npx @swoff/cli generate      # generate swoff/ files
 ```
 
+You own every generated line. Add the build step to embed built assets, then include the injector in
+your HTML (see [Getting Started](https://swoff.space/docs/getting-started)). This is part of the
+[Swoff monorepo](https://github.com/iamsuudi/swoff) — for PWA icon/splash/manifest generation see the
+sibling [`@swoff/assets`](/assets/README.md) package.
+
 ### With a bundler (React, Next.js, Vue, Svelte, Astro)
 
 ```js
@@ -65,13 +70,13 @@ npx @swoff/assets --source ./logo.svg
 
 | Guide                                                    | Description                                       |
 | -------------------------------------------------------- | ------------------------------------------------- |
-| [Config](https://swoff.dev/docs/config)                  | Full config schema and feature reference          |
-| [API](https://swoff.dev/docs/api)                        | Client API reference (auth, cache, mutations)     |
-| [CLI](https://swoff.dev/docs/cli)                        | CLI commands and options                          |
-| [Guides](https://swoff.dev/docs/guides)                  | Step-by-step guides for each feature              |
-| [Architecture](https://swoff.dev/docs/architecture)      | Design decisions and rationale                    |
-| [Comparisons](https://swoff.dev/docs/comparisons)        | Swoff vs Workbox / Serwist / SWR / TanStack Query |
-| [Ecosystem](https://swoff.dev/docs/frameworks/ecosystem) | Framework integration guides                      |
+| [Config](https://swoff.space/docs/config)                | Full config schema and feature reference          |
+| [API](https://swoff.space/docs/api)                      | Client API reference (auth, cache, mutations)     |
+| [CLI](https://swoff.space/docs/cli)                      | CLI commands and options                          |
+| [Guides](https://swoff.space/docs/guides)                | Step-by-step guides for each feature              |
+| [Architecture](https://swoff.space/docs/architecture)    | Design decisions and rationale                    |
+| [Comparisons](https://swoff.space/docs/comparisons)      | Swoff vs Workbox / Serwist / SWR / TanStack Query |
+| [Ecosystem](https://swoff.space/docs/frameworks/ecosystem) | Framework integration guides                      |
 
 ---
 

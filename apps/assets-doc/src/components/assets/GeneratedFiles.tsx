@@ -18,7 +18,7 @@ const generatedFiles = [
 
 export function GeneratedFiles() {
   return (
-    <section className="relative py-20 overflow-hidden border-t border-fd-border">
+    <section className="relative py-20 overflow-hidden">
       <div className="max-w-5xl mx-auto px-6 relative">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-black text-fd-foreground mb-4">

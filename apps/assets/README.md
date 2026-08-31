@@ -1,6 +1,8 @@
 # @swoff/assets — The Most Comprehensive PWA Asset Generator
 
-[Swoff](https://assets.swoff.space) — Universal PWA asset generator: no framework lock-in, no config coupling, no CDN downloads.
+Universal PWA asset generator from [Swoff](https://swoff.space) — no framework lock-in, no config coupling, no CDN downloads.
+
+Part of the [Swoff monorepo](https://github.com/iamsuudi/swoff). For generating the offline service worker itself, see the sibling [`@swoff/cli`](/cli/README.md) package.
 
 ```bash
 npx @swoff/assets --app-name "My App"
@@ -12,15 +14,27 @@ Generates **13 files by default and up to 50** with opt-in flags — icons, favi
 
 ## Quick Start
 
+**Step 1 — Generate your assets** (writes everything to `public/`):
+
 ```bash
 npx @swoff/assets --app-name "My App"
 ```
 
-Writes everything to `public/`. Provide `--source` to use your own logo instead:
+Provide `--source` to use your own logo instead:
 
 ```bash
 npx @swoff/assets --source ./logo.svg
 ```
+
+**Step 2 — Include the generated head tags in your HTML.** The output includes a copy-paste `swoff-head-tags.html` with the `<link>`/`<meta>` tags (manifest, icons, theme-color, etc.). `manifest.json` and the icons only take effect once these are in your document:
+
+```html
+<!-- paste swoff-head-tags.html contents here -->
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icons/icon.svg">
+```
+
+For meta-frameworks (Next.js, Nuxt, Astro, etc.) add these tags through your framework's head-management API rather than a raw `<head>` tag — see the [Swoff docs](https://swoff.space/docs) and [Web App Manifest](https://developer.mozilla.org/en-US/docs/Web/Manifest) for guidance. A `manifest.json` that is never linked to your document does nothing.
 
 ### With options
 
@@ -265,6 +279,6 @@ interface GenerateResult {
 
 ## License
 
-MIT
+MIT — see [LICENSE](/LICENSE).
 
-Source: [github.com/iamsuudi/swoff](https://github.com/iamsuudi/swoff)
+Docs: [assets.swoff.space](https://assets.swoff.space) · Source: [github.com/iamsuudi/swoff](https://github.com/iamsuudi/swoff)

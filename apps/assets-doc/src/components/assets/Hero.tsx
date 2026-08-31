@@ -1,6 +1,6 @@
 import { Image } from "lucide-react";
-import { Cta } from "./Cta";
 import { buttonVariants } from "../ui/button";
+import { Cta } from "./Cta";
 
 export function Hero() {
   return (
@@ -39,35 +39,58 @@ export function Hero() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 text-center relative">
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <code className="px-5 py-3 rounded-lg bg-fd-muted border border-fd-border text-sm font-mono text-fd-foreground">
-            npx @swoff/assets --app-name "My App"
-          </code>
+      <div className="flex items-center justify-center flex-wrap gap-6">
+        <a
+          href="https://github.com/iamsuudi/swoff"
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center justify-center bg-green-600 text-white hover:opacity-90 font-bold h-11 text-[14px] rounded-lg gap-2 px-4 shadow-lg group"
+        >
+          Github
+          <GithubIcon className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
+        </a>
+        <a
+          href="https://www.npmjs.com/package/@swoff/assets"
+          target="_blank"
+          rel="noreferrer"
+          className="group flex items-center justify-center border-fd-border text-background bg-fd-foreground hover:bg-fd-foreground/90 font-bold h-11 text-[14px] rounded-lg gap-2 px-4 shadow-md"
+        >
+          <NpmIcon className="size-6 group-hover:translate-x-0.5 transition-transform" />
+          npm
+        </a>
+      </div>
+
+      <div className="max-w-3xl mx-auto px-6 text-center relative mt-8">
+        <p className="text-xs font-medium text-fd-muted-foreground mb-3">
+          Try it — two steps
+        </p>
+        <div className="rounded-xl bg-fd-card border border-fd-border overflow-hidden text-left">
+          <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-fd-border bg-fd-muted/40">
+            <span className="size-2.5 rounded-full bg-red-500/70" />
+            <span className="size-2.5 rounded-full bg-yellow-500/70" />
+            <span className="size-2.5 rounded-full bg-green-500/70" />
+            <span className="ml-2 text-xs text-fd-muted-foreground font-mono">
+              terminal
+            </span>
+          </div>
+          <pre className="px-5 py-4 overflow-x-auto text-[13px] leading-relaxed text-fd-foreground font-mono">
+            {`# 1. Generate your assets (writes to public/)
+npx @swoff/assets --source public/logo.svg
+
+# 2. Include the generated head tags, swoff-head-tags.html, in your HTML
+<link rel="manifest" href="/manifest.json">
+
+For meta-frameworks (Next.js, Nuxt, Astro, ...) add the same tags via their head API`}
+          </pre>
         </div>
         <p className="text-xs text-fd-muted-foreground mt-3">
-          Works with SVG, PNG, and JPG sources — or no source at all
+          Works with SVG, PNG, and JPG sources — or no source at all. The
+          manifest and icons only take effect once the generated{" "}
+          <code className="text-xs bg-fd-muted px-1.5 py-0.5 rounded">
+            swoff-head-tags.html
+          </code>{" "}
+          is linked in your document.
         </p>
-        <div className="flex items-center justify-center flex-wrap gap-6 mt-8">
-          <a
-            href="https://github.com/iamsuudi/swoff"
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center justify-center bg-green-600 text-white hover:opacity-90 font-bold h-11 text-[14px] rounded-lg gap-2 px-4 shadow-lg group"
-          >
-            Github
-            <GithubIcon className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
-          </a>
-          <a
-            href="https://www.npmjs.com/package/@swoff/assets"
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center justify-center border-fd-border text-background bg-fd-foreground hover:bg-fd-foreground/90 font-bold h-11 text-[14px] rounded-lg gap-2 px-4 shadow-md"
-          >
-            <NpmIcon className="size-6" />
-            npm
-          </a>
-        </div>
       </div>
     </section>
   );

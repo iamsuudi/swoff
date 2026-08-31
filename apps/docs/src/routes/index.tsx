@@ -2,18 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import {
   Bell,
-  FileCode,
-  Globe,
   Image,
   Layers,
-  PackageCheck,
   PanelTopClose,
   Radio,
   RefreshCw,
   Rocket,
-  Settings,
   Shield,
-  Terminal,
 } from "lucide-react";
 import { Icons } from "@/components/icons";
 import { Navbar } from "@/components/Navbar";
@@ -67,24 +62,6 @@ const pillars = [
   },
 ];
 
-const differentiators = [
-  {
-    icon: FileCode,
-    title: "Config-Driven",
-    desc: "One swoff.config.json drives caching, auth, offline queue, push, and PWA.",
-  },
-  {
-    icon: PackageCheck,
-    title: "Zero Runtime Deps",
-    desc: "Generated, auditable vanilla JS. No library injected into your bundle — you own the code.",
-  },
-  {
-    icon: Globe,
-    title: "Any Stack",
-    desc: "Operates at the fetch layer. Works with any frontend, backend, and build tool.",
-  },
-];
-
 const stackHighlights = {
   frontend: ["React", "Vue", "Svelte", "HTMX", "Solid"],
   meta: ["Next.js", "Nuxt", "SvelteKit", "TanStack Start", "Astro"],
@@ -99,36 +76,40 @@ function Home() {
       {/* Hero */}
       <section className="relative pt-36 pb-24 md:pt-48 md:pb-32 overflow-hidden">
         <div className="container mx-auto px-6 relative">
-          <div className="flex flex-col items-center max-w-5xl mx-auto">
-            <div className="flex items-center gap-2 px-4 py-1 rounded-full border border-fd-border bg-fd-card text-sm text-fd-muted-foreground mb-8">
-              <Rocket className="size-3 text-fd-primary" />
-              <span className="text-xs font-medium">
-                Offline Infrastructure Toolkit
-              </span>
-            </div>
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center max-w-6xl mx-auto">
+            <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
+              <div className="flex items-center gap-2 px-4 py-1 rounded-full border border-fd-border bg-fd-card text-sm text-fd-muted-foreground mb-8">
+                <Rocket className="size-3 text-fd-primary" />
+                <span className="text-xs font-medium">
+                  Offline Infrastructure Toolkit
+                </span>
+              </div>
 
-            <div className="text-center">
               <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tight text-fd-foreground leading-[1.05]">
-                Offline infrastructure
+                Offline Infrastructure
                 <br />
-                <span className="bg-linear-to-r from-fd-primary via-orange-400 to-amber-500 bg-clip-text text-transparent text-center">
-                  for any stack
+                <span className="bg-linear-to-r from-fd-primary via-orange-400 to-amber-500 bg-clip-text text-transparent">
+                  For Any Stack
                 </span>
               </h1>
 
-              <p className="text-lg md:text-xl text-fd-muted-foreground max-w-2xl mt-6 mb-10 leading-relaxed mx-auto">
-                A config-driven code generator for offline-first web apps. It
-                produces an auditable service worker and client runtime with
-                zero runtime dependencies — you own every line.
+              <p className="text-md md:text-lg text-fd-muted-foreground mt-6 mb-10 leading-relaxed">
+                A config-driven code generator for offline-first web apps. One{" "}
+                <code className="text-sm bg-fd-muted px-1.5 py-0.5 rounded">
+                  swoff.config.json
+                </code>{" "}
+                drives caching, auth, offline queue, push, and PWA — with any
+                frontend, backend, or build tool. The output is auditable
+                vanilla JS you own, with zero runtime dependencies.
               </p>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <div className="flex flex-wrap items-center lg:items-start gap-4">
                 <Link
                   to="/docs/$"
                   params={{ _splat: "" }}
                   className={buttonVariants({
                     className:
-                      "w-55 flex items-center justify-center bg-fd-foreground text-fd-background hover:opacity-90 font-bold h-12 text-[15px] rounded-lg gap-2 shadow-lg group",
+                      "flex px-5 items-center justify-center bg-fd-foreground text-fd-background hover:opacity-90 font-bold h-12 text-[15px] rounded-lg gap-2 shadow-lg group",
                   })}
                 >
                   Get Started
@@ -141,7 +122,7 @@ function Home() {
                   className={buttonVariants({
                     variant: "outline",
                     className:
-                      "group w-55 flex items-center justify-center hover:text-white border-fd-border text-white hover:bg-fd-primary/95 bg-fd-primary font-bold h-12 text-[15px] rounded-lg gap-2 shadow",
+                      "group flex px-5 items-center justify-center hover:text-white border-fd-border text-white hover:bg-fd-primary/95 bg-fd-primary font-bold h-12 text-[15px] rounded-lg gap-2 shadow",
                   })}
                 >
                   <Icons.npm className="size-8 text-white group-hover:translate-x-0.5 transition-transform" />
@@ -149,84 +130,39 @@ function Home() {
                 </a>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* How it works */}
-      <section className="relative py-20 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[250px] bg-fd-primary/3 dark:bg-fd-primary/5 rounded-full blur-[100px]" />
-        </div>
-        <div className="max-w-5xl mx-auto px-6 relative">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-black mb-4">
-              <span className="text-fd-foreground">How It Works</span>
-            </h2>
-            <p className="text-fd-muted-foreground text-lg max-w-xl mx-auto">
-              One interactive session, one CLI command, one build step — and you
-              own the output.
-            </p>
-          </div>
-
-          <div className="relative grid md:grid-cols-2 gap-6">
-            {[
-              {
-                icon: Terminal,
-                title: "1. Init",
-                code: "swoff init",
-                desc: "interactive wizard builds your config",
-              },
-              {
-                icon: Settings,
-                title: "2. Generate",
-                code: "swoff generate",
-                desc: "CLI produces auditable TS/JS source files",
-              },
-              {
-                icon: Rocket,
-                title: "3. Build",
-                code: "node swoff/sw/generator.mjs",
-                desc: "inlines built assets into the final SW",
-              },
-              {
-                icon: Rocket,
-                title: "4. Deploy",
-                code: null,
-                desc: "Serve as static assets — no runtime library, no backend coupling",
-              },
-            ].map((step, i) => (
-              <div
-                key={step.title}
-                className="group relative rounded-xl border border-fd-border bg-fd-card hover:border-fd-foreground/20 transition-all p-6 text-center overflow-hidden"
-              >
-                <div className="absolute -top-20 -right-20 w-40 h-40 bg-fd-foreground/2 dark:bg-fd-foreground/4 rounded-full blur-[60px] pointer-events-none" />
-                <div className="relative">
-                  <div className="w-14 h-14 rounded-xl bg-fd-primary/10 flex items-center justify-center mx-auto mb-5 group-hover:scale-105 transition-transform">
-                    {i === 3 ? (
-                      <Rocket className="size-7 text-fd-primary" />
-                    ) : (
-                      <step.icon className="size-7 text-fd-primary" />
-                    )}
-                  </div>
-                  <h3 className="font-bold text-fd-foreground mb-2 text-lg">
-                    {step.title}
-                  </h3>
-                  <p className="text-[14px] text-fd-muted-foreground leading-relaxed">
-                    {step.code ? (
-                      <>
-                        Run{" "}
-                        <code className="text-xs bg-fd-muted px-1 py-0.5 rounded">
-                          {step.code}
-                        </code>
-                        <br />
-                      </>
-                    ) : null}
-                    {step.desc}
-                  </p>
+            <div className="grid grid-cols-1 w-full mx-auto text-left">
+              <p className="text-xs font-medium text-fd-muted-foreground mb-3 lg:text-left">
+                Try it in 2 minutes
+              </p>
+              <div className="rounded-xl bg-fd-card border border-fd-border overflow-hidden">
+                <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-fd-border bg-fd-muted/40">
+                  <span className="size-2.5 rounded-full bg-red-500/70" />
+                  <span className="size-2.5 rounded-full bg-yellow-500/70" />
+                  <span className="size-2.5 rounded-full bg-green-500/70" />
+                  <span className="ml-2 text-xs text-fd-muted-foreground font-mono">
+                    terminal
+                  </span>
                 </div>
+                <pre className="px-5 py-4 overflow-x-auto text-[13px] leading-relaxed text-fd-foreground font-mono">
+                  {`# 1. Init config (or --yes for defaults)
+npx @swoff/cli init
+
+# 2. Generate your swoff/ runtime
+npx @swoff/cli generate
+
+# 3. Build step — embed your assets
+node swoff/sw/generator.mjs
+
+# 4. Include the injector in your HTML
+Bundler:
+    import { initServiceWorker } from "./swoff/client-injector";
+    initServiceWorker();
+No-bundler:
+    <script src="/swoff/client-injector.bundle.js"></script>`}
+                </pre>
               </div>
-            ))}
+            </div>
           </div>
         </div>
       </section>
@@ -237,7 +173,7 @@ function Home() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-fd-primary/2 dark:bg-fd-primary/4 rounded-full blur-[120px]" />
           <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[200px] bg-amber-500/3 dark:bg-amber-500/5 rounded-full blur-[100px]" />
         </div>
-        <div className="max-w-5xl mx-auto px-6 relative">
+        <div className="max-w-6xl mx-auto px-6 relative">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-black text-fd-foreground mb-4">
               Capabilities
@@ -274,55 +210,12 @@ function Home() {
         </div>
       </section>
 
-      {/* Assets callout */}
-      <section className="relative py-20 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-200 h-125 bg-green-500/3 dark:bg-green-500/5 rounded-full blur-[100px]" />
-        </div>
-        <div className="max-w-4xl mx-auto px-6 text-center relative">
-          <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full border border-green-500/20 bg-green-500/5 text-sm text-green-600 dark:text-green-400 mb-6">
-            <Image className="size-3" />
-            <span className="text-xs font-medium">Standalone Package</span>
-          </div>
-          <h2 className="text-3xl md:text-4xl font-black mb-4">
-            <span className="bg-linear-to-r from-green-400 via-emerald-500 to-teal-500 bg-clip-text text-transparent">
-              Need just PWA assets?
-            </span>
-          </h2>
-          <p className="text-fd-muted-foreground text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
-            <code className="text-sm bg-fd-muted px-1.5 py-0.5 rounded">
-              @swoff/assets
-            </code>{" "}
-            generates 50+ production-ready PWA assets from a single source image
-            — or a wordmark — including manifest and HTML head tags. No service
-            worker, no build tool, no framework required.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a
-              href="https://assets.swoff.space"
-              target="_blank"
-              rel="noreferrer"
-              className={buttonVariants({
-                className:
-                  "w-55 flex items-center justify-center bg-green-600 hover:bg-green-700 text-white font-bold h-12 text-[15px] rounded-lg gap-2 shadow-lg group",
-              })}
-            >
-              <Image className="size-4" />
-              Explore the Builder
-            </a>
-            <code className="h-12 px-4 flex items-center justify-center rounded-lg bg-fd-muted border border-fd-border text-sm font-mono text-fd-foreground">
-              npx @swoff/assets --source ./logo.svg
-            </code>
-          </div>
-        </div>
-      </section>
-
       {/* Integrations */}
       <section className="relative py-20 overflow-hidden">
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[250px] bg-sky-500/3 dark:bg-sky-500/5 rounded-full blur-[100px]" />
         </div>
-        <div className="max-w-5xl mx-auto px-6 relative">
+        <div className="max-w-6xl mx-auto px-6 relative">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-black mb-4">
               <span className="text-fd-foreground">Works with Everything</span>
@@ -372,12 +265,67 @@ function Home() {
         </div>
       </section>
 
+      {/* Assets callout */}
+      <section className="relative py-20 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-200 h-125 bg-green-500/3 dark:bg-green-500/5 rounded-full blur-[100px]" />
+        </div>
+        <div className="max-w-6xl mx-auto px-6 text-center relative">
+          <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full border border-green-500/20 bg-green-500/5 text-sm text-green-600 dark:text-green-400 mb-6">
+            <Image className="size-3" />
+            <span className="text-xs font-medium">Standalone Package</span>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-black mb-4">
+            <span className="bg-linear-to-r from-green-400 via-emerald-500 to-teal-500 bg-clip-text text-transparent">
+              Need just PWA assets?
+            </span>
+          </h2>
+          <p className="text-fd-muted-foreground text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
+            <code className="text-sm bg-fd-muted px-1.5 py-0.5 rounded">
+              @swoff/assets
+            </code>{" "}
+            generates 50+ production-ready PWA assets from a single source image
+            — or a wordmark — including manifest and HTML head tags. No service
+            worker, no build tool, no framework required.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a
+              href="https://assets.swoff.space"
+              target="_blank"
+              rel="noreferrer"
+              className={buttonVariants({
+                className:
+                  "w-55 flex items-center justify-center bg-green-600 hover:bg-green-700 text-white font-bold h-12 text-[15px] rounded-lg gap-2 shadow-lg group",
+              })}
+            >
+              <Image className="size-4" />
+              Explore the Builder
+            </a>
+            <code className="h-12 px-4 flex items-center justify-center rounded-lg bg-fd-muted border border-fd-border text-sm font-mono text-fd-foreground">
+              npx @swoff/assets --source ./logo.svg
+            </code>
+          </div>
+          <p className="text-sm text-fd-muted-foreground max-w-xl mx-auto mt-5">
+            Then paste the generated{" "}
+            <code className="text-xs bg-fd-muted px-1.5 py-0.5 rounded">
+              swoff-head-tags.html
+            </code>{" "}
+            into your HTML{" "}
+            <code className="text-xs bg-fd-muted px-1.5 py-0.5 rounded">
+              &lt;head&gt;
+            </code>{" "}
+            (or meta-framework head API) — the manifest and icons only take
+            effect once linked.
+          </p>
+        </div>
+      </section>
+
       {/* Final CTA */}
-      <section className="relative py-28 overflow-hidden">
+      <section className="relative py-28 overflow-hidden hidden">
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-fd-primary/5 dark:bg-fd-primary/8 rounded-full blur-[120px]" />
         </div>
-        <div className="max-w-5xl mx-auto px-6 text-center relative">
+        <div className="max-w-6xl mx-auto px-6 text-center relative">
           <h2 className="text-4xl md:text-5xl font-black mb-6">
             <span className="bg-linear-to-r from-fd-primary via-orange-400 to-amber-500 bg-clip-text text-transparent">
               Ready to ship?
@@ -417,8 +365,8 @@ function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-fd-border py-8">
-        <div className="max-w-5xl mx-auto px-6">
+      <footer className="py-8">
+        <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <span className="text-xs text-fd-muted-foreground">

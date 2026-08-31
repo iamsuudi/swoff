@@ -2,6 +2,14 @@
   "name": "swoff",
   "version": "1.0.0",
   "private": true,
+  "description": "Offline infrastructure for any stack — generated, auditable service worker and client runtime, plus a universal PWA asset generator.",
+  "license": "MIT",
+  "author": "Abdulfetah",
+  "homepage": "https://swoff.space",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iamsuudi/swoff"
+  },
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
